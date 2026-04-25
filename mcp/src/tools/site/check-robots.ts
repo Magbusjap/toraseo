@@ -5,6 +5,11 @@
  * the input URL with zod, delegates the work, and packages the result
  * for the MCP layer. No business logic lives here.
  *
+ * Day 6 placement:
+ *   Moved from flat `tools/check-robots.ts` to `tools/site/check-robots.ts`
+ *   alongside `scan-site.ts`, `analyze-meta.ts`, and `analyze-headings.ts`.
+ *   No logic changes; only relative-import depth changed (`../` → `../../`).
+ *
  * When to use this tool: the user wants to know whether a particular
  * URL is permitted for ToraSEO to scan, without actually scanning it.
  * Example questions Claude might handle with it:
@@ -14,7 +19,7 @@
 
 import { z } from "zod";
 
-import { checkRobots } from "../crawlers/robots-txt.js";
+import { checkRobots } from "../../crawlers/robots-txt.js";
 
 // --- Input schema --------------------------------------------------------
 

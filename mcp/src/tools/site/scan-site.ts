@@ -14,8 +14,15 @@
  *     HTTP request. The default 2s/host interval is raised when
  *     robots.txt advertises a larger Crawl-delay.
  *
+ * Day 6 placement:
+ *   Moved from flat `tools/scan-site.ts` to `tools/site/scan-site.ts`
+ *   alongside `analyze-meta.ts` and `analyze-headings.ts`. Mode A
+ *   tools now all live under `tools/site/`. No logic changes; only
+ *   relative-import depth changed (`../` → `../../`).
+ *
  * NOT in scope here (will be added in later tools):
- *   - OG / Twitter Cards / schema.org (future analyze_meta tool)
+ *   - OG / Twitter Cards / schema.org (analyze_meta — Day 5)
+ *   - Heading structure (analyze_headings — Day 6)
  *   - Multi-page crawling (intentionally out of scope forever — this
  *     tool is for one URL by design)
  *   - Owner / Polite / API-only tier modes (Stage 3)
@@ -24,9 +31,9 @@
 import * as cheerio from "cheerio";
 import { z } from "zod";
 
-import { checkRobots } from "../crawlers/robots-txt.js";
-import { awaitRateLimit } from "../crawlers/rate-limiter.js";
-import type { ScanSiteMinimalResult } from "../types.js";
+import { checkRobots } from "../../crawlers/robots-txt.js";
+import { awaitRateLimit } from "../../crawlers/rate-limiter.js";
+import type { ScanSiteMinimalResult } from "../../types.js";
 
 // --- Constants ------------------------------------------------------------
 

@@ -33,11 +33,11 @@ import {
   scanSiteMinimal,
   scanSiteMinimalInputSchema,
   ScanSiteError,
-} from "./tools/scan-site.js";
+} from "./tools/site/scan-site.js";
 import {
   checkRobots,
   checkRobotsInputSchema,
-} from "./tools/check-robots.js";
+} from "./tools/site/check-robots.js";
 import {
   analyzeMeta,
   analyzeMetaInputSchema,
