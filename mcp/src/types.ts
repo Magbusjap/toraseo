@@ -114,3 +114,131 @@ export interface CheckRobotsResult {
    */
   crawl_delay_seconds: number | null;
 }
+
+// =========================================================================
+// Mode A — Site Audit
+// =========================================================================
+//
+// Types below are for site-audit tools (URL-based). Mode B (content-audit,
+// text-based) types will be added when humanizer/readability tools are
+// implemented.
+
+/**
+ * A single finding produced by a site-audit analyzer. Designed for token
+ * efficiency: the consumer (Claude in chat, or a future dashboard) gets
+ * pre-computed verdicts rather than raw numbers it has to interpret.
+ *
+ * `severity` follows industry SEO-audit conventions:
+ *   - critical: blocks indexing or breaks the page experience (e.g. noindex,
+ *               missing title). User must fix before anything else matters.
+ *   - warning:  measurably suboptimal but not blocking (e.g. title 78 chars,
+ *               missing twitter:image). Worth fixing in normal cadence.
+ *   - info:     observed behavior worth noting but not requiring action
+ *               (e.g. "twitter cards inherit from OG, which is fine").
+ *
+ * `code` is a stable machine-readable identifier so future tooling can
+ * filter, group, or translate findings without parsing `message`.
+ */
+export interface MetaIssue {
+  severity: "critical" | "warning" | "info";
+  code: string;
+  message: string;
+}
+
+/**
+ * Result of meta-tag analysis for a single URL. Returned by the
+ * `analyze_meta` tool.
+ *
+ * The structure has four nested blocks (basic / open_graph / twitter /
+ * technical) that mirror how SEO professionals actually think about
+ * meta-tag audits, plus a top-level `issues` array with pre-computed
+ * verdicts for Claude.
+ *
+ * Out of scope for this tool (handled by other site-audit analyzers):
+ *   - <h1>..<h6> hierarchy        → analyze_headings
+ *   - JSON-LD / microdata schemas → analyze_schema
+ *   - sitemap.xml                 → analyze_sitemap
+ *   - Yandex-specific tags        → analyze_yandex (optional, post-MVP)
+ */
+export interface AnalyzeMetaResult {
+  /** Final URL after redirects. */
+  url: string;
+
+  /** HTTP status of the final response. */
+  status: number;
+
+  /** Wall-clock duration of the analysis (network + parse) in ms. */
+  response_time_ms: number;
+
+  /** Pre-computed verdicts. The most important field for Claude. */
+  issues: MetaIssue[];
+
+  /** Standard SEO meta tags. */
+  basic: {
+    /** <title> contents and length, or null if missing. */
+    title: { value: string; length_chars: number } | null;
+
+    /** <meta name="description"> contents, or null if missing. */
+    description: { value: string; length_chars: number } | null;
+
+    /**
+     * <meta name="robots"> directives. `indexable: false` when the value
+     * contains `noindex` (case-insensitive). Absent meta robots is
+     * treated as indexable: true.
+     */
+    robots: { value: string; indexable: boolean } | null;
+
+    /**
+     * <link rel="canonical"> target. `points_to_self` is true when the
+     * canonical equals the requested URL after normalization (trailing
+     * slash, fragment stripped); false signals an intentional canonical
+     * elsewhere or a misconfiguration.
+     */
+    canonical: {
+      value: string;
+      is_absolute: boolean;
+      points_to_self: boolean;
+    } | null;
+  };
+
+  /** Open Graph tags (used by Facebook, LinkedIn, Telegram, Slack, etc.). */
+  open_graph: {
+    title: string | null;
+    description: string | null;
+    image: string | null;
+    url: string | null;
+    type: string | null;
+    /** How many of the 5 core OG tags above are present (0..5). */
+    completeness: number;
+  };
+
+  /**
+   * Twitter Card tags. Per Twitter's spec, when twitter:* is missing,
+   * the renderer falls back to og:* equivalents — so we report the
+   * EFFECTIVE values, marking which ones are inherited.
+   */
+  twitter: {
+    card: string | null;
+    title: string | null;
+    description: string | null;
+    image: string | null;
+    /** Which of title/description/image fell back to OG. */
+    inherits_from_og: {
+      title: boolean;
+      description: boolean;
+      image: boolean;
+    };
+    /** How many of the 4 core Twitter tags are effectively present (0..4). */
+    completeness: number;
+  };
+
+  /** Page-level technical tags affecting rendering and crawling. */
+  technical: {
+    /** <meta charset> or HTTP-equiv content-type charset. */
+    charset: string | null;
+    /** <meta name="viewport"> contents. Mobile-friendly when present. */
+    viewport: string | null;
+    /** <html lang="..."> attribute. */
+    html_lang: string | null;
+  };
+}

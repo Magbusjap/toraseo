@@ -5,14 +5,21 @@
  * Launches as a child process under Claude Desktop, communicates over
  * stdio JSON-RPC, and exposes tools that perform SEO analysis.
  *
- * Day 4 scope: two tools.
+ * Day 5 scope: three tools.
  *   - `scan_site_minimal`     — fetch a single URL with full crawler
  *                               etiquette (robots.txt + rate limit).
  *   - `check_robots_txt`      — check whether ToraSEO is allowed to
  *                               scan a URL, without actually scanning.
+ *   - `analyze_meta`          — extract title/description/OG/Twitter/
+ *                               canonical/charset/viewport with
+ *                               severity-tagged verdicts.
  *
- * The next big addition (Day 5+) is the first SEO analyzer that goes
- * beyond raw signals (`analyze_meta`).
+ * Tool grouping (per `wiki/toraseo/product-modes.md`):
+ *   Mode A — Site Audit:    scan_site_minimal, check_robots_txt, analyze_meta
+ *   Mode B — Content Audit: (none yet)
+ *
+ * The next big addition (Day 6+) is one of: analyze_headings,
+ * analyze_schema, analyze_sitemap.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -27,6 +34,11 @@ import {
   checkRobots,
   checkRobotsInputSchema,
 } from "./tools/check-robots.js";
+import {
+  analyzeMeta,
+  analyzeMetaInputSchema,
+  AnalyzeMetaError,
+} from "./tools/site/analyze-meta.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -35,7 +47,7 @@ const server = new McpServer({
   version: "0.0.1",
 });
 
-// --- Tools ----------------------------------------------------------------
+// --- Tools: Mode A (Site Audit) ------------------------------------------
 
 server.registerTool(
   "scan_site_minimal",
@@ -105,9 +117,6 @@ server.registerTool(
         ],
       };
     } catch (error: unknown) {
-      // checkRobots is designed never to throw on operational failure
-      // (it returns allowed: false / robots_unreachable instead). Any
-      // exception here is genuinely unexpected — surface it as such.
       return {
         isError: true,
         content: [
@@ -116,6 +125,52 @@ server.registerTool(
             text: `[unexpected] ${
               error instanceof Error ? error.message : String(error)
             }`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.registerTool(
+  "analyze_meta",
+  {
+    title: "Analyze Meta Tags",
+    description:
+      "Audits a single page's meta tags across four blocks: basic SEO " +
+      "(title, description, robots, canonical), Open Graph (title, " +
+      "description, image, url, type), Twitter Cards (with OG fallback " +
+      "detection), and page-level technical tags (charset, viewport, " +
+      "html lang). Returns raw values plus a list of severity-tagged " +
+      "verdicts (critical / warning / info) ready to display. " +
+      "Honors robots.txt and rate limits. " +
+      "Use this when the user wants a meta-tag audit of a specific page.",
+    inputSchema: analyzeMetaInputSchema,
+  },
+  async ({ url }) => {
+    try {
+      const result = await analyzeMeta(url);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorText =
+        error instanceof AnalyzeMetaError
+          ? `[${error.code}] ${error.message}`
+          : `[unexpected] ${
+              error instanceof Error ? error.message : String(error)
+            }`;
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: errorText,
           },
         ],
       };
