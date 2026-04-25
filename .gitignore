@@ -24,7 +24,6 @@ desktop.ini
 # IDE and editor files
 # ============================================
 .idea/
-.vscode/
 *.swp
 *.swo
 *~
@@ -33,6 +32,13 @@ desktop.ini
 *.sublime-project
 *.sublime-workspace
 .obsidian/
+
+# .vscode/ — исключаем всё личное, но коммитим проектные настройки
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # ============================================
 # Node.js (for MCP server and app frontend)

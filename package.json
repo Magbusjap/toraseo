@@ -1,0 +1,39 @@
+{
+  "name": "toraseo",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Open-source SEO toolkit: Claude Skill + MCP server + visual dashboard",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Mikhail Ankudinov",
+    "email": "magbusjap@gmail.com",
+    "url": "https://github.com/Magbusjap"
+  },
+  "homepage": "https://github.com/Magbusjap/toraseo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Magbusjap/toraseo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Magbusjap/toraseo/issues"
+  },
+  "keywords": [
+    "seo",
+    "mcp",
+    "claude",
+    "anthropic",
+    "ai",
+    "yandex",
+    "google",
+    "humanizer"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
+  "scripts": {
+    "build:mcp": "npm run build --prefix mcp",
+    "dev:mcp": "npm run dev --prefix mcp",
+    "test:mcp": "npm run test --prefix mcp"
+  }
+}
