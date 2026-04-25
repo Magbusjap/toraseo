@@ -566,3 +566,119 @@ export interface CheckRedirectsResult {
    */
   chain: RedirectStep[];
 }
+
+/**
+ * A single finding produced by the content analyzer. Same shape as
+ * the other Mode-A issue types — distinct so future tooling can
+ * discriminate by source without parsing message text.
+ */
+export interface ContentIssue {
+  severity: "critical" | "warning" | "info";
+  code: string;
+  message: string;
+}
+
+/**
+ * Result of content analysis for a single URL. Returned by the
+ * `analyze_content` tool.
+ *
+ * The tool extracts the main content area using a cascade of
+ * semantic landmarks (〈article〉 → 〈main〉 → 〈body〉 minus header/nav/
+ * footer/aside) and computes basic SEO-relevant metrics over it:
+ * word count, paragraph count, link/image inventories, text-to-code
+ * ratio.
+ *
+ * Out of scope (deliberate, for MVP):
+ *   - Readability scores (Flesch, Coleman-Liau) — belongs to Mode B
+ *     content audit, not site audit
+ *   - Language detection — needs ML or large frequency tables
+ *   - Heuristic content extraction (Mozilla Readability algorithm)
+ *     — future opt-in via `extraction_mode` parameter
+ *   - Keyword density — deprecated SEO concept; we don't compute it
+ *   - CJK-aware word boundaries — Intl.Segmenter handles characters
+ *     better than "words" for those languages
+ */
+export interface AnalyzeContentResult {
+  /** Final URL after redirects. */
+  url: string;
+
+  /** HTTP status of the final response. */
+  status: number;
+
+  /** Wall-clock duration of the analysis (network + parse) in ms. */
+  response_time_ms: number;
+
+  /** Pre-computed verdicts. The most important field for Claude. */
+  issues: ContentIssue[];
+
+  /** Aggregate metrics computed over the extracted main content. */
+  summary: {
+    /**
+     * Which strategy was used to identify the main content. Useful
+     * for explaining surprising counts ("why is word_count so low?").
+     *   - "article"   — page has 〈article〉, used it
+     *   - "main"      — no article but 〈main〉 present
+     *   - "body_minus_landmarks" — stripped header/nav/footer/aside from body
+     *   - "body"      — fallback when none of the above were sensible
+     *                  (e.g. body itself is a landmark, which is malformed)
+     */
+    extraction_method:
+      | "article"
+      | "main"
+      | "body_minus_landmarks"
+      | "body";
+
+    /** Number of words in the extracted content. */
+    word_count: number;
+
+    /**
+     * Number of characters (after whitespace normalization). Useful
+     * for CJK content where "words" undercount actual text volume.
+     */
+    character_count: number;
+
+    /**
+     * Approximate sentence count. Counts terminators `.`, `!`, `?`
+     * outside of common abbreviation patterns. Best-effort heuristic,
+     * not linguistically precise.
+     */
+    sentence_count: number;
+
+    /** Number of 〈p〉 elements within the extracted content. */
+    paragraph_count: number;
+
+    /**
+     * Mean words per sentence. Null when sentence_count is 0 (avoids
+     * division by zero and is the honest answer).
+     */
+    average_words_per_sentence: number | null;
+
+    /**
+     * Ratio of visible text length to total HTML length, 0..1.
+     * Computed as: text_length / html_length over the WHOLE document
+     * (not just extracted content), per industry convention.
+     * < 0.10 is a common "thin" threshold; < 0.03 is alarming.
+     */
+    text_to_code_ratio: number;
+  };
+
+  /** Link inventory within the extracted content. */
+  links: {
+    /** 〈a href〉 count where href resolves to the same host. */
+    internal: number;
+    /** 〈a href〉 count where href resolves to a different host. */
+    external: number;
+    /** 〈a href〉 count where href is invalid or missing. */
+    invalid: number;
+  };
+
+  /** Image inventory within the extracted content. */
+  images: {
+    /** Total 〈img〉 count. */
+    total: number;
+    /** Count with non-empty alt attribute. */
+    with_alt: number;
+    /** Count with missing or empty alt. */
+    without_alt: number;
+  };
+}

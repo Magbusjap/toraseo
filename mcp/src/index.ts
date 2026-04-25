@@ -24,15 +24,23 @@
  *                               (HEAD with GET fallback), detect
  *                               loops, broken steps, downgrades, and
  *                               terminal failures.
+ *   - `analyze_content`       — extract main content via semantic
+ *                               cascade (article → main → body minus
+ *                               landmarks), compute word/sentence/
+ *                               paragraph counts, text-to-code ratio,
+ *                               link/image inventories with verdicts.
  *
  * Tool grouping (per `wiki/toraseo/product-modes.md`):
  *   Mode A — Site Audit:    scan_site_minimal, check_robots_txt,
  *                            analyze_meta, analyze_headings,
- *                            analyze_sitemap, check_redirects
+ *                            analyze_sitemap, check_redirects,
+ *                            analyze_content
  *   Mode B — Content Audit: (none yet)
  *
- * Remaining MVP tools for Mode A (per product-modes.md):
- *   analyze_schema, analyze_content.
+ * Mode A MVP is now complete (7 of 7 standard checks per
+ * product-modes.md). Schema.org analysis is intentionally deferred
+ * to post-MVP (see day-9 wiki for rationale). Next step is the
+ * SKILL.md that orchestrates these tools into a guided audit flow.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -67,6 +75,11 @@ import {
   checkRedirectsInputSchema,
   CheckRedirectsError,
 } from "./tools/site/check-redirects.js";
+import {
+  analyzeContent,
+  analyzeContentInputSchema,
+  AnalyzeContentError,
+} from "./tools/site/analyze-content.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -335,6 +348,56 @@ server.registerTool(
     } catch (error: unknown) {
       const errorText =
         error instanceof CheckRedirectsError
+          ? `[${error.code}] ${error.message}`
+          : `[unexpected] ${
+              error instanceof Error ? error.message : String(error)
+            }`;
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: errorText,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.registerTool(
+  "analyze_content",
+  {
+    title: "Analyze Page Content",
+    description:
+      "Identifies the main content of a page using a semantic cascade " +
+      "(<article> if present, otherwise <main>, otherwise <body> with " +
+      "<header>/<nav>/<footer>/<aside> stripped). Reports word count, " +
+      "character count, sentence count, paragraph count, average words " +
+      "per sentence, text-to-code ratio over the whole document, plus " +
+      "inventories of internal/external/invalid links and images with/" +
+      "without alt text. Surfaces severity-tagged verdicts: thin or " +
+      "borderline content (Yoast thresholds 300/600 words), low or " +
+      "very-low text-to-code ratio (10% / 3% thresholds), missing " +
+      "paragraphs on text-heavy pages, many external links, no internal " +
+      "links on substantial content, missing alts on the majority or " +
+      "all images. Honors robots.txt and per-host rate limits.",
+    inputSchema: analyzeContentInputSchema,
+  },
+  async ({ url }) => {
+    try {
+      const result = await analyzeContent(url);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorText =
+        error instanceof AnalyzeContentError
           ? `[${error.code}] ${error.message}`
           : `[unexpected] ${
               error instanceof Error ? error.message : String(error)
