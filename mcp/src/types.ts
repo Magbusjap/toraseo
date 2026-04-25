@@ -479,3 +479,90 @@ export interface AnalyzeSitemapResult {
    */
   child_sitemaps: SitemapIndexEntry[];
 }
+
+/**
+ * A single finding produced by the redirect checker. Same shape as
+ * the other Mode-A issue types — distinct so future tooling can
+ * discriminate by source without parsing message text.
+ */
+export interface RedirectIssue {
+  severity: "critical" | "warning" | "info";
+  code: string;
+  message: string;
+}
+
+/**
+ * One step in a redirect chain. The chain always starts with the
+ * input URL and ends at the first non-3xx response (or where we
+ * stopped due to limits).
+ *
+ * `location` is the value of the Location header as the server sent
+ * it — it can be relative (e.g. "/foo") or absolute. The next entry's
+ * `url` is the resolved absolute form, regardless. `is_absolute`
+ * captures the raw form so downstream verdicts can flag relative
+ * Location headers as a code-smell.
+ *
+ * For the LAST step of the chain (the terminal response), `location`
+ * is null because there is no further redirect.
+ */
+export interface RedirectStep {
+  /** URL that was requested at this step (resolved absolute form). */
+  url: string;
+  /** HTTP status returned at this step. */
+  status: number;
+  /** Raw Location header value, or null if this is the terminal step. */
+  location: string | null;
+  /** Whether the Location header was an absolute URL. False for null. */
+  is_absolute: boolean;
+  /** HTTP method used (HEAD, or GET on fallback). */
+  method: "HEAD" | "GET";
+}
+
+/**
+ * Result of redirect-chain analysis. Returned by the `check_redirects`
+ * tool.
+ *
+ * The chain always contains at least one entry (the input URL itself).
+ * For a URL that responds 200 directly, `chain` has exactly one entry
+ * with `status: 200, location: null` and `total_hops: 0`.
+ *
+ * Out of scope (deliberate, for MVP):
+ *   - Following redirects to a different host with cookies/auth
+ *     (we are stateless; cross-host SSO redirects look like normal
+ *     redirects to us)
+ *   - JavaScript-driven redirects (location.href, meta refresh) —
+ *     would require a real browser. Future opt-in tool.
+ *   - Verifying SSL certificate chain quality (separate concern)
+ */
+export interface CheckRedirectsResult {
+  /** The URL the caller asked us to inspect. */
+  url: string;
+
+  /**
+   * The URL where the chain ended. Equal to `url` when there were no
+   * redirects (chain length 1).
+   */
+  final_url: string;
+
+  /** HTTP status of the terminal response. */
+  final_status: number;
+
+  /**
+   * Number of redirects followed. Equals `chain.length - 1`. Zero
+   * when the input URL responds 2xx/4xx/5xx directly.
+   */
+  total_hops: number;
+
+  /** Wall-clock time of the entire chain walk, ms. */
+  response_time_ms: number;
+
+  /** Pre-computed verdicts. The most important field for Claude. */
+  issues: RedirectIssue[];
+
+  /**
+   * Every step of the chain, in order. The first entry is always the
+   * input URL. The last entry is the terminal response (status not in
+   * 3xx, or the step where we hit a limit / loop).
+   */
+  chain: RedirectStep[];
+}

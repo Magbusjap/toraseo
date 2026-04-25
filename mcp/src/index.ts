@@ -20,15 +20,19 @@
  *                               /sitemap.xml fallback), parse
  *                               <urlset> or <sitemapindex>, report
  *                               structural issues with sampled entries.
+ *   - `check_redirects`       — walk the HTTP redirect chain manually
+ *                               (HEAD with GET fallback), detect
+ *                               loops, broken steps, downgrades, and
+ *                               terminal failures.
  *
  * Tool grouping (per `wiki/toraseo/product-modes.md`):
  *   Mode A — Site Audit:    scan_site_minimal, check_robots_txt,
  *                            analyze_meta, analyze_headings,
- *                            analyze_sitemap
+ *                            analyze_sitemap, check_redirects
  *   Mode B — Content Audit: (none yet)
  *
  * Remaining MVP tools for Mode A (per product-modes.md):
- *   check_redirects, analyze_schema, analyze_content.
+ *   analyze_schema, analyze_content.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -58,6 +62,11 @@ import {
   analyzeSitemapInputSchema,
   AnalyzeSitemapError,
 } from "./tools/site/analyze-sitemap.js";
+import {
+  checkRedirects,
+  checkRedirectsInputSchema,
+  CheckRedirectsError,
+} from "./tools/site/check-redirects.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -277,6 +286,55 @@ server.registerTool(
     } catch (error: unknown) {
       const errorText =
         error instanceof AnalyzeSitemapError
+          ? `[${error.code}] ${error.message}`
+          : `[unexpected] ${
+              error instanceof Error ? error.message : String(error)
+            }`;
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: errorText,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.registerTool(
+  "check_redirects",
+  {
+    title: "Check Redirects",
+    description:
+      "Walks the HTTP redirect chain starting at the given URL, one " +
+      "step at a time, using HEAD requests (with GET fallback if the " +
+      "server returns 405/501). Returns the full chain as an ordered " +
+      "list of steps — each with URL, status, Location header, and " +
+      "method used — plus severity-tagged verdicts: redirect loops, " +
+      "broken redirects (3xx without Location), terminal failures " +
+      "(chain ending in 4xx/5xx), HTTPS→HTTP downgrades, chains over " +
+      "the SEO recommendation of 2 hops, relative Location headers, " +
+      "and the no-redirect happy case. Caps at 10 hops and detects " +
+      "loops via URL set membership. Honors robots.txt at the entry " +
+      "point and per-host rate limits at every step.",
+    inputSchema: checkRedirectsInputSchema,
+  },
+  async ({ url }) => {
+    try {
+      const result = await checkRedirects(url);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorText =
+        error instanceof CheckRedirectsError
           ? `[${error.code}] ${error.message}`
           : `[unexpected] ${
               error instanceof Error ? error.message : String(error)
