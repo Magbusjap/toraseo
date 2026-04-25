@@ -1,0 +1,44 @@
+{
+  "name": "@toraseo/mcp",
+  "version": "0.0.1",
+  "private": true,
+  "description": "ToraSEO MCP server — exposes SEO tools to Claude and other MCP-compatible AI clients",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Mikhail Ankudinov",
+    "email": "magbusjap@gmail.com",
+    "url": "https://github.com/Magbusjap"
+  },
+  "homepage": "https://github.com/Magbusjap/toraseo#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Magbusjap/toraseo.git",
+    "directory": "mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/Magbusjap/toraseo/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "toraseo-mcp": "./dist/index.js"
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "clean": "node -e \"import('node:fs').then(fs => fs.rmSync('dist', { recursive: true, force: true }))\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}
