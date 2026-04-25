@@ -2,20 +2,23 @@
 /**
  * ToraSEO MCP Server — entry point.
  *
- * This file is the executable that Claude Desktop launches as a child
- * process. Communication happens over stdio (stdin/stdout) using the
- * MCP JSON-RPC protocol.
+ * Launches as a child process under Claude Desktop, communicates over
+ * stdio JSON-RPC, and exposes tools that perform SEO analysis.
  *
- * Day 2 scope: a single zero-argument tool that returns a static string.
- * The goal is to prove the architecture works end-to-end:
- *   Claude Desktop ← stdio → this server → response back to Claude.
- *
- * Real SEO tools (scan_site, check_robots_txt, etc.) will be added on
- * Day 3 and beyond.
+ * Day 3 scope: a single tool — `scan_site_minimal` — that fetches one
+ * URL and returns five SEO signals (title, h1, meta description,
+ * status, response time). Real crawler infrastructure (robots.txt,
+ * rate limiter, three-tier modes) lands on Day 4.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+import {
+  scanSiteMinimal,
+  scanSiteMinimalInputSchema,
+  ScanSiteError,
+} from "./tools/scan-site.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -26,29 +29,46 @@ const server = new McpServer({
 
 // --- Tools ----------------------------------------------------------------
 
-/**
- * `hello` tool — proof of life.
- *
- * Takes no arguments. Returns a fixed string identifying the server.
- * Will be removed once real SEO tools land.
- */
 server.registerTool(
-  "hello",
+  "scan_site_minimal",
   {
-    title: "ToraSEO Hello",
+    title: "Scan Site (Minimal)",
     description:
-      "Returns a greeting from the ToraSEO MCP server. Use this to verify " +
-      "the server is connected and reachable. Takes no arguments.",
+      "Fetches a single URL and returns five basic SEO signals: " +
+      "final URL after redirects, HTTP status, page title, first H1, " +
+      "meta description, and response time in milliseconds. " +
+      "Use this for a quick check of a single page. Does not crawl, " +
+      "does not follow links, does not read robots.txt yet.",
+    inputSchema: scanSiteMinimalInputSchema,
   },
-  async () => {
-    return {
-      content: [
-        {
-          type: "text",
-          text: "🐯 Hello from ToraSEO MCP server v0.0.1. Connection works.",
-        },
-      ],
-    };
+  async ({ url }) => {
+    try {
+      const result = await scanSiteMinimal(url);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorText =
+        error instanceof ScanSiteError
+          ? `[${error.code}] ${error.message}`
+          : `[unexpected] ${
+              error instanceof Error ? error.message : String(error)
+            }`;
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: errorText,
+          },
+        ],
+      };
+    }
   },
 );
 
@@ -57,8 +77,6 @@ server.registerTool(
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  // Note: do NOT write anything to stdout here. stdout is reserved for
-  // MCP protocol messages. Diagnostic output goes to stderr only.
   process.stderr.write("ToraSEO MCP server started on stdio.\n");
 }
 
