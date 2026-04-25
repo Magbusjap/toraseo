@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 120" width="480" height="240" role="img">
+  <title>ToraSEO circular seal logo</title>
+  <desc>Japanese hanko-style circular seal with the tora chibi face inside, accompanied by the kanji 虎 and TORA SEO wordmark.</desc>
+  <g transform="translate(10, 5)">
+    <circle cx="55" cy="55" r="55" fill="#FF6B35" stroke="#2A1810" stroke-width="2"/>
+    <circle cx="55" cy="55" r="48" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+    <g transform="translate(15, 18) scale(0.55)">
+      <circle cx="60" cy="62" r="48" fill="#FFFFFF" stroke="#2A1810" stroke-width="3"/>
+      <ellipse cx="28" cy="28" rx="10" ry="13" fill="#FFFFFF" stroke="#2A1810" stroke-width="3" transform="rotate(-25 28 28)"/>
+      <ellipse cx="92" cy="28" rx="10" ry="13" fill="#FFFFFF" stroke="#2A1810" stroke-width="3" transform="rotate(25 92 28)"/>
+      <path d="M 22 18 Q 28 8 36 14 Q 30 22 22 18 Z" fill="#1A0F08"/>
+      <path d="M 50 8 Q 60 0 70 8 Q 60 16 50 8 Z" fill="#1A0F08"/>
+      <path d="M 84 14 Q 92 8 98 18 Q 90 22 84 14 Z" fill="#1A0F08"/>
+      <path d="M 18 38 Q 14 50 22 60 Q 28 50 18 38 Z" fill="#1A0F08"/>
+      <path d="M 102 38 Q 106 50 98 60 Q 92 50 102 38 Z" fill="#1A0F08"/>
+      <circle cx="44" cy="65" r="11" fill="#1A0F08"/>
+      <circle cx="76" cy="65" r="11" fill="#1A0F08"/>
+      <circle cx="46" cy="61" r="4" fill="#FFFFFF"/>
+      <circle cx="78" cy="61" r="4" fill="#FFFFFF"/>
+      <ellipse cx="60" cy="80" rx="5" ry="4" fill="#1A0F08"/>
+      <path d="M 60 86 Q 53 92 47 90" stroke="#2A1810" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M 60 86 Q 67 92 73 90" stroke="#2A1810" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </g>
+    <text x="140" y="55" font-family="serif" font-size="38" font-weight="400" fill="#1A1A1A">虎</text>
+    <text x="140" y="90" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14" font-weight="500" fill="#FF6B35" letter-spacing="2">TORA · SEO</text>
+  </g>
+</svg>

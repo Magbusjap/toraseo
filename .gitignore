@@ -1,0 +1,134 @@
+# ToraSEO .gitignore
+# Defines what should NOT be committed to git/GitHub
+
+# ============================================
+# PRIVATE STRATEGIC DOCUMENTS — never commit
+# ============================================
+private/
+NOTES.private.md
+TODO.private.md
+
+# ============================================
+# Operating system files
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ============================================
+# IDE and editor files
+# ============================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+*.sublime-project
+*.sublime-workspace
+.obsidian/
+
+# ============================================
+# Node.js (for MCP server and app frontend)
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+package-lock.json.bak
+.npm/
+
+# ============================================
+# Tauri / Rust (for app)
+# ============================================
+target/
+*.rs.bk
+Cargo.lock
+src-tauri/target/
+src-tauri/WixTools/
+
+# ============================================
+# Build artifacts
+# ============================================
+dist/
+build/
+out/
+*.exe
+*.dmg
+*.deb
+*.rpm
+*.AppImage
+*.app
+
+# ============================================
+# Environment variables and secrets
+# ============================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+credentials.json
+api-keys.json
+
+# ============================================
+# Logs
+# ============================================
+*.log
+logs/
+*.log.*
+
+# ============================================
+# Cache directories
+# ============================================
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.svelte-kit/
+
+# ============================================
+# Test coverage
+# ============================================
+coverage/
+.nyc_output/
+*.lcov
+
+# ============================================
+# Tauri-specific
+# ============================================
+src-tauri/target/
+src-tauri/gen/
+
+# ============================================
+# Temporary and backup files
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+~$*
+
+# ============================================
+# Penpot exports (raw, before processing)
+# ============================================
+branding/_raw/
+branding/_drafts/
+branding/_exports/
+
+# ============================================
+# Local development overrides
+# ============================================
+config.local.json
+config.local.js
+.local/

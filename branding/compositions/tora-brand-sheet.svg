@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 1000" width="1360" height="2000" role="img">
+  <title>ToraSEO complete brand sheet</title>
+  <desc>Complete brand identity sheet for ToraSEO including 6 mascot emotions, horizontal logo, circular seal, favicons in 3 sizes, and color palette.</desc>
+
+  <defs>
+    <radialGradient id="eyeGrad" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0%" stop-color="#FFD27A"/>
+      <stop offset="50%" stop-color="#FFA500"/>
+      <stop offset="100%" stop-color="#8B4513"/>
+    </radialGradient>
+    <radialGradient id="bodyGrad" cx="0.5" cy="0.4" r="0.8">
+      <stop offset="0%" stop-color="#FF8555"/>
+      <stop offset="100%" stop-color="#E85A28"/>
+    </radialGradient>
+    <style>
+      .lbl { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14px; font-weight: 500; fill: #1A1A1A; }
+      .sub { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; fill: #666; }
+      .section { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; font-weight: 500; fill: #1A1A1A; }
+    </style>
+  </defs>
+
+  <!-- Section: Mascot emotions -->
+  <text x="40" y="30" class="section">Маскот · 6 эмоций</text>
+  <line x1="40" y1="40" x2="640" y2="40" stroke="#CCCCCC" stroke-width="0.5"/>
+
+  <!-- POSE 1: NEUTRAL -->
+  <g transform="translate(80, 60)">
+    <ellipse cx="60" cy="180" rx="42" ry="6" fill="#1A1A1A" opacity="0.15"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <ellipse cx="60" cy="120" rx="42" ry="35" fill="url(#bodyGrad)"/>
+      <ellipse cx="42" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="78" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="22" cy="115" rx="9" ry="14" fill="url(#bodyGrad)"/>
+      <ellipse cx="98" cy="115" rx="9" ry="14" fill="url(#bodyGrad)"/>
+    </g>
+    <path d="M 100 130 Q 130 125 125 100" stroke="#2A1810" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <path d="M 100 130 Q 130 125 125 100" stroke="#FF6B35" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <circle cx="60" cy="62" r="48" fill="url(#bodyGrad)"/>
+      <ellipse cx="28" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(-25 28 28)"/>
+      <ellipse cx="92" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(25 92 28)"/>
+    </g>
+    <ellipse cx="60" cy="125" rx="32" ry="22" fill="#FFFFFF"/>
+    <ellipse cx="60" cy="72" rx="32" ry="26" fill="#FFFFFF"/>
+    <ellipse cx="28" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(-25 28 30)"/>
+    <ellipse cx="92" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(25 92 30)"/>
+    <path d="M 22 18 Q 28 8 36 14 Q 30 22 22 18 Z" fill="#1A0F08"/>
+    <path d="M 50 8 Q 60 0 70 8 Q 60 16 50 8 Z" fill="#1A0F08"/>
+    <path d="M 84 14 Q 92 8 98 18 Q 90 22 84 14 Z" fill="#1A0F08"/>
+    <path d="M 18 38 Q 14 50 22 60 Q 28 50 18 38 Z" fill="#1A0F08"/>
+    <path d="M 102 38 Q 106 50 98 60 Q 92 50 102 38 Z" fill="#1A0F08"/>
+    <path d="M 50 28 Q 54 36 50 44 Q 46 36 50 28 Z" fill="#1A0F08"/>
+    <path d="M 70 28 Q 66 36 70 44 Q 74 36 70 28 Z" fill="#1A0F08"/>
+    <path d="M 18 100 Q 14 115 22 128 Q 28 115 18 100 Z" fill="#1A0F08"/>
+    <path d="M 102 100 Q 106 115 98 128 Q 92 115 102 100 Z" fill="#1A0F08"/>
+    <path d="M 32 105 Q 28 118 36 128 L 32 105 Z" fill="#1A0F08"/>
+    <path d="M 88 105 Q 92 118 84 128 L 88 105 Z" fill="#1A0F08"/>
+    <ellipse cx="44" cy="65" rx="10" ry="11" fill="url(#eyeGrad)" stroke="#2A1810" stroke-width="1.5"/>
+    <ellipse cx="76" cy="65" rx="10" ry="11" fill="url(#eyeGrad)" stroke="#2A1810" stroke-width="1.5"/>
+    <ellipse cx="44" cy="67" rx="5" ry="6" fill="#1A0F08"/>
+    <ellipse cx="76" cy="67" rx="5" ry="6" fill="#1A0F08"/>
+    <circle cx="46" cy="63" r="2.5" fill="#FFFFFF"/>
+    <circle cx="78" cy="63" r="2.5" fill="#FFFFFF"/>
+    <circle cx="42" cy="68" r="1" fill="#FFFFFF"/>
+    <circle cx="74" cy="68" r="1" fill="#FFFFFF"/>
+    <ellipse cx="60" cy="80" rx="4" ry="3" fill="#1A0F08"/>
+    <path d="M 60 84 Q 55 90 50 88" stroke="#2A1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M 60 84 Q 65 90 70 88" stroke="#2A1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="140" y="270" class="lbl" text-anchor="middle">Нейтральный</text>
+  <text x="140" y="286" class="sub" text-anchor="middle">главный логотип</text>
+
+  <!-- POSE 2: HAPPY -->
+  <g transform="translate(280, 60)">
+    <ellipse cx="60" cy="180" rx="42" ry="6" fill="#1A1A1A" opacity="0.15"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <ellipse cx="60" cy="120" rx="42" ry="35" fill="url(#bodyGrad)"/>
+      <ellipse cx="42" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="78" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="20" cy="92" rx="9" ry="14" fill="url(#bodyGrad)" transform="rotate(-30 20 92)"/>
+      <ellipse cx="100" cy="92" rx="9" ry="14" fill="url(#bodyGrad)" transform="rotate(30 100 92)"/>
+    </g>
+    <path d="M 100 125 Q 135 100 130 75" stroke="#2A1810" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <path d="M 100 125 Q 135 100 130 75" stroke="#FF6B35" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <circle cx="60" cy="62" r="48" fill="url(#bodyGrad)"/>
+      <ellipse cx="28" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(-25 28 28)"/>
+      <ellipse cx="92" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(25 92 28)"/>
+    </g>
+    <ellipse cx="60" cy="125" rx="32" ry="22" fill="#FFFFFF"/>
+    <ellipse cx="60" cy="72" rx="32" ry="26" fill="#FFFFFF"/>
+    <ellipse cx="28" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(-25 28 30)"/>
+    <ellipse cx="92" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(25 92 30)"/>
+    <path d="M 22 18 Q 28 8 36 14 Q 30 22 22 18 Z" fill="#1A0F08"/>
+    <path d="M 50 8 Q 60 0 70 8 Q 60 16 50 8 Z" fill="#1A0F08"/>
+    <path d="M 84 14 Q 92 8 98 18 Q 90 22 84 14 Z" fill="#1A0F08"/>
+    <path d="M 18 38 Q 14 50 22 60 Q 28 50 18 38 Z" fill="#1A0F08"/>
+    <path d="M 102 38 Q 106 50 98 60 Q 92 50 102 38 Z" fill="#1A0F08"/>
+    <path d="M 50 28 Q 54 36 50 44 Q 46 36 50 28 Z" fill="#1A0F08"/>
+    <path d="M 70 28 Q 66 36 70 44 Q 74 36 70 28 Z" fill="#1A0F08"/>
+    <path d="M 18 100 Q 14 115 22 128 Q 28 115 18 100 Z" fill="#1A0F08"/>
+    <path d="M 102 100 Q 106 115 98 128 Q 92 115 102 100 Z" fill="#1A0F08"/>
+    <path d="M 32 105 Q 28 118 36 128 L 32 105 Z" fill="#1A0F08"/>
+    <path d="M 88 105 Q 92 118 84 128 L 88 105 Z" fill="#1A0F08"/>
+    <path d="M 34 67 Q 44 56 54 67" stroke="#2A1810" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M 66 67 Q 76 56 86 67" stroke="#2A1810" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="36" cy="80" rx="6" ry="3.5" fill="#FF9999" opacity="0.7"/>
+    <ellipse cx="84" cy="80" rx="6" ry="3.5" fill="#FF9999" opacity="0.7"/>
+    <ellipse cx="60" cy="80" rx="4" ry="3" fill="#1A0F08"/>
+    <path d="M 48 86 Q 60 96 72 86" stroke="#2A1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M 56 88 L 56 92 L 53 90 Z" fill="#FFFFFF" stroke="#2A1810" stroke-width="1"/>
+  </g>
+  <text x="340" y="270" class="lbl" text-anchor="middle">Радостный</text>
+  <text x="340" y="286" class="sub" text-anchor="middle">сайт в топе</text>
+
+  <!-- POSE 3: FOCUSED -->
+  <g transform="translate(480, 60)">
+    <ellipse cx="60" cy="180" rx="42" ry="6" fill="#1A1A1A" opacity="0.15"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <ellipse cx="60" cy="120" rx="42" ry="35" fill="url(#bodyGrad)"/>
+      <ellipse cx="42" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="78" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="22" cy="115" rx="9" ry="14" fill="url(#bodyGrad)"/>
+      <ellipse cx="105" cy="105" rx="9" ry="14" fill="url(#bodyGrad)" transform="rotate(45 105 105)"/>
+    </g>
+    <path d="M 100 130 Q 130 125 125 100" stroke="#2A1810" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <path d="M 100 130 Q 130 125 125 100" stroke="#FF6B35" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <circle cx="60" cy="62" r="48" fill="url(#bodyGrad)"/>
+      <ellipse cx="28" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(-25 28 28)"/>
+      <ellipse cx="92" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(25 92 28)"/>
+    </g>
+    <ellipse cx="60" cy="125" rx="32" ry="22" fill="#FFFFFF"/>
+    <ellipse cx="60" cy="72" rx="32" ry="26" fill="#FFFFFF"/>
+    <ellipse cx="28" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(-25 28 30)"/>
+    <ellipse cx="92" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(25 92 30)"/>
+    <path d="M 22 18 Q 28 8 36 14 Q 30 22 22 18 Z" fill="#1A0F08"/>
+    <path d="M 50 8 Q 60 0 70 8 Q 60 16 50 8 Z" fill="#1A0F08"/>
+    <path d="M 84 14 Q 92 8 98 18 Q 90 22 84 14 Z" fill="#1A0F08"/>
+    <path d="M 18 38 Q 14 50 22 60 Q 28 50 18 38 Z" fill="#1A0F08"/>
+    <path d="M 102 38 Q 106 50 98 60 Q 92 50 102 38 Z" fill="#1A0F08"/>
+    <path d="M 50 28 Q 54 36 50 44 Q 46 36 50 28 Z" fill="#1A0F08"/>
+    <path d="M 70 28 Q 66 36 70 44 Q 74 36 70 28 Z" fill="#1A0F08"/>
+    <path d="M 18 100 Q 14 115 22 128 Q 28 115 18 100 Z" fill="#1A0F08"/>
+    <path d="M 102 100 Q 106 115 98 128 Q 92 115 102 100 Z" fill="#1A0F08"/>
+    <path d="M 32 105 Q 28 118 36 128 L 32 105 Z" fill="#1A0F08"/>
+    <circle cx="125" cy="88" r="14" fill="#4ECDC4" opacity="0.3" stroke="#2A1810" stroke-width="2.5"/>
+    <circle cx="125" cy="88" r="10" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.5"/>
+    <line x1="135" y1="98" x2="143" y2="106" stroke="#2A1810" stroke-width="3.5" stroke-linecap="round"/>
+    <ellipse cx="44" cy="65" rx="9" ry="5" fill="url(#eyeGrad)" stroke="#2A1810" stroke-width="1.5"/>
+    <ellipse cx="76" cy="65" rx="9" ry="5" fill="url(#eyeGrad)" stroke="#2A1810" stroke-width="1.5"/>
+    <ellipse cx="44" cy="65" rx="5" ry="3" fill="#1A0F08"/>
+    <ellipse cx="76" cy="65" rx="5" ry="3" fill="#1A0F08"/>
+    <circle cx="45" cy="64" r="1.5" fill="#FFFFFF"/>
+    <circle cx="77" cy="64" r="1.5" fill="#FFFFFF"/>
+    <ellipse cx="60" cy="80" rx="4" ry="3" fill="#1A0F08"/>
+    <path d="M 55 86 L 65 86" stroke="#2A1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="540" y="270" class="lbl" text-anchor="middle">Сосредоточенный</text>
+  <text x="540" y="286" class="sub" text-anchor="middle">идёт сканирование</text>
+
+  <!-- POSE 4: SURPRISED -->
+  <g transform="translate(80, 320)">
+    <ellipse cx="60" cy="180" rx="42" ry="6" fill="#1A1A1A" opacity="0.15"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <ellipse cx="60" cy="120" rx="42" ry="35" fill="url(#bodyGrad)"/>
+      <ellipse cx="42" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="78" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="14" cy="105" rx="9" ry="14" fill="url(#bodyGrad)" transform="rotate(-15 14 105)"/>
+      <ellipse cx="106" cy="105" rx="9" ry="14" fill="url(#bodyGrad)" transform="rotate(15 106 105)"/>
+    </g>
+    <path d="M 100 130 Q 130 130 130 110" stroke="#2A1810" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <path d="M 100 130 Q 130 130 130 110" stroke="#FF6B35" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <circle cx="60" cy="62" r="48" fill="url(#bodyGrad)"/>
+      <ellipse cx="28" cy="20" rx="10" ry="14" fill="url(#bodyGrad)" transform="rotate(-15 28 20)"/>
+      <ellipse cx="92" cy="20" rx="10" ry="14" fill="url(#bodyGrad)" transform="rotate(15 92 20)"/>
+    </g>
+    <ellipse cx="60" cy="125" rx="32" ry="22" fill="#FFFFFF"/>
+    <ellipse cx="60" cy="72" rx="32" ry="26" fill="#FFFFFF"/>
+    <ellipse cx="28" cy="22" rx="5" ry="8" fill="#FFB8A0" transform="rotate(-15 28 22)"/>
+    <ellipse cx="92" cy="22" rx="5" ry="8" fill="#FFB8A0" transform="rotate(15 92 22)"/>
+    <path d="M 22 12 Q 28 2 36 8 Q 30 16 22 12 Z" fill="#1A0F08"/>
+    <path d="M 50 8 Q 60 0 70 8 Q 60 16 50 8 Z" fill="#1A0F08"/>
+    <path d="M 84 8 Q 92 2 98 12 Q 90 16 84 8 Z" fill="#1A0F08"/>
+    <path d="M 18 38 Q 14 50 22 60 Q 28 50 18 38 Z" fill="#1A0F08"/>
+    <path d="M 102 38 Q 106 50 98 60 Q 92 50 102 38 Z" fill="#1A0F08"/>
+    <path d="M 50 28 Q 54 36 50 44 Q 46 36 50 28 Z" fill="#1A0F08"/>
+    <path d="M 70 28 Q 66 36 70 44 Q 74 36 70 28 Z" fill="#1A0F08"/>
+    <path d="M 18 100 Q 14 115 22 128 Q 28 115 18 100 Z" fill="#1A0F08"/>
+    <path d="M 102 100 Q 106 115 98 128 Q 92 115 102 100 Z" fill="#1A0F08"/>
+    <path d="M 32 105 Q 28 118 36 128 L 32 105 Z" fill="#1A0F08"/>
+    <path d="M 88 105 Q 92 118 84 128 L 88 105 Z" fill="#1A0F08"/>
+    <circle cx="44" cy="65" r="13" fill="url(#eyeGrad)" stroke="#2A1810" stroke-width="2"/>
+    <circle cx="76" cy="65" r="13" fill="url(#eyeGrad)" stroke="#2A1810" stroke-width="2"/>
+    <circle cx="44" cy="66" r="7" fill="#1A0F08"/>
+    <circle cx="76" cy="66" r="7" fill="#1A0F08"/>
+    <circle cx="46" cy="63" r="3" fill="#FFFFFF"/>
+    <circle cx="78" cy="63" r="3" fill="#FFFFFF"/>
+    <circle cx="42" cy="69" r="1.5" fill="#FFFFFF"/>
+    <circle cx="74" cy="69" r="1.5" fill="#FFFFFF"/>
+    <ellipse cx="60" cy="82" rx="4" ry="3" fill="#1A0F08"/>
+    <ellipse cx="60" cy="92" rx="5" ry="6" stroke="#2A1810" stroke-width="2" fill="#7F1D1D"/>
+    <line x1="-5" y1="35" x2="2" y2="42" stroke="#FFB800" stroke-width="3" stroke-linecap="round"/>
+    <line x1="125" y1="35" x2="118" y2="42" stroke="#FFB800" stroke-width="3" stroke-linecap="round"/>
+    <line x1="-2" y1="60" x2="6" y2="60" stroke="#FFB800" stroke-width="3" stroke-linecap="round"/>
+    <line x1="122" y1="60" x2="114" y2="60" stroke="#FFB800" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <text x="140" y="530" class="lbl" text-anchor="middle">Удивлённый</text>
+  <text x="140" y="546" class="sub" text-anchor="middle">найдена ошибка</text>
+
+  <!-- POSE 5: SLEEPING -->
+  <g transform="translate(280, 320)">
+    <ellipse cx="65" cy="172" rx="55" ry="7" fill="#1A1A1A" opacity="0.15"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <ellipse cx="65" cy="135" rx="50" ry="25" fill="url(#bodyGrad)"/>
+      <ellipse cx="35" cy="155" rx="9" ry="6" fill="url(#bodyGrad)"/>
+      <ellipse cx="55" cy="158" rx="9" ry="6" fill="url(#bodyGrad)"/>
+    </g>
+    <path d="M 110 130 Q 130 125 128 110 Q 125 100 115 105" stroke="#2A1810" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <path d="M 110 130 Q 130 125 128 110 Q 125 100 115 105" stroke="#FF6B35" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <circle cx="65" cy="80" r="42" fill="url(#bodyGrad)"/>
+      <ellipse cx="38" cy="50" rx="9" ry="11" fill="url(#bodyGrad)" transform="rotate(-40 38 50)"/>
+      <ellipse cx="92" cy="50" rx="9" ry="11" fill="url(#bodyGrad)" transform="rotate(40 92 50)"/>
+    </g>
+    <ellipse cx="65" cy="138" rx="38" ry="14" fill="#FFFFFF"/>
+    <ellipse cx="65" cy="88" rx="28" ry="22" fill="#FFFFFF"/>
+    <ellipse cx="38" cy="52" rx="4" ry="6" fill="#FFB8A0" transform="rotate(-40 38 52)"/>
+    <ellipse cx="92" cy="52" rx="4" ry="6" fill="#FFB8A0" transform="rotate(40 92 52)"/>
+    <path d="M 28 30 Q 35 22 42 28 Q 36 36 28 30 Z" fill="#1A0F08"/>
+    <path d="M 55 22 Q 65 14 75 22 Q 65 30 55 22 Z" fill="#1A0F08"/>
+    <path d="M 88 30 Q 95 22 102 30 Q 96 36 88 30 Z" fill="#1A0F08"/>
+    <path d="M 22 56 Q 18 68 26 78 Q 32 68 22 56 Z" fill="#1A0F08"/>
+    <path d="M 108 56 Q 112 68 104 78 Q 98 68 108 56 Z" fill="#1A0F08"/>
+    <path d="M 55 42 Q 60 50 55 58 Q 50 50 55 42 Z" fill="#1A0F08"/>
+    <path d="M 75 42 Q 70 50 75 58 Q 80 50 75 42 Z" fill="#1A0F08"/>
+    <path d="M 22 118 Q 18 130 26 142 Q 32 130 22 118 Z" fill="#1A0F08"/>
+    <path d="M 108 118 Q 112 130 104 142 Q 98 130 108 118 Z" fill="#1A0F08"/>
+    <path d="M 43 80 Q 51 86 59 80" stroke="#2A1810" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M 71 80 Q 79 86 87 80" stroke="#2A1810" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <ellipse cx="65" cy="95" rx="3.5" ry="2.5" fill="#1A0F08"/>
+    <path d="M 60 102 Q 65 105 70 102" stroke="#2A1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <text x="135" y="50" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="500" fill="#4ECDC4">Z</text>
+    <text x="148" y="35" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14" font-weight="500" fill="#4ECDC4" opacity="0.7">z</text>
+    <text x="158" y="22" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" font-weight="500" fill="#4ECDC4" opacity="0.5">z</text>
+  </g>
+  <text x="340" y="530" class="lbl" text-anchor="middle">Спящий</text>
+  <text x="340" y="546" class="sub" text-anchor="middle">режим ожидания</text>
+
+  <!-- POSE 6: CHAMPION -->
+  <g transform="translate(480, 320)">
+    <ellipse cx="60" cy="180" rx="42" ry="6" fill="#1A1A1A" opacity="0.15"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <ellipse cx="60" cy="120" rx="42" ry="35" fill="url(#bodyGrad)"/>
+      <ellipse cx="42" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="78" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="15" cy="80" rx="9" ry="14" fill="url(#bodyGrad)" transform="rotate(-45 15 80)"/>
+      <ellipse cx="105" cy="80" rx="9" ry="14" fill="url(#bodyGrad)" transform="rotate(45 105 80)"/>
+    </g>
+    <path d="M 100 125 Q 140 110 138 80 Q 138 65 130 60" stroke="#2A1810" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <path d="M 100 125 Q 140 110 138 80 Q 138 65 130 60" stroke="#FF6B35" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <circle cx="60" cy="62" r="48" fill="url(#bodyGrad)"/>
+      <ellipse cx="28" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(-25 28 28)"/>
+      <ellipse cx="92" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(25 92 28)"/>
+    </g>
+    <ellipse cx="60" cy="125" rx="32" ry="22" fill="#FFFFFF"/>
+    <ellipse cx="60" cy="72" rx="32" ry="26" fill="#FFFFFF"/>
+    <ellipse cx="28" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(-25 28 30)"/>
+    <ellipse cx="92" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(25 92 30)"/>
+    <path d="M 30 18 L 38 5 L 50 15 L 60 0 L 70 15 L 82 5 L 90 18 Z" fill="#FFB800" stroke="#8B6914" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="38" cy="11" r="2.5" fill="#FFFFFF" stroke="#8B6914" stroke-width="0.5"/>
+    <circle cx="60" cy="6" r="3" fill="#FF3B6B" stroke="#8B6914" stroke-width="0.5"/>
+    <circle cx="82" cy="11" r="2.5" fill="#FFFFFF" stroke="#8B6914" stroke-width="0.5"/>
+    <rect x="30" y="18" width="60" height="3" fill="#8B6914"/>
+    <path d="M 18 38 Q 14 50 22 60 Q 28 50 18 38 Z" fill="#1A0F08"/>
+    <path d="M 102 38 Q 106 50 98 60 Q 92 50 102 38 Z" fill="#1A0F08"/>
+    <path d="M 50 28 Q 54 36 50 44 Q 46 36 50 28 Z" fill="#1A0F08"/>
+    <path d="M 70 28 Q 66 36 70 44 Q 74 36 70 28 Z" fill="#1A0F08"/>
+    <path d="M 18 100 Q 14 115 22 128 Q 28 115 18 100 Z" fill="#1A0F08"/>
+    <path d="M 102 100 Q 106 115 98 128 Q 92 115 102 100 Z" fill="#1A0F08"/>
+    <path d="M 32 105 Q 28 118 36 128 L 32 105 Z" fill="#1A0F08"/>
+    <path d="M 88 105 Q 92 118 84 128 L 88 105 Z" fill="#1A0F08"/>
+    <path d="M 34 67 Q 44 56 54 67" stroke="#2A1810" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M 66 67 Q 76 56 86 67" stroke="#2A1810" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="36" cy="80" rx="6" ry="3.5" fill="#FF9999" opacity="0.7"/>
+    <ellipse cx="84" cy="80" rx="6" ry="3.5" fill="#FF9999" opacity="0.7"/>
+    <ellipse cx="60" cy="80" rx="4" ry="3" fill="#1A0F08"/>
+    <path d="M 48 86 Q 60 96 72 86" stroke="#2A1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M 56 88 L 56 93 L 53 91 Z" fill="#FFFFFF" stroke="#2A1810" stroke-width="1"/>
+    <path d="M 0 50 L 3 53 L 6 50 L 3 47 Z" fill="#FFB800"/>
+    <path d="M 115 95 L 118 98 L 121 95 L 118 92 Z" fill="#FFB800"/>
+    <path d="M 130 40 L 132 42 L 134 40 L 132 38 Z" fill="#FFB800"/>
+  </g>
+  <text x="540" y="530" class="lbl" text-anchor="middle">Чемпион</text>
+  <text x="540" y="546" class="sub" text-anchor="middle">сайт в топ-3</text>
+
+  <!-- Section: Logos -->
+  <text x="40" y="610" class="section">Логотипы</text>
+  <line x1="40" y1="620" x2="640" y2="620" stroke="#CCCCCC" stroke-width="0.5"/>
+
+  <!-- HORIZONTAL LOGO -->
+  <g transform="translate(80, 650)">
+    <g transform="scale(0.7)">
+      <g stroke="#2A1810" stroke-width="2.8" stroke-linejoin="round">
+        <circle cx="60" cy="62" r="48" fill="url(#bodyGrad)"/>
+        <ellipse cx="28" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(-25 28 28)"/>
+        <ellipse cx="92" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(25 92 28)"/>
+      </g>
+      <ellipse cx="60" cy="72" rx="32" ry="26" fill="#FFFFFF"/>
+      <ellipse cx="28" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(-25 28 30)"/>
+      <ellipse cx="92" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(25 92 30)"/>
+      <path d="M 22 18 Q 28 8 36 14 Q 30 22 22 18 Z" fill="#1A0F08"/>
+      <path d="M 50 8 Q 60 0 70 8 Q 60 16 50 8 Z" fill="#1A0F08"/>
+      <path d="M 84 14 Q 92 8 98 18 Q 90 22 84 14 Z" fill="#1A0F08"/>
+      <path d="M 18 38 Q 14 50 22 60 Q 28 50 18 38 Z" fill="#1A0F08"/>
+      <path d="M 102 38 Q 106 50 98 60 Q 92 50 102 38 Z" fill="#1A0F08"/>
+      <path d="M 50 28 Q 54 36 50 44 Q 46 36 50 28 Z" fill="#1A0F08"/>
+      <path d="M 70 28 Q 66 36 70 44 Q 74 36 70 28 Z" fill="#1A0F08"/>
+      <ellipse cx="44" cy="65" rx="10" ry="11" fill="url(#eyeGrad)" stroke="#2A1810" stroke-width="2"/>
+      <ellipse cx="76" cy="65" rx="10" ry="11" fill="url(#eyeGrad)" stroke="#2A1810" stroke-width="2"/>
+      <ellipse cx="44" cy="67" rx="5" ry="6" fill="#1A0F08"/>
+      <ellipse cx="76" cy="67" rx="5" ry="6" fill="#1A0F08"/>
+      <circle cx="46" cy="63" r="2.5" fill="#FFFFFF"/>
+      <circle cx="78" cy="63" r="2.5" fill="#FFFFFF"/>
+      <ellipse cx="60" cy="80" rx="4" ry="3" fill="#1A0F08"/>
+      <path d="M 60 84 Q 55 90 50 88" stroke="#2A1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M 60 84 Q 65 90 70 88" stroke="#2A1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    </g>
+    <text x="105" y="55" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="36" font-weight="500" fill="#1A1A1A">Tora</text>
+    <text x="195" y="55" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="36" font-weight="400" fill="#FF6B35">SEO</text>
+    <text x="105" y="78" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" fill="#666" letter-spacing="1.5">SEE THE TOP. RANK THE TOP.</text>
+  </g>
+
+  <!-- CIRCULAR SEAL -->
+  <g transform="translate(420, 640)">
+    <circle cx="55" cy="55" r="55" fill="#FF6B35" stroke="#2A1810" stroke-width="2"/>
+    <circle cx="55" cy="55" r="48" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+    <g transform="translate(15, 18) scale(0.55)">
+      <circle cx="60" cy="62" r="48" fill="#FFFFFF" stroke="#2A1810" stroke-width="3"/>
+      <ellipse cx="28" cy="28" rx="10" ry="13" fill="#FFFFFF" stroke="#2A1810" stroke-width="3" transform="rotate(-25 28 28)"/>
+      <ellipse cx="92" cy="28" rx="10" ry="13" fill="#FFFFFF" stroke="#2A1810" stroke-width="3" transform="rotate(25 92 28)"/>
+      <path d="M 22 18 Q 28 8 36 14 Q 30 22 22 18 Z" fill="#1A0F08"/>
+      <path d="M 50 8 Q 60 0 70 8 Q 60 16 50 8 Z" fill="#1A0F08"/>
+      <path d="M 84 14 Q 92 8 98 18 Q 90 22 84 14 Z" fill="#1A0F08"/>
+      <path d="M 18 38 Q 14 50 22 60 Q 28 50 18 38 Z" fill="#1A0F08"/>
+      <path d="M 102 38 Q 106 50 98 60 Q 92 50 102 38 Z" fill="#1A0F08"/>
+      <circle cx="44" cy="65" r="11" fill="#1A0F08"/>
+      <circle cx="76" cy="65" r="11" fill="#1A0F08"/>
+      <circle cx="46" cy="61" r="4" fill="#FFFFFF"/>
+      <circle cx="78" cy="61" r="4" fill="#FFFFFF"/>
+      <ellipse cx="60" cy="80" rx="5" ry="4" fill="#1A0F08"/>
+      <path d="M 60 86 Q 53 92 47 90" stroke="#2A1810" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M 60 86 Q 67 92 73 90" stroke="#2A1810" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </g>
+    <text x="140" y="50" font-family="serif" font-size="38" font-weight="400" fill="#1A1A1A">虎</text>
+    <text x="140" y="85" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14" font-weight="500" fill="#FF6B35" letter-spacing="2">TORA · SEO</text>
+  </g>
+
+  <!-- Section: Favicons -->
+  <text x="40" y="800" class="section">Favicons</text>
+  <line x1="40" y1="810" x2="640" y2="810" stroke="#CCCCCC" stroke-width="0.5"/>
+
+  <g transform="translate(80, 830)">
+    <rect x="0" y="0" width="64" height="64" rx="12" fill="#FF6B35" stroke="#2A1810" stroke-width="1.5"/>
+    <g transform="translate(8, 6) scale(0.4)">
+      <circle cx="60" cy="62" r="48" fill="#FFFFFF"/>
+      <ellipse cx="28" cy="28" rx="10" ry="13" fill="#FFFFFF" stroke="#2A1810" stroke-width="3" transform="rotate(-25 28 28)"/>
+      <ellipse cx="92" cy="28" rx="10" ry="13" fill="#FFFFFF" stroke="#2A1810" stroke-width="3" transform="rotate(25 92 28)"/>
+      <path d="M 22 18 Q 28 8 36 14 Q 30 22 22 18 Z" fill="#1A0F08"/>
+      <path d="M 50 8 Q 60 0 70 8 Q 60 16 50 8 Z" fill="#1A0F08"/>
+      <path d="M 84 14 Q 92 8 98 18 Q 90 22 84 14 Z" fill="#1A0F08"/>
+      <circle cx="44" cy="65" r="11" fill="#1A0F08"/>
+      <circle cx="76" cy="65" r="11" fill="#1A0F08"/>
+      <circle cx="46" cy="61" r="4" fill="#FFB800"/>
+      <circle cx="78" cy="61" r="4" fill="#FFB800"/>
+      <ellipse cx="60" cy="82" rx="5" ry="4" fill="#1A0F08"/>
+    </g>
+    <text x="80" y="40" class="sub">64×64</text>
+  </g>
+
+  <g transform="translate(280, 830)">
+    <rect x="0" y="0" width="32" height="32" rx="6" fill="#FF6B35" stroke="#2A1810" stroke-width="1"/>
+    <g transform="translate(2, 1) scale(0.23)">
+      <circle cx="60" cy="62" r="48" fill="#FFFFFF"/>
+      <path d="M 22 18 Q 28 8 36 14 Q 30 22 22 18 Z" fill="#1A0F08"/>
+      <path d="M 50 8 Q 60 0 70 8 Q 60 16 50 8 Z" fill="#1A0F08"/>
+      <path d="M 84 14 Q 92 8 98 18 Q 90 22 84 14 Z" fill="#1A0F08"/>
+      <circle cx="44" cy="65" r="13" fill="#1A0F08"/>
+      <circle cx="76" cy="65" r="13" fill="#1A0F08"/>
+      <circle cx="46" cy="62" r="4" fill="#FFB800"/>
+      <circle cx="78" cy="62" r="4" fill="#FFB800"/>
+    </g>
+    <text x="48" y="24" class="sub">32×32</text>
+  </g>
+
+  <g transform="translate(420, 830)">
+    <rect x="0" y="0" width="16" height="16" rx="3" fill="#FF6B35" stroke="#2A1810" stroke-width="0.5"/>
+    <circle cx="6" cy="9" r="2" fill="#1A0F08"/>
+    <circle cx="10" cy="9" r="2" fill="#1A0F08"/>
+    <circle cx="6" cy="9" r="0.7" fill="#FFB800"/>
+    <circle cx="10" cy="9" r="0.7" fill="#FFB800"/>
+    <text x="24" y="14" class="sub">16×16</text>
+  </g>
+
+  <!-- Section: Color palette -->
+  <text x="40" y="930" class="section">Палитра</text>
+  <line x1="40" y1="940" x2="640" y2="940" stroke="#CCCCCC" stroke-width="0.5"/>
+
+  <g transform="translate(80, 955)">
+    <rect x="0" y="0" width="50" height="50" rx="6" fill="#FF6B35" stroke="#2A1810" stroke-width="1"/>
+    <text x="25" y="40" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="500" fill="#FFFFFF" text-anchor="middle">основной</text>
+    <text x="0" y="65" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="#666">#FF6B35</text>
+
+    <rect x="80" y="0" width="50" height="50" rx="6" fill="#1A0F08"/>
+    <text x="105" y="40" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="500" fill="#FFFFFF" text-anchor="middle">обводка</text>
+    <text x="80" y="65" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="#666">#1A0F08</text>
+
+    <rect x="160" y="0" width="50" height="50" rx="6" fill="#FFFFFF" stroke="#CCCCCC" stroke-width="0.5"/>
+    <text x="185" y="40" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="500" fill="#1A1A1A" text-anchor="middle">белый</text>
+    <text x="160" y="65" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="#666">#FFFFFF</text>
+
+    <rect x="240" y="0" width="50" height="50" rx="6" fill="#FFB800"/>
+    <text x="265" y="40" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="500" fill="#1A1A1A" text-anchor="middle">акцент</text>
+    <text x="240" y="65" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="#666">#FFB800</text>
+
+    <rect x="320" y="0" width="50" height="50" rx="6" fill="#4ECDC4"/>
+    <text x="345" y="40" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="500" fill="#1A1A1A" text-anchor="middle">UI</text>
+    <text x="320" y="65" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="#666">#4ECDC4</text>
+
+    <rect x="400" y="0" width="50" height="50" rx="6" fill="#FFB8A0"/>
+    <text x="425" y="40" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="500" fill="#1A1A1A" text-anchor="middle">уши</text>
+    <text x="400" y="65" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="#666">#FFB8A0</text>
+
+    <rect x="480" y="0" width="50" height="50" rx="6" fill="#FF9999"/>
+    <text x="505" y="40" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="500" fill="#1A1A1A" text-anchor="middle">щёчки</text>
+    <text x="480" y="65" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="#666">#FF9999</text>
+  </g>
+</svg>

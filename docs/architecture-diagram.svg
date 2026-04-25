@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1100" width="1000" height="1100" role="img">
+  <title>ToraSEO — System Architecture Diagram</title>
+  <desc>Complete system architecture showing Claude Desktop, MCP server, Tauri app, external services, and data flows.</desc>
+
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 22px; font-weight: 600; fill: #1A0F08; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14px; fill: #666; }
+      .section { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14px; font-weight: 500; fill: #FF6B35; letter-spacing: 1.5px; }
+      .box-title { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; font-weight: 600; fill: #1A0F08; }
+      .box-text { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; fill: #333; }
+      .box-tech { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 11px; fill: #666; }
+      .arrow-label { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; font-weight: 500; fill: #FF6B35; }
+      .small { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: #999; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0, 10 4, 0 8" fill="#FF6B35"/>
+    </marker>
+    <marker id="arrowhead-bidir" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0, 10 4, 0 8" fill="#4ECDC4"/>
+    </marker>
+    <marker id="arrowhead-bidir-start" markerWidth="10" markerHeight="8" refX="1" refY="4" orient="auto">
+      <polygon points="10 0, 0 4, 10 8" fill="#4ECDC4"/>
+    </marker>
+  </defs>
+
+  <!-- Header -->
+  <text x="40" y="40" class="title">ToraSEO — System Architecture</text>
+  <text x="40" y="62" class="subtitle">Three-component system: Knowledge layer, Action layer, Presentation layer</text>
+
+  <!-- USER MACHINE BOUNDARY -->
+  <rect x="40" y="90" width="920" height="700" rx="12" fill="none" stroke="#CCCCCC" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="55" y="115" class="section">USER'S MACHINE</text>
+
+  <!-- CLAUDE DESKTOP BOX -->
+  <g>
+    <rect x="80" y="150" width="320" height="220" rx="10" fill="#FFF8F2" stroke="#FF6B35" stroke-width="2"/>
+    <text x="100" y="178" class="box-title">Claude Desktop</text>
+    <text x="100" y="198" class="box-tech">Chat interface · MCP client</text>
+
+    <line x1="100" y1="208" x2="380" y2="208" stroke="#FFE0CC" stroke-width="1"/>
+
+    <text x="100" y="228" class="box-text">User chats with Claude in natural language</text>
+    <text x="100" y="248" class="box-text">Claude reads SKILL.md instructions</text>
+    <text x="100" y="268" class="box-text">Claude calls MCP tools when needed</text>
+    <text x="100" y="288" class="box-text">Claude provides recommendations to user</text>
+
+    <text x="100" y="318" class="section" style="font-size: 11px">LOADED ASSETS</text>
+    <text x="100" y="338" class="box-tech">• Skill: skill/SKILL.md + checklists</text>
+    <text x="100" y="354" class="box-tech">• MCP connection: mcp/server.js</text>
+  </g>
+
+  <!-- TORASEO APP BOX -->
+  <g>
+    <rect x="600" y="150" width="320" height="220" rx="10" fill="#F0FBFA" stroke="#4ECDC4" stroke-width="2"/>
+    <text x="620" y="178" class="box-title">ToraSEO App (Tauri)</text>
+    <text x="620" y="198" class="box-tech">Native window · ~5-10 MB</text>
+
+    <line x1="620" y1="208" x2="900" y2="208" stroke="#CCEEEC" stroke-width="1"/>
+
+    <text x="620" y="228" class="box-text">Display-only dashboard</text>
+    <text x="620" y="248" class="box-text">Real-time status updates</text>
+    <text x="620" y="268" class="box-text">Color-coded indicators</text>
+    <text x="620" y="288" class="box-text">Animated mascot states</text>
+
+    <text x="620" y="318" class="section" style="font-size: 11px">TECH STACK</text>
+    <text x="620" y="338" class="box-tech">• Rust + WebView (Tauri 2.x)</text>
+    <text x="620" y="354" class="box-tech">• React 18 + Tailwind + Vite</text>
+  </g>
+
+  <!-- BIDIRECTIONAL ARROW BETWEEN CLAUDE & APP -->
+  <line x1="400" y1="260" x2="600" y2="260" stroke="#4ECDC4" stroke-width="2" stroke-dasharray="4 3"
+        marker-start="url(#arrowhead-bidir-start)" marker-end="url(#arrowhead-bidir)"/>
+  <text x="500" y="252" class="arrow-label" text-anchor="middle" fill="#4ECDC4">user views</text>
+  <text x="500" y="278" class="arrow-label" text-anchor="middle" fill="#4ECDC4">in parallel</text>
+
+  <!-- MCP SERVER BOX (BIG, CENTRAL) -->
+  <g>
+    <rect x="100" y="420" width="800" height="280" rx="10" fill="#FFFAEC" stroke="#FFB800" stroke-width="2"/>
+    <text x="120" y="448" class="box-title">ToraSEO MCP Server (Node.js)</text>
+    <text x="120" y="468" class="box-tech">The brain of all data operations · stdio + WebSocket</text>
+
+    <line x1="120" y1="478" x2="880" y2="478" stroke="#FFE799" stroke-width="1"/>
+
+    <!-- Tools section -->
+    <text x="120" y="500" class="section" style="font-size: 11px">TOOLS FOR CLAUDE (via MCP stdio)</text>
+    <rect x="120" y="510" width="170" height="30" rx="4" fill="#FFFFFF" stroke="#FFB800" stroke-width="1"/>
+    <text x="205" y="529" class="box-tech" text-anchor="middle">scan_site(url)</text>
+    <rect x="300" y="510" width="170" height="30" rx="4" fill="#FFFFFF" stroke="#FFB800" stroke-width="1"/>
+    <text x="385" y="529" class="box-tech" text-anchor="middle">check_seo(url, engine)</text>
+    <rect x="120" y="548" width="170" height="30" rx="4" fill="#FFFFFF" stroke="#FFB800" stroke-width="1"/>
+    <text x="205" y="567" class="box-tech" text-anchor="middle">analyze_content(text)</text>
+    <rect x="300" y="548" width="170" height="30" rx="4" fill="#FFFFFF" stroke="#FFB800" stroke-width="1"/>
+    <text x="385" y="567" class="box-tech" text-anchor="middle">humanize_text(text, lang)</text>
+
+    <!-- WS API section -->
+    <text x="500" y="500" class="section" style="font-size: 11px">WS API FOR APP</text>
+    <rect x="500" y="510" width="170" height="30" rx="4" fill="#FFFFFF" stroke="#4ECDC4" stroke-width="1"/>
+    <text x="585" y="529" class="box-tech" text-anchor="middle">subscribe(channel)</text>
+    <rect x="680" y="510" width="200" height="30" rx="4" fill="#FFFFFF" stroke="#4ECDC4" stroke-width="1"/>
+    <text x="780" y="529" class="box-tech" text-anchor="middle">push_status(stage, data)</text>
+    <rect x="500" y="548" width="170" height="30" rx="4" fill="#FFFFFF" stroke="#4ECDC4" stroke-width="1"/>
+    <text x="585" y="567" class="box-tech" text-anchor="middle">get_state()</text>
+
+    <!-- Internal modules -->
+    <line x1="120" y1="600" x2="880" y2="600" stroke="#FFE799" stroke-width="1"/>
+    <text x="120" y="622" class="section" style="font-size: 11px">INTERNAL MODULES</text>
+    <text x="120" y="643" class="box-tech">crawler/polite-fetch.js · respects robots.txt, 2-3s delays</text>
+    <text x="120" y="660" class="box-tech">crawler/playwright-render.js · for JS-heavy sites (no stealth)</text>
+    <text x="120" y="677" class="box-tech">engines/{google,yandex,bing}.js · per-engine SEO logic</text>
+    <text x="500" y="643" class="box-tech">api-clients/pagespeed.js</text>
+    <text x="500" y="660" class="box-tech">api-clients/yandex-webmaster.js</text>
+    <text x="500" y="677" class="box-tech">api-clients/bing-webmaster.js</text>
+  </g>
+
+  <!-- ARROWS FROM CLAUDE TO MCP -->
+  <line x1="240" y1="370" x2="240" y2="420" stroke="#FF6B35" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="252" y="400" class="arrow-label">MCP stdio</text>
+
+  <!-- ARROW FROM MCP TO APP -->
+  <line x1="760" y1="420" x2="760" y2="370" stroke="#4ECDC4" stroke-width="2" marker-end="url(#arrowhead-bidir)"/>
+  <text x="770" y="400" class="arrow-label" fill="#4ECDC4">WebSocket</text>
+
+  <!-- CRITICAL PRINCIPLE BOX (between layers) -->
+  <g>
+    <rect x="100" y="730" width="800" height="50" rx="6" fill="#FFF1E5" stroke="#FF6B35" stroke-width="1" stroke-dasharray="3 2"/>
+    <text x="500" y="755" class="box-title" text-anchor="middle" style="font-size: 13px">⚡ Token-saving principle: MCP does heavy lifting. Claude makes conclusions. App displays results.</text>
+    <text x="500" y="772" class="box-text" text-anchor="middle" style="font-size: 11px">Claude never receives raw HTML or full datasets — only summaries like { score: 78, issues: 5 }</text>
+  </g>
+
+  <!-- EXTERNAL SERVICES BOUNDARY -->
+  <rect x="40" y="820" width="920" height="240" rx="12" fill="none" stroke="#CCCCCC" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="55" y="845" class="section">EXTERNAL SERVICES (HTTPS only, polite mode)</text>
+
+  <!-- External services -->
+  <g>
+    <rect x="80" y="870" width="200" height="80" rx="8" fill="#FFFFFF" stroke="#666" stroke-width="1"/>
+    <text x="180" y="895" class="box-title" text-anchor="middle" style="font-size: 13px">Target Websites</text>
+    <text x="180" y="915" class="box-text" text-anchor="middle">User's sites + competitors</text>
+    <text x="180" y="932" class="box-tech" text-anchor="middle">robots.txt · sitemap.xml · HTML</text>
+  </g>
+
+  <g>
+    <rect x="300" y="870" width="200" height="80" rx="8" fill="#FFFFFF" stroke="#666" stroke-width="1"/>
+    <text x="400" y="895" class="box-title" text-anchor="middle" style="font-size: 13px">Google Services</text>
+    <text x="400" y="915" class="box-text" text-anchor="middle">PageSpeed · Search Console</text>
+    <text x="400" y="932" class="box-tech" text-anchor="middle">developers.google.com</text>
+  </g>
+
+  <g>
+    <rect x="520" y="870" width="200" height="80" rx="8" fill="#FFFFFF" stroke="#666" stroke-width="1"/>
+    <text x="620" y="895" class="box-title" text-anchor="middle" style="font-size: 13px">Yandex Services</text>
+    <text x="620" y="915" class="box-text" text-anchor="middle">Webmaster · Metrika</text>
+    <text x="620" y="932" class="box-tech" text-anchor="middle">yandex.ru/dev</text>
+  </g>
+
+  <g>
+    <rect x="740" y="870" width="180" height="80" rx="8" fill="#FFFFFF" stroke="#666" stroke-width="1"/>
+    <text x="830" y="895" class="box-title" text-anchor="middle" style="font-size: 13px">Bing + AI Detect</text>
+    <text x="830" y="915" class="box-text" text-anchor="middle">Webmaster · Originality</text>
+    <text x="830" y="932" class="box-tech" text-anchor="middle">bing.com · originality.ai</text>
+  </g>
+
+  <!-- ETHICAL CRAWLING NOTE -->
+  <g>
+    <rect x="80" y="975" width="840" height="60" rx="6" fill="#F0FBFA" stroke="#4ECDC4" stroke-width="1"/>
+    <text x="100" y="998" class="box-title" style="font-size: 12px">⚖ Ethical Crawling Policy</text>
+    <text x="100" y="1015" class="box-text">User-Agent: ToraSEOBot/X.Y · respects robots.txt always · 2-3s delays · no stealth, no proxy rotation, no UA spoofing</text>
+    <text x="100" y="1030" class="box-text">Tier 1 (owner) → aggressive · Tier 2 (public) → polite · Tier 3 (protected) → API-only fallback</text>
+  </g>
+
+  <!-- ARROW FROM MCP TO EXTERNAL -->
+  <line x1="500" y1="780" x2="500" y2="870" stroke="#FF6B35" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="510" y="828" class="arrow-label">HTTPS · polite</text>
+
+  <!-- LEGEND -->
+  <g transform="translate(40, 1060)">
+    <text x="0" y="14" class="small">Solid orange = MCP/data flow · Dashed teal = WebSocket display flow · Dotted = bidirectional UI/parallel use</text>
+  </g>
+</svg>

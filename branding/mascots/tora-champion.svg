@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" width="440" height="440" role="img">
+  <title>ToraSEO chibi tiger — champion pose</title>
+  <desc>Chibi tiger mascot wearing a golden crown with raised arms, proud smile and gold sparkles celebrating top-3 ranking.</desc>
+  <defs>
+    <radialGradient id="bodyGrad" cx="0.5" cy="0.4" r="0.8">
+      <stop offset="0%" stop-color="#FF8555"/>
+      <stop offset="100%" stop-color="#E85A28"/>
+    </radialGradient>
+  </defs>
+  <g transform="translate(40, 30)">
+    <ellipse cx="60" cy="180" rx="42" ry="6" fill="#1A1A1A" opacity="0.15"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <ellipse cx="60" cy="120" rx="42" ry="35" fill="url(#bodyGrad)"/>
+      <ellipse cx="42" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="78" cy="148" rx="10" ry="8" fill="url(#bodyGrad)"/>
+      <ellipse cx="15" cy="80" rx="9" ry="14" fill="url(#bodyGrad)" transform="rotate(-45 15 80)"/>
+      <ellipse cx="105" cy="80" rx="9" ry="14" fill="url(#bodyGrad)" transform="rotate(45 105 80)"/>
+    </g>
+    <path d="M 100 125 Q 140 110 138 80 Q 138 65 130 60" stroke="#2A1810" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <path d="M 100 125 Q 140 110 138 80 Q 138 65 130 60" stroke="#FF6B35" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <g stroke="#2A1810" stroke-width="2" stroke-linejoin="round">
+      <circle cx="60" cy="62" r="48" fill="url(#bodyGrad)"/>
+      <ellipse cx="28" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(-25 28 28)"/>
+      <ellipse cx="92" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(25 92 28)"/>
+    </g>
+    <ellipse cx="60" cy="125" rx="32" ry="22" fill="#FFFFFF"/>
+    <ellipse cx="60" cy="72" rx="32" ry="26" fill="#FFFFFF"/>
+    <ellipse cx="28" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(-25 28 30)"/>
+    <ellipse cx="92" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(25 92 30)"/>
+    <path d="M 30 18 L 38 5 L 50 15 L 60 0 L 70 15 L 82 5 L 90 18 Z" fill="#FFB800" stroke="#8B6914" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="38" cy="11" r="2.5" fill="#FFFFFF" stroke="#8B6914" stroke-width="0.5"/>
+    <circle cx="60" cy="6" r="3" fill="#FF3B6B" stroke="#8B6914" stroke-width="0.5"/>
+    <circle cx="82" cy="11" r="2.5" fill="#FFFFFF" stroke="#8B6914" stroke-width="0.5"/>
+    <rect x="30" y="18" width="60" height="3" fill="#8B6914"/>
+    <path d="M 18 38 Q 14 50 22 60 Q 28 50 18 38 Z" fill="#1A0F08"/>
+    <path d="M 102 38 Q 106 50 98 60 Q 92 50 102 38 Z" fill="#1A0F08"/>
+    <path d="M 50 28 Q 54 36 50 44 Q 46 36 50 28 Z" fill="#1A0F08"/>
+    <path d="M 70 28 Q 66 36 70 44 Q 74 36 70 28 Z" fill="#1A0F08"/>
+    <path d="M 18 100 Q 14 115 22 128 Q 28 115 18 100 Z" fill="#1A0F08"/>
+    <path d="M 102 100 Q 106 115 98 128 Q 92 115 102 100 Z" fill="#1A0F08"/>
+    <path d="M 32 105 Q 28 118 36 128 L 32 105 Z" fill="#1A0F08"/>
+    <path d="M 88 105 Q 92 118 84 128 L 88 105 Z" fill="#1A0F08"/>
+    <path d="M 34 67 Q 44 56 54 67" stroke="#2A1810" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M 66 67 Q 76 56 86 67" stroke="#2A1810" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="36" cy="80" rx="6" ry="3.5" fill="#FF9999" opacity="0.7"/>
+    <ellipse cx="84" cy="80" rx="6" ry="3.5" fill="#FF9999" opacity="0.7"/>
+    <ellipse cx="60" cy="80" rx="4" ry="3" fill="#1A0F08"/>
+    <path d="M 48 86 Q 60 96 72 86" stroke="#2A1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M 56 88 L 56 93 L 53 91 Z" fill="#FFFFFF" stroke="#2A1810" stroke-width="1"/>
+    <path d="M 0 50 L 3 53 L 6 50 L 3 47 Z" fill="#FFB800"/>
+    <path d="M 115 95 L 118 98 L 121 95 L 118 92 Z" fill="#FFB800"/>
+    <path d="M 130 40 L 132 42 L 134 40 L 132 38 Z" fill="#FFB800"/>
+  </g>
+</svg>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 100" width="640" height="200" role="img">
+  <title>ToraSEO horizontal logo</title>
+  <desc>Horizontal logo combining the tora chibi head with the ToraSEO wordmark and a tagline.</desc>
+  <defs>
+    <radialGradient id="eyeGrad" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0%" stop-color="#FFD27A"/>
+      <stop offset="50%" stop-color="#FFA500"/>
+      <stop offset="100%" stop-color="#8B4513"/>
+    </radialGradient>
+    <radialGradient id="bodyGrad" cx="0.5" cy="0.4" r="0.8">
+      <stop offset="0%" stop-color="#FF8555"/>
+      <stop offset="100%" stop-color="#E85A28"/>
+    </radialGradient>
+  </defs>
+  <g transform="translate(10, 10) scale(0.7)">
+    <g stroke="#2A1810" stroke-width="2.8" stroke-linejoin="round">
+      <circle cx="60" cy="62" r="48" fill="url(#bodyGrad)"/>
+      <ellipse cx="28" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(-25 28 28)"/>
+      <ellipse cx="92" cy="28" rx="10" ry="13" fill="url(#bodyGrad)" transform="rotate(25 92 28)"/>
+    </g>
+    <ellipse cx="60" cy="72" rx="32" ry="26" fill="#FFFFFF"/>
+    <ellipse cx="28" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(-25 28 30)"/>
+    <ellipse cx="92" cy="30" rx="5" ry="7" fill="#FFB8A0" transform="rotate(25 92 30)"/>
+    <path d="M 22 18 Q 28 8 36 14 Q 30 22 22 18 Z" fill="#1A0F08"/>
+    <path d="M 50 8 Q 60 0 70 8 Q 60 16 50 8 Z" fill="#1A0F08"/>
+    <path d="M 84 14 Q 92 8 98 18 Q 90 22 84 14 Z" fill="#1A0F08"/>
+    <path d="M 18 38 Q 14 50 22 60 Q 28 50 18 38 Z" fill="#1A0F08"/>
+    <path d="M 102 38 Q 106 50 98 60 Q 92 50 102 38 Z" fill="#1A0F08"/>
+    <path d="M 50 28 Q 54 36 50 44 Q 46 36 50 28 Z" fill="#1A0F08"/>
+    <path d="M 70 28 Q 66 36 70 44 Q 74 36 70 28 Z" fill="#1A0F08"/>
+    <ellipse cx="44" cy="65" rx="10" ry="11" fill="url(#eyeGrad)" stroke="#2A1810" stroke-width="2"/>
+    <ellipse cx="76" cy="65" rx="10" ry="11" fill="url(#eyeGrad)" stroke="#2A1810" stroke-width="2"/>
+    <ellipse cx="44" cy="67" rx="5" ry="6" fill="#1A0F08"/>
+    <ellipse cx="76" cy="67" rx="5" ry="6" fill="#1A0F08"/>
+    <circle cx="46" cy="63" r="2.5" fill="#FFFFFF"/>
+    <circle cx="78" cy="63" r="2.5" fill="#FFFFFF"/>
+    <ellipse cx="60" cy="80" rx="4" ry="3" fill="#1A0F08"/>
+    <path d="M 60 84 Q 55 90 50 88" stroke="#2A1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M 60 84 Q 65 90 70 88" stroke="#2A1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="105" y="55" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="36" font-weight="500" fill="#1A1A1A">Tora</text>
+  <text x="195" y="55" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="36" font-weight="400" fill="#FF6B35">SEO</text>
+  <text x="105" y="78" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" fill="#666" letter-spacing="1.5">SEE THE TOP. RANK THE TOP.</text>
+</svg>

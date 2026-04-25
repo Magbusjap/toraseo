@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 180" width="1360" height="360" role="img">
+  <title>ToraSEO color palette</title>
+  <desc>ToraSEO brand color palette with 6 colors, their roles and hex codes.</desc>
+
+  <defs>
+    <style>
+      .role { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; font-weight: 500; fill: #1A1A1A; }
+      .role-light { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; font-weight: 500; fill: #FFFFFF; }
+      .hex { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 13px; font-weight: 500; fill: #1A1A1A; }
+      .title { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; font-weight: 500; fill: #1A1A1A; }
+    </style>
+  </defs>
+
+  <text x="40" y="35" class="title">Color palette</text>
+  <line x1="40" y1="48" x2="640" y2="48" stroke="#CCCCCC" stroke-width="0.5"/>
+
+  <!-- Primary -->
+  <g transform="translate(40, 70)">
+    <rect x="0" y="0" width="80" height="80" rx="8" fill="#FF6B35" stroke="#2A1810" stroke-width="1"/>
+    <text x="40" y="46" class="role-light" text-anchor="middle">Primary</text>
+    <text x="40" y="105" class="hex" text-anchor="middle">#FF6B35</text>
+  </g>
+
+  <!-- Outline -->
+  <g transform="translate(140, 70)">
+    <rect x="0" y="0" width="80" height="80" rx="8" fill="#1A0F08"/>
+    <text x="40" y="46" class="role-light" text-anchor="middle">Outline</text>
+    <text x="40" y="105" class="hex" text-anchor="middle">#1A0F08</text>
+  </g>
+
+  <!-- White -->
+  <g transform="translate(240, 70)">
+    <rect x="0" y="0" width="80" height="80" rx="8" fill="#FFFFFF" stroke="#CCCCCC" stroke-width="1"/>
+    <text x="40" y="46" class="role" text-anchor="middle">White</text>
+    <text x="40" y="105" class="hex" text-anchor="middle">#FFFFFF</text>
+  </g>
+
+  <!-- Accent -->
+  <g transform="translate(340, 70)">
+    <rect x="0" y="0" width="80" height="80" rx="8" fill="#FFB800"/>
+    <text x="40" y="46" class="role" text-anchor="middle">Accent</text>
+    <text x="40" y="105" class="hex" text-anchor="middle">#FFB800</text>
+  </g>
+
+  <!-- UI Status -->
+  <g transform="translate(440, 70)">
+    <rect x="0" y="0" width="80" height="80" rx="8" fill="#4ECDC4"/>
+    <text x="40" y="46" class="role" text-anchor="middle">UI status</text>
+    <text x="40" y="105" class="hex" text-anchor="middle">#4ECDC4</text>
+  </g>
+
+  <!-- Ear inner -->
+  <g transform="translate(540, 70)">
+    <rect x="0" y="0" width="80" height="80" rx="8" fill="#FFB8A0"/>
+    <text x="40" y="46" class="role" text-anchor="middle">Ear inner</text>
+    <text x="40" y="105" class="hex" text-anchor="middle">#FFB8A0</text>
+  </g>
+</svg>
