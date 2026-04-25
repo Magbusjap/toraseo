@@ -183,6 +183,38 @@ export async function checkRobots(
   };
 }
 
+/**
+ * Returns the list of `Sitemap:` URLs declared in robots.txt for the
+ * origin of `targetUrl`. RFC 9309 §2.6 specifies that Sitemap directives
+ * are independent of User-Agent groups — they apply globally to the file.
+ *
+ * Reuses the same cache as `checkRobots`, so a paired call (check robots,
+ * then ask for sitemaps) costs at most one HTTP request total.
+ *
+ * Returns an empty array on any failure (unreachable, 404, parse error).
+ * The caller (typically `analyze_sitemap`) decides what fallback to use —
+ * usually probing `/sitemap.xml` directly.
+ */
+export async function getSitemapsFromRobots(
+  targetUrl: string,
+): Promise<string[]> {
+  const parsedUrl = new URL(targetUrl);
+  const origin = `${parsedUrl.protocol}//${parsedUrl.host}`;
+  const cached = cache.get(origin) ?? (await fetchAndCache(origin));
+
+  // Unreachable or missing — no sitemaps to report. The fact that we
+  // could not read robots.txt is already surfaced through `checkRobots`;
+  // here we just return an empty list and let the caller decide.
+  if (!cached.reachable || !cached.exists) {
+    return [];
+  }
+
+  // robots-parser's getSitemaps() returns the absolute URLs as written
+  // in the file. We trust them as-is; sitemap-fetch logic downstream
+  // will validate they are reachable and parse-able.
+  return cached.parser.getSitemaps();
+}
+
 // --- Internals -----------------------------------------------------------
 
 /**

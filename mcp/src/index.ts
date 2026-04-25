@@ -16,14 +16,19 @@
  *   - `analyze_headings`      — walk h1..h6 in DOM order, report
  *                               structure issues (no h1, multiple h1,
  *                               level skips, length anomalies).
+ *   - `analyze_sitemap`       — discover sitemap (robots.txt or
+ *                               /sitemap.xml fallback), parse
+ *                               <urlset> or <sitemapindex>, report
+ *                               structural issues with sampled entries.
  *
  * Tool grouping (per `wiki/toraseo/product-modes.md`):
  *   Mode A — Site Audit:    scan_site_minimal, check_robots_txt,
- *                            analyze_meta, analyze_headings
+ *                            analyze_meta, analyze_headings,
+ *                            analyze_sitemap
  *   Mode B — Content Audit: (none yet)
  *
  * Remaining MVP tools for Mode A (per product-modes.md):
- *   analyze_sitemap, check_redirects, analyze_schema, analyze_content.
+ *   check_redirects, analyze_schema, analyze_content.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -48,6 +53,11 @@ import {
   analyzeHeadingsInputSchema,
   AnalyzeHeadingsError,
 } from "./tools/site/analyze-headings.js";
+import {
+  analyzeSitemap,
+  analyzeSitemapInputSchema,
+  AnalyzeSitemapError,
+} from "./tools/site/analyze-sitemap.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -217,6 +227,56 @@ server.registerTool(
     } catch (error: unknown) {
       const errorText =
         error instanceof AnalyzeHeadingsError
+          ? `[${error.code}] ${error.message}`
+          : `[unexpected] ${
+              error instanceof Error ? error.message : String(error)
+            }`;
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: errorText,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.registerTool(
+  "analyze_sitemap",
+  {
+    title: "Analyze Sitemap",
+    description:
+      "Discovers and analyzes the sitemap for the given URL's origin. " +
+      "Discovery first reads robots.txt for `Sitemap:` directives " +
+      "(RFC 9309 §2.6); if none are declared, falls back to probing " +
+      "<origin>/sitemap.xml. Parses the result as either a <urlset> " +
+      "(regular sitemap) or <sitemapindex>, and reports structural " +
+      "issues: missing sitemap, invalid XML, empty file, oversize " +
+      "(>50k entries), missing <lastmod>, host mismatches in entries, " +
+      "empty index. Returns the top-level kind, an aggregate summary, " +
+      "and the first 20 entries as a sample (full lists of 50k+ URLs " +
+      "would not fit in a tool-call response). For sitemap indexes, " +
+      "does NOT recursively follow children — it lists them so the user " +
+      "can decide which to inspect next. Honors per-host rate limits.",
+    inputSchema: analyzeSitemapInputSchema,
+  },
+  async ({ url }) => {
+    try {
+      const result = await analyzeSitemap(url);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorText =
+        error instanceof AnalyzeSitemapError
           ? `[${error.code}] ${error.message}`
           : `[unexpected] ${
               error instanceof Error ? error.message : String(error)

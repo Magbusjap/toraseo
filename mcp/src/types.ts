@@ -334,3 +334,148 @@ export interface AnalyzeHeadingsResult {
     skip_count: number;
   };
 }
+
+/**
+ * A single finding produced by the sitemap analyzer. Same shape as
+ * MetaIssue and HeadingIssue — distinct type so future tooling can
+ * discriminate by source without parsing message text.
+ */
+export interface SitemapIssue {
+  severity: "critical" | "warning" | "info";
+  code: string;
+  message: string;
+}
+
+/**
+ * One entry from inside a `<urlset>` sitemap. Captures the four
+ * standard sitemap-protocol fields. Extensions (image:image, news:news,
+ * video:video) are NOT captured here — they belong to a future
+ * `analyze_sitemap_extensions` if needed.
+ *
+ * Each field is optional except `loc` (which the protocol mandates).
+ */
+export interface SitemapUrlEntry {
+  /** The URL itself, normalized to the value as written in <loc>. */
+  loc: string;
+  /** ISO 8601 timestamp of last modification, or null if absent. */
+  lastmod: string | null;
+  /** "always", "hourly", "daily", "weekly", "monthly", "yearly", "never" — or null. */
+  changefreq: string | null;
+  /** Priority 0.0..1.0 declared by the site. Null if absent. */
+  priority: number | null;
+}
+
+/**
+ * One entry from inside a `<sitemapindex>`. Index files do not contain
+ * URLs themselves — only references to other sitemaps.
+ */
+export interface SitemapIndexEntry {
+  /** URL of the child sitemap. */
+  loc: string;
+  /** ISO 8601 timestamp of last modification, or null if absent. */
+  lastmod: string | null;
+}
+
+/**
+ * Result of sitemap discovery and analysis. Returned by the
+ * `analyze_sitemap` tool.
+ *
+ * Discovery order:
+ *   1. Look in robots.txt for `Sitemap:` directives (RFC 9309 §2.6)
+ *   2. If none, probe `<origin>/sitemap.xml` as the standard fallback
+ *
+ * `kind` distinguishes the two top-level sitemap shapes: a regular
+ * `<urlset>` (list of URLs) or a `<sitemapindex>` (list of child
+ * sitemaps). For an index, this tool does NOT recursively follow
+ * children — it returns the index entries as-is and lets the user
+ * pick which child to inspect next. This keeps each call bounded:
+ * one HTTP request, one parse, one verdict.
+ *
+ * Out of scope (deliberate, for MVP):
+ *   - Recursive index traversal (would be unbounded; future opt-in tool)
+ *   - Sitemap extensions: image, video, news (separate analyzer)
+ *   - Comparing sitemap URLs against actual crawled URLs (orchestration
+ *     work, depends on a future site-crawl tool)
+ *   - Verifying each sitemap URL is allowed by robots.txt (50k×
+ *     robots-checks is impractical for a single call)
+ */
+export interface AnalyzeSitemapResult {
+  /**
+   * The URL the user asked us to inspect (input echo). May be a page
+   * URL or a domain root — the tool always derives the origin and
+   * works from there.
+   */
+  url: string;
+
+  /**
+   * The sitemap URL that was actually fetched, after discovery.
+   * Null if discovery failed (no sitemap found anywhere).
+   */
+  sitemap_url: string | null;
+
+  /** How we found it. Useful for audit trails. */
+  discovered_via:
+    | "robots_txt" // listed in robots.txt Sitemap: directive
+    | "fallback_root" // probed /sitemap.xml as the standard location
+    | "none"; // could not find anywhere
+
+  /**
+   * HTTP status of the sitemap fetch. Null if discovery failed before
+   * we made the request.
+   */
+  status: number | null;
+
+  /** Wall-clock time (network + parse) for the entire analysis, ms. */
+  response_time_ms: number;
+
+  /** Pre-computed verdicts. The most important field for Claude. */
+  issues: SitemapIssue[];
+
+  /**
+   * Top-level shape of the discovered sitemap.
+   *   - "urlset" — a regular sitemap; entries in `urls[]`
+   *   - "sitemapindex" — an index; entries in `child_sitemaps[]`
+   *   - "unknown" — root element was something else (rare)
+   *   - "none" — sitemap was never found or could not be parsed
+   */
+  kind: "urlset" | "sitemapindex" | "unknown" | "none";
+
+  /**
+   * Aggregate counts. Even when `urls[]` is sampled, these counts
+   * reflect the full sitemap.
+   */
+  summary: {
+    /** For urlset: total <url> entries. For index: total <sitemap> entries. */
+    total_entries: number;
+    /**
+     * Number of entries whose declared host matches the input URL's host.
+     * Mismatches indicate either a misconfiguration or a sitemap that
+     * lists external pages. Sample-based on the first 20 entries to
+     * keep the work bounded.
+     */
+    same_host_entries_sampled: number;
+    /**
+     * Number of entries with a non-null lastmod field. Sample-based.
+     */
+    with_lastmod_sampled: number;
+    /**
+     * Number of entries we sampled to compute the counts above.
+     * On small sitemaps this equals total_entries; on large ones it's
+     * capped at 20.
+     */
+    sample_size: number;
+  };
+
+  /**
+   * First 20 URL entries (in document order). Empty for sitemap indexes
+   * and for failed discoveries. The full list is intentionally not
+   * returned — sitemaps with 50k entries would blow the token budget.
+   */
+  urls: SitemapUrlEntry[];
+
+  /**
+   * First 20 child-sitemap entries from a sitemap index. Empty for
+   * regular urlsets and failed discoveries.
+   */
+  child_sitemaps: SitemapIndexEntry[];
+}
