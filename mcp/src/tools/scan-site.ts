@@ -5,17 +5,27 @@
  * parses the HTML, and returns five primitive fields. Used to verify
  * that the HTTP + parsing pipeline works end-to-end.
  *
+ * Day 4 additions:
+ *   - Consults robots.txt before fetching. If our User-Agent is
+ *     disallowed for the URL, we throw `ScanSiteError` with code
+ *     `robots_disallowed` and surface that to Claude. This implements
+ *     CRAWLING_POLICY's "robots.txt is honored by default".
+ *   - Waits for the per-host rate limiter before issuing the actual
+ *     HTTP request. The default 2s/host interval is raised when
+ *     robots.txt advertises a larger Crawl-delay.
+ *
  * NOT in scope here (will be added in later tools):
- *   - robots.txt compliance (added with the rate limiter on Day 4)
- *   - rate limiting and per-host budgets (Day 4)
  *   - OG / Twitter Cards / schema.org (future analyze_meta tool)
- *   - multi-page crawling (intentionally out of scope forever — this
+ *   - Multi-page crawling (intentionally out of scope forever — this
  *     tool is for one URL by design)
+ *   - Owner / Polite / API-only tier modes (Stage 3)
  */
 
 import * as cheerio from "cheerio";
 import { z } from "zod";
 
+import { checkRobots } from "../crawlers/robots-txt.js";
+import { awaitRateLimit } from "../crawlers/rate-limiter.js";
 import type { ScanSiteMinimalResult } from "../types.js";
 
 // --- Constants ------------------------------------------------------------
@@ -72,8 +82,10 @@ export const scanSiteMinimalInputSchema = {
 
 /**
  * Custom error class so the MCP layer can distinguish our deliberate
- * failures (timeout, body too large, non-HTML response) from generic
- * runtime errors.
+ * failures (timeout, body too large, non-HTML response, robots-blocked)
+ * from generic runtime errors.
+ *
+ * Day 4: added two new codes — `robots_disallowed` and `robots_unreachable`.
  */
 export class ScanSiteError extends Error {
   constructor(
@@ -82,7 +94,9 @@ export class ScanSiteError extends Error {
       | "timeout"
       | "body_too_large"
       | "fetch_failed"
-      | "not_html",
+      | "not_html"
+      | "robots_disallowed"
+      | "robots_unreachable",
   ) {
     super(message);
     this.name = "ScanSiteError";
@@ -91,12 +105,49 @@ export class ScanSiteError extends Error {
 
 /**
  * Performs the actual scan. Throws `ScanSiteError` on operational
- * failures (timeout, body too large, etc.) and lets unexpected errors
- * bubble up.
+ * failures (timeout, body too large, robots-blocked, etc.) and lets
+ * unexpected errors bubble up.
  */
 export async function scanSiteMinimal(
   url: string,
 ): Promise<ScanSiteMinimalResult> {
+  // --- Day 4: robots.txt gate ------------------------------------------
+  //
+  // Consult robots.txt BEFORE the rate limiter. Two reasons:
+  //   1. If we are disallowed, no point waiting 2 seconds to find out.
+  //   2. Fetching robots.txt itself is a separate request to the same
+  //      host, but the polite thing to do; the rate limiter is only
+  //      for content fetches under our control. (A future refinement
+  //      could rate-limit robots.txt fetches too, but caching makes
+  //      the win marginal — we fetch each robots.txt at most once.)
+  const robotsVerdict = await checkRobots(url);
+
+  if (!robotsVerdict.allowed) {
+    if (robotsVerdict.reason === "robots_unreachable") {
+      throw new ScanSiteError(
+        `Cannot determine robots.txt status for ${robotsVerdict.robots_txt_url}; ` +
+          `treating as disallowed per CRAWLING_POLICY.`,
+        "robots_unreachable",
+      );
+    }
+    throw new ScanSiteError(
+      `Disallowed by robots.txt at ${robotsVerdict.robots_txt_url} ` +
+        `(reason: ${robotsVerdict.reason}).`,
+      "robots_disallowed",
+    );
+  }
+
+  // --- Day 4: rate limit gate ------------------------------------------
+  //
+  // Convert Crawl-delay (seconds) to ms before passing to the limiter.
+  const crawlDelayMs =
+    robotsVerdict.crawl_delay_seconds === null
+      ? null
+      : robotsVerdict.crawl_delay_seconds * 1000;
+  await awaitRateLimit(url, crawlDelayMs);
+
+  // --- Below this line: same flow as Day 3 -----------------------------
+
   const startedAt = performance.now();
 
   // AbortController gives us a timeout we can apply to fetch.

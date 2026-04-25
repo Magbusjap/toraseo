@@ -142,6 +142,58 @@ rather than a vulnerability, but we still want to hear about them.
 - Release binaries are built from tagged commits and their checksums
   are published alongside the release.
 
+## Why These Defaults Are Strict
+
+The defaults above are not chosen because any single law requires them.
+They reflect an industry consensus, accumulated over three decades of
+operating crawlers on the open web, about what a well-behaved bot
+looks like. The short version:
+
+- **The Robots Exclusion Protocol (robots.txt) was formalized as
+  [RFC 9309](https://www.rfc-editor.org/rfc/rfc9309.html) in September
+  2022**, co-authored by Martijn Koster and engineers from Google.
+  Before formalization it was a de-facto standard followed by every
+  major search engine; after formalization it is an IETF Proposed
+  Standard. ToraSEO honors it because the entire crawler ecosystem
+  — Googlebot, Bingbot, Yandexbot, AhrefsBot, SemrushBot — honors it.
+  A new entrant that ignores robots.txt does not save effort; it
+  signals to operators, network defenders, and prospective employers
+  of its author that the project is not a serious tool.
+
+- **Honest User-Agent identification** is the second pillar of that
+  consensus. Cloud providers, CDNs, and bot-management vendors
+  (Cloudflare, Akamai, Imperva, DataDome) maintain shared reputation
+  signals about crawlers. A tool that identifies itself with a contact
+  URL and stable token can be allow-listed when operators trust it,
+  rate-limited when they want to slow it down, and cleanly blocked
+  when they do not want it at all. A tool that spoofs a browser or
+  rotates User-Agents to look like Googlebot ends up on the same
+  reputation lists as malware.
+
+- **Rate limits and per-host budgets** exist because making a request
+  to someone else's server costs them resources. The cost is small
+  per request; it stops being small at scale. Every public crawling
+  policy that takes itself seriously — Common Crawl, Internet Archive,
+  the major search engines — publishes some version of "this is how
+  often we hit you, this is how to slow us down, this is who to
+  contact." ToraSEO follows the same shape because that is what
+  treats the open web as a shared resource rather than something to
+  be extracted from.
+
+- **"What ToraSEO does not do" is itself the differentiator.**
+  Several SEO and scraping tools have, over the years, become
+  liabilities for the people who built them or used them — through
+  blocklisting, vendor litigation, or sustained reputation damage.
+  We do not enumerate cases here, but the lesson is clear in retrospect:
+  the line between "clever scraper" and "hostile crawler" is drawn
+  by operators, not by the tool's author. ToraSEO stays on the right
+  side of that line by default, and contributors are asked to keep
+  it there.
+
+Reports that propose loosening any of the defaults above will be
+treated as design questions, not as patches; they are answered in
+[`CRAWLING_POLICY.md`](CRAWLING_POLICY.md).
+
 ## For Contributors
 
 If you are submitting a pull request that touches network code, MCP

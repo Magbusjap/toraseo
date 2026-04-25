@@ -56,3 +56,61 @@ export interface ScanSiteMinimalResult {
    */
   response_time_ms: number;
 }
+
+/**
+ * Result of a robots.txt check. Returned by the `check_robots_txt` tool
+ * and also consumed internally by `scan_site_minimal` before any fetch.
+ *
+ * Models RFC 9309 evaluation as cleanly as possible: did robots.txt
+ * exist, was it readable, what does it say about our User-Agent for
+ * the requested path, and does it set a Crawl-delay we should honor.
+ */
+export interface CheckRobotsResult {
+  /**
+   * The URL that was checked against robots.txt rules. Echoed back so
+   * Claude does not have to remember which URL was the input.
+   */
+  url: string;
+
+  /**
+   * The robots.txt URL that was fetched. For `https://example.com/blog`
+   * this will be `https://example.com/robots.txt`. Useful for audit
+   * trails and manual verification.
+   */
+  robots_txt_url: string;
+
+  /**
+   * Whether the User-Agent we present (`ToraSEO`) is allowed to fetch
+   * the requested URL according to RFC 9309 evaluation:
+   *
+   *   - `true`   — explicit Allow, or no rule, or robots.txt is missing (404)
+   *   - `false`  — explicit Disallow, or robots.txt unreachable (5xx/timeout)
+   *
+   * The per-RFC convention is "missing robots.txt = full allow"; we
+   * follow that. Conversely, our CRAWLING_POLICY treats unreachable
+   * robots.txt (5xx, network error) as disallowed for safety.
+   */
+  allowed: boolean;
+
+  /**
+   * Why we reached the `allowed` verdict. Helpful when explaining to
+   * the user why a scan was refused.
+   */
+  reason:
+    | "no_robots_txt" // 404 or empty file → full allow per RFC 9309
+    | "rule_allow" // matched an explicit Allow directive
+    | "rule_disallow" // matched an explicit Disallow directive
+    | "no_matching_rule" // robots.txt exists but no rule applies → allow
+    | "robots_unreachable"; // 5xx, timeout, or network error → disallow
+
+  /**
+   * Crawl-delay in seconds applied to our User-Agent, if specified.
+   * RFC 9309 itself does NOT define Crawl-delay (it was deliberately
+   * omitted because real-world implementations diverged), but it is a
+   * widely deployed extension. ToraSEO honors it: if a site sets a
+   * value larger than our default 2s/host, we wait that long instead.
+   *
+   * `null` means the directive is absent for our User-Agent.
+   */
+  crawl_delay_seconds: number | null;
+}
