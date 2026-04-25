@@ -242,3 +242,95 @@ export interface AnalyzeMetaResult {
     html_lang: string | null;
   };
 }
+
+/**
+ * A single finding produced by the headings analyzer. Same shape as
+ * MetaIssue — kept as a separate type rather than reusing MetaIssue
+ * because the `code` literal unions diverge: meta-codes mention
+ * canonical/og/twitter, headings-codes mention h1/level-skip/etc.
+ * Keeping them distinct lets future tooling discriminate by source.
+ */
+export interface HeadingIssue {
+  severity: "critical" | "warning" | "info";
+  code: string;
+  message: string;
+}
+
+/**
+ * A single heading captured from the page, in DOM order.
+ *
+ * Note: `level` is typed as the union 1..6 because we only collect
+ * actual <h1>..<h6> tags. ARIA role="heading" with aria-level is NOT
+ * captured here — that's an accessibility concern, not an SEO one.
+ */
+export interface HeadingEntry {
+  level: 1 | 2 | 3 | 4 | 5 | 6;
+  text: string;
+  length_chars: number;
+}
+
+/**
+ * Result of heading-structure analysis for a single URL. Returned by
+ * the `analyze_headings` tool.
+ *
+ * Three sections:
+ *   - `headings[]` — every heading in DOM order, with text and length.
+ *   - `summary`    — counts and structural flags useful for at-a-glance
+ *                    judgement without iterating `headings[]`.
+ *   - `issues[]`   — pre-computed verdicts for Claude (or a dashboard).
+ *
+ * Out of scope:
+ *   - Heading visibility (display:none, off-screen positioning) — would
+ *     require a real browser, not just HTML parsing.
+ *   - ARIA-based headings (role="heading") — accessibility audit, not SEO.
+ *   - Comparing headings against page topic / keyword density — content
+ *     analysis, belongs to a future Mode B tool.
+ */
+export interface AnalyzeHeadingsResult {
+  /** Final URL after redirects. */
+  url: string;
+
+  /** HTTP status of the final response. */
+  status: number;
+
+  /** Wall-clock duration of the analysis (network + parse) in ms. */
+  response_time_ms: number;
+
+  /** Pre-computed verdicts. The most important field for Claude. */
+  issues: HeadingIssue[];
+
+  /**
+   * Every heading in the document, in DOM order. Empty array means
+   * the page has no <h1>..<h6> tags at all (which itself produces
+   * a `no_headings` critical issue).
+   */
+  headings: HeadingEntry[];
+
+  /** Aggregate counts and structural flags. */
+  summary: {
+    /** Total number of headings of any level. */
+    total: number;
+    /** Per-level counts for quick rendering. */
+    by_level: {
+      h1: number;
+      h2: number;
+      h3: number;
+      h4: number;
+      h5: number;
+      h6: number;
+    };
+    /** True iff at least one <h1> is present. */
+    has_h1: boolean;
+    /** Number of <h1> elements. >1 is a warning. */
+    h1_count: number;
+    /**
+     * Number of level skips in DOM order. A skip is any pair of
+     * consecutive headings where the second is more than one level
+     * deeper than the first (e.g. h1 → h3, h2 → h5). h3 → h2 is NOT
+     * a skip (going up is fine). The very first heading is compared
+     * against an implicit level-0 root, so the document opening with
+     * h2 instead of h1 counts as one skip.
+     */
+    skip_count: number;
+  };
+}

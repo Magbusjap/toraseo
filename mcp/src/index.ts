@@ -5,7 +5,7 @@
  * Launches as a child process under Claude Desktop, communicates over
  * stdio JSON-RPC, and exposes tools that perform SEO analysis.
  *
- * Day 5 scope: three tools.
+ * Day 6 scope: four tools.
  *   - `scan_site_minimal`     — fetch a single URL with full crawler
  *                               etiquette (robots.txt + rate limit).
  *   - `check_robots_txt`      — check whether ToraSEO is allowed to
@@ -13,13 +13,17 @@
  *   - `analyze_meta`          — extract title/description/OG/Twitter/
  *                               canonical/charset/viewport with
  *                               severity-tagged verdicts.
+ *   - `analyze_headings`      — walk h1..h6 in DOM order, report
+ *                               structure issues (no h1, multiple h1,
+ *                               level skips, length anomalies).
  *
  * Tool grouping (per `wiki/toraseo/product-modes.md`):
- *   Mode A — Site Audit:    scan_site_minimal, check_robots_txt, analyze_meta
+ *   Mode A — Site Audit:    scan_site_minimal, check_robots_txt,
+ *                            analyze_meta, analyze_headings
  *   Mode B — Content Audit: (none yet)
  *
- * The next big addition (Day 6+) is one of: analyze_headings,
- * analyze_schema, analyze_sitemap.
+ * Remaining MVP tools for Mode A (per product-modes.md):
+ *   analyze_sitemap, check_redirects, analyze_schema, analyze_content.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -39,6 +43,11 @@ import {
   analyzeMetaInputSchema,
   AnalyzeMetaError,
 } from "./tools/site/analyze-meta.js";
+import {
+  analyzeHeadings,
+  analyzeHeadingsInputSchema,
+  AnalyzeHeadingsError,
+} from "./tools/site/analyze-headings.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -161,6 +170,53 @@ server.registerTool(
     } catch (error: unknown) {
       const errorText =
         error instanceof AnalyzeMetaError
+          ? `[${error.code}] ${error.message}`
+          : `[unexpected] ${
+              error instanceof Error ? error.message : String(error)
+            }`;
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: errorText,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.registerTool(
+  "analyze_headings",
+  {
+    title: "Analyze Heading Structure",
+    description:
+      "Walks every <h1>..<h6> on a page in document order and reports " +
+      "structural issues: missing h1, multiple h1, empty headings, " +
+      "level skips (e.g. h1 → h3 bypassing h2), and h1 length anomalies. " +
+      "Returns the full heading list, an aggregate summary (per-level " +
+      "counts, h1 count, skip count), and a list of severity-tagged " +
+      "verdicts (critical / warning / info). " +
+      "Honors robots.txt and rate limits. " +
+      "Use this when the user wants to audit a page's outline / heading " +
+      "hierarchy.",
+    inputSchema: analyzeHeadingsInputSchema,
+  },
+  async ({ url }) => {
+    try {
+      const result = await analyzeHeadings(url);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorText =
+        error instanceof AnalyzeHeadingsError
           ? `[${error.code}] ${error.message}`
           : `[unexpected] ${
               error instanceof Error ? error.message : String(error)
