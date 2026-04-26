@@ -1,0 +1,107 @@
+✨ feat(stage-4): bootstrap Electron app + selective tools + bridge-mode design
+
+Закладывает фундамент Stage 4 (визуальное приложение): полностью
+рабочий Electron + React + TypeScript app с двумя UI-состояниями
+(Initial / Active Site Audit), 7 selective tool checkboxes с
+tooltip, и зафиксирован полный дизайн bridge-mode killer-фичи v0.2.
+
+## App (новый workspace `app/`)
+
+* Electron 33 + electron-vite 2.3 + React 19 + TypeScript 5.7
+* Tailwind CSS 3 с брендовыми токенами из BRAND_BOOK
+* Vite alias `@branding` → `../branding/` (single source of truth
+  для маскотов и логотипов, никакого дублирования SVG)
+* Двухколоночный layout: sidebar 260px + main flexible
+* Initial state: затемнённая sidebar с overlay "Выберите режим
+  работы", main area с выбором режима (Site / Content)
+* Active state: кнопка "← На главную", URL input с валидацией,
+  7 чекбоксов выбора tools с tooltip при наведении, кнопка
+  "▶ Сканировать" с контекстными tooltip по причинам disabled
+* Маскот меняется по статусу: sleeping (Ready) → focused
+  (Scanning) → happy (Complete)
+* Карточка "Текст статьи" disabled с подсказкой "v0.2"
+* Корректное правописание чисел через pluralChecks() для
+  "1 проверка / 2 проверки / 5 проверок"
+* IPv4-only host (127.0.0.1) для dev-сервера обходит конфликты
+  с Happ VPN на Windows
+
+## Selective tools (NEW для v0.1 MVP)
+
+* `app/src/config/tools.ts` — единый источник для 7 tools:
+  check_robots_txt, analyze_sitemap, analyze_meta,
+  analyze_headings, check_redirects, analyze_content,
+  scan_site_minimal
+* Каждый tool имеет label (русский) и tooltip (1 предложение
+  что делает)
+* Default: все 7 включены
+* Минимум: 1 галка. Если все сняты — кнопка "Сканировать"
+  disabled с tooltip "Выберите хотя бы одну проверку"
+* selectedTools state не сбрасывается при возврате на главную
+  (юзер может несколько раз сканировать один сайт с одной
+  подборкой)
+
+## Wiki: дизайн закреплён
+
+* `wiki/toraseo/architecture-stack-decision.md` — Electron + React
+  + TypeScript зафиксирован, опровергнуты альтернативы (Tauri,
+  Web-Plugin, Skill-only). Tauri/Rust был критическим риском
+  для соло-разработчика без Rust-опыта
+* `wiki/toraseo/stage-4-mvp-scope.md` — полный скоп MVP, 2 UI
+  состояния, IPC контракт, roadmap 12-17 дней
+* `wiki/toraseo/bridge-mode-design.md` — KILLER-ФИЧА v0.2:
+  App пишет результаты в state-file → юзер пишет Claude
+  "просканируй" → Claude через MCP читает+дописывает analysis
+  → App рендерит финальный отчёт. Без API-ключа. Полная
+  спецификация: schema state-file, два MCP tools, cleanup
+  правила, UX flow, roadmap 5-6 дней
+* `wiki/toraseo/content-gear-score.md` — KILLER-ФИЧА: безлимитная
+  экспоненциальная метрика "cgs" (ToraRANK). Геймификация через
+  Gear Score из MMORPG. Скрытая формула. Решает "100% везде"
+  проблему AI-текстов. Реализация в v0.3+
+* `wiki/toraseo/torascore-design.md` — старая концепция Tora
+  Index 0..10000 помечена как superseded (потолок не работает
+  в эпоху AI)
+* `wiki/toraseo/archived/architecture-tauri-vs-web.md` — старый
+  открытый вопрос Tauri vs Web-Plugin перенесён в archived/
+* `wiki/meta/session-conventions.md` — добавлена секция "Stack
+  decisions made — don't reopen" чтобы Claude не предлагал
+  альтернативы Electron в новых сессиях
+* `wiki/index.md` — все новые страницы внесены в индекс,
+  total pages 49 → 53
+* `private/UIDesign.md` — раздел 1 переписан под финальную
+  концепцию (постоянный layout, два состояния sidebar)
+
+## Cleanup правила для bridge-mode (зафиксированы для v0.2)
+
+State-файл удаляется при:
+* Юзер нажал "Отмена" в app
+* Юзер закрыл app (Electron before-quit handler)
+* App startup: orphan files старше 1 часа удаляются
+
+Защита от race conditions: атомарная запись через
+write-to-tmp + rename, file locking на стороне MCP, проверка
+scanId match при write_scan_analysis.
+
+## Test plan
+
+1. cd app && npm install (если ещё не сделано)
+2. npm run dev — открывается нативное окно ToraSEO 1100×800
+3. Проверить Initial state — overlay sidebar, выбор режима
+4. Кликнуть "Сайт по URL" → переход в Active state
+5. Ввести URL → проверить валидацию
+6. Снять/поставить галки в "Проверки" → tooltip при наведении,
+   счётчик в main area меняется
+7. Снять все галки → кнопка disabled с tooltip
+8. Нажать "Сканировать" → focused mascot 2 сек → happy mascot
+9. "← На главную" во время скана → диалог подтверждения
+
+## Что НЕ в этом коммите (отложено)
+
+* Рефакторинг mcp/ → core/ + mcp/ (следующий коммит)
+* IPC контракт между renderer и main process (после core/)
+* Реальный вызов tools (после IPC)
+* Маскот в 6 состояниях с компонентом-обёрткой
+* Иконка окна (отложено)
+
+Refs: stage-4-mvp-scope, architecture-stack-decision,
+      bridge-mode-design, content-gear-score

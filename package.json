@@ -34,6 +34,8 @@
   "scripts": {
     "build:mcp": "npm run build --prefix mcp",
     "dev:mcp": "npm run dev --prefix mcp",
-    "test:mcp": "npm run test --prefix mcp"
+    "test:mcp": "npm run test --prefix mcp",
+    "dev:app": "npm run dev --prefix app",
+    "build:app": "npm run build --prefix app"
   }
 }
