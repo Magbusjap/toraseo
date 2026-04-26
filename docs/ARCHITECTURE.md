@@ -1,8 +1,8 @@
 # ToraSEO — Architecture
 
-**Version:** 0.2.0-draft
+**Version:** 0.1.0-alpha
 **License:** Apache 2.0
-**Status:** Pre-MVP, design phase
+**Status:** Mode A MVP complete (7 of 7 site-audit tools); Mode B planned for v0.2
 
 This document describes the technical architecture of ToraSEO. It is intended for users, contributors, and anyone integrating with the project.
 
@@ -29,13 +29,15 @@ ToraSEO is an open-source SEO toolkit built as a hybrid of:
 
 - **Claude Skill** — instructions and knowledge layer
 - **MCP server** — execution and data layer
-- **Tauri visual application** — presentation layer
+- **Visual application** (Tauri or web-plugin, see roadmap) — presentation layer
 
 This architecture enables three modes of operation:
 
 - **Skill alone:** text-only experience in Claude Desktop
 - **MCP alone:** technical scans without AI commentary
 - **Full stack:** richest experience with AI + visual dashboard
+
+Today (v0.1.0-alpha) the **Skill + MCP** combination is fully functional. The visual application layer is planned for a later milestone.
 
 ---
 
@@ -45,40 +47,45 @@ For a visual overview, see [`architecture-diagram.svg`](architecture-diagram.svg
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         User's Computer                          │
-│                                                                  │
-│  ┌──────────────────┐         ┌──────────────────────────────┐ │
-│  │  Claude Desktop  │◄────────┤  ToraSEO Skill (SKILL.md)    │ │
-│  │                  │  reads  │  — instructions, checklists  │ │
-│  │     (the brain)  │         │  — humanizer patterns        │ │
-│  └────────┬─────────┘         │  — multi-engine rules        │ │
-│           │                   └──────────────────────────────┘ │
+│                         User's Computer                         │
+│                                                                 │
+│  ┌──────────────────┐         ┌──────────────────────────────┐  │
+│  │  Claude Desktop  │◄────────┤  ToraSEO Skill (SKILL.md)    │  │
+│  │                  │  reads  │  — instructions, checklists  │  │
+│  │     (the brain)  │         │  — humanizer patterns (v0.2) │  │
+│  └────────┬─────────┘         │  — multi-engine rules        │  │
+│           │                   └──────────────────────────────┘  │
 │           │ uses tools                                          │
 │           ▼                                                     │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │              ToraSEO MCP Server                           │  │
-│  │                  (the hands)                              │  │
-│  │                                                           │  │
-│  │  Tools (stdio for Claude):                                │  │
-│  │  - scan_site(url)                                         │  │
-│  │  - check_robots_txt(url)                                  │  │
-│  │  - analyze_meta(url)                                      │  │
-│  │  - check_yandex_index(url)                                │  │
-│  │  - humanize_text(text)                                    │  │
-│  │  - app_set_url(url)                                       │  │
-│  │  - app_set_status(status, payload)                        │  │
-│  │  - app_get_state()                                        │  │
-│  │                                                           │  │
-│  │  WebSocket server (for App):                              │  │
-│  │  - subscribe(channel)                                     │  │
-│  │  - push_status(stage, data)                               │  │
-│  │  - get_state()                                            │  │
-│  └─────────────────────────────────┬─────────────────────────┘  │
-│                                    │                            │
-│                                    │ pushes status              │
-│                                    ▼                            │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │             ToraSEO MCP Server                           │   │
+│  │                  (the hands)                             │   │
+│  │                                                          │   │
+│  │  Mode A — Site Audit (v0.1.0-alpha):                     │   │
+│  │  - scan_site_minimal(url)                                │   │
+│  │  - check_robots_txt(url)                                 │   │
+│  │  - analyze_meta(url)                                     │   │
+│  │  - analyze_headings(url)                                 │   │
+│  │  - analyze_sitemap(url)                                  │   │
+│  │  - check_redirects(url)                                  │   │
+│  │  - analyze_content(url)                                  │   │
+│  │                                                          │   │
+│  │  Mode B — Content Audit (v0.2 planned):                  │   │
+│  │  - humanize_text(text, lang)                             │   │
+│  │  - analyze_naturalness(text)                             │   │
+│  │  - check_style_match(text, target_style)                 │   │
+│  │  - check_readability(text)                               │   │
+│  │                                                          │   │
+│  │  WebSocket server (for App, future):                     │   │
+│  │  - subscribe(channel)                                    │   │
+│  │  - push_status(stage, data)                              │   │
+│  │  - get_state()                                           │   │
+│  └────────────────────────────────┬─────────────────────────┘   │
+│                                   │                             │
+│                                   │ pushes status (future)      │
+│                                   ▼                             │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │           ToraSEO App (Tauri, ~5-10 MB)                    │ │
+│  │     ToraSEO App (Tauri or web, future milestone)           │ │
 │  │              (the eyes)                                    │ │
 │  │                                                            │ │
 │  │  Native window with React+Tailwind dashboard:              │ │
@@ -88,16 +95,16 @@ For a visual overview, see [`architecture-diagram.svg`](architecture-diagram.svg
 │  │  - Detailed reports                                        │ │
 │  │  - Minimal inputs (URL, text, checkboxes)                  │ │
 │  └────────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────────────────┘
                               │
                               │ ethical crawling (polite mode)
                               ▼
               ┌────────────────────────────────────┐
               │       External APIs / Web          │
               │  - User's website (verified)       │
-              │  - Google PageSpeed API            │
-              │  - Yandex Webmaster API            │
-              │  - Bing Webmaster API              │
+              │  - Google PageSpeed API (future)   │
+              │  - Yandex Webmaster API (future)   │
+              │  - Bing Webmaster API (future)     │
               └────────────────────────────────────┘
 ```
 
@@ -111,24 +118,27 @@ For a visual overview, see [`architecture-diagram.svg`](architecture-diagram.svg
 - Decides which MCP tools to call and in what order
 - Generates final recommendations and explanations
 - Does NOT process raw data — sees only summaries to save tokens
-- Can update App via MCP tools (`app_set_url`, `app_set_status`)
+- Will be able to update App via MCP tools when the App ships
 
 ### MCP Server (the hands)
 - Performs all actual work: HTTP requests, parsing, analysis
-- Maintains two interfaces:
+- Today exposes a single interface:
   - **stdio (for Claude):** standard MCP protocol with tool definitions
+- Will additionally expose, when the App is built:
   - **WebSocket (for App):** pushes status updates in real time
-- Returns to Claude only summarized data (≤100 tokens per result)
-- Handles authentication with external APIs
-- Holds shared state between Claude and App
+- Returns to Claude only summarized data (≤ a few hundred tokens per result)
+- Handles authentication with external APIs (when used)
+- Will hold shared state between Claude and App once App ships
 
-### Tauri App (the eyes)
+### Visual App (the eyes) — future
 - Renders visual dashboard
 - Displays statuses, progress, charts, recommendations
 - Has minimal inputs (URL, text, options)
 - Does NOT perform any analysis — only displays results
 - Subscribed to MCP via WebSocket for real-time updates
 - Can trigger MCP-only operations (e.g., scan without involving Claude)
+
+The choice between a Tauri-native window and a web-plugin presentation is still open — see the roadmap discussion of Tauri-vs-Web for context.
 
 ---
 
@@ -137,8 +147,8 @@ For a visual overview, see [`architecture-diagram.svg`](architecture-diagram.svg
 ### Principle 1: Skill works without MCP, MCP works without App
 
 This is critical for flexibility:
-- **Skill alone:** user can work in chat with Claude using only the skill, without launching the app
-- **MCP alone:** the app can trigger MCP scans without Claude involvement (technical analysis only)
+- **Skill alone:** user can work in chat with Claude using only the skill, without launching an app
+- **MCP alone:** the app (when it ships) can trigger MCP scans without Claude involvement (technical analysis only)
 - **Full stack:** Skill + MCP + App working together for richest experience
 
 ### Principle 2: Token efficiency is non-negotiable
@@ -150,11 +160,11 @@ This is critical for flexibility:
 ✅ Good: MCP parses → returns {status: "OK", issues: 3} → 50 tokens
 ```
 
-This allows hundreds of pages to be analyzed within a single Pro-tier session. Detailed data goes to App via WebSocket, bypassing Claude entirely.
+This allows hundreds of pages to be analyzed within a single Pro-tier session. Detailed data will go to App via WebSocket, bypassing Claude entirely.
 
 ### Principle 3: MCP is shared memory between Claude and App
 
-Claude and App **never communicate directly**. They communicate through MCP:
+Once the App ships, Claude and App **never communicate directly**. They communicate through MCP:
 
 ```
 Claude  ←→  MCP Server  ←→  App
@@ -163,22 +173,24 @@ Claude  ←→  MCP Server  ←→  App
 
 MCP holds shared state. When user fills URL in App, MCP saves it. When Claude asks `app_get_state()`, MCP returns the URL.
 
+In v0.1.0-alpha this principle still informs the design even though only Claude is connected — the MCP keeps state available for future App attachment without redesign.
+
 ---
 
 ## 5. User Interface Design
 
-The Tauri application provides a visual dashboard for analysis status and results. This section describes the high-level UI concept. Implementation details and design decisions are maintained internally.
+When the visual app ships, it will provide a dashboard for analysis status and results. This section describes the high-level UI concept. Implementation details and design decisions are maintained internally.
 
 ### Status-Driven UI
 
-The application has six main status states. Each state corresponds to a mascot pose for instant visual recognition. The full mascot system is documented in [`branding/`](../branding/).
+The application will have six main status states. Each state corresponds to a mascot pose for instant visual recognition. The full mascot system is documented in [`branding/`](../branding/).
 
 ### Two Operation Modes
 
-The app supports two analysis modes:
+The app will support two analysis modes:
 
-- **Site Analysis** — triggered by URL input. Performs technical SEO audit including robots.txt, sitemap, meta-tags, speed, schema, content quality, and AI-citability checks.
-- **Content Analysis** — triggered by text input. Performs content quality checks including AI-detection, readability, semantics, headings, and keyword analysis.
+- **Site Analysis (Mode A)** — triggered by URL input. Runs the seven Mode A MCP tools and presents the output structurally.
+- **Content Analysis (Mode B, v0.2)** — triggered by text input. Runs the Mode B MCP tools (humanizer, readability, style, AI-detection).
 
 ### Three Main Screens
 
@@ -186,21 +198,21 @@ The app supports two analysis modes:
 - **Site Analysis** — progress and results for site audit
 - **Content Analysis** — score and results for text quality
 
-All screens include a sidebar with settings, history, current project, and connection status indicators.
+All screens will include a sidebar with settings, history, current project, and connection status indicators.
 
 ### Connection-Aware Design
 
-The UI must clearly communicate which Claude chat session the app is bound to. A connection indicator is always visible, showing the active session and any diagnostic information.
+The UI must clearly communicate which Claude chat session the app is bound to. A connection indicator must always be visible, showing the active session and any diagnostic information.
 
 ### Three Interaction Patterns
 
-The UI supports three usage patterns:
+The UI will support three usage patterns:
 
 1. **Claude-driven** — user speaks to Claude, app reflects state changes automatically
 2. **App-driven** — user fills app manually, optionally invokes Claude for recommendations
 3. **Hybrid** — mixed manual input and chat commands, with automatic synchronization through MCP
 
-Detailed UI specifications, mockups, design tokens, and rationale are maintained in the design phase. This document focuses on architectural concepts that contributors and integrators need to understand.
+Detailed UI specifications, mockups, and design tokens are maintained internally during the design phase. This document focuses on architectural concepts that contributors and integrators need to understand.
 
 ---
 
@@ -216,7 +228,7 @@ This has implications:
 - App must show which chat it's bound to
 - For initial release: support only one active session at a time
 
-### Pattern 1: Claude initiates analysis
+### Pattern 1: Claude initiates analysis (when App ships)
 
 ```
 1. User in chat: "Analyze example.com for Google and Yandex"
@@ -278,52 +290,43 @@ toraseo/
 ├── CONTRIBUTING.md                 # How to contribute
 ├── SECURITY.md                     # Security policy
 ├── CRAWLING_POLICY.md              # Ethical crawling commitment
+├── .github/
+│   └── workflows/
+│       └── release-skill.yml       # CI: builds skill ZIP on v* tags
 ├── .gitignore
 ├── package.json
 │
 ├── skill/                          # User adds this to Claude Customize → Skills
-│   ├── SKILL.md
+│   ├── README.md                   # User-facing install instructions
+│   ├── SKILL.md                    # Main entry point read by Claude
 │   ├── checklists/
-│   │   ├── google-seo.md
-│   │   ├── yandex-seo.md
-│   │   ├── bing-seo.md
-│   │   └── ai-search-geo.md
-│   ├── humanizer/
-│   │   ├── ru-patterns.json
-│   │   ├── en-patterns.json
-│   │   └── strategies.md
+│   │   └── google-basics.md        # Google Search Essentials (16 items)
 │   └── templates/
-│       ├── audit-report.md
-│       └── recommendation-format.md
+│       └── audit-report.md         # Structural template + examples
+│   # Future: checklists/yandex-seo.md, bing-seo.md, ai-search-geo.md
+│   # Future: humanizer/ for Mode B (AI-detection patterns, style rules)
 │
 ├── mcp/                            # User registers in claude_desktop_config.json
 │   ├── README.md
 │   ├── package.json
-│   ├── server.js
+│   ├── tsconfig.json
 │   ├── src/
-│   │   ├── tools/
-│   │   ├── crawlers/
+│   │   ├── index.ts                # MCP server entry point
+│   │   ├── types.ts                # Shared type contracts
 │   │   ├── analyzers/
-│   │   ├── humanizer/
-│   │   ├── api/
-│   │   ├── state/
-│   │   └── websocket/
-│   └── tests/
+│   │   │   ├── site/               # Mode A analyzers (7)
+│   │   │   └── content/            # Mode B analyzers (v0.2)
+│   │   ├── crawlers/               # robots.txt, rate limiter
+│   │   ├── tools/
+│   │   │   ├── site/               # MCP tool wrappers (Mode A)
+│   │   │   └── content/            # MCP tool wrappers (Mode B, v0.2)
+│   │   ├── humanizer/              # Future, v0.2
+│   │   ├── api/                    # Future, external API integrations
+│   │   ├── state/                  # Future, MCP shared state
+│   │   └── websocket/              # Future, App connection
+│   └── tests/                      # Future, Vitest suite
 │
-├── app/                            # Tauri application
-│   ├── README.md
-│   ├── src-tauri/
-│   │   ├── tauri.conf.json
-│   │   ├── Cargo.toml
-│   │   ├── icons/
-│   │   └── src/main.rs
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── styles/
-│   │   └── ws/
-│   └── dist/
+├── app/                            # Future: visual app (Tauri or web)
 │
 ├── branding/                       # All visual assets
 │   ├── mascots/
@@ -335,67 +338,53 @@ toraseo/
 │
 ├── docs/                           # User-facing documentation
 │   ├── ARCHITECTURE.md             # This document
-│   ├── INSTALLATION.md
-│   ├── TROUBLESHOOTING.md
-│   ├── CRAWLING_ETHICS.md
 │   └── examples/
+│   # Future: INSTALLATION.md, TROUBLESHOOTING.md
 │
-└── scripts/                        # Installation & build helpers
-    ├── install.sh
-    ├── install.bat
-    ├── update-config.js
-    └── build-app.sh
+└── scripts/                        # Build helpers
+    └── build-skill.sh              # Build skill ZIP locally
+    # Future: install.sh, install.bat for one-command setup
 ```
 
 ---
 
 ## 8. Installation & Distribution
 
-### Installer vs Application — Different Things
+### Today: Skill + MCP
 
-This is a common confusion that needs clarity:
+For v0.1.0-alpha the user installs two pieces:
 
-#### The Installer (`install.bat` / `install.sh`)
+#### The MCP Server
+- Clone the repo, run `npm install` in `mcp/`, register the binary path in `claude_desktop_config.json`
+- Detailed steps in `mcp/README.md`
+
+#### The Skill
+- Download `toraseo-skill-vX.Y.Z.zip` from the GitHub Releases page
+- Upload to Claude Desktop via **Customize → Skills**
+- Detailed steps in `skill/README.md`
+
+The skill ZIP is built automatically on every `v*` git tag by `.github/workflows/release-skill.yml` — maintainers only push tags; users only download the asset.
+
+### Future: One-command installer
+
+Once the visual App is built, an installer script will:
 - Run **once** during setup
-- Registers MCP in `claude_desktop_config.json`
-- Suggests user to add Skill folder via Customize → Skills
-- Verifies dependencies (Node.js 20+, Rust for Tauri build)
-- Builds Tauri app for current OS
-- No longer needed after setup
+- Register MCP in `claude_desktop_config.json`
+- Suggest user to add Skill folder via Customize → Skills
+- Verify dependencies (Node.js 22+, plus build tools for the App)
+- Build the App for the current OS
 
-#### The Application (`ToraSEO.exe` / `.app` / etc.)
-- Run **every time** user wants to use ToraSEO
-- Native window with dashboard
-- Connects to MCP via WebSocket
-- Displays statuses and results
-- Does no analysis — only shows
+### Future: DXT Package
 
-### Application Startup Flow (Runtime Checks)
-
-When user launches `ToraSEO.exe`:
-
-```
-1. App starts, opens window
-2. App attempts WebSocket connection to MCP
-3. If fails → shows: "MCP server not running. Open Claude Desktop"
-4. If connects → asks MCP for Skill status
-5. If Skill not active → shows: "Activate ToraSEO Skill in Customize"
-6. If all OK → shows main screen (Welcome)
-```
-
-This is a runtime check, not an installation check. Each app launch verifies the environment is ready.
+When Anthropic stabilizes the DXT format, package everything into a single `.dxt` file for true one-click installation.
 
 ### Three-Way Independence
 
 The system is designed so each component can work without others:
 
-- **Skill alone:** user works in chat with Claude, no app needed
-- **MCP alone:** app triggers technical scans without Claude
-- **Full stack:** richest experience with AI + visual dashboard
-
-### Future: DXT Package
-
-When Anthropic stabilizes the DXT format, package everything into a single `.dxt` file for true one-click installation. This is a future enhancement.
+- **Skill alone:** user works in chat with Claude, no app needed (today)
+- **MCP alone:** app triggers technical scans without Claude (future)
+- **Full stack:** richest experience with AI + visual dashboard (future)
 
 ---
 
@@ -407,7 +396,7 @@ When Anthropic stabilizes the DXT format, package everything into a single `.dxt
 2. **Honest User-Agent:** `ToraSEO/X.Y.Z (+https://github.com/Magbusjap/toraseo)`
 3. **Rate limiting:** 1 request per 2-3 seconds by default
 4. **Page limit:** max 50 pages per analysis
-5. **Three-tier scanning:**
+5. **Three-tier scanning** (planned):
    - **Tier 1 (Owner mode):** verified-owner sites — aggressive scanning OK
    - **Tier 2 (Polite mode):** public/competitor sites — minimal, respectful
    - **Tier 3 (API-only mode):** sites with strong protection — only public APIs
@@ -428,6 +417,8 @@ Ethical crawling is a feature, not a limitation. It means:
 - No legal risks for users
 - Long-term reliability (no IP bans)
 - Open data lineage and reproducibility
+
+The full policy is at [`../CRAWLING_POLICY.md`](../CRAWLING_POLICY.md).
 
 ---
 
@@ -468,4 +459,4 @@ For full brand guidelines, see [`branding/BRAND_BOOK.md`](../branding/BRAND_BOOK
 
 ---
 
-_This document is part of the public ToraSEO documentation. For installation instructions, see [INSTALLATION.md](INSTALLATION.md)._
+_This document is part of the public ToraSEO documentation. For the user-facing skill installation steps, see [`skill/README.md`](../skill/README.md). For the MCP server installation, see [`mcp/README.md`](../mcp/README.md)._

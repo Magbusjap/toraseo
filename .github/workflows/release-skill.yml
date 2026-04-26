@@ -1,0 +1,51 @@
+name: Release skill ZIP
+
+# Triggers on git tags like v0.1.0, v0.2.0-alpha, etc.
+# The tag itself does not need to mention the skill — every release of
+# ToraSEO ships an updated skill ZIP, since the skill and the MCP
+# evolve together.
+on:
+  push:
+    tags:
+      - "v*"
+
+# Permission to create releases and attach assets.
+permissions:
+  contents: write
+
+jobs:
+  build-and-attach:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v4
+
+      - name: Verify skill structure
+        # Sanity check: SKILL.md must exist at skill/ root and have
+        # required frontmatter fields. Catches accidental moves.
+        run: |
+          test -f skill/SKILL.md || { echo "skill/SKILL.md missing"; exit 1; }
+          grep -q "^name:" skill/SKILL.md || { echo "name: field missing"; exit 1; }
+          grep -q "^description:" skill/SKILL.md || { echo "description: field missing"; exit 1; }
+
+      - name: Build skill ZIP
+        # Claude Desktop expects the skill folder at the ZIP root.
+        # We stage skill/ contents into a folder named "toraseo/"
+        # (matching the name: field in frontmatter), then zip that.
+        run: |
+          mkdir -p staging/toraseo
+          cp -r skill/. staging/toraseo/
+          cd staging
+          zip -r ../toraseo-skill-${{ github.ref_name }}.zip toraseo
+          cd ..
+          ls -la toraseo-skill-${{ github.ref_name }}.zip
+
+      - name: Create GitHub Release and attach ZIP
+        # softprops/action-gh-release auto-creates a release for the
+        # tag if one doesn't exist, or updates the existing one.
+        uses: softprops/action-gh-release@v2
+        with:
+          files: toraseo-skill-${{ github.ref_name }}.zip
+          # Generate release notes from commits since the previous tag.
+          # Maintainers can edit them manually after the release is up.
+          generate_release_notes: true
