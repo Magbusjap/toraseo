@@ -1,5 +1,5 @@
 import { ArrowLeft, Play, Globe } from "lucide-react";
-import type { ScanState } from "../../App";
+import type { ScanState } from "../../hooks/useScan";
 import { TOOLS, type ToolId } from "../../config/tools";
 
 interface ActiveSidebarProps {
@@ -30,6 +30,7 @@ export default function ActiveSidebar({
   onStartScan,
 }: ActiveSidebarProps) {
   const isScanning = scanState === "scanning";
+  const isComplete = scanState === "complete";
   const trimmedUrl = url.trim();
   const hasValidUrl = trimmedUrl.length > 0 && isLikelyUrl(trimmedUrl);
   const hasSelectedTools = selectedTools.size > 0;
@@ -42,6 +43,12 @@ export default function ActiveSidebar({
       : isScanning
         ? "Сканирование уже идёт"
         : undefined;
+
+  const scanButtonLabel = isScanning
+    ? "Сканирование..."
+    : isComplete
+      ? "Сканировать заново"
+      : "Сканировать";
 
   return (
     <div className="flex h-full flex-col">
@@ -120,7 +127,7 @@ export default function ActiveSidebar({
           className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/20"
         >
           <Play className="h-4 w-4 fill-current" strokeWidth={2} />
-          <span>{isScanning ? "Сканирование..." : "Сканировать"}</span>
+          <span>{scanButtonLabel}</span>
         </button>
       </footer>
     </div>

@@ -3,11 +3,10 @@ import IdleSidebar from "./components/Sidebar/IdleSidebar";
 import ActiveSidebar from "./components/Sidebar/ActiveSidebar";
 import ModeSelection from "./components/MainArea/ModeSelection";
 import SiteAuditView from "./components/MainArea/SiteAuditView";
-import { DEFAULT_SELECTED_TOOLS, type ToolId } from "./config/tools";
+import { DEFAULT_SELECTED_TOOLS, TOOLS, type ToolId } from "./config/tools";
+import { useScan } from "./hooks/useScan";
 
 export type AppMode = "idle" | "site" | "content";
-
-export type ScanState = "ready" | "scanning" | "complete";
 
 /**
  * Корень приложения.
@@ -16,11 +15,13 @@ export type ScanState = "ready" | "scanning" | "complete";
  * - mode: текущий режим работы (idle / site / content)
  * - url: введённый адрес сайта для аудита (только в site mode)
  * - selectedTools: какие tools юзер выбрал для запуска
- * - scanState: статус скана (ready / scanning / complete)
  *
- * URL и scanState сбрасываются при возврате на главную, но selectedTools
- * сохраняются — юзер может несколько раз сканировать один сайт с одной
- * подборкой tool'ов.
+ * Состояние скана (stages, scanState, summary) живёт в `useScan` —
+ * хук подписан на IPC main process и хранит per-tool результаты.
+ *
+ * URL и состояние скана сбрасываются при возврате на главную, но
+ * selectedTools сохраняются — юзер может несколько раз сканировать
+ * один сайт с одной подборкой tool'ов.
  */
 export default function App() {
   const [mode, setMode] = useState<AppMode>("idle");
@@ -28,7 +29,8 @@ export default function App() {
   const [selectedTools, setSelectedTools] = useState<Set<ToolId>>(
     () => new Set(DEFAULT_SELECTED_TOOLS),
   );
-  const [scanState, setScanState] = useState<ScanState>("ready");
+
+  const { stages, scanState, summary, startScan } = useScan();
 
   const handleModeSelect = (selected: "site" | "content") => {
     if (selected === "content") {
@@ -47,7 +49,8 @@ export default function App() {
     }
     setMode("idle");
     setUrl("");
-    setScanState("ready");
+    // useScan сам перезапишет stages при следующем startScan;
+    // визуально это эквивалентно сбросу.
   };
 
   const handleToggleTool = (toolId: ToolId) => {
@@ -63,13 +66,14 @@ export default function App() {
   };
 
   const handleStartScan = () => {
-    setScanState("scanning");
-    // TODO (next iteration): здесь будет вызов IPC к main process,
-    // который запустит выбранные core/ tools. Пока — заглушка с
-    // таймером для демонстрации перехода между состояниями.
-    setTimeout(() => {
-      setScanState("complete");
-    }, 2000);
+    // Preserve UI order from TOOLS config (alphabetical insertion into
+    // a Set isn't guaranteed). The renderer doesn't depend on this for
+    // correctness — main runs them in parallel — but ordering keeps the
+    // sidebar tooltip text and the main-area stage list in sync.
+    const orderedIds = TOOLS.map((t) => t.id).filter((id) =>
+      selectedTools.has(id),
+    );
+    startScan(url.trim(), orderedIds);
   };
 
   return (
@@ -100,6 +104,8 @@ export default function App() {
             url={url}
             scanState={scanState}
             selectedTools={selectedTools}
+            stages={stages}
+            summary={summary}
           />
         )}
       </main>

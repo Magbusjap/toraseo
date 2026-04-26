@@ -1,6 +1,9 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { IPC_CHANNELS, startScan } from "./tools.js";
+import type { StartScanArgs } from "../src/types/ipc";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -17,9 +20,10 @@ function createWindow(): void {
     autoHideMenuBar: true,
     show: false, // показываем окно после ready-to-show, чтобы не было flash
     webPreferences: {
-      // electron-vite кладёт preload в out/preload/preload.mjs
-      // (имя берётся из entry: electron/preload.ts → preload.mjs)
-      preload: path.join(__dirname, "..", "preload", "preload.mjs"),
+      // electron-vite кладёт preload в out/preload/preload.js
+      // (CommonJS, потому что sandbox прелоад требует CJS —
+      // см. комментарий в electron.vite.config.ts).
+      preload: path.join(__dirname, "..", "preload", "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -53,7 +57,43 @@ function createWindow(): void {
   });
 }
 
+/**
+ * Register IPC handlers exactly once, on app ready.
+ *
+ * `start-scan` is a request/response handler: renderer awaits the
+ * resulting scanId; from there, progress arrives over the
+ * `stage-update` and `scan-complete` channels via `webContents.send`.
+ * Those are one-way — the renderer just listens.
+ */
+function registerIpcHandlers(): void {
+  ipcMain.handle(
+    IPC_CHANNELS.startScan,
+    async (event, args: StartScanArgs) => {
+      // Trust boundary: validate everything coming from renderer.
+      // Even though our own UI built this payload, the contract here
+      // is the only thing standing between an untrusted renderer and
+      // the Node.js process. Bad input → throw, IPC reflects that as
+      // a rejected promise on the caller side.
+      if (!args || typeof args !== "object") {
+        throw new Error("Invalid args: expected an object");
+      }
+      const { url, toolIds } = args;
+      if (typeof url !== "string" || url.trim().length === 0) {
+        throw new Error("Invalid args: 'url' must be a non-empty string");
+      }
+      if (!Array.isArray(toolIds) || toolIds.length === 0) {
+        throw new Error("Invalid args: 'toolIds' must be a non-empty array");
+      }
+
+      // The renderer that sent this is the one we stream back to.
+      // sender.session is also fine; we want the originating contents.
+      return startScan(event.sender, url.trim(), toolIds);
+    },
+  );
+}
+
 app.whenReady().then(() => {
+  registerIpcHandlers();
   createWindow();
 
   app.on("activate", () => {

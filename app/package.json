@@ -16,6 +16,7 @@
     "dist:linux": "electron-vite build && electron-builder --linux"
   },
   "dependencies": {
+    "@toraseo/core": "*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "lucide-react": "^0.469.0"
