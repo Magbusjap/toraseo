@@ -37,11 +37,102 @@ the `skill-v*` namespace.
 
 ## [Unreleased]
 
-Nothing yet. The next slice of work targets the **app track v0.0.3+**
-— hard-dependency detector (Claude Desktop process / MCP config /
-Skill files) and onboarding screen with real-time checkboxes. After
-that, the **skill track v0.2.0** — Mode B content audit (humanizer,
-readability, style match, AI-detection score).
+Nothing yet. The next slice of work is **app v0.0.4** — Phase 2 of
+hard-dependency support: instructions overlay (per-row click →
+step-by-step setup), automatic MCP installation (NSIS installer
+writes the config), and the start of an app-as-Skill-package-manager
+flow (auto-update Skill via GitHub). After that, the **skill track
+v0.2.0** — Mode B content audit (humanizer, readability, style match,
+AI-detection score).
+
+---
+
+## [App 0.0.3] — 2026-04-26
+
+Hard-dependency detector and onboarding screen. The app now requires
+three components before scanning is unlocked: Claude Desktop running,
+ToraSEO MCP registered in `claude_desktop_config.json`, and ToraSEO
+Skill installed on disk at `~/.claude/skills/toraseo/SKILL.md`.
+Without all three the main UI is replaced with an onboarding screen.
+When all three become green, the UI returns to normal automatically.
+
+### Added — Detector
+
+- **`app/electron/detector.ts`** — three checks running in parallel:
+  - Claude Desktop process scan via `ps-list@8` (case-insensitive
+    match on basename `claude` / `claude.exe`)
+  - `mcpServers.toraseo` lookup in `claude_desktop_config.json`
+    (platform-specific path)
+  - `fs.access` on `~/.claude/skills/toraseo/SKILL.md`
+- **Polling** every 5 seconds (compromise between UX reactivity and
+  CPU load), with an immediate first tick so the UI doesn't sit on
+  default-false values for the first 5 seconds.
+- **`checkNow()`** synchronous IPC handler. Used by the renderer
+  immediately before starting a scan to close the race window
+  between the last polling tick and the user click.
+
+### Added — Launcher
+
+- **`app/electron/launcher.ts`** — cross-platform Claude Desktop
+  launcher with three strategies (in order):
+  - Windows: spawn `Claude.exe` from known paths
+    (`%LOCALAPPDATA%\Programs\claude\`, `Program Files\Claude\`,
+    etc.) with `detached: true` and `unref()` so Claude survives
+    ToraSEO closing
+  - macOS: `shell.openPath()` on the `.app` bundle
+  - Linux: spawn the binary from known bin paths
+  - Fallback: `shell.openExternal("claude://")` — the protocol
+    handler registered by Anthropic's official installer opens
+    Claude regardless of disk path
+
+### Added — Onboarding UI
+
+- **`OnboardingView`** — calm three-row checklist with single
+  primary action ("Открыть Claude Desktop"). MCP and Skill rows
+  show hint text but no action button — those installations are
+  manual for now (automatic MCP install is Phase 3, app-managed
+  Skill is Phase 4).
+- **`DependencyCheck`** — one row component with satisfied/missing
+  visual states; green check vs orange X.
+- **Sidebar overlay** during onboarding: dimmed white scrim with
+  hint "Завершите проверку справа". Sidebar still visible to
+  preserve layout consistency.
+- **Pre-flight error toast** — when a scan click fails the
+  `checkNow()` gate, a top-center toast explains the reason and
+  the app routes to the onboarding view automatically.
+
+### Modified
+
+- **`app/electron/main.ts`** — calls `setupDetector(getMainWindow)`
+  and `setupLauncher()` after `app.whenReady()`.
+- **`app/electron/preload.ts`** — bridge surface extended with
+  `detector` and `launcher` namespaces; channel constants
+  mirrored from main process.
+- **`app/src/types/ipc.ts`** — `DetectorStatus`, `DetectorApi`,
+  `LauncherApi`, `OpenClaudeResult` added; `ToraseoApi` extended.
+- **`app/src/App.tsx`** — `isOnboarding` gate before the normal
+  layout; pre-flight `checkNow()` inside `handleStartScan`.
+- **`app/package.json`** — bump 0.0.2 → 0.0.3; `ps-list@8.1.1`
+  added to dependencies.
+
+### Deferred to Phase 2–5
+
+This release covers the backend and core onboarding flow.
+Following slices fill out the rest:
+
+- **Phase 2** — click-through instructions overlay for each row
+  ("Как установить?"), with screenshots and copy-paste paths.
+- **Phase 3** — automatic MCP installation: the NSIS installer
+  writes `mcpServers.toraseo` into `claude_desktop_config.json`
+  on first run, merging with existing entries instead of
+  overwriting.
+- **Phase 4** — app as Skill package manager. App reads version
+  from SKILL.md frontmatter, polls GitHub for the latest skill
+  release, and offers an in-app "Update Skill" action. This
+  fills the gap left by Claude Desktop having no native
+  update mechanism for file-based skills.
+- **Phase 5** — polish: localization (EN/RU), transition
+  animations, dark mode.
 
 ---
 

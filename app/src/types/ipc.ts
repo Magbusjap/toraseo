@@ -129,8 +129,7 @@ export interface CheckUpdateResult {
   error?: string;
 }
 
-/**
- * Updater surface inside `window.toraseo.updater`.
+/** Updater surface inside `window.toraseo.updater`.
  *
  * Three actions (check / download / install) are gated on user clicks
  * by design — autoDownload and autoInstallOnAppQuit are both disabled
@@ -150,6 +149,72 @@ export interface UpdaterApi {
   onUpdateDownloaded(listener: (info: UpdateInfo) => void): () => void;
   onUpdateError(listener: (err: { message: string }) => void): () => void;
 }
+
+// =====================================================================
+// Hard-dependency detector contract
+// =====================================================================
+
+/**
+ * Aggregated status of the three hard dependencies.
+ *
+ * `allGreen` is the only field the UI needs to gate the scan button;
+ * the individual booleans drive the per-row checkboxes in the
+ * onboarding screen.
+ */
+export interface DetectorStatus {
+  /** Claude Desktop process is currently running. */
+  claudeRunning: boolean;
+  /** mcpServers.toraseo present in claude_desktop_config.json. */
+  mcpRegistered: boolean;
+  /** ~/.claude/skills/toraseo/SKILL.md exists. */
+  skillInstalled: boolean;
+  /** All three above are true. UI uses this to enable scanning. */
+  allGreen: boolean;
+  /** ISO-8601 timestamp; for staleness checks if needed. */
+  checkedAt: string;
+}
+
+/**
+ * Detector surface inside `window.toraseo.detector`.
+ *
+ * Polling runs in main process every 5 seconds and pushes through
+ * onStatusUpdate. checkNow() is the synchronous pre-flight used
+ * by App.tsx right before starting a scan, to close the race window
+ * between the last poll tick and the user click.
+ */
+export interface DetectorApi {
+  /** Subscribe to status updates pushed every 5 seconds. */
+  onStatusUpdate(listener: (status: DetectorStatus) => void): () => void;
+  /** Force a fresh check, bypassing the polling cache. */
+  checkNow(): Promise<DetectorStatus>;
+}
+
+// =====================================================================
+// Launcher contract
+// =====================================================================
+
+export interface OpenClaudeResult {
+  ok: boolean;
+  /** Which path was used (for debugging in DevTools). */
+  launchedFrom?: string;
+  /** Set when ok = false. */
+  error?: string;
+}
+
+/**
+ * Launcher surface inside `window.toraseo.launcher`.
+ *
+ * Currently only opens Claude Desktop. Future additions could include
+ * opening the MCP config file in the user's editor, opening the Skill
+ * folder, etc.
+ */
+export interface LauncherApi {
+  openClaude(): Promise<OpenClaudeResult>;
+}
+
+// =====================================================================
+// Public API on window.toraseo
+// =====================================================================
 
 /**
  * Public surface exposed on `window.toraseo` by the preload script.
@@ -182,4 +247,10 @@ export interface ToraseoApi {
 
   /** Auto-updater API. See UpdaterApi. */
   updater: UpdaterApi;
+
+  /** Hard-dependency detector API. See DetectorApi. */
+  detector: DetectorApi;
+
+  /** Claude Desktop launcher API. See LauncherApi. */
+  launcher: LauncherApi;
 }

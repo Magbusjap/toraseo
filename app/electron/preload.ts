@@ -20,7 +20,9 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import type {
   CheckUpdateResult,
+  DetectorStatus,
   DownloadProgress,
+  OpenClaudeResult,
   ScanComplete,
   StageUpdate,
   StartScanArgs,
@@ -48,8 +50,19 @@ const UPDATER = {
   error: "toraseo:updater:update-error",
 } as const;
 
+// Mirror of DETECTOR_CHANNELS from electron/detector.ts.
+const DETECTOR = {
+  checkNow: "toraseo:detector:check-now",
+  statusUpdate: "toraseo:detector:status-update",
+} as const;
+
+// Mirror of LAUNCHER_CHANNELS from electron/launcher.ts.
+const LAUNCHER = {
+  openClaude: "toraseo:launcher:open-claude",
+} as const;
+
 const api: ToraseoApi = {
-  version: "0.0.2",
+  version: "0.0.3",
 
   startScan: (args: StartScanArgs) => {
     return ipcRenderer.invoke(SCAN.startScan, args) as Promise<{
@@ -124,6 +137,25 @@ const api: ToraseoApi = {
         listener(err);
       ipcRenderer.on(UPDATER.error, wrapped);
       return () => ipcRenderer.removeListener(UPDATER.error, wrapped);
+    },
+  },
+
+  detector: {
+    onStatusUpdate: (listener) => {
+      const wrapped = (_event: unknown, status: DetectorStatus) =>
+        listener(status);
+      ipcRenderer.on(DETECTOR.statusUpdate, wrapped);
+      return () => ipcRenderer.removeListener(DETECTOR.statusUpdate, wrapped);
+    },
+
+    checkNow: () => {
+      return ipcRenderer.invoke(DETECTOR.checkNow) as Promise<DetectorStatus>;
+    },
+  },
+
+  launcher: {
+    openClaude: () => {
+      return ipcRenderer.invoke(LAUNCHER.openClaude) as Promise<OpenClaudeResult>;
     },
   },
 };

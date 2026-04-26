@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import { IPC_CHANNELS, startScan } from "./tools.js";
 import { setupAutoUpdater } from "./updater.js";
+import { setupDetector } from "./detector.js";
+import { setupLauncher } from "./launcher.js";
 import type { StartScanArgs } from "../src/types/ipc";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -101,6 +103,17 @@ app.whenReady().then(() => {
   // 3 seconds after start. Behavior: ask before download, ask
   // before install. See electron/updater.ts for details.
   setupAutoUpdater(() => mainWindow);
+
+  // Hard-dependency detector: polling every 5s for Claude process,
+  // MCP config entry, and Skill files. Pushes status to renderer
+  // for the onboarding screen. Also exposes synchronous checkNow()
+  // for pre-flight before scanning. See electron/detector.ts.
+  setupDetector(() => mainWindow);
+
+  // Claude Desktop launcher: invoked by the "Open Claude Desktop"
+  // button on the onboarding screen. See electron/launcher.ts for
+  // platform-specific path discovery.
+  setupLauncher();
 
   app.on("activate", () => {
     // macOS: пересоздать окно при клике на иконку в доке если все
