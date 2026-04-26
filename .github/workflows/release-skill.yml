@@ -1,13 +1,21 @@
 name: Release skill ZIP
 
-# Triggers on git tags like v0.1.0, v0.2.0-alpha, etc.
-# The tag itself does not need to mention the skill — every release of
-# ToraSEO ships an updated skill ZIP, since the skill and the MCP
-# evolve together.
+# Triggers on `skill-v*` tags only (e.g. skill-v0.1.0, skill-v0.2.0-alpha).
+#
+# Why a namespace tag and not plain v*: the desktop app uses plain
+# `v*` tags (release-app.yml). If both workflows triggered on the
+# same tag, electron-builder and softprops would race to create the
+# same release. Keeping skill releases under `skill-v*` cleanly
+# separates the two release tracks.
+#
+# Legacy note: the v0.1.0-alpha release was published under the old
+# (plain `v*`) scheme, before the namespace split. It stays as-is for
+# users who already downloaded that ZIP. Future skill releases use
+# `skill-v*`.
 on:
   push:
     tags:
-      - "v*"
+      - "skill-v*"
 
 # Permission to create releases and attach assets.
 permissions:
@@ -28,6 +36,16 @@ jobs:
           grep -q "^name:" skill/SKILL.md || { echo "name: field missing"; exit 1; }
           grep -q "^description:" skill/SKILL.md || { echo "description: field missing"; exit 1; }
 
+      - name: Compute zip name
+        # We want toraseo-skill-v0.1.0.zip even though the git tag is
+        # skill-v0.1.0. Strip the leading "skill-" so the asset name
+        # stays consistent with the v0.1.0-alpha legacy release.
+        id: zipname
+        run: |
+          SKILL_VERSION=${GITHUB_REF_NAME#skill-}
+          echo "version=$SKILL_VERSION" >> $GITHUB_OUTPUT
+          echo "filename=toraseo-skill-$SKILL_VERSION.zip" >> $GITHUB_OUTPUT
+
       - name: Build skill ZIP
         # Claude Desktop expects the skill folder at the ZIP root.
         # We stage skill/ contents into a folder named "toraseo/"
@@ -36,16 +54,18 @@ jobs:
           mkdir -p staging/toraseo
           cp -r skill/. staging/toraseo/
           cd staging
-          zip -r ../toraseo-skill-${{ github.ref_name }}.zip toraseo
+          zip -r ../${{ steps.zipname.outputs.filename }} toraseo
           cd ..
-          ls -la toraseo-skill-${{ github.ref_name }}.zip
+          ls -la ${{ steps.zipname.outputs.filename }}
 
       - name: Create GitHub Release and attach ZIP
         # softprops/action-gh-release auto-creates a release for the
         # tag if one doesn't exist, or updates the existing one.
+        # The release shows up under the skill-v0.1.0 tag, while the
+        # asset is named toraseo-skill-v0.1.0.zip without the prefix.
         uses: softprops/action-gh-release@v2
         with:
-          files: toraseo-skill-${{ github.ref_name }}.zip
+          files: ${{ steps.zipname.outputs.filename }}
           # Generate release notes from commits since the previous tag.
           # Maintainers can edit them manually after the release is up.
           generate_release_notes: true

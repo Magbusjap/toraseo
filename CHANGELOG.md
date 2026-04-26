@@ -11,10 +11,105 @@ between minor versions until the v1.0 milestone.
 
 ---
 
+## Two release tracks
+
+ToraSEO ships in two independently-versioned tracks:
+
+- **App** — the Electron desktop application. Tags: `v0.0.2`,
+  `v0.0.3`, ... `v1.0.0`. Built and published by
+  `.github/workflows/release-app.yml` via electron-builder.
+- **Skill** — the Claude Skill ZIP (and its companion MCP server).
+  Tags: `skill-v0.2.0`, `skill-v0.3.0`, ... `skill-v1.0.0`. Built
+  and published by `.github/workflows/release-skill.yml`.
+
+Both tracks live in the same repo and share the `core/` library, but
+they ship to users separately and evolve at different rates. App
+development usually moves faster (UI, UX, packaging, auto-update);
+Skill stays stable until a new analysis mode or significant accuracy
+improvement justifies a bump.
+
+Legacy note: the very first release `v0.1.0-alpha` (skill+MCP) was
+published before this naming convention was introduced. It stays as-is
+for users who already downloaded that ZIP; future skill releases use
+the `skill-v*` namespace.
+
+---
+
 ## [Unreleased]
 
-Nothing yet. The next slice of work targets **v0.2** — Mode B content
-audit (humanizer, readability, style match, AI-detection score).
+Nothing yet. The next slice of work targets the **app track v0.0.3+**
+— hard-dependency detector (Claude Desktop process / MCP config /
+Skill files) and onboarding screen with real-time checkboxes. After
+that, the **skill track v0.2.0** — Mode B content audit (humanizer,
+readability, style match, AI-detection score).
+
+---
+
+## [App 0.0.2] — 2026-04-26
+
+First app release with auto-update infrastructure. Distribution
+continues through GitHub Releases as before, but installed copies of
+ToraSEO 0.0.2+ now check for updates automatically and offer download
++ install through an in-app notification.
+
+### Added — Auto-update infrastructure
+
+- **`electron-updater` integration** in `app/electron/updater.ts`.
+  Initial check runs 3 seconds after app ready (avoids blocking
+  startup). Logs to `electron-log` (default platform path — e.g.
+  `%APPDATA%\toraseo\logs\main.log` on Windows).
+- **In-app notification** in the bottom-right corner of the window.
+  Renders only when there's an update event in flight — stays
+  invisible during normal operation. Component:
+  `app/src/components/UpdateNotification/UpdateNotification.tsx`.
+- **State machine** in `app/src/hooks/useUpdater.ts`:
+  `idle` → `available` → `downloading` → `downloaded`, plus an
+  `error` branch with dismiss-only behavior.
+- **IPC contract** for updater actions and events in
+  `app/src/types/ipc.ts` (UpdaterApi, UpdateInfo, DownloadProgress,
+  CheckUpdateResult).
+- **Bridge surface** in `app/electron/preload.ts` exposes the
+  updater under `window.toraseo.updater`. The renderer never gets
+  direct ipcRenderer access — only the typed methods.
+- **CI/CD workflow** `.github/workflows/release-app.yml`. Triggered
+  by clean version tags (`v*`, excluding `skill-v*`). Runs `npm ci`,
+  builds the `@toraseo/core` workspace, then
+  `electron-builder --publish always` which uploads installer +
+  `latest.yml` manifest to GitHub Releases.
+
+### Behavior — user consent at every step
+
+- `autoDownload: false` — user must explicitly click «Скачать»
+- `autoInstallOnAppQuit: false` — user must explicitly click
+  «Установить и перезапустить»
+- Notification can't be dismissed while a download is in progress
+  (avoids orphaned partial downloads)
+- During development (`app.isPackaged === false`) the updater
+  silently skips checks — documented behavior of electron-updater,
+  not a bug
+
+### Compatibility
+
+- **Node.js:** 20+ (Electron 33 ships Node 20.x)
+- **OS tested:** Windows 11 (NSIS installer 0.0.1 → 0.0.2 verified)
+- **First update path:** users on 0.0.1 must install 0.0.2 manually
+  (0.0.1 has no updater UI). From 0.0.2 onwards, all updates flow
+  through the in-app notification.
+
+### Known limitations
+
+- **No code signing.** Windows SmartScreen will warn on first
+  install. Users must click "More info" → "Run anyway". Code
+  signing is deferred to post-v0.6 (alpha audience tolerates this;
+  it costs ~$99/year Apple Dev + ~$300+/year Windows EV cert).
+- **No delta updates yet.** Each update downloads the full installer
+  (~180 MB). electron-builder can produce delta updates via
+  blockmaps but tuning that for our payload comes after the basic
+  flow is verified in production.
+- **Only Windows builds in CI right now.** macOS and Linux targets
+  are wired in `package.json` but the GitHub Actions matrix
+  currently builds only `windows-latest`. Other platforms unblock
+  when those audiences become real.
 
 ---
 

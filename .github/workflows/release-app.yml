@@ -1,21 +1,28 @@
 name: Release Desktop App
 
 # Builds and publishes the ToraSEO desktop app to GitHub Releases
-# when a git tag matching v*-app is pushed (e.g. v0.0.2-app).
+# when a clean version tag is pushed (e.g. v0.0.3, v0.1.0, v1.0.0).
 #
-# The "-app" suffix exists so we can independently tag Skill releases
-# (handled by release-skill.yml on plain v* tags). When you want to
-# ship both the Skill AND the app in lockstep, push two tags from the
-# same commit: e.g. v0.2.0 and v0.2.0-app.
+# IMPORTANT: tag pattern is plain `v*` (no suffix). This matches what
+# electron-builder + electron-updater expect — the tool reads
+# `version` from app/package.json and creates/updates a release with
+# tag `v{version}`. If we tagged `v0.0.3-app`, electron-builder would
+# silently create a *parallel* release `v0.0.3` and our tag-triggered
+# workflow would produce an empty orphan release.
 #
-# electron-builder reads "publish.provider: github" from app/package.json
-# build config and uploads the .exe / .dmg / .AppImage artifacts plus
-# the latest.yml manifest that auto-update consumers (electron-updater
-# in the running app) read to detect new versions.
+# The Skill workflow (release-skill.yml) uses `skill-v*` namespace
+# specifically to avoid collision with this one.
+#
+# electron-builder reads "publish.provider: github" from
+# app/package.json build config and uploads the .exe / .dmg /
+# .AppImage artifacts plus the latest.yml manifest that auto-update
+# consumers (electron-updater in the running app) read to detect new
+# versions.
 on:
   push:
     tags:
-      - "v*-app"
+      - "v*"
+      - "!skill-v*" # belongs to release-skill.yml, not us
 
 permissions:
   contents: write
