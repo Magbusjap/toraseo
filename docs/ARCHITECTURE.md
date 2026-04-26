@@ -228,47 +228,51 @@ This has implications:
 - App must show which chat it's bound to
 - For initial release: support only one active session at a time
 
-### Pattern 1: Claude initiates analysis (when App ships)
+### Pattern 1: Claude-driven audit (today, Skill + MCP)
+
+This is the only interaction pattern available in v0.1.0-alpha:
 
 ```
-1. User in chat: "Analyze example.com for Google and Yandex"
+1. User in chat: "Run an SEO audit on example.com"
 2. Claude reads SKILL.md, understands intent
-3. Claude calls MCP: app_set_url("example.com")
-4. App receives WebSocket update → URL field fills automatically
-5. Claude calls MCP: app_set_engines(["google", "yandex"])
-6. App: checkboxes for Google and Yandex check
-7. Claude calls MCP: app_start_scan()
-8. App: mascot changes to "focused", progress starts
-9. MCP performs HTTP requests in parallel
-10. MCP pushes stages to App as they complete
-11. MCP returns summary to Claude: { score: 78, issues: 1 }
-12. Claude tells user in chat: "Done. Score 78. Details in app"
+3. Claude calls scan_site_minimal("example.com") to verify reachability
+4. Claude calls the six analyzer tools (analyze_meta, analyze_headings,
+   analyze_sitemap, check_redirects, analyze_content, check_robots_txt)
+   in any order — they are independent
+5. Each tool returns severity-tagged findings (≤ a few hundred tokens)
+6. Claude aggregates findings against checklists/google-basics.md
+7. Claude produces a structured report following templates/audit-report.md
+8. User reads the report in chat
 ```
 
-### Pattern 2: User works only in app
+### Pattern 2: App-driven (future, when App ships)
+
+When the visual App is added, MCP will gain shared-state tools so
+Claude and App can coordinate without talking directly. The exact
+tool names are not yet finalized — they will be designed alongside
+the App rather than committed in advance and changed later. The
+pattern will look roughly like:
 
 ```
-1. User opens app, fills URL: "example.com"
-2. User selects engines: Google + Yandex
-3. User clicks "Scan"
-4. App via MCP: saves URL and engines to shared memory
-5. App shows hint: "Tell Claude any message to start"
-6. User writes in chat: "go"
-7. Claude receives "go", checks MCP: app_get_state()
-8. MCP returns: { url: "example.com", engines: [...], ready: true }
-9. Claude understands and runs scan
-10. Continues like Pattern 1
+1. User opens App, fills URL, clicks "Scan"
+2. App writes URL to MCP shared state
+3. App prompts user: "Tell Claude any message to start"
+4. User writes "go" in chat
+5. Claude reads MCP shared state, sees URL, runs the same seven tools
+   as Pattern 1
+6. As tools complete, MCP pushes stage updates to App over WebSocket
+7. App renders progress, results, mascot states in real time
+8. Claude returns a text summary to chat; App holds the detailed view
 ```
 
-### Pattern 3: Hybrid (most common)
+### Pattern 3: Hybrid (future, when App ships)
 
 ```
-1. User in app: enters URL
-2. User in chat: "Check Google and Yandex, no Bing"
-3. Claude sees command but no URL — checks MCP: app_get_state()
-4. MCP returns: { url: "example.com" }
-5. Claude has all info — runs scan with specified engines
-6. Continues like Pattern 1
+1. User in App: enters URL
+2. User in chat: "Run a full audit"
+3. Claude reads MCP shared state, sees URL already filled
+4. Claude runs the same seven tools as Pattern 1
+5. Continues like Pattern 2 from step 6
 ```
 
 ### What MCP Cannot Do
@@ -342,7 +346,8 @@ toraseo/
 │   # Future: INSTALLATION.md, TROUBLESHOOTING.md
 │
 └── scripts/                        # Build helpers
-    └── build-skill.sh              # Build skill ZIP locally
+    ├── build-skill.sh              # Build skill ZIP locally (bash; Linux/macOS/Git Bash)
+    └── build-skill.ps1             # Same script for Windows PowerShell
     # Future: install.sh, install.bat for one-command setup
 ```
 
@@ -363,7 +368,7 @@ For v0.1.0-alpha the user installs two pieces:
 - Upload to Claude Desktop via **Customize → Skills**
 - Detailed steps in `skill/README.md`
 
-The skill ZIP is built automatically on every `v*` git tag by `.github/workflows/release-skill.yml` — maintainers only push tags; users only download the asset.
+The skill ZIP is built automatically on every `v*` git tag by `.github/workflows/release-skill.yml` — maintainers only push tags; users only download the asset. To verify the ZIP locally before tagging, maintainers can run `./scripts/build-skill.sh <version>` (bash) or `.\scripts\build-skill.ps1 <version>` (PowerShell on Windows) — both produce the same artifact as CI.
 
 ### Future: One-command installer
 

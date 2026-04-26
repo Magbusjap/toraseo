@@ -1,6 +1,6 @@
 {
   "name": "toraseo",
-  "version": "0.0.1",
+  "version": "0.1.0-alpha",
   "private": true,
   "description": "Open-source SEO toolkit: Claude Skill + MCP server + visual dashboard",
   "license": "Apache-2.0",
