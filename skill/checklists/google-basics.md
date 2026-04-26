@@ -30,13 +30,34 @@ crawler, Google will not index it. This is the most common reason
 **Tool.** `check_robots_txt`
 
 **Issue codes.**
-- `rule_disallow` (critical)
-- `robots_unreachable` (critical — ToraSEO refuses to scan; a
-  reasonable crawler will be more forgiving but still flag this)
+- `rule_disallow` — explicit Disallow rule matched our path
+- `robots_unreachable` — robots.txt itself is unreachable; per
+  ToraSEO's strict policy we treat this as disallowed (a real
+  crawler would be more forgiving but still flag this)
 
 ---
 
-## 2. The page returns HTTP 200
+## 2. The page does not declare `noindex`
+
+**What.** No `<meta name="robots" content="noindex">` on the page.
+
+**Why.** `noindex` is a direct, page-level instruction to search
+engines: "do not index this page, ever." It overrides everything
+else — title, content, backlinks, sitemap presence. If you are
+seeing a page omitted from search results despite robots.txt being
+clean, this is the most likely reason. Common cause: leftover from
+staging, or a CMS plugin that adds it by default to certain post
+types.
+
+**Tool.** `analyze_meta`
+
+**Issue codes.**
+- `noindex_present` (critical) — the meta robots tag declares
+  `noindex` and the page will not be indexed
+
+---
+
+## 3. The page returns HTTP 200
 
 **What.** No 4xx or 5xx errors at the final URL.
 
@@ -53,7 +74,7 @@ when reached via a redirect chain.
 
 ---
 
-## 3. Redirect chains are short and consistent
+## 4. Redirect chains are short and consistent
 
 **What.** No more than 1–2 redirects. No loops. No HTTPS→HTTP
 downgrades.
@@ -67,15 +88,16 @@ security regression that Google flags.
 
 **Issue codes.**
 - `redirect_loop` (critical)
-- `too_many_redirects` (critical)
-- `chain_too_long` (warning — > 2 hops)
-- `https_to_http_redirect` (critical)
-- `broken_redirect` (critical)
-- `relative_location_header` (info)
+- `too_many_redirects` (critical) — exceeded 10 hops without resolving
+- `chain_too_long` (warning) — > 2 hops
+- `https_to_http_redirect` (warning) — security regression
+- `broken_redirect` (critical) — 3xx without Location header
+- `relative_location_header` (info) — RFC 7231 allows it but absolute is preferred
+- `no_redirects` (info, positive) — URL responds directly with 2xx, no redirects
 
 ---
 
-## 4. The page has a `<title>` tag
+## 5. The page has a `<title>` tag
 
 **What.** Non-empty `<title>` between 30 and 60 characters.
 
@@ -87,16 +109,16 @@ hand-written title would.
 **Tool.** `analyze_meta`
 
 **Issue codes.**
-- `title_missing` (critical)
-- `title_empty` (critical)
+- `no_title` (critical) — covers both missing and empty `<title>`
+  tags (whitespace-only is treated as missing)
 - `title_too_short` (warning — < 30 chars)
 - `title_too_long` (warning — > 60 chars; truncated in SERP)
 
 ---
 
-## 5. The page has a `<meta name="description">`
+## 6. The page has a `<meta name="description">`
 
-**What.** Non-empty meta description between 70 and 160 characters.
+**What.** Non-empty meta description between 50 and 160 characters.
 
 **Why.** Google does not always use the meta description in SERP
 snippets, but when it does, a well-written one increases CTR. When
@@ -106,35 +128,39 @@ which is rarely as compelling.
 **Tool.** `analyze_meta`
 
 **Issue codes.**
-- `description_missing` (warning — not technically critical, but
-  a clear miss)
-- `description_too_short` (info — < 70 chars)
-- `description_too_long` (info — > 160 chars; truncated in SERP)
+- `no_meta_description` (critical) — no `<meta name="description">`
+  on the page
+- `description_too_short` (warning — < 50 chars)
+- `description_too_long` (warning — > 160 chars; truncated in SERP)
 
 ---
 
-## 6. The page has exactly one `<h1>`
+## 7. The page has well-formed headings
 
-**What.** Exactly one `<h1>` per page, semantically the page's
-primary topic.
+**What.** Page has heading elements, exactly one `<h1>`, and no
+empty headings.
 
 **Why.** Google has officially stated that multiple h1s "are not
 a problem", but the broader accessibility and document-outline
 practice is one h1. More importantly, a missing h1 is a strong
 signal that the page lacks semantic structure — which correlates
-with low ranking.
+with low ranking. A page with **no headings at all** is the most
+severe case: search engines and screen readers rely on heading
+structure to understand the outline.
 
 **Tool.** `analyze_headings`
 
 **Issue codes.**
-- `no_h1` (critical)
-- `multiple_h1` (warning)
+- `no_headings` (critical) — page has no `<h1>`..`<h6>` at all
+- `no_h1` (critical) — has headings but no `<h1>`
+- `multiple_h1` (warning) — more than one `<h1>`
+- `empty_heading` (warning) — heading with whitespace-only content
 - `h1_too_short` (info — < 10 chars; suggests an icon or boilerplate)
 - `h1_too_long` (info — > 70 chars; suggests a misuse)
 
 ---
 
-## 7. Heading hierarchy doesn't skip levels
+## 8. Heading hierarchy doesn't skip levels
 
 **What.** No jumps from h1 to h3, or h2 to h4, etc.
 
@@ -145,14 +171,14 @@ that semantic structure influences understanding of the page.
 **Tool.** `analyze_headings`
 
 **Issue codes.**
-- `heading_level_skip` (warning — one or two skips)
-- `heading_level_skip_systematic` (critical — many skips,
+- `heading_level_skip` (info — one or two skips)
+- `heading_level_skip_systematic` (warning — three or more skips,
   indicates the page uses headings for visual styling, not
   semantics)
 
 ---
 
-## 8. Canonical URL points to the right place
+## 9. Canonical URL points to the right place
 
 **What.** A `<link rel="canonical">` that resolves to either the
 current URL or a deliberate canonical elsewhere.
@@ -165,16 +191,17 @@ canonical, you actively tell Google to deindex the current page.
 **Tool.** `analyze_meta`
 
 **Issue codes.**
-- `canonical_missing` (info — not always required, but a strong
-  best practice)
-- `canonical_relative` (warning — should be absolute)
-- `canonical_mismatch` (warning — points to a different URL than
-  the page; legitimate for pagination/variants but worth
-  flagging)
+- `no_canonical` (info) — not always required, but a strong
+  best practice
+- `canonical_relative` (warning) — should be absolute per Google's
+  recommendation
+- `canonical_points_elsewhere` (info) — points to a different URL
+  than the page; legitimate for pagination/variants but worth
+  flagging so the user can confirm intent
 
 ---
 
-## 9. The page declares its language
+## 10. The page declares its language
 
 **What.** `<html lang="...">` attribute is present and accurate.
 
@@ -185,11 +212,11 @@ decide which language the page is in. Mismatched or missing
 **Tool.** `analyze_meta`
 
 **Issue codes.**
-- `html_lang_missing` (warning)
+- `no_html_lang` (info)
 
 ---
 
-## 10. The page is mobile-friendly
+## 11. The page is mobile-friendly
 
 **What.** `<meta name="viewport" content="width=device-width, initial-scale=1">`
 or equivalent.
@@ -201,11 +228,11 @@ penalized in mobile search.
 **Tool.** `analyze_meta`
 
 **Issue codes.**
-- `viewport_missing` (warning)
+- `no_viewport` (warning)
 
 ---
 
-## 11. The page declares character encoding
+## 12. The page declares character encoding
 
 **What.** `<meta charset="utf-8">` (or similar) early in the head.
 
@@ -217,16 +244,15 @@ answer.
 **Tool.** `analyze_meta`
 
 **Issue codes.**
-- `charset_missing` (warning)
-- `charset_not_utf8` (info — non-UTF-8 charsets work but are an
-  anti-pattern in 2026)
+- `no_charset` (warning)
 
 ---
 
-## 12. The page has open graph tags
+## 13. The page has Open Graph tags
 
 **What.** At minimum `og:title`, `og:description`, `og:image`,
-`og:url`, `og:type`.
+`og:url`, `og:type`. The analyzer counts how many of those five
+are present and reports completeness.
 
 **Why.** Open Graph tags control how the page renders when shared
 on Facebook, LinkedIn, Telegram, Slack, Discord, and others.
@@ -237,15 +263,34 @@ click-through.
 **Tool.** `analyze_meta`
 
 **Issue codes.**
-- `og_title_missing` (warning)
-- `og_description_missing` (warning)
-- `og_image_missing` (warning)
-- `og_url_missing` (info)
-- `og_type_missing` (info)
+- `og_missing` (warning) — zero OG tags found
+- `og_incomplete` (info) — fewer than 5 of 5 OG tags found; the
+  message names which ones are missing
 
 ---
 
-## 13. The site has a sitemap
+## 14. The page has Twitter Cards (or inherits from OG)
+
+**What.** Either explicit `twitter:card` family tags, or Open
+Graph tags that Twitter (X) will fall back to.
+
+**Why.** Twitter card tags control how the page renders when
+shared on Twitter (X). Twitter explicitly falls back to OG when
+twitter:* tags are missing — so if you have Open Graph, Twitter
+already works. The bad case is "no OG and no Twitter": shares
+on Twitter then show plain-text previews.
+
+**Tool.** `analyze_meta`
+
+**Issue codes.**
+- `twitter_card_missing` (warning) — no twitter:card and no OG
+  fallback either
+- `twitter_card_inherits` (info, positive) — no twitter:card but
+  Open Graph is present and Twitter will fall back to it
+
+---
+
+## 15. The site has a sitemap
 
 **What.** A valid `sitemap.xml` is reachable, either via robots.txt
 declaration or at `/sitemap.xml`.
@@ -258,17 +303,22 @@ worse than no sitemap.
 **Tool.** `analyze_sitemap`
 
 **Issue codes.**
-- `no_sitemap` (warning — not critical, but a clear miss for
-  any site with 10+ URLs)
-- `sitemap_invalid_xml` (critical)
-- `sitemap_blocked_by_server` (critical — server returns 401/403/406/451)
-- `sitemap_empty` (warning)
-- `sitemap_no_lastmod` (info — recommended for crawl efficiency)
-- `sitemap_url_mismatch` (warning — entries point to a different host)
+- `no_sitemap` (critical) — robots.txt didn't declare a Sitemap and
+  the `/sitemap.xml` fallback returned 404 or non-200
+- `sitemap_invalid_xml` (critical) — file doesn't parse as XML
+- `sitemap_blocked_by_server` (critical) — server returned 401/403/406/451;
+  the file may exist but is gated by User-Agent or geo rules
+- `sitemap_empty` (warning) — valid `<urlset>` but zero `<url>` entries
+- `sitemap_too_large` (warning) — exceeds the protocol limit of 50,000 entries
+- `sitemap_index_no_children` (warning) — `<sitemapindex>` with zero child entries
+- `sitemap_no_lastmod` (info) — no `<lastmod>` in sampled entries;
+  recommended for crawl efficiency
+- `sitemap_url_mismatch` (warning) — sampled entries point to a
+  different host than the audited URL
 
 ---
 
-## 14. The page has substantive content
+## 16. The page has substantive content
 
 **What.** Roughly 300+ words of actual visible text in the main
 content area.
@@ -282,15 +332,36 @@ penalize "thin content". Yoast and most major audit tools flag
 **Tool.** `analyze_content`
 
 **Issue codes.**
-- `no_main_content` (critical)
-- `thin_content` (critical — < 300 words)
-- `borderline_content` (warning — 300–600 words)
-- `no_paragraphs` (warning — substantive text but no `<p>` tags
-  suggests divs-as-paragraphs which break readability)
+- `no_main_content` (critical) — extraction produced zero words;
+  likely a JS-rendered SPA shell
+- `thin_content` (critical) — < 300 words
+- `borderline_content` (warning) — 300–600 words
+- `no_paragraphs` (warning) — substantive text but no `<p>` tags
 
 ---
 
-## 15. Images have alt text
+## 17. The page has a healthy internal linking structure
+
+**What.** At least one internal link on a substantial page; not
+an unusually large number of external links.
+
+**Why.** Internal links help search engines discover related
+pages on your site and distribute authority. A content page with
+no internal links is a discoverability dead-end. Many external
+links can be legitimate on link-roundup pages but on typical
+content may dilute authority signals.
+
+**Tool.** `analyze_content`
+
+**Issue codes.**
+- `no_internal_links` (info) — page has > 600 words but zero
+  internal links
+- `many_external_links` (info) — page links to > 20 external
+  destinations
+
+---
+
+## 18. Images have alt text
 
 **What.** Every meaningful `<img>` has a non-empty `alt` attribute.
 
@@ -302,12 +373,12 @@ WCAG.
 **Tool.** `analyze_content`
 
 **Issue codes.**
-- `images_no_alts_at_all` (critical)
-- `images_without_alt_majority` (warning — > 50% missing)
+- `images_no_alts_at_all` (critical) — every image lacks alt text
+- `images_without_alt_majority` (warning) — > 50% missing
 
 ---
 
-## 16. The page has reasonable text-to-code ratio
+## 19. The page has reasonable text-to-code ratio
 
 **What.** Visible text is at least 10% of the HTML payload size.
 

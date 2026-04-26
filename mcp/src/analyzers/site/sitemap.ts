@@ -41,6 +41,7 @@ import {
 import {
   getSitemapsFromRobots,
 } from "../../crawlers/robots-txt.js";
+import { USER_AGENT } from "../../constants.js";
 import type {
   AnalyzeSitemapResult,
   SitemapIndexEntry,
@@ -63,9 +64,6 @@ const MAX_BODY_BYTES = 60 * 1024 * 1024;
  * large sitemaps stream slowly.
  */
 const REQUEST_TIMEOUT_MS = 30_000;
-
-/** Same User-Agent used everywhere else. */
-const USER_AGENT = "ToraSEO/0.0.1 (+https://github.com/Magbusjap/toraseo)";
 
 /**
  * How many entries we sample for host-mismatch and lastmod-presence

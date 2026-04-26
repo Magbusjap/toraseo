@@ -33,6 +33,7 @@ import { z } from "zod";
 
 import { checkRobots } from "../../crawlers/robots-txt.js";
 import { awaitRateLimit } from "../../crawlers/rate-limiter.js";
+import { USER_AGENT } from "../../constants.js";
 import type { ScanSiteMinimalResult } from "../../types.js";
 
 // --- Constants ------------------------------------------------------------
@@ -49,16 +50,6 @@ const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
  * On expiry the request is aborted and the tool returns an error.
  */
 const REQUEST_TIMEOUT_MS = 15_000; // 15 seconds
-
-/**
- * User-Agent string identifying ToraSEO honestly per CRAWLING_POLICY.md.
- *
- * The version is hard-coded for now; on the publish path we will read
- * it from package.json so the User-Agent always matches the running
- * server build.
- */
-const USER_AGENT =
-  "ToraSEO/0.0.1 (+https://github.com/Magbusjap/toraseo)";
 
 // --- Input schema (zod) ---------------------------------------------------
 

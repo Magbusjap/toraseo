@@ -34,6 +34,7 @@
 
 import { checkRobots } from "../../crawlers/robots-txt.js";
 import { awaitRateLimit } from "../../crawlers/rate-limiter.js";
+import { USER_AGENT } from "../../constants.js";
 import type {
   CheckRedirectsResult,
   RedirectIssue,
@@ -58,9 +59,6 @@ const CHAIN_TOO_LONG_THRESHOLD = 2;
 
 /** Per-step timeout. Tighter than page fetch because we issue multiple. */
 const STEP_TIMEOUT_MS = 10_000;
-
-/** Same User-Agent used everywhere else. */
-const USER_AGENT = "ToraSEO/0.0.1 (+https://github.com/Magbusjap/toraseo)";
 
 // --- Errors ---------------------------------------------------------------
 

@@ -46,6 +46,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import { VERSION } from "./constants.js";
 import {
   scanSiteMinimal,
   scanSiteMinimalInputSchema,
@@ -85,7 +86,7 @@ import {
 
 const server = new McpServer({
   name: "toraseo-mcp",
-  version: "0.0.1",
+  version: VERSION,
 });
 
 // --- Tools: Mode A (Site Audit) ------------------------------------------

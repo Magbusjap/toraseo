@@ -34,6 +34,7 @@ import * as cheerio from "cheerio";
 
 import { checkRobots } from "../../crawlers/robots-txt.js";
 import { awaitRateLimit } from "../../crawlers/rate-limiter.js";
+import { USER_AGENT } from "../../constants.js";
 import type {
   AnalyzeContentResult,
   ContentIssue,
@@ -43,7 +44,6 @@ import type {
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 15_000;
-const USER_AGENT = "ToraSEO/0.0.1 (+https://github.com/Magbusjap/toraseo)";
 
 /**
  * Word-count thresholds, derived from Yoast's industry-standard

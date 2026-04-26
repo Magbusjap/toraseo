@@ -26,6 +26,7 @@ import * as cheerio from "cheerio";
 
 import { checkRobots } from "../../crawlers/robots-txt.js";
 import { awaitRateLimit } from "../../crawlers/rate-limiter.js";
+import { USER_AGENT } from "../../constants.js";
 import type {
   AnalyzeHeadingsResult,
   HeadingEntry,
@@ -39,9 +40,6 @@ const MAX_BODY_BYTES = 10 * 1024 * 1024;
 
 /** Hard request timeout. Matches scan-site.ts and meta.ts. */
 const REQUEST_TIMEOUT_MS = 15_000;
-
-/** Same honest User-Agent used everywhere else. */
-const USER_AGENT = "ToraSEO/0.0.1 (+https://github.com/Magbusjap/toraseo)";
 
 /**
  * Length thresholds for h1 specifically. Heuristics, not hard rules:

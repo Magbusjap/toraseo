@@ -36,6 +36,7 @@
 // itself — `createRequire` returns that function directly.
 import { createRequire } from "node:module";
 
+import { USER_AGENT, USER_AGENT_TOKEN } from "../constants.js";
 import type { CheckRobotsResult } from "../types.js";
 
 const require_ = createRequire(import.meta.url);
@@ -69,15 +70,6 @@ const ROBOTS_TIMEOUT_MS = 5_000;
 /** Maximum size of a robots.txt body we will accept. RFC 9309 §2.5
  * recommends 500 KiB. We cap at 512 KB to be generous. */
 const ROBOTS_MAX_BYTES = 512 * 1024;
-
-/** The product token under which we identify ourselves. Matches the
- * literal token requirement in CRAWLING_POLICY. */
-const USER_AGENT_TOKEN = "ToraSEO";
-
-/** Full User-Agent header for the robots.txt fetch. Same shape as the
- * one used in `scan-site.ts`. Keep them in sync until we centralize. */
-const USER_AGENT_HEADER =
-  "ToraSEO/0.0.1 (+https://github.com/Magbusjap/toraseo)";
 
 // --- Cache ---------------------------------------------------------------
 
@@ -242,7 +234,7 @@ async function fetchAndCache(origin: string): Promise<CachedRobots> {
       redirect: "follow",
       signal: controller.signal,
       headers: {
-        "User-Agent": USER_AGENT_HEADER,
+        "User-Agent": USER_AGENT,
         Accept: "text/plain, */*;q=0.5",
       },
     });
