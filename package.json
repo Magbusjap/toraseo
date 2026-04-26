@@ -31,11 +31,19 @@
     "node": ">=22"
   },
   "type": "module",
+  "workspaces": [
+    "core",
+    "mcp",
+    "app"
+  ],
   "scripts": {
-    "build:mcp": "npm run build --prefix mcp",
-    "dev:mcp": "npm run dev --prefix mcp",
-    "test:mcp": "npm run test --prefix mcp",
-    "dev:app": "npm run dev --prefix app",
-    "build:app": "npm run build --prefix app"
+    "build": "npm run build --workspace=@toraseo/core && npm run build --workspace=@toraseo/mcp",
+    "build:core": "npm run build --workspace=@toraseo/core",
+    "build:mcp": "npm run build --workspace=@toraseo/mcp",
+    "build:app": "npm run build --workspace=@toraseo/app",
+    "dev:mcp": "npm run dev --workspace=@toraseo/mcp",
+    "dev:app": "npm run dev --workspace=@toraseo/app",
+    "test:mcp": "npm run test --workspace=@toraseo/mcp",
+    "clean": "npm run clean --workspaces --if-present"
   }
 }

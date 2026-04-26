@@ -5,30 +5,12 @@
  * Launches as a child process under Claude Desktop, communicates over
  * stdio JSON-RPC, and exposes tools that perform SEO analysis.
  *
- * Day 6 scope: four tools.
- *   - `scan_site_minimal`     — fetch a single URL with full crawler
- *                               etiquette (robots.txt + rate limit).
- *   - `check_robots_txt`      — check whether ToraSEO is allowed to
- *                               scan a URL, without actually scanning.
- *   - `analyze_meta`          — extract title/description/OG/Twitter/
- *                               canonical/charset/viewport with
- *                               severity-tagged verdicts.
- *   - `analyze_headings`      — walk h1..h6 in DOM order, report
- *                               structure issues (no h1, multiple h1,
- *                               level skips, length anomalies).
- *   - `analyze_sitemap`       — discover sitemap (robots.txt or
- *                               /sitemap.xml fallback), parse
- *                               <urlset> or <sitemapindex>, report
- *                               structural issues with sampled entries.
- *   - `check_redirects`       — walk the HTTP redirect chain manually
- *                               (HEAD with GET fallback), detect
- *                               loops, broken steps, downgrades, and
- *                               terminal failures.
- *   - `analyze_content`       — extract main content via semantic
- *                               cascade (article → main → body minus
- *                               landmarks), compute word/sentence/
- *                               paragraph counts, text-to-code ratio,
- *                               link/image inventories with verdicts.
+ * Architecture (post-Stage-4 refactor):
+ *   The actual analyzer logic lives in `@toraseo/core` — a sibling
+ *   workspace shared with the desktop app. This file is now a pure
+ *   transport: it imports the tool functions from core, registers them
+ *   with the MCP SDK, and bridges stdio JSON-RPC to those functions.
+ *   No business logic lives here.
  *
  * Tool grouping (per `wiki/toraseo/product-modes.md`):
  *   Mode A — Site Audit:    scan_site_minimal, check_robots_txt,
@@ -37,50 +19,37 @@
  *                            analyze_content
  *   Mode B — Content Audit: (none yet)
  *
- * Mode A MVP is now complete (7 of 7 standard checks per
+ * Mode A MVP is complete (7 of 7 standard checks per
  * product-modes.md). Schema.org analysis is intentionally deferred
- * to post-MVP (see day-9 wiki for rationale). Next step is the
- * SKILL.md that orchestrates these tools into a guided audit flow.
+ * to post-MVP (see day-9 wiki for rationale).
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-import { VERSION } from "./constants.js";
 import {
+  VERSION,
   scanSiteMinimal,
   scanSiteMinimalInputSchema,
   ScanSiteError,
-} from "./tools/site/scan-site.js";
-import {
   checkRobots,
   checkRobotsInputSchema,
-} from "./tools/site/check-robots.js";
-import {
   analyzeMeta,
   analyzeMetaInputSchema,
   AnalyzeMetaError,
-} from "./tools/site/analyze-meta.js";
-import {
   analyzeHeadings,
   analyzeHeadingsInputSchema,
   AnalyzeHeadingsError,
-} from "./tools/site/analyze-headings.js";
-import {
   analyzeSitemap,
   analyzeSitemapInputSchema,
   AnalyzeSitemapError,
-} from "./tools/site/analyze-sitemap.js";
-import {
   checkRedirects,
   checkRedirectsInputSchema,
   CheckRedirectsError,
-} from "./tools/site/check-redirects.js";
-import {
   analyzeContent,
   analyzeContentInputSchema,
   AnalyzeContentError,
-} from "./tools/site/analyze-content.js";
+} from "@toraseo/core";
 
 // --- Server setup ---------------------------------------------------------
 

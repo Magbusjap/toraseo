@@ -1,0 +1,88 @@
+{
+  "name": "@toraseo/core",
+  "version": "0.1.0-alpha",
+  "private": true,
+  "description": "ToraSEO core engine — SEO analyzers, crawlers, and tool functions shared between the MCP server and the desktop app",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Mikhail Ankudinov",
+    "email": "magbusjap@gmail.com",
+    "url": "https://github.com/Magbusjap"
+  },
+  "homepage": "https://github.com/Magbusjap/toraseo#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Magbusjap/toraseo.git",
+    "directory": "core"
+  },
+  "bugs": {
+    "url": "https://github.com/Magbusjap/toraseo/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./tools/site/scan-site": {
+      "types": "./dist/tools/site/scan-site.d.ts",
+      "default": "./dist/tools/site/scan-site.js"
+    },
+    "./tools/site/check-robots": {
+      "types": "./dist/tools/site/check-robots.d.ts",
+      "default": "./dist/tools/site/check-robots.js"
+    },
+    "./tools/site/analyze-meta": {
+      "types": "./dist/tools/site/analyze-meta.d.ts",
+      "default": "./dist/tools/site/analyze-meta.js"
+    },
+    "./tools/site/analyze-headings": {
+      "types": "./dist/tools/site/analyze-headings.d.ts",
+      "default": "./dist/tools/site/analyze-headings.js"
+    },
+    "./tools/site/analyze-sitemap": {
+      "types": "./dist/tools/site/analyze-sitemap.d.ts",
+      "default": "./dist/tools/site/analyze-sitemap.js"
+    },
+    "./tools/site/check-redirects": {
+      "types": "./dist/tools/site/check-redirects.d.ts",
+      "default": "./dist/tools/site/check-redirects.js"
+    },
+    "./tools/site/analyze-content": {
+      "types": "./dist/tools/site/analyze-content.d.ts",
+      "default": "./dist/tools/site/analyze-content.js"
+    },
+    "./constants": {
+      "types": "./dist/constants.d.ts",
+      "default": "./dist/constants.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "node -e \"import('node:fs').then(fs => fs.rmSync('dist', { recursive: true, force: true }))\""
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "robots-parser": "^3.0.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

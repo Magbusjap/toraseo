@@ -39,8 +39,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "cheerio": "^1.2.0",
-    "robots-parser": "^3.0.1",
+    "@toraseo/core": "*",
     "zod": "^3.25.0"
   },
   "devDependencies": {
