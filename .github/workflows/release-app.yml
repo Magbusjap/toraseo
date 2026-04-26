@@ -1,0 +1,63 @@
+name: Release Desktop App
+
+# Builds and publishes the ToraSEO desktop app to GitHub Releases
+# when a git tag matching v*-app is pushed (e.g. v0.0.2-app).
+#
+# The "-app" suffix exists so we can independently tag Skill releases
+# (handled by release-skill.yml on plain v* tags). When you want to
+# ship both the Skill AND the app in lockstep, push two tags from the
+# same commit: e.g. v0.2.0 and v0.2.0-app.
+#
+# electron-builder reads "publish.provider: github" from app/package.json
+# build config and uploads the .exe / .dmg / .AppImage artifacts plus
+# the latest.yml manifest that auto-update consumers (electron-updater
+# in the running app) read to detect new versions.
+on:
+  push:
+    tags:
+      - "v*-app"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      # Don't cancel other platforms if one fails — useful when, e.g.,
+      # the Mac runner has a transient outage.
+      fail-fast: false
+      matrix:
+        # Windows is the primary target. macOS and Linux are commented
+        # out for the alpha phase — uncomment when those platforms are
+        # ready to be tested.
+        os: [windows-latest]
+        # os: [windows-latest, macos-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies (workspaces)
+        # Install at the repo root because the project uses npm
+        # workspaces (root package.json declares core/, mcp/, app/).
+        # This installs all workspace deps and creates symlinks.
+        run: npm ci
+
+      - name: Build core
+        run: npm run build --workspace=@toraseo/core
+
+      - name: Build app and publish to GitHub Releases
+        # GH_TOKEN is the auto-injected token; electron-builder uses
+        # it via "publish: github" in app/package.json to create or
+        # update the release for this tag.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release --workspace=@toraseo/app

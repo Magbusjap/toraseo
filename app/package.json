@@ -1,6 +1,6 @@
 {
   "name": "@toraseo/app",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "description": "ToraSEO desktop application (Electron + React + TypeScript)",
@@ -13,13 +13,16 @@
     "dist": "electron-vite build && electron-builder",
     "dist:win": "electron-vite build && electron-builder --win",
     "dist:mac": "electron-vite build && electron-builder --mac",
-    "dist:linux": "electron-vite build && electron-builder --linux"
+    "dist:linux": "electron-vite build && electron-builder --linux",
+    "release": "electron-vite build && electron-builder --publish always"
   },
   "dependencies": {
-    "@toraseo/core": "*",
+    "@toraseo/core": "file:../core",
+    "electron-log": "^5.2.4",
+    "electron-updater": "^6.3.9",
+    "lucide-react": "^0.469.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "lucide-react": "^0.469.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
@@ -28,8 +31,10 @@
     "autoprefixer": "^10.4.20",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
+    "electron-icon-builder": "^2.0.1",
     "electron-vite": "^2.3.0",
     "postcss": "^8.4.49",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
     "vite": "^5.4.11"
@@ -44,16 +49,31 @@
       "out/**/*",
       "package.json"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "Magbusjap",
+      "repo": "toraseo",
+      "releaseType": "release"
+    },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icons/icon.ico",
       "artifactName": "ToraSEO-${version}-setup.${ext}"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icons/icon.icns",
       "artifactName": "ToraSEO-${version}.${ext}"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
+      "icon": "build/icons/512x512.png",
       "artifactName": "ToraSEO-${version}.${ext}"
     },
     "nsis": {

@@ -3,40 +3,56 @@
  * and the Node.js privileges of the main process.
  *
  * Everything the React UI needs to do that requires Node — running
- * SEO tools, reading files, opening dialogs — must be exposed here
- * via `contextBridge.exposeInMainWorld`. The renderer never gets
- * direct `ipcRenderer` access; it only gets the typed methods below.
+ * SEO tools, reading files, opening dialogs, checking for updates —
+ * must be exposed here via `contextBridge.exposeInMainWorld`. The
+ * renderer never gets direct `ipcRenderer` access; it only gets the
+ * typed methods below.
  *
- * Channel names are duplicated here from `electron/tools.ts` rather
- * than imported, because preload runs in a separate, sandboxed
- * context and pulling in tool code (which transitively imports
- * @toraseo/core, cheerio, etc.) would bloat the preload bundle and
- * defeat the sandbox. Keep this file dependency-free except for
- * `electron`.
+ * Channel names are duplicated here from `electron/tools.ts` and
+ * `electron/updater.ts` rather than imported, because preload runs
+ * in a separate, sandboxed context and pulling in tool code (which
+ * transitively imports @toraseo/core, cheerio, etc.) would bloat the
+ * preload bundle and defeat the sandbox. Keep this file
+ * dependency-free except for `electron`.
  */
 
 import { contextBridge, ipcRenderer } from "electron";
 
 import type {
+  CheckUpdateResult,
+  DownloadProgress,
   ScanComplete,
   StageUpdate,
   StartScanArgs,
   ToraseoApi,
+  UpdateInfo,
 } from "../src/types/ipc";
 
 // Mirror of IPC_CHANNELS from electron/tools.ts. Kept in sync manually;
 // if you add a channel there, add it here too.
-const CH = {
+const SCAN = {
   startScan: "toraseo:start-scan",
   stageUpdate: "toraseo:stage-update",
   scanComplete: "toraseo:scan-complete",
 } as const;
 
+// Mirror of UPDATER_CHANNELS from electron/updater.ts.
+const UPDATER = {
+  check: "toraseo:updater:check",
+  download: "toraseo:updater:download",
+  install: "toraseo:updater:install",
+  available: "toraseo:updater:update-available",
+  notAvailable: "toraseo:updater:update-not-available",
+  progress: "toraseo:updater:download-progress",
+  downloaded: "toraseo:updater:update-downloaded",
+  error: "toraseo:updater:update-error",
+} as const;
+
 const api: ToraseoApi = {
-  version: "0.0.1",
+  version: "0.0.2",
 
   startScan: (args: StartScanArgs) => {
-    return ipcRenderer.invoke(CH.startScan, args) as Promise<{
+    return ipcRenderer.invoke(SCAN.startScan, args) as Promise<{
       scanId: string;
     }>;
   },
@@ -46,19 +62,69 @@ const api: ToraseoApi = {
     // first arg — the renderer doesn't need it and shouldn't depend on
     // the Electron-specific shape.
     const wrapped = (_event: unknown, update: StageUpdate) => listener(update);
-    ipcRenderer.on(CH.stageUpdate, wrapped);
+    ipcRenderer.on(SCAN.stageUpdate, wrapped);
     return () => {
-      ipcRenderer.removeListener(CH.stageUpdate, wrapped);
+      ipcRenderer.removeListener(SCAN.stageUpdate, wrapped);
     };
   },
 
   onScanComplete: (listener) => {
     const wrapped = (_event: unknown, summary: ScanComplete) =>
       listener(summary);
-    ipcRenderer.on(CH.scanComplete, wrapped);
+    ipcRenderer.on(SCAN.scanComplete, wrapped);
     return () => {
-      ipcRenderer.removeListener(CH.scanComplete, wrapped);
+      ipcRenderer.removeListener(SCAN.scanComplete, wrapped);
     };
+  },
+
+  updater: {
+    check: () => {
+      return ipcRenderer.invoke(UPDATER.check) as Promise<CheckUpdateResult>;
+    },
+
+    download: () => {
+      return ipcRenderer.invoke(UPDATER.download) as Promise<{
+        ok: boolean;
+        error?: string;
+      }>;
+    },
+
+    install: () => {
+      return ipcRenderer.invoke(UPDATER.install) as Promise<{ ok: boolean }>;
+    },
+
+    onUpdateAvailable: (listener) => {
+      const wrapped = (_event: unknown, info: UpdateInfo) => listener(info);
+      ipcRenderer.on(UPDATER.available, wrapped);
+      return () => ipcRenderer.removeListener(UPDATER.available, wrapped);
+    },
+
+    onUpdateNotAvailable: (listener) => {
+      const wrapped = (_event: unknown, info: { version: string }) =>
+        listener(info);
+      ipcRenderer.on(UPDATER.notAvailable, wrapped);
+      return () => ipcRenderer.removeListener(UPDATER.notAvailable, wrapped);
+    },
+
+    onDownloadProgress: (listener) => {
+      const wrapped = (_event: unknown, progress: DownloadProgress) =>
+        listener(progress);
+      ipcRenderer.on(UPDATER.progress, wrapped);
+      return () => ipcRenderer.removeListener(UPDATER.progress, wrapped);
+    },
+
+    onUpdateDownloaded: (listener) => {
+      const wrapped = (_event: unknown, info: UpdateInfo) => listener(info);
+      ipcRenderer.on(UPDATER.downloaded, wrapped);
+      return () => ipcRenderer.removeListener(UPDATER.downloaded, wrapped);
+    },
+
+    onUpdateError: (listener) => {
+      const wrapped = (_event: unknown, err: { message: string }) =>
+        listener(err);
+      ipcRenderer.on(UPDATER.error, wrapped);
+      return () => ipcRenderer.removeListener(UPDATER.error, wrapped);
+    },
   },
 };
 

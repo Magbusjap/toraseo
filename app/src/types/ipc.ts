@@ -4,8 +4,10 @@
  * These types are shared between:
  * - `electron/main.ts` (sender of stage updates)
  * - `electron/tools.ts` (producer of stage results)
+ * - `electron/updater.ts` (auto-update events and IPC)
  * - `electron/preload.ts` (bridge surface)
  * - `src/hooks/useScan.ts` (consumer in renderer)
+ * - `src/hooks/useUpdater.ts` (consumer in renderer)
  * - `src/components/...` (UI rendering)
  *
  * Renderer cannot import from `electron/` because of the sandbox
@@ -88,6 +90,67 @@ export interface StartScanArgs {
   toolIds: ToolId[];
 }
 
+// =====================================================================
+// Auto-updater contract
+// =====================================================================
+
+/**
+ * Information about a release available on GitHub Releases.
+ * Mirrored from electron-updater's UpdateInfo with only the fields
+ * the renderer actually needs.
+ */
+export interface UpdateInfo {
+  version: string;
+  releaseNotes?: string;
+  releaseDate?: string;
+}
+
+/**
+ * Progress event during update download.
+ */
+export interface DownloadProgress {
+  percent: number;
+  bytesPerSecond: number;
+  total: number;
+  transferred: number;
+}
+
+/**
+ * Result of `updater.check()`.
+ *
+ * `version` is the latest version on the server (may equal current
+ * if no update). `currentVersion` is read from package.json at runtime
+ * via app.getVersion().
+ */
+export interface CheckUpdateResult {
+  ok: boolean;
+  version?: string;
+  currentVersion?: string;
+  error?: string;
+}
+
+/**
+ * Updater surface inside `window.toraseo.updater`.
+ *
+ * Three actions (check / download / install) are gated on user clicks
+ * by design — autoDownload and autoInstallOnAppQuit are both disabled
+ * in `electron/updater.ts`.
+ *
+ * Five events tell the renderer what's happening; each subscriber
+ * returns an unsubscribe function for cleanup.
+ */
+export interface UpdaterApi {
+  check(): Promise<CheckUpdateResult>;
+  download(): Promise<{ ok: boolean; error?: string }>;
+  install(): Promise<{ ok: boolean }>;
+
+  onUpdateAvailable(listener: (info: UpdateInfo) => void): () => void;
+  onUpdateNotAvailable(listener: (info: { version: string }) => void): () => void;
+  onDownloadProgress(listener: (progress: DownloadProgress) => void): () => void;
+  onUpdateDownloaded(listener: (info: UpdateInfo) => void): () => void;
+  onUpdateError(listener: (err: { message: string }) => void): () => void;
+}
+
 /**
  * Public surface exposed on `window.toraseo` by the preload script.
  *
@@ -116,4 +179,7 @@ export interface ToraseoApi {
    * Returns an unsubscribe function.
    */
   onScanComplete(listener: (summary: ScanComplete) => void): () => void;
+
+  /** Auto-updater API. See UpdaterApi. */
+  updater: UpdaterApi;
 }

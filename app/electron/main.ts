@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { IPC_CHANNELS, startScan } from "./tools.js";
+import { setupAutoUpdater } from "./updater.js";
 import type { StartScanArgs } from "../src/types/ipc";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -95,6 +96,11 @@ function registerIpcHandlers(): void {
 app.whenReady().then(() => {
   registerIpcHandlers();
   createWindow();
+
+  // Auto-updater: registers IPC handlers and kicks off a check
+  // 3 seconds after start. Behavior: ask before download, ask
+  // before install. See electron/updater.ts for details.
+  setupAutoUpdater(() => mainWindow);
 
   app.on("activate", () => {
     // macOS: пересоздать окно при клике на иконку в доке если все

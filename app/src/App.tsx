@@ -3,6 +3,7 @@ import IdleSidebar from "./components/Sidebar/IdleSidebar";
 import ActiveSidebar from "./components/Sidebar/ActiveSidebar";
 import ModeSelection from "./components/MainArea/ModeSelection";
 import SiteAuditView from "./components/MainArea/SiteAuditView";
+import { UpdateNotification } from "./components/UpdateNotification";
 import { DEFAULT_SELECTED_TOOLS, TOOLS, type ToolId } from "./config/tools";
 import { useScan } from "./hooks/useScan";
 
@@ -109,6 +110,10 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Auto-update notification — fixed bottom-right, non-modal.
+          Renders only when there's an update event in flight. */}
+      <UpdateNotification />
     </div>
   );
 }
