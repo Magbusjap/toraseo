@@ -71,7 +71,7 @@ const LAUNCHER = {
 } as const;
 
 const api: ToraseoApi = {
-  version: "0.0.4",
+  version: "0.0.5",
 
   startScan: (args: StartScanArgs) => {
     return ipcRenderer.invoke(SCAN.startScan, args) as Promise<{

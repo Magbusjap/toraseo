@@ -127,9 +127,19 @@ export function setupAutoUpdater(
 
   ipcMain.handle(UPDATER_CHANNELS.installUpdate, () => {
     log.info("[updater] User triggered install");
-    // quitAndInstall(isSilent=false, isForceRunAfter=true): show
-    // installer UI; relaunch the app after it finishes.
-    autoUpdater.quitAndInstall(false, true);
+    // quitAndInstall(isSilent=true, isForceRunAfter=true): suppress
+    // the NSIS installer UI — our in-app «Установка и
+    // перезапуск» notification IS the installer UI for the
+    // user. The NSIS dialog flashing in the middle of an auto-update
+    // is jarring and confusing («I already clicked install, why is
+    // there another installer?»). Silent mode runs the same NSIS
+    // installer non-interactively, then relaunches the app.
+    //
+    // Important: silent mode applies ONLY to in-app updates. The
+    // first-time install from a downloaded .exe still shows the
+    // standard NSIS installer because that flow doesn't go through
+    // electron-updater — the user runs the .exe directly.
+    autoUpdater.quitAndInstall(true, true);
     return { ok: true };
   });
 

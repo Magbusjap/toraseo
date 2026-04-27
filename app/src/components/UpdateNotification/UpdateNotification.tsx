@@ -62,7 +62,7 @@ export default function UpdateNotification() {
           ToraSEO {info.version} готова к загрузке.
           {info.releaseNotes && (
             <span className="mt-1 block text-xs text-outline/50">
-              {truncate(info.releaseNotes, 120)}
+              {truncate(stripHtml(info.releaseNotes), 120)}
             </span>
           )}
         </p>
@@ -172,6 +172,41 @@ export default function UpdateNotification() {
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return text.slice(0, max - 1).trimEnd() + "…";
+}
+
+/**
+ * Strip HTML tags from a release notes string and collapse
+ * whitespace into single spaces.
+ *
+ * GitHub Releases stores notes as Markdown but electron-updater
+ * delivers them already rendered to HTML in the `releaseNotes`
+ * field — we get strings like `<h2>[App 0.0.4]</h2><p>Quality
+ * fixes...</p><br>`. Rendering that as plain text in our card
+ * shows the raw tags, which is what users see today.
+ *
+ * We don't render the HTML — release notes in a 120-char preview
+ * don't need formatting, and `dangerouslySetInnerHTML` would open
+ * an XSS surface for whatever gets pasted into a GitHub release
+ * body. The tradeoff is fine: full notes are a click away on
+ * GitHub, the card just teases them.
+ *
+ * `<br>` and block tags become spaces (otherwise headings glue to
+ * the next paragraph: "App 0.0.4Quality fixes"). Then we collapse
+ * runs of whitespace.
+ */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/?(h[1-6]|p|div|li|ul|ol|tr|td|th)[^>]*>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function formatBytesPerSec(bps: number): string {

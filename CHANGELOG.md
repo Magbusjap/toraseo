@@ -37,15 +37,16 @@ the `skill-v*` namespace.
 
 ## [Unreleased]
 
-Nothing yet. Roadmap after v0.0.4:
+Nothing yet. Roadmap after v0.0.5:
 
-- **v0.0.5 — i18n localization.** English as primary, Russian as
-  option. Stack: i18next + react-i18next. Language switcher in
-  header or settings. Persist user choice in `userData/locale.txt`.
-  All UI strings extracted from components into `locales/en.json`
-  and `locales/ru.json`.
+- **v0.0.6 — i18n localization.** English as primary, Russian as
+  option. Stack: i18next + react-i18next. Language switcher in the
+  toolbar (placeholder slot already exists in the Settings modal).
+  Persist user choice in `userData/locale.txt`. All UI strings
+  extracted from components into `locales/en.json` and
+  `locales/ru.json`.
 
-- **v0.0.6 — Skill runtime handshake.** Token-matching protocol
+- **v0.0.7 — Skill runtime handshake.** Token-matching protocol
   between MCP server and SKILL.md so the app can verify at runtime
   that Skill is actually loaded into Claude's context (not just
   installed-on-disk). MCP exposes `register_session(token)`; the
@@ -57,7 +58,7 @@ Nothing yet. Roadmap after v0.0.4:
   `runtime verified`. Requires coordinated release of three
   artifacts (MCP, Skill, App) with versioned protocol token.
 
-- **v0.0.7 — First `skill-v*` release.** Bootstraps the skill
+- **v0.0.8 — First `skill-v*` release.** Bootstraps the skill
   release track that v0.0.4's download-ZIP button reads from. Until
   the first `skill-v*` tag exists, the button correctly reports
   "Не найден skill-релиз на GitHub" and falls back to opening the
@@ -65,6 +66,116 @@ Nothing yet. Roadmap after v0.0.4:
 
 After that, the **skill track v0.2.0** — Mode B content audit
 (humanizer, readability, style match, AI-detection score).
+
+---
+
+## [App 0.0.5] — 2026-04-27
+
+Window chrome polish and silent in-app updates. The app now has a
+top toolbar with menu items and a GitHub link, the auto-update card
+renders release notes as plain text instead of leaking raw HTML
+tags, and applying an update no longer flashes the NSIS installer
+over our in-app notification.
+
+### Added — Top toolbar
+
+A 36px-tall horizontal bar above sidebar and main area, white
+background with subtle bottom border. Visible in both onboarding
+and normal modes — the user can read «О ToraSEO» or open settings
+before dependencies are satisfied.
+
+Menu items:
+
+- **«О ToraSEO»** — modal with version (read live from
+  `window.toraseo.version`, the same value preload exposes),
+  license, author, and a clickable GitHub link.
+- **«Проверить обновления»** — calls
+  `window.toraseo.updater.check()` on demand. If a newer version
+  exists, electron-updater emits `update-available` which the
+  existing `useUpdater` hook is already listening for, and the
+  bottom-right card appears as usual; the toolbar additionally
+  shows a center-top toast («Найдено обновление» / «У вас
+  последняя версия») for explicit feedback. Toast auto-dismisses
+  after 4 seconds. Spinner on the icon while checking.
+- **«Документация»** — opens the README on GitHub
+  (`#readme` anchor scrolls past the file tree). There's no
+  project website yet, everything lives in the repo, so the toolbar
+  links straight there.
+- **«FAQ»** — opens `docs/FAQ.md` on GitHub. Created in this release
+  as the FAQ companion to README — covers installation, dependency
+  troubleshooting, scanning, updates, privacy, and contributing.
+- **«Настройки»** — placeholder modal listing what's coming in
+  v0.0.6+ (language switcher, persistence of selected tools, dark
+  theme, manual config path). No real settings yet.
+- **GitHub icon** — opens `https://github.com/Magbusjap/toraseo` in
+  the system browser via the existing `setWindowOpenHandler` in
+  `main.ts` that delegates http(s) URLs to `shell.openExternal`.
+
+The layout switched from a single horizontal flex row to
+`flex-col` with the toolbar on top and the existing sidebar+main
+row below. Pre-flight error toast moved from `top-6` to `top-16`
+so it doesn't collide with the toolbar.
+
+- **`app/src/components/TopToolbar/TopToolbar.tsx`** — new
+  component, fully self-contained including the lightweight Modal
+  it uses for About and Settings. No external state — update-check
+  result lives in local component state.
+- **`app/src/components/TopToolbar/index.ts`** — barrel export.
+- **`app/src/App.tsx`** — layout refactor; toolbar mounted in both
+  onboarding and normal branches; existing markup wrapped in an
+  inner `flex flex-1 overflow-hidden` container.
+- **`docs/FAQ.md`** — new file. Six sections covering
+  installation, dependencies, scanning behavior, updates, privacy,
+  and contributing. Linked from the toolbar «FAQ» button.
+
+### Fixed — Release notes show raw HTML in update card
+
+`UpdateNotification` was rendering the `releaseNotes` string
+directly, which meant users saw `<h2>[App 0.0.4]</h2><p>Quality
+fixes after the v0.0.3 dogfooding session: a manual fallback<br>
+for users...</p>` literally inside the card.
+
+electron-updater delivers GitHub release bodies pre-rendered to
+HTML (the source on GitHub is Markdown, but the auto-updater feed
+resolves it). We strip tags rather than render them via
+`dangerouslySetInnerHTML` — release-note HTML comes from whatever
+gets pasted into a GitHub release body, and a 120-char preview
+doesn't need formatting anyway. Block tags and `<br>` get replaced
+with a space (otherwise headings glue to body: «App 0.0.4Quality
+fixes»), then whitespace is collapsed. Common HTML entities are
+decoded inline.
+
+- **`app/src/components/UpdateNotification/UpdateNotification.tsx`**
+  — added `stripHtml()` helper; updated the "available" branch to
+  call `truncate(stripHtml(info.releaseNotes), 120)` instead of
+  the raw string.
+
+### Fixed — NSIS installer dialog flashing during in-app update
+
+Clicking «Установить и перезапустить» in the update card
+called `quitAndInstall(false, true)` — with the silent flag false,
+the NSIS installer UI appeared over our in-app notification and
+asked the user to confirm the install path again. Confusing: the
+user already clicked install once, why is there another installer
+dialog?
+
+Fixed by switching to `quitAndInstall(true, true)`: same NSIS
+installer runs non-interactively in the background, the app quits
+and relaunches into the new version. The first-time install (a
+directly-downloaded `.exe` from GitHub Releases) is unaffected —
+that flow doesn't go through electron-updater, so the standard
+NSIS dialog appears as before, which is correct for a fresh
+install where path choice matters.
+
+- **`app/electron/updater.ts`** — single line change in the
+  `installUpdate` IPC handler; comment updated to explain the
+  in-app vs first-time-install distinction.
+
+### Modified
+
+- **`app/electron/preload.ts`** — internal `version` constant
+  bumped to `0.0.5`.
+- **`app/package.json`** — version bump 0.0.4 → 0.0.5.
 
 ---
 
@@ -502,7 +613,8 @@ These are **deliberately out of scope for v0.1.0-alpha**, not bugs:
 - **OS tested:** Windows, Linux. macOS expected to work but
   not verified
 
-[Unreleased]: https://github.com/Magbusjap/toraseo/compare/v0.0.4...HEAD
+[Unreleased]: https://github.com/Magbusjap/toraseo/compare/v0.0.5...HEAD
+[App 0.0.5]: https://github.com/Magbusjap/toraseo/compare/v0.0.4...v0.0.5
 [App 0.0.4]: https://github.com/Magbusjap/toraseo/compare/v0.0.3...v0.0.4
 [App 0.0.3]: https://github.com/Magbusjap/toraseo/compare/v0.0.2...v0.0.3
 [App 0.0.2]: https://github.com/Magbusjap/toraseo/releases/tag/v0.0.2

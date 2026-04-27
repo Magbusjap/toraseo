@@ -4,6 +4,7 @@ import ActiveSidebar from "./components/Sidebar/ActiveSidebar";
 import ModeSelection from "./components/MainArea/ModeSelection";
 import SiteAuditView from "./components/MainArea/SiteAuditView";
 import { OnboardingView } from "./components/Onboarding";
+import { TopToolbar } from "./components/TopToolbar";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { DEFAULT_SELECTED_TOOLS, TOOLS, type ToolId } from "./config/tools";
 import { useScan } from "./hooks/useScan";
@@ -137,31 +138,34 @@ export default function App() {
   // ===================================================================
   if (isOnboarding) {
     return (
-      <div className="flex h-full bg-orange-50/30">
-        {/* During onboarding the sidebar is fully replaced by a calm
-            "locked" panel — we don't render IdleSidebar underneath
-            because its text bleeds through any translucent overlay.
-            Once allGreen flips, the normal layout takes over and the
-            real sidebar comes back. */}
-        <aside className="flex w-[260px] shrink-0 items-center justify-center border-r border-outline/10 bg-white p-6">
-          <p className="text-center text-sm font-medium leading-relaxed text-slate-700">
-            Завершите проверку справа,<br />
-            чтобы продолжить
-          </p>
-        </aside>
+      <div className="flex h-full flex-col bg-orange-50/30">
+        <TopToolbar />
+        <div className="flex flex-1 overflow-hidden">
+          {/* During onboarding the sidebar is fully replaced by a calm
+              "locked" panel — we don't render IdleSidebar underneath
+              because its text bleeds through any translucent overlay.
+              Once allGreen flips, the normal layout takes over and the
+              real sidebar comes back. */}
+          <aside className="flex w-[260px] shrink-0 items-center justify-center border-r border-outline/10 bg-white p-6">
+            <p className="text-center text-sm font-medium leading-relaxed text-slate-700">
+              Завершите проверку справа,<br />
+              чтобы продолжить
+            </p>
+          </aside>
 
-        <main className="flex-1 overflow-auto">
-          <OnboardingView
-            status={detectorStatus}
-            onOpenClaude={openClaude}
-            onPickMcpConfig={pickMcpConfig}
-            onClearManualMcpConfig={clearManualMcpConfig}
-            onDownloadSkillZip={downloadSkillZip}
-            onOpenSkillReleasesPage={openSkillReleasesPage}
-            onConfirmSkillInstalled={confirmSkillInstalled}
-            onClearSkillConfirmation={clearSkillConfirmation}
-          />
-        </main>
+          <main className="flex-1 overflow-auto">
+            <OnboardingView
+              status={detectorStatus}
+              onOpenClaude={openClaude}
+              onPickMcpConfig={pickMcpConfig}
+              onClearManualMcpConfig={clearManualMcpConfig}
+              onDownloadSkillZip={downloadSkillZip}
+              onOpenSkillReleasesPage={openSkillReleasesPage}
+              onConfirmSkillInstalled={confirmSkillInstalled}
+              onClearSkillConfirmation={clearSkillConfirmation}
+            />
+          </main>
+        </div>
 
         <UpdateNotification />
       </div>
@@ -172,46 +176,49 @@ export default function App() {
   // Normal mode — all hard dependencies satisfied
   // ===================================================================
   return (
-    <div className="flex h-full bg-orange-50/30">
-      {/* Sidebar — fixed 260px */}
-      <aside className="relative w-[260px] shrink-0 border-r border-outline/10 bg-white">
-        {mode === "idle" ? (
-          <IdleSidebar />
-        ) : (
-          <ActiveSidebar
-            url={url}
-            onUrlChange={setUrl}
-            selectedTools={selectedTools}
-            onToggleTool={handleToggleTool}
-            scanState={scanState}
-            onReturnHome={handleReturnHome}
-            onStartScan={handleStartScan}
-          />
-        )}
-      </aside>
+    <div className="flex h-full flex-col bg-orange-50/30">
+      <TopToolbar />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar — fixed 260px */}
+        <aside className="relative w-[260px] shrink-0 border-r border-outline/10 bg-white">
+          {mode === "idle" ? (
+            <IdleSidebar />
+          ) : (
+            <ActiveSidebar
+              url={url}
+              onUrlChange={setUrl}
+              selectedTools={selectedTools}
+              onToggleTool={handleToggleTool}
+              scanState={scanState}
+              onReturnHome={handleReturnHome}
+              onStartScan={handleStartScan}
+            />
+          )}
+        </aside>
 
-      {/* Main area — flexible */}
-      <main className="flex-1 overflow-auto">
-        {mode === "idle" ? (
-          <ModeSelection onSelect={handleModeSelect} />
-        ) : (
-          <SiteAuditView
-            url={url}
-            scanState={scanState}
-            selectedTools={selectedTools}
-            stages={stages}
-            summary={summary}
-          />
-        )}
+        {/* Main area — flexible */}
+        <main className="flex-1 overflow-auto">
+          {mode === "idle" ? (
+            <ModeSelection onSelect={handleModeSelect} />
+          ) : (
+            <SiteAuditView
+              url={url}
+              scanState={scanState}
+              selectedTools={selectedTools}
+              stages={stages}
+              summary={summary}
+            />
+          )}
 
-        {/* Pre-flight error toast: shown briefly when the user
-            clicked Scan but a hard dependency had just dropped. */}
-        {preflightError && (
-          <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg">
-            {preflightError}
-          </div>
-        )}
-      </main>
+          {/* Pre-flight error toast: shown briefly when the user
+              clicked Scan but a hard dependency had just dropped. */}
+          {preflightError && (
+            <div className="fixed left-1/2 top-16 z-50 -translate-x-1/2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg">
+              {preflightError}
+            </div>
+          )}
+        </main>
+      </div>
 
       {/* Auto-update notification — fixed bottom-right, non-modal.
           Renders only when there's an update event in flight. */}
