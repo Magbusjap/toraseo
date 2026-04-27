@@ -22,7 +22,9 @@ import type {
   CheckUpdateResult,
   DetectorStatus,
   DownloadProgress,
+  DownloadSkillZipResult,
   OpenClaudeResult,
+  PickMcpConfigResult,
   ScanComplete,
   StageUpdate,
   StartScanArgs,
@@ -53,6 +55,13 @@ const UPDATER = {
 // Mirror of DETECTOR_CHANNELS from electron/detector.ts.
 const DETECTOR = {
   checkNow: "toraseo:detector:check-now",
+  pickMcpConfig: "toraseo:detector:pick-mcp-config",
+  clearManualMcpConfig: "toraseo:detector:clear-manual-mcp-config",
+  getManualMcpConfig: "toraseo:detector:get-manual-mcp-config",
+  confirmSkillInstalled: "toraseo:detector:confirm-skill-installed",
+  clearSkillConfirmation: "toraseo:detector:clear-skill-confirmation",
+  downloadSkillZip: "toraseo:detector:download-skill-zip",
+  openSkillReleasesPage: "toraseo:detector:open-skill-releases-page",
   statusUpdate: "toraseo:detector:status-update",
 } as const;
 
@@ -62,7 +71,7 @@ const LAUNCHER = {
 } as const;
 
 const api: ToraseoApi = {
-  version: "0.0.3",
+  version: "0.0.4",
 
   startScan: (args: StartScanArgs) => {
     return ipcRenderer.invoke(SCAN.startScan, args) as Promise<{
@@ -150,6 +159,48 @@ const api: ToraseoApi = {
 
     checkNow: () => {
       return ipcRenderer.invoke(DETECTOR.checkNow) as Promise<DetectorStatus>;
+    },
+
+    pickMcpConfig: () => {
+      return ipcRenderer.invoke(
+        DETECTOR.pickMcpConfig,
+      ) as Promise<PickMcpConfigResult>;
+    },
+
+    clearManualMcpConfig: () => {
+      return ipcRenderer.invoke(
+        DETECTOR.clearManualMcpConfig,
+      ) as Promise<{ ok: boolean }>;
+    },
+
+    getManualMcpConfig: () => {
+      return ipcRenderer.invoke(
+        DETECTOR.getManualMcpConfig,
+      ) as Promise<{ path: string | null }>;
+    },
+
+    downloadSkillZip: () => {
+      return ipcRenderer.invoke(
+        DETECTOR.downloadSkillZip,
+      ) as Promise<DownloadSkillZipResult>;
+    },
+
+    openSkillReleasesPage: () => {
+      return ipcRenderer.invoke(
+        DETECTOR.openSkillReleasesPage,
+      ) as Promise<{ ok: boolean }>;
+    },
+
+    confirmSkillInstalled: () => {
+      return ipcRenderer.invoke(
+        DETECTOR.confirmSkillInstalled,
+      ) as Promise<{ ok: boolean }>;
+    },
+
+    clearSkillConfirmation: () => {
+      return ipcRenderer.invoke(
+        DETECTOR.clearSkillConfirmation,
+      ) as Promise<{ ok: boolean }>;
     },
   },
 

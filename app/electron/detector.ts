@@ -1,7 +1,7 @@
 /**
  * Hard-dependency detector for ToraSEO companion-app architecture.
  *
- * The app requires two components to be present before scanning is
+ * The app requires three components to be present before scanning is
  * unlocked. See `wiki/toraseo/hard-dependency-pivot.md` for the
  * design rationale and `wiki/toraseo/hard-deps-phase-1.md` for the
  * implementation notes.
@@ -10,32 +10,51 @@
  *      / "claude.exe" exists on the system).
  *   2. claude_desktop_config.json contains an `mcpServers.toraseo`
  *      entry — meaning ToraSEO MCP is registered.
+ *   3. Skill ToraSEO is confirmed installed — either via filesystem
+ *      (Claude Code users have it at `~/.claude/skills/toraseo/`) or
+ *      via the user's manual confirmation that they installed the
+ *      skill ZIP through Claude Desktop's Settings → Skills UI.
  *
- * Skill detection used to be a third dependency in v0.0.3 pre-release
- * but was dropped after dogfooding on 2026-04-26 revealed that Skills
- * in Claude Desktop are server-side (account-bound), not file-based.
- * The runtime cache in
- * `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\...\skills-plugin\
- * <session-uuid>\<skill-uuid>\skills\` is just a per-session unpack
- * from the cloud — there's no install path on disk we can detect.
- * `~/.claude/skills/` is used by Claude Code (CLI) only. So the app
- * cannot honestly verify whether a Skill is "installed" for a Claude
- * Desktop user. Skill installation moves to a documentation/Phase-2
- * onboarding step instead.
+ * Why three checks, including the manual one:
+ *
+ * MCP gives Claude the *tools*. Skill gives Claude the *rules* —
+ * CRAWLING_POLICY, verdict-mapping, the CGS scoring formula, the
+ * report format, etc. Without skill loaded into Claude's context,
+ * the user's "analyze this site" request still works mechanically
+ * (MCP tools return raw JSON), but the answer is no longer the
+ * ToraSEO methodology — it's whatever generic interpretation the
+ * underlying Claude does. That's a silent quality regression we
+ * can't accept: users came for ToraSEO, and we owe them ToraSEO.
+ *
+ * The original v0.0.3 plan tried to detect skill via filesystem, then
+ * dropped detection entirely after realising Claude Desktop skills
+ * are server-side (account-bound) and `~/.claude/skills/` only applies
+ * to Claude Code (CLI). The drop was wrong in retrospect: it solved
+ * a technical truth-in-detection problem at the cost of a product
+ * gate. Returning the check with hybrid semantics lets us be both
+ * honest and disciplined:
+ *
+ *   - Claude Code users: filesystem says yes → ✓ automatically
+ *   - Claude Desktop users: there's no filesystem signal we can
+ *     trust, so we ask them to install skill via the in-app
+ *     download/install flow and click "Я установил" — which writes
+ *     a marker file in userData. Honest manual confirmation, not
+ *     pretend automatic detection.
  *
  * Two access patterns:
  *
  *   - Polling (started in main on app ready). Every POLL_INTERVAL_MS
- *     re-checks both and emits a status update event to renderer.
- *     This drives the live checkboxes in the onboarding screen.
+ *     re-checks all three and emits a status update event to the
+ *     renderer. This drives the live checkboxes in the onboarding
+ *     screen.
  *
  *   - On-demand `checkNow()` — bypasses the polling cache and runs
- *     both checks synchronously. Used by the renderer immediately
+ *     all checks synchronously. Used by the renderer immediately
  *     before kicking off a scan, to close the race window between
  *     the last poll tick and the user click.
  */
 
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -51,6 +70,13 @@ const POLL_INTERVAL_MS = 5000;
 export const DETECTOR_CHANNELS = {
   // renderer → main
   checkNow: "toraseo:detector:check-now",
+  pickMcpConfig: "toraseo:detector:pick-mcp-config",
+  clearManualMcpConfig: "toraseo:detector:clear-manual-mcp-config",
+  getManualMcpConfig: "toraseo:detector:get-manual-mcp-config",
+  confirmSkillInstalled: "toraseo:detector:confirm-skill-installed",
+  clearSkillConfirmation: "toraseo:detector:clear-skill-confirmation",
+  downloadSkillZip: "toraseo:detector:download-skill-zip",
+  openSkillReleasesPage: "toraseo:detector:open-skill-releases-page",
   // main → renderer (push)
   statusUpdate: "toraseo:detector:status-update",
 } as const;
@@ -60,10 +86,117 @@ export interface DetectorStatus {
   claudeRunning: boolean;
   /** mcpServers.toraseo present in claude_desktop_config.json. */
   mcpRegistered: boolean;
-  /** Convenience: both above are true. UI uses this to gate scanning. */
+  /**
+   * Skill is confirmed installed via filesystem OR manual flag.
+   * `skillSource` tells us which path produced the truth, so the UI
+   * can show different copy ("found at ~/.claude/skills/..." vs
+   * "manually confirmed"); falsy → red card.
+   */
+  skillInstalled: boolean;
+  skillSource: "filesystem" | "manual" | null;
+  /** All three above true. UI uses this to enable scanning. */
   allGreen: boolean;
-  /** When this status was computed (ISO-8601, for staleness checks). */
+  /** ISO-8601 timestamp; for staleness checks if needed. */
   checkedAt: string;
+  /**
+   * Path the user picked manually via the file dialog, if any.
+   * Null means MCP detection is using only the canonical four-path
+   * fallback.
+   */
+  manualMcpPath: string | null;
+}
+
+export interface PickMcpConfigResult {
+  ok: boolean;
+  path?: string;
+  hasToraseo?: boolean;
+  reason?: "cancelled" | "read-error" | "parse-error";
+  errorMessage?: string;
+}
+
+export interface DownloadSkillZipResult {
+  ok: boolean;
+  /** Path on disk where the ZIP was saved (in user's Downloads). */
+  filePath?: string;
+  /** Tag name of the release that was downloaded (e.g., "skill-v0.2.0"). */
+  releaseTag?: string;
+  /** Set when ok=false. */
+  error?: string;
+}
+
+// =====================================================================
+// Manual marker file persistence (MCP path + Skill confirmation)
+// =====================================================================
+
+function manualMcpPathFile(): string {
+  return path.join(app.getPath("userData"), "manual-mcp-path.txt");
+}
+
+function skillConfirmationFile(): string {
+  return path.join(app.getPath("userData"), "skill-installed.flag");
+}
+
+async function readManualMcpPath(): Promise<string | null> {
+  try {
+    const raw = await fs.readFile(manualMcpPathFile(), "utf-8");
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      log.warn(
+        `[detector] failed to read manual mcp path: ${(err as Error).message}`,
+      );
+    }
+    return null;
+  }
+}
+
+async function writeManualMcpPath(p: string): Promise<void> {
+  await fs.writeFile(manualMcpPathFile(), p, "utf-8");
+}
+
+async function clearManualMcpPath(): Promise<void> {
+  try {
+    await fs.unlink(manualMcpPathFile());
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      log.warn(
+        `[detector] failed to clear manual mcp path: ${(err as Error).message}`,
+      );
+    }
+  }
+}
+
+async function readSkillConfirmation(): Promise<boolean> {
+  try {
+    await fs.access(skillConfirmationFile());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function writeSkillConfirmation(): Promise<void> {
+  await fs.writeFile(
+    skillConfirmationFile(),
+    new Date().toISOString(),
+    "utf-8",
+  );
+}
+
+async function clearSkillConfirmationFile(): Promise<void> {
+  try {
+    await fs.unlink(skillConfirmationFile());
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      log.warn(
+        `[detector] failed to clear skill confirmation: ${(err as Error).message}`,
+      );
+    }
+  }
 }
 
 // =====================================================================
@@ -99,26 +232,8 @@ async function checkClaudeProcess(): Promise<boolean> {
 }
 
 /**
- * Path(s) to claude_desktop_config.json by platform.
- *
- * Windows is tricky because Claude Desktop ships in two flavours:
- *   - Standalone installer (.exe from anthropic.com): writes to
- *     `%APPDATA%\Claude\` — the canonical location.
- *   - Microsoft Store package: redirected by UWP sandboxing into
- *     `%LOCALAPPDATA%\Packages\Claude_<publisher-hash>\LocalCache\
- *     Roaming\Claude\`. The publisher hash `pzs8sxrjxfjjc` is
- *     stable across users (it's Anthropic's Store publisher ID).
- *
- * A user who switched between flavours can have stale configs in the
- * unused location. We check all known paths and consider the
- * dependency satisfied if `toraseo` is registered in *any* of them —
- * because that's exactly what Claude Desktop does at runtime: it
- * reads from whichever path matches the current install variant.
- *
- * If multiple paths exist with conflicting toraseo entries, we take
- * the first hit (canonical paths are listed first). This matches the
- * de facto precedence: a user with both files almost certainly uses
- * the standalone installer; the Store config is the legacy artifact.
+ * Path(s) to claude_desktop_config.json by platform. See the file
+ * header for the rationale on multi-path lookup.
  */
 function claudeConfigPaths(): string[] {
   const home = os.homedir();
@@ -144,14 +259,8 @@ function claudeConfigPaths(): string[] {
         "claude_desktop_config.json",
       ),
 
-      // Legacy: very old preview builds put it directly in LocalAppData.
-      path.join(
-        localAppData,
-        "Claude",
-        "claude_desktop_config.json",
-      ),
-
-      // Legacy: very old preview builds used a Unix-style dotfolder.
+      // Legacy: very old preview builds.
+      path.join(localAppData, "Claude", "claude_desktop_config.json"),
       path.join(home, ".claude", "claude_desktop_config.json"),
     ];
   }
@@ -168,51 +277,90 @@ function claudeConfigPaths(): string[] {
     ];
   }
 
-  // Linux and anything else.
   return [
     path.join(home, ".config", "Claude", "claude_desktop_config.json"),
   ];
 }
 
-/**
- * Read every known claude_desktop_config.json location and check
- * for mcpServers.toraseo. Returns true on the first hit.
- *
- * Why scan all paths instead of one: see comment on
- * claudeConfigPaths() above — Microsoft Store sandboxing puts the
- * config in a non-obvious location, and users who migrated between
- * Store and standalone installers have legacy configs in the unused
- * spot. A user with valid setup shouldn't see a red checkbox just
- * because we looked in the wrong place.
- *
- * Failures (file missing, malformed JSON, no toraseo key) on
- * individual paths are silent — we just move on to the next path.
- * Only ENOENT vs other errors is logged at debug level.
- */
+async function configHasToraseo(cfgPath: string): Promise<boolean> {
+  try {
+    const raw = await fs.readFile(cfgPath, "utf-8");
+    const parsed = JSON.parse(raw) as {
+      mcpServers?: Record<string, unknown>;
+    };
+    return Boolean(parsed.mcpServers && "toraseo" in parsed.mcpServers);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      log.debug(
+        `[detector] config read failed at ${cfgPath} (${code}): ${(err as Error).message}`,
+      );
+    }
+    return false;
+  }
+}
+
 async function checkMcpRegistered(): Promise<boolean> {
+  // 1. User-chosen manual path takes precedence.
+  const manual = await readManualMcpPath();
+  if (manual && (await configHasToraseo(manual))) {
+    return true;
+  }
+
+  // 2. Canonical fallback paths, in order.
   for (const cfgPath of claudeConfigPaths()) {
-    try {
-      const raw = await fs.readFile(cfgPath, "utf-8");
-      const parsed = JSON.parse(raw) as {
-        mcpServers?: Record<string, unknown>;
-      };
-      if (parsed.mcpServers && "toraseo" in parsed.mcpServers) {
-        return true;
-      }
-      // File exists, parses fine, but no toraseo — fall through to
-      // next path in case another config has it.
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      // ENOENT is the common case for paths that don't apply to the
-      // user's install — don't pollute logs with it.
-      if (code !== "ENOENT") {
-        log.debug(
-          `[detector] config read failed at ${cfgPath} (${code}): ${(err as Error).message}`,
-        );
-      }
+    if (await configHasToraseo(cfgPath)) {
+      return true;
     }
   }
+
   return false;
+}
+
+/**
+ * Path to the Skill on disk for Claude Code users.
+ *
+ * Claude Code (the CLI client) reads skills from ~/.claude/skills/.
+ * Claude Desktop does NOT — it manages skills server-side via the
+ * user's Anthropic account. So this path produces a true positive
+ * only for Claude Code users; Claude Desktop users will need to
+ * use the manual confirmation flow instead.
+ */
+function skillFilesystemPath(): string {
+  return path.join(
+    os.homedir(),
+    ".claude",
+    "skills",
+    "toraseo",
+    "SKILL.md",
+  );
+}
+
+/**
+ * Check whether Skill is satisfied via either of the two paths:
+ * filesystem (Claude Code) or manual marker file (Claude Desktop).
+ *
+ * Returns the source of truth alongside the boolean so the UI can
+ * display different copy and offer "reset" only for manual flags.
+ */
+async function checkSkillInstalled(): Promise<{
+  installed: boolean;
+  source: "filesystem" | "manual" | null;
+}> {
+  // Filesystem first — if a Claude Code user actually has the skill
+  // on disk, we trust it without asking them to click anything.
+  try {
+    await fs.access(skillFilesystemPath(), fs.constants.R_OK);
+    return { installed: true, source: "filesystem" };
+  } catch {
+    // ENOENT or read-denied — fall through to manual flag.
+  }
+
+  if (await readSkillConfirmation()) {
+    return { installed: true, source: "manual" };
+  }
+
+  return { installed: false, source: null };
 }
 
 // =====================================================================
@@ -220,42 +368,271 @@ async function checkMcpRegistered(): Promise<boolean> {
 // =====================================================================
 
 /**
- * Run both checks in parallel. Total wall time ≈ slowest of
- * (process scan ~100ms, file read ~5ms) = ~100ms.
+ * Run all checks in parallel. Total wall time ≈ slowest of
+ * (process scan ~100ms, file reads ~5ms each) = ~100ms.
  */
 export async function checkAll(): Promise<DetectorStatus> {
-  const [claudeRunning, mcpRegistered] = await Promise.all([
-    checkClaudeProcess(),
-    checkMcpRegistered(),
-  ]);
+  const [claudeRunning, mcpRegistered, skill, manualMcpPath] =
+    await Promise.all([
+      checkClaudeProcess(),
+      checkMcpRegistered(),
+      checkSkillInstalled(),
+      readManualMcpPath(),
+    ]);
 
   return {
     claudeRunning,
     mcpRegistered,
-    allGreen: claudeRunning && mcpRegistered,
+    skillInstalled: skill.installed,
+    skillSource: skill.source,
+    allGreen: claudeRunning && mcpRegistered && skill.installed,
     checkedAt: new Date().toISOString(),
+    manualMcpPath,
   };
 }
 
 let pollInterval: NodeJS.Timeout | null = null;
 
 /**
- * Wire up detector polling and the on-demand IPC handler.
+ * GitHub Releases API endpoint for the skill track. We list all
+ * releases, filter to those whose tag starts with `skill-v`, take
+ * the first non-prerelease/non-draft. There's no
+ * `releases/latest` endpoint that respects our two-track scheme
+ * (it would return the latest release of any track).
+ */
+const GITHUB_RELEASES_URL =
+  "https://api.github.com/repos/Magbusjap/toraseo/releases";
+
+const SKILL_RELEASES_PAGE_URL =
+  "https://github.com/Magbusjap/toraseo/releases?q=skill-v&expanded=true";
+
+interface GitHubAsset {
+  name: string;
+  browser_download_url: string;
+}
+
+interface GitHubRelease {
+  tag_name: string;
+  draft: boolean;
+  prerelease: boolean;
+  assets: GitHubAsset[];
+}
+
+/**
+ * Find the latest skill-v* release on GitHub and download its ZIP
+ * asset to the user's Downloads folder.
  *
- * Polling keeps the onboarding UI in sync with reality without the
- * user needing to do anything. The on-demand check is invoked by the
- * renderer immediately before starting a scan — see App.tsx
- * handleStartScan.
+ * What "latest" means: the first release in the chronologically-
+ * sorted-desc API response whose tag starts with `skill-v` and is
+ * neither a draft nor a prerelease. If nothing matches, return an
+ * error so the UI can suggest the manual GitHub link instead.
+ *
+ * Asset selection: we look for the first .zip asset attached to the
+ * release. The skill release workflow always produces one ZIP, so
+ * "first" is unambiguous in practice.
+ */
+async function downloadLatestSkillZip(): Promise<DownloadSkillZipResult> {
+  let releases: GitHubRelease[];
+  try {
+    const response = await fetch(GITHUB_RELEASES_URL, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "ToraSEO-Desktop-App",
+      },
+    });
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: `GitHub API ${response.status} ${response.statusText}`,
+      };
+    }
+    releases = (await response.json()) as GitHubRelease[];
+  } catch (err) {
+    return {
+      ok: false,
+      error: `Failed to reach GitHub: ${(err as Error).message}`,
+    };
+  }
+
+  const skillRelease = releases.find(
+    (r) =>
+      r.tag_name.startsWith("skill-v") && !r.draft && !r.prerelease,
+  );
+
+  if (!skillRelease) {
+    return {
+      ok: false,
+      error:
+        "Не найден skill-релиз на GitHub. Откройте страницу релизов вручную.",
+    };
+  }
+
+  const zipAsset = skillRelease.assets.find((a) =>
+    a.name.toLowerCase().endsWith(".zip"),
+  );
+  if (!zipAsset) {
+    return {
+      ok: false,
+      error: `Релиз ${skillRelease.tag_name} не содержит ZIP-файла`,
+    };
+  }
+
+  // Save into user's Downloads folder under the asset's original name.
+  const downloadsDir = app.getPath("downloads");
+  const destPath = path.join(downloadsDir, zipAsset.name);
+
+  try {
+    const dlResponse = await fetch(zipAsset.browser_download_url, {
+      headers: { "User-Agent": "ToraSEO-Desktop-App" },
+    });
+    if (!dlResponse.ok) {
+      return {
+        ok: false,
+        error: `Download failed: ${dlResponse.status}`,
+      };
+    }
+    const buf = Buffer.from(await dlResponse.arrayBuffer());
+    await fs.writeFile(destPath, buf);
+  } catch (err) {
+    return {
+      ok: false,
+      error: `Failed to write file: ${(err as Error).message}`,
+    };
+  }
+
+  log.info(
+    `[detector] skill ZIP downloaded: ${destPath} (${skillRelease.tag_name})`,
+  );
+
+  // Open the Downloads folder with the file selected so the user
+  // can immediately drag it into Claude Desktop's Settings → Skills.
+  shell.showItemInFolder(destPath);
+
+  return {
+    ok: true,
+    filePath: destPath,
+    releaseTag: skillRelease.tag_name,
+  };
+}
+
+/**
+ * Wire up detector polling and all on-demand IPC handlers.
  */
 export function setupDetector(getMainWindow: () => BrowserWindow | null): void {
-  // On-demand check.
+  // ----- Status checks -----
+
   ipcMain.handle(DETECTOR_CHANNELS.checkNow, async () => {
-    const status = await checkAll();
-    return status;
+    return checkAll();
   });
 
-  // Polling loop. We do an immediate first check so the UI doesn't
-  // sit on default `false` values for the first 5 seconds.
+  // ----- Manual MCP config picker -----
+
+  ipcMain.handle(
+    DETECTOR_CHANNELS.pickMcpConfig,
+    async (): Promise<PickMcpConfigResult> => {
+      const win = getMainWindow();
+      const result = await dialog.showOpenDialog(win ?? undefined!, {
+        title: "Выберите claude_desktop_config.json",
+        properties: ["openFile"],
+        filters: [
+          { name: "JSON config", extensions: ["json"] },
+          { name: "All files", extensions: ["*"] },
+        ],
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { ok: false, reason: "cancelled" };
+      }
+
+      const picked = result.filePaths[0];
+
+      try {
+        const raw = await fs.readFile(picked, "utf-8");
+        try {
+          JSON.parse(raw);
+        } catch (parseErr) {
+          return {
+            ok: false,
+            reason: "parse-error",
+            errorMessage: (parseErr as Error).message,
+          };
+        }
+      } catch (readErr) {
+        return {
+          ok: false,
+          reason: "read-error",
+          errorMessage: (readErr as Error).message,
+        };
+      }
+
+      await writeManualMcpPath(picked);
+      const hasToraseo = await configHasToraseo(picked);
+      log.info(
+        `[detector] manual mcp path set: ${picked} (hasToraseo=${hasToraseo})`,
+      );
+
+      void pushFreshStatus(getMainWindow);
+      return { ok: true, path: picked, hasToraseo };
+    },
+  );
+
+  ipcMain.handle(
+    DETECTOR_CHANNELS.clearManualMcpConfig,
+    async (): Promise<{ ok: boolean }> => {
+      await clearManualMcpPath();
+      log.info("[detector] manual mcp path cleared");
+      void pushFreshStatus(getMainWindow);
+      return { ok: true };
+    },
+  );
+
+  ipcMain.handle(
+    DETECTOR_CHANNELS.getManualMcpConfig,
+    async (): Promise<{ path: string | null }> => {
+      return { path: await readManualMcpPath() };
+    },
+  );
+
+  // ----- Skill confirmation flow -----
+
+  ipcMain.handle(
+    DETECTOR_CHANNELS.confirmSkillInstalled,
+    async (): Promise<{ ok: boolean }> => {
+      await writeSkillConfirmation();
+      log.info("[detector] skill confirmed by user");
+      void pushFreshStatus(getMainWindow);
+      return { ok: true };
+    },
+  );
+
+  ipcMain.handle(
+    DETECTOR_CHANNELS.clearSkillConfirmation,
+    async (): Promise<{ ok: boolean }> => {
+      await clearSkillConfirmationFile();
+      log.info("[detector] skill confirmation cleared");
+      void pushFreshStatus(getMainWindow);
+      return { ok: true };
+    },
+  );
+
+  ipcMain.handle(
+    DETECTOR_CHANNELS.downloadSkillZip,
+    async (): Promise<DownloadSkillZipResult> => {
+      log.info("[detector] downloading latest skill ZIP from GitHub");
+      return downloadLatestSkillZip();
+    },
+  );
+
+  ipcMain.handle(
+    DETECTOR_CHANNELS.openSkillReleasesPage,
+    async (): Promise<{ ok: boolean }> => {
+      await shell.openExternal(SKILL_RELEASES_PAGE_URL);
+      return { ok: true };
+    },
+  );
+
+  // ----- Polling -----
+
   const tick = async () => {
     try {
       const status = await checkAll();
@@ -268,13 +645,9 @@ export function setupDetector(getMainWindow: () => BrowserWindow | null): void {
     }
   };
 
-  // Fire immediately, then on interval.
   void tick();
   pollInterval = setInterval(tick, POLL_INTERVAL_MS);
 
-  // Stop polling when the app is shutting down — otherwise the
-  // interval can keep the process alive for a few more ticks during
-  // quit, which is harmless but noisy in logs.
   app.on("before-quit", () => {
     if (pollInterval) {
       clearInterval(pollInterval);
@@ -285,4 +658,25 @@ export function setupDetector(getMainWindow: () => BrowserWindow | null): void {
   log.info(
     `[detector] polling started (interval ${POLL_INTERVAL_MS}ms)`,
   );
+}
+
+/**
+ * Force one fresh status push to the renderer. Used after the user
+ * picks/clears manual marker files so the UI updates within ~100ms
+ * instead of waiting for the next 5-second poll tick.
+ */
+async function pushFreshStatus(
+  getMainWindow: () => BrowserWindow | null,
+): Promise<void> {
+  try {
+    const status = await checkAll();
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(DETECTOR_CHANNELS.statusUpdate, status);
+    }
+  } catch (err) {
+    log.error(
+      `[detector] pushFreshStatus failed: ${(err as Error).message}`,
+    );
+  }
 }

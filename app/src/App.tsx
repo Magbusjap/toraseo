@@ -22,15 +22,15 @@ export type AppMode = "idle" | "site" | "content";
  * Состояние скана (stages, scanState, summary) живёт в `useScan` —
  * хук подписан на IPC main process и хранит per-tool результаты.
  *
- * Состояние hard dependencies (Claude/MCP) живёт в `useDetector` —
+ * Состояние hard dependencies (Claude/MCP/Skill) живёт в `useDetector` —
  * пока allGreen=false, основной экран заменён на OnboardingView,
- * сайдбар — на «locked» панель. Когда оба зелёные — UI
+ * сайдбар — на «locked» панель. Когда все три зелёные — UI
  * автоматически возвращается в обычный режим без явного клика юзера.
  *
- * Skill detection НЕ входит в hard dependencies в v0.0.3 — Skills
- * в Claude Desktop server-side (привязаны к аккаунту), filesystem
- * detection невозможен. Установка Skill — через документацию /
- * Phase 2 instructions overlay.
+ * Skill detection — гибридный: filesystem (`~/.claude/skills/toraseo/`)
+ * для Claude Code юзеров, или manual confirmation флаг для Claude
+ * Desktop (skills server-side, filesystem detect невозможен). UI
+ * предлагает скачать ZIP и подтвердить установку.
  *
  * Pre-flight check: при клике "Сканировать" мы заново проверяем
  * статус (синхронно) — это закрывает race window между последним
@@ -50,7 +50,17 @@ export default function App() {
   const [preflightError, setPreflightError] = useState<string | null>(null);
 
   const { stages, scanState, summary, startScan } = useScan();
-  const { status: detectorStatus, checkNow, openClaude } = useDetector();
+  const {
+    status: detectorStatus,
+    checkNow,
+    openClaude,
+    pickMcpConfig,
+    clearManualMcpConfig,
+    downloadSkillZip,
+    openSkillReleasesPage,
+    confirmSkillInstalled,
+    clearSkillConfirmation,
+  } = useDetector();
 
   // Hard dependencies gate. Until allGreen, the onboarding screen
   // takes over. We allow allGreen===undefined (status not yet
@@ -103,7 +113,7 @@ export default function App() {
     const fresh = await checkNow();
     if (!fresh.allGreen) {
       setPreflightError(
-        "Проверка зависимостей не пройдена. Откройте Claude Desktop и убедитесь, что MCP подключён.",
+        "Проверка зависимостей не пройдена. Откройте Claude Desktop, убедитесь что MCP подключён и Skill установлен.",
       );
       // Returning to idle takes the user back to the main screen,
       // which now renders the onboarding overlay automatically
@@ -144,6 +154,12 @@ export default function App() {
           <OnboardingView
             status={detectorStatus}
             onOpenClaude={openClaude}
+            onPickMcpConfig={pickMcpConfig}
+            onClearManualMcpConfig={clearManualMcpConfig}
+            onDownloadSkillZip={downloadSkillZip}
+            onOpenSkillReleasesPage={openSkillReleasesPage}
+            onConfirmSkillInstalled={confirmSkillInstalled}
+            onClearSkillConfirmation={clearSkillConfirmation}
           />
         </main>
 

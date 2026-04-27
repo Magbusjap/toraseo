@@ -37,13 +37,163 @@ the `skill-v*` namespace.
 
 ## [Unreleased]
 
-Nothing yet. The next slice of work is **app v0.0.4** — Phase 2 of
-hard-dependency support: instructions overlay (per-row click →
-step-by-step setup), automatic MCP installation (NSIS installer
-writes the config), and the start of an app-as-Skill-package-manager
-flow (auto-update Skill via GitHub). After that, the **skill track
-v0.2.0** — Mode B content audit (humanizer, readability, style match,
-AI-detection score).
+Nothing yet. Roadmap after v0.0.4:
+
+- **v0.0.5 — i18n localization.** English as primary, Russian as
+  option. Stack: i18next + react-i18next. Language switcher in
+  header or settings. Persist user choice in `userData/locale.txt`.
+  All UI strings extracted from components into `locales/en.json`
+  and `locales/ru.json`.
+
+- **v0.0.6 — Skill runtime handshake.** Token-matching protocol
+  between MCP server and SKILL.md so the app can verify at runtime
+  that Skill is actually loaded into Claude's context (not just
+  installed-on-disk). MCP exposes `register_session(token)`; the
+  same token lives in SKILL.md as a first-call instruction; MCP
+  writes a fresh timestamp to `userData/skill-active-session.json`
+  on every valid call; the detector treats records < 60 seconds
+  old as "runtime verified". This adds a third status tier for the
+  Skill row: `not installed` → `installed but unverified` →
+  `runtime verified`. Requires coordinated release of three
+  artifacts (MCP, Skill, App) with versioned protocol token.
+
+- **v0.0.7 — First `skill-v*` release.** Bootstraps the skill
+  release track that v0.0.4's download-ZIP button reads from. Until
+  the first `skill-v*` tag exists, the button correctly reports
+  "Не найден skill-релиз на GitHub" and falls back to opening the
+  releases page.
+
+After that, the **skill track v0.2.0** — Mode B content audit
+(humanizer, readability, style match, AI-detection score).
+
+---
+
+## [App 0.0.4] — 2026-04-27
+
+Quality fixes after the v0.0.3 dogfooding session: a manual fallback
+for users whose Claude Desktop config sits in a non-standard
+location, an icon fix for window/installer chrome, and — most
+importantly — a return of Skill detection with hybrid semantics
+that closes the silent quality regression v0.0.3 had introduced.
+
+### Added — Skill detection (returned with hybrid semantics)
+
+Skill is back as the third required dependency. The drop in v0.0.3
+was reasoned correctly at the technical level (Claude Desktop
+skills are server-side, filesystem detection isn't reliable for
+those users) but wrong at the product level: without the skill
+loaded into Claude's context, MCP tools still return raw JSON, and
+Claude interprets it without ToraSEO's CRAWLING_POLICY,
+verdict-mapping, or CGS scoring formula. The user gets an answer
+that looks like a ToraSEO audit but isn't — a silent quality
+regression we cannot accept.
+
+The new check is hybrid:
+
+  - **Filesystem path** — if `~/.claude/skills/toraseo/SKILL.md`
+    exists, treat skill as installed. This works for Claude Code
+    (CLI) users without any user action.
+  - **Manual confirmation** — if the filesystem check fails, look
+    for a marker file at `userData/skill-installed.flag`. This
+    file is created when the user clicks «Я установил Skill» after
+    installing the ZIP through Claude Desktop's Settings → Skills
+    → Install ZIP. Honest manual handoff, not pretend automatic
+    detection.
+
+The row also exposes:
+
+  - **«Скачать ZIP с GitHub»** — fetches the latest `skill-v*`
+    release from GitHub Releases API into the user's Downloads
+    folder, then opens the folder with the file selected so the
+    user can drag it straight into Claude Desktop.
+  - **«Открыть страницу релизов»** — manual fallback if the API
+    fetch fails (no internet, GitHub rate-limit, etc.).
+  - **Reset link** — next to the «Используется: ручное подтверждение»
+    indicator, lets the user undo the manual flag if e.g. they
+    uninstall the Skill in Claude. Filesystem-source rows have no
+    reset — those files live outside our app.
+
+- **`app/electron/detector.ts`** — returned `checkSkillInstalled()`
+  with two-source logic; added IPC handlers `confirmSkillInstalled`,
+  `clearSkillConfirmation`, `downloadSkillZip`,
+  `openSkillReleasesPage`; added `DetectorStatus.skillInstalled` and
+  `skillSource` (“filesystem” | “manual” | null); `allGreen` now
+  requires all three checks.
+- **`app/src/types/ipc.ts`** — `DownloadSkillZipResult` interface;
+  four new methods on `DetectorApi`; `skillInstalled` /
+  `skillSource` fields restored on `DetectorStatus`.
+- **`app/electron/preload.ts`** — four new bridge methods.
+- **`app/src/hooks/useDetector.ts`** — four new exported helpers.
+- **`app/src/components/Onboarding/OnboardingView.tsx`** — third
+  row restored; three secondary actions (download ZIP, open
+  releases page, confirm install); active-source indicator with
+  conditional reset link; inline error/info blocks.
+- **`app/src/App.tsx`** — wires the new callbacks through to
+  OnboardingView.
+
+### Added — Manual MCP config picker
+
+New secondary action under the MCP onboarding row: **«Указать config
+вручную»**. Opens the system file dialog. The picked path is
+persisted in `userData/manual-mcp-path.txt` and tried first by
+the detector before the canonical four-path fallback. The status
+bar shows the active manual path with a «сбросить» link to revert
+to auto-detection.
+
+This closes a real gap: portable Claude builds, future Microsoft
+Store publisher-hash changes, and uncommon installer locations
+were all invisible to the v0.0.3 multi-path lookup. The picker is
+the escape hatch.
+
+Notably, the user can pick the file *before* installing the MCP
+(e.g., immediately after fresh Claude install, when the config
+exists but has no toraseo entry yet). The picker treats this as
+an informational state, not an error: the file is accepted and
+the detector keeps polling until `mcpServers.toraseo` lands in it.
+
+- **`app/electron/detector.ts`** — added `pickMcpConfig`,
+  `clearManualMcpConfig`, `getManualMcpConfig` IPC handlers;
+  `readManualMcpPath` runs first inside `checkMcpRegistered` before
+  the canonical four-path loop; status now includes
+  `manualMcpPath: string | null`; manual path persisted in
+  `userData/manual-mcp-path.txt` (plain text, single line).
+- Same touches in preload.ts, ipc.ts, useDetector.ts, and
+  OnboardingView.tsx as for Skill above.
+
+### Fixed — App icon
+
+The v0.0.3 installer produced a window and taskbar icon that fell
+back to the default Electron logo. The icon assets at
+`app/build/icons/` were on disk but not bundled into the runtime
+package, and `BrowserWindow` had no explicit `icon` field, so
+Electron had nothing to load.
+
+Fix is platform-aware: Windows prefers `.ico` for native
+integrations (taskbar, alt-tab), so the runtime path resolution
+selects `icon.ico` on win32 and `icon.png` elsewhere.
+
+Note on dev caveat: in `npm run dev` the taskbar still shows the
+default Electron icon because the host process is `electron.exe`
+whose own metadata icon takes precedence over `BrowserWindow.icon`
+on Windows. Only packaged builds have the right icon end-to-end.
+
+- **`app/electron/main.ts`** — `BrowserWindow({ icon: ... })` with
+  `resolveIconPath()` that picks `.ico` on Windows and `.png`
+  elsewhere via a path that works in both dev and packaged
+  production; documents the dev caveat in code comments.
+- **`app/package.json`** — `build.files` includes `build/icons/**`
+  so assets end up inside the asar archive at runtime;
+  `build.nsis.installerIcon` and `uninstallerIcon` set explicitly
+  to `build/icons/icon.ico` so the installer dialog matches.
+
+### Modified
+
+- **`app/electron/main.ts`** — stale Skill-related comment in
+  `setupDetector` invocation removed; new comment about the
+  hybrid model.
+- **`app/electron/preload.ts`** — internal `version` constant
+  bumped to `0.0.4`.
+- **`app/package.json`** — version bump 0.0.3 → 0.0.4.
 
 ---
 
@@ -352,7 +502,8 @@ These are **deliberately out of scope for v0.1.0-alpha**, not bugs:
 - **OS tested:** Windows, Linux. macOS expected to work but
   not verified
 
-[Unreleased]: https://github.com/Magbusjap/toraseo/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/Magbusjap/toraseo/compare/v0.0.4...HEAD
+[App 0.0.4]: https://github.com/Magbusjap/toraseo/compare/v0.0.3...v0.0.4
 [App 0.0.3]: https://github.com/Magbusjap/toraseo/compare/v0.0.2...v0.0.3
 [App 0.0.2]: https://github.com/Magbusjap/toraseo/releases/tag/v0.0.2
 [0.1.0-alpha]: https://github.com/Magbusjap/toraseo/releases/tag/v0.1.0-alpha

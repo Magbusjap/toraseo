@@ -1,6 +1,6 @@
 {
   "name": "@toraseo/app",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
   "type": "module",
   "description": "ToraSEO desktop application (Electron + React + TypeScript)",
@@ -48,7 +48,8 @@
     },
     "files": [
       "out/**/*",
-      "package.json"
+      "package.json",
+      "build/icons/**"
     ],
     "publish": {
       "provider": "github",
@@ -79,7 +80,9 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icons/icon.ico",
+      "uninstallerIcon": "build/icons/icon.ico"
     }
   }
 }

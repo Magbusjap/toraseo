@@ -10,6 +10,51 @@ import type { StartScanArgs } from "../src/types/ipc";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Resolve the runtime path to the app icon.
+ *
+ * Windows prefers `.ico` for native integrations (taskbar, alt-tab,
+ * window titlebar) because it's a multi-resolution format.
+ * Linux/macOS use `.png` for window icons; macOS additionally has
+ * `.icns` baked into the bundle by electron-builder, which we don't
+ * load at runtime.
+ *
+ * Two layouts to support:
+ *   - dev (`npm run dev`): __dirname is `app/out/main/`, icons live
+ *     at `app/build/icons/`, so we walk up two levels then into
+ *     build/icons.
+ *   - production (packaged installer): icons are bundled via
+ *     `build.files: ["build/icons/**"]` in package.json, so they
+ *     end up inside the asar archive at
+ *     `<install>/resources/app.asar/build/icons/`. __dirname is
+ *     `<install>/resources/app.asar/out/main/` — same relative
+ *     traversal works because asar paths behave like filesystem.
+ *
+ * IMPORTANT — Electron dev caveat on Windows: even with a valid
+ * icon path, `npm run dev` shows the default Electron icon in the
+ * taskbar because the host process is `electron.exe` whose own
+ * .exe metadata icon takes precedence. Only the in-window titlebar
+ * picks up our icon in dev. Packaged builds (after
+ * `electron-builder`) work correctly because the host is
+ * `ToraSEO.exe` with our icon embedded.
+ *
+ * If the file is missing for any reason, returns undefined and
+ * Electron falls back to its default icon — not a hard failure,
+ * just a stale-looking window.
+ */
+function resolveIconPath(): string | undefined {
+  const filename = process.platform === "win32" ? "icon.ico" : "icon.png";
+  const candidate = path.join(
+    __dirname,
+    "..",
+    "..",
+    "build",
+    "icons",
+    filename,
+  );
+  return candidate;
+}
+
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
@@ -19,6 +64,7 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 600,
     title: "ToraSEO",
+    icon: resolveIconPath(),
     backgroundColor: "#FFF7F0",
     autoHideMenuBar: true,
     show: false, // показываем окно после ready-to-show, чтобы не было flash
@@ -104,10 +150,11 @@ app.whenReady().then(() => {
   // before install. See electron/updater.ts for details.
   setupAutoUpdater(() => mainWindow);
 
-  // Hard-dependency detector: polling every 5s for Claude process,
-  // MCP config entry, and Skill files. Pushes status to renderer
-  // for the onboarding screen. Also exposes synchronous checkNow()
-  // for pre-flight before scanning. See electron/detector.ts.
+  // Hard-dependency detector: polling every 5s for Claude process
+  // and MCP config entry. Pushes status to renderer for the
+  // onboarding screen. Also exposes synchronous checkNow() for
+  // pre-flight before scanning. Skill detection was dropped —
+  // see detector.ts header for rationale.
   setupDetector(() => mainWindow);
 
   // Claude Desktop launcher: invoked by the "Open Claude Desktop"

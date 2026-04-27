@@ -155,24 +155,72 @@ export interface UpdaterApi {
 // =====================================================================
 
 /**
- * Aggregated status of the two hard dependencies.
+ * Aggregated status of the three hard dependencies.
  *
  * `allGreen` is the only field the UI needs to gate the scan button;
  * the individual booleans drive the per-row checkboxes in the
  * onboarding screen.
  *
- * Skill detection used to be a third dependency in v0.0.3 pre-release
- * but was dropped — see detector.ts header comment for rationale.
+ * Skill detection is hybrid — see detector.ts header for rationale.
+ * Filesystem path is checked first (Claude Code path), and if the
+ * file isn't there we fall back to a manual confirmation marker
+ * created when the user clicks «I installed Skill» in the onboarding
+ * UI (Claude Desktop path — server-side skills aren't filesystem-
+ * detectable).
  */
 export interface DetectorStatus {
   /** Claude Desktop process is currently running. */
   claudeRunning: boolean;
   /** mcpServers.toraseo present in claude_desktop_config.json. */
   mcpRegistered: boolean;
-  /** Both above are true. UI uses this to enable scanning. */
+  /** Skill is confirmed installed via filesystem OR manual flag. */
+  skillInstalled: boolean;
+  /**
+   * Which path produced a positive Skill verdict, for UI copy:
+   * - "filesystem" — found at ~/.claude/skills/toraseo/SKILL.md
+   * - "manual" — user clicked "Я установил Skill"
+   * - null — not satisfied
+   */
+  skillSource: "filesystem" | "manual" | null;
+  /** All three above are true. UI uses this to enable scanning. */
   allGreen: boolean;
   /** ISO-8601 timestamp; for staleness checks if needed. */
   checkedAt: string;
+  /**
+   * Path the user picked manually via the file dialog, if any.
+   * Null means MCP detection is using only the canonical four-path
+   * fallback. UI shows this so the user can confirm what's in use
+   * and revert to auto if needed.
+   */
+  manualMcpPath: string | null;
+}
+
+/**
+ * Result of asking the user to pick a config file via the system
+ * dialog. `ok=true` means the file was picked AND parses as JSON;
+ * `hasToraseo` then says whether the toraseo MCP entry is in there
+ * (it might not be — the user may pick the file before installing
+ * the MCP, which is a valid flow).
+ */
+export interface PickMcpConfigResult {
+  ok: boolean;
+  path?: string;
+  hasToraseo?: boolean;
+  reason?: "cancelled" | "read-error" | "parse-error";
+  errorMessage?: string;
+}
+
+/**
+ * Result of fetching the latest skill ZIP from GitHub Releases.
+ * On success the file is in user's Downloads folder and the
+ * Downloads folder is opened with the file selected, ready to be
+ * dragged into Claude Desktop's Settings → Skills.
+ */
+export interface DownloadSkillZipResult {
+  ok: boolean;
+  filePath?: string;
+  releaseTag?: string;
+  error?: string;
 }
 
 /**
@@ -182,12 +230,41 @@ export interface DetectorStatus {
  * onStatusUpdate. checkNow() is the synchronous pre-flight used
  * by App.tsx right before starting a scan, to close the race window
  * between the last poll tick and the user click.
+ *
+ * Manual MCP path methods (pickMcpConfig / clearManualMcpConfig /
+ * getManualMcpConfig) manage the user-chosen fallback config path —
+ * used when the canonical four-path lookup doesn't find Claude's
+ * config (custom install, portable build, future Store hash change).
+ *
+ * Skill methods cover the hybrid detect-or-confirm flow:
+ *   - downloadSkillZip(): fetch latest skill-v* release ZIP into
+ *     user's Downloads and open the folder with file selected
+ *   - openSkillReleasesPage(): fallback that opens the GitHub
+ *     releases page filtered to skill-v* tags
+ *   - confirmSkillInstalled(): write the manual marker so the
+ *     skill row turns green
+ *   - clearSkillConfirmation(): undo confirmation; row goes red
+ *     unless the filesystem path also exists
  */
 export interface DetectorApi {
   /** Subscribe to status updates pushed every 5 seconds. */
   onStatusUpdate(listener: (status: DetectorStatus) => void): () => void;
   /** Force a fresh check, bypassing the polling cache. */
   checkNow(): Promise<DetectorStatus>;
+  /** Open a file picker to choose claude_desktop_config.json manually. */
+  pickMcpConfig(): Promise<PickMcpConfigResult>;
+  /** Forget the manual MCP choice; revert to canonical-only lookup. */
+  clearManualMcpConfig(): Promise<{ ok: boolean }>;
+  /** Read the currently-persisted manual MCP path. */
+  getManualMcpConfig(): Promise<{ path: string | null }>;
+  /** Download the latest skill ZIP from GitHub Releases. */
+  downloadSkillZip(): Promise<DownloadSkillZipResult>;
+  /** Open the GitHub Releases page filtered to skill-v* tags. */
+  openSkillReleasesPage(): Promise<{ ok: boolean }>;
+  /** Mark Skill as installed (Claude Desktop manual flow). */
+  confirmSkillInstalled(): Promise<{ ok: boolean }>;
+  /** Undo the manual confirmation. */
+  clearSkillConfirmation(): Promise<{ ok: boolean }>;
 }
 
 // =====================================================================
