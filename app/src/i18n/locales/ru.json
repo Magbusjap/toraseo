@@ -1,0 +1,239 @@
+{
+  "app": {
+    "name": "ToraSEO",
+    "tagline": "See the top. Rank the top.",
+    "altMascotIdle": "Маскот ToraSEO в режиме ожидания",
+    "altMascotFocused": "Маскот ToraSEO сосредоточен на анализе",
+    "altMascotHappy": "Маскот ToraSEO — анализ завершён",
+    "altMascotSleeping": "Спящий маскот ToraSEO"
+  },
+  "toolbar": {
+    "about": "О ToraSEO",
+    "checkUpdates": "Проверить обновления",
+    "documentation": "Документация",
+    "faq": "FAQ",
+    "settings": "Настройки",
+    "github": "GitHub",
+    "checking": "Проверяю…"
+  },
+  "about": {
+    "title": "О ToraSEO",
+    "description": "ToraSEO — настольное приложение для SEO-аудита, работающее в паре с Claude Desktop.",
+    "version": "Версия:",
+    "license": "Лицензия:",
+    "author": "Автор:",
+    "github": "GitHub:",
+    "tagline": "SEE THE TOP. RANK THE TOP."
+  },
+  "settings": {
+    "title": "Настройки",
+    "comingSoon": "В разработке — здесь появятся:",
+    "comingSoonItems": {
+      "language": "Переключение языка интерфейса (EN / RU)",
+      "persistence": "Сохранение выбранных tools между запусками",
+      "darkMode": "Тёмная тема",
+      "configPath": "Путь к Claude Desktop config.json"
+    },
+    "tabs": {
+      "language": "Языковые настройки"
+    },
+    "backToHome": "На главную",
+    "save": "Сохранить",
+    "saved": "Сохранено",
+    "language": {
+      "title": "Языковые настройки",
+      "label": "Язык интерфейса",
+      "hint": "Изменение применяется сразу. Системные диалоги (например, выбор файла) продолжают использовать язык вашей системы.",
+      "options": {
+        "en": "Английский",
+        "ru": "Русский"
+      }
+    },
+    "unsaved": {
+      "title": "У вас есть несохранённые изменения",
+      "body": "Если выйти сейчас, изменения будут потеряны.",
+      "discard": "Отменить изменения и вернуться",
+      "stay": "Назад"
+    }
+  },
+  "modeSelection": {
+    "idle": "Idle",
+    "question": "Что вы хотите проверить?",
+    "siteByUrl": "Сайт по URL",
+    "articleText": "Текст статьи",
+    "siteSubtitle": "Site Audit",
+    "articleSubtitle": "v0.2 — coming soon",
+    "claudeOptional": "Подключение к Claude Desktop опционально"
+  },
+  "sidebar": {
+    "idleHeading": "Выберите режим",
+    "section": {
+      "project": "Проект",
+      "checks": "Проверки"
+    },
+    "urlLabel": "URL сайта",
+    "urlPlaceholder": "example.com",
+    "urlInvalid": "Введите корректный адрес сайта",
+    "noChecks": "Выберите хотя бы одну проверку",
+    "scan": "Сканировать",
+    "scanning": "Сканирование…",
+    "scanAgain": "Сканировать заново",
+    "tooltip": {
+      "noUrl": "Введите URL сайта",
+      "noChecks": "Выберите хотя бы одну проверку",
+      "alreadyScanning": "Сканирование уже идёт"
+    },
+    "backToHomeTitle": "На главную",
+    "settingsTabs": "Настройки"
+  },
+  "siteAudit": {
+    "enterUrl": "Введите URL сайта в боковой панели",
+    "scanStarted": "Анализ запущен",
+    "summary": {
+      "title": "Итог",
+      "seconds": "{{seconds}} сек",
+      "errors": "Ошибки"
+    },
+    "stage": {
+      "pending": "Ожидание",
+      "running": "Анализ…",
+      "ok": "ОК",
+      "warning": "Warning",
+      "critical": "Critical",
+      "error": "Ошибка"
+    },
+    "issues": {
+      "clean": "без замечаний",
+      "criticalTitle": "Critical",
+      "warningTitle": "Warnings",
+      "infoTitle": "Info"
+    },
+    "status": {
+      "ready": "Готов",
+      "scanning": "Анализирую",
+      "completed": "Завершено",
+      "issuesFound": "Найдены проблемы",
+      "warnings": "Есть предупреждения",
+      "executionErrors": "Ошибки выполнения",
+      "allClean": "Всё чисто"
+    }
+  },
+  "tools": {
+    "robots": {
+      "label": "Robots.txt",
+      "tooltip": "Доступность сайта для поисковых роботов"
+    },
+    "sitemap": {
+      "label": "Sitemap",
+      "tooltip": "Карта сайта и список индексируемых страниц"
+    },
+    "meta": {
+      "label": "Мета-теги",
+      "tooltip": "Title, description, Open Graph, viewport"
+    },
+    "headings": {
+      "label": "Заголовки",
+      "tooltip": "Структура заголовков h1–h6"
+    },
+    "redirects": {
+      "label": "Редиректы",
+      "tooltip": "Цепочка переадресаций и битые ссылки"
+    },
+    "content": {
+      "label": "Контент",
+      "tooltip": "Объём текста, соотношение код/текст"
+    },
+    "scanMinimal": {
+      "label": "Базовый скан",
+      "tooltip": "Общая проверка состояния сайта"
+    }
+  },
+  "onboarding": {
+    "loading": "Проверяем компоненты…",
+    "lockedSidebar": "Завершите проверку справа,<br/>чтобы продолжить",
+    "title": "ToraSEO работает в связке с Claude Desktop",
+    "subtitle": "Для запуска нужно три компонента. Когда все три зелёные — сканирование разблокируется автоматически.",
+    "footer": "Проверка обновляется каждые 5 секунд автоматически.",
+    "claude": {
+      "label": "Claude Desktop запущен",
+      "hintRunning": "Процесс найден",
+      "hintMissing": "Откройте Claude Desktop, чтобы продолжить",
+      "openButton": "Открыть Claude Desktop",
+      "openFailedFallback": "Не удалось открыть Claude Desktop. Запустите его вручную."
+    },
+    "mcp": {
+      "label": "MCP-сервер ToraSEO подключён",
+      "hintRegistered": "Запись найдена в claude_desktop_config.json",
+      "hintMissing": "Установщик ToraSEO добавляет MCP автоматически. Если конфиг лежит в нестандартном месте — укажите вручную.",
+      "pickButton": "Указать config вручную",
+      "picking": "Открываю диалог…",
+      "usingPath": "Используется:",
+      "reset": "сбросить",
+      "errorParse": "Файл не является корректным JSON. Откройте его в редакторе и проверьте формат.",
+      "errorRead": "Не удалось прочитать файл.",
+      "infoNoToraseoYet": "Файл выбран, но запись mcpServers.toraseo пока не найдена. Установщик ToraSEO добавит её при следующей установке."
+    },
+    "skill": {
+      "label": "Skill ToraSEO установлен",
+      "hintMissing": "Скачайте ZIP с GitHub и установите через Claude Desktop: Settings → Skills → Install ZIP. После установки нажмите «Я установил Skill».",
+      "hintFilesystem": "Файл найден на диске (Claude Code)",
+      "hintManual": "Установка подтверждена пользователем",
+      "downloadButton": "Скачать ZIP с GitHub",
+      "downloading": "Скачиваю с GitHub…",
+      "openReleasesButton": "Открыть страницу релизов",
+      "confirmButton": "Я установил Skill",
+      "confirming": "Подтверждаю…",
+      "errorNoRelease": "Не найден skill-релиз на GitHub. Откройте страницу релизов вручную.",
+      "errorDownloadFailed": "Не удалось скачать с GitHub.",
+      "errorWriteFailed": "Не удалось записать файл.",
+      "errorNoZip": "Релиз {{tag}} не содержит ZIP-файла.",
+      "infoDownloaded": "ZIP скачан ({{tag}}). Папка с файлом открыта — перетащите его в Claude Desktop: Settings → Skills → Install from ZIP. После установки вернитесь сюда и нажмите «Я установил Skill».",
+      "confirmDialog": "Подтверждаете, что Skill ToraSEO установлен в Claude Desktop через Settings → Skills?\n\nБез установленного Skill анализ через Claude будет неполным — он проигнорирует CRAWLING_POLICY, verdict-mapping и формулу CGS-балла.",
+      "tooltipFilesystem": "Skill уже определён через файловую систему (Claude Code) — подтверждение не требуется",
+      "tooltipManual": "Ручное подтверждение уже активно — сбросьте его ниже, если хотите переподтвердить"
+    }
+  },
+  "preflight": {
+    "depsFailed": "Проверка зависимостей не пройдена. Откройте Claude Desktop, убедитесь что MCP подключён и Skill установлен."
+  },
+  "updater": {
+    "available": {
+      "title": "Доступно обновление",
+      "body": "ToraSEO {{version}} готова к загрузке.",
+      "download": "Скачать",
+      "later": "Позже"
+    },
+    "downloading": {
+      "title": "Загрузка обновления"
+    },
+    "downloaded": {
+      "title": "Обновление готово",
+      "body": "ToraSEO {{version}} скачана. Приложение перезапустится для установки.",
+      "install": "Установить и перезапустить",
+      "later": "Позже"
+    },
+    "error": {
+      "title": "Ошибка обновления",
+      "close": "Закрыть"
+    },
+    "check": {
+      "latest": "У вас последняя версия ({{version}}).",
+      "found": "Найдено обновление: {{version}}. См. уведомление в углу.",
+      "errorPrefix": "Ошибка проверки:",
+      "errorUnknown": "Не удалось проверить обновления"
+    },
+    "dismiss": "Закрыть уведомление",
+    "installerCallout": "Важно: первичная установка (запуск .exe напрямую) показывает обычный установщик."
+  },
+  "filePickers": {
+    "claudeConfigTitle": "Выберите claude_desktop_config.json",
+    "jsonConfig": "JSON config",
+    "allFiles": "Все файлы"
+  },
+  "common": {
+    "close": "Закрыть",
+    "cancel": "Отмена",
+    "yes": "Да",
+    "no": "Нет"
+  }
+}

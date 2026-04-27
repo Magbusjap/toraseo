@@ -1,0 +1,239 @@
+{
+  "app": {
+    "name": "ToraSEO",
+    "tagline": "See the top. Rank the top.",
+    "altMascotIdle": "ToraSEO mascot in idle state",
+    "altMascotFocused": "ToraSEO mascot focused on the analysis",
+    "altMascotHappy": "ToraSEO mascot — analysis complete",
+    "altMascotSleeping": "ToraSEO sleeping mascot"
+  },
+  "toolbar": {
+    "about": "About ToraSEO",
+    "checkUpdates": "Check for updates",
+    "documentation": "Documentation",
+    "faq": "FAQ",
+    "settings": "Settings",
+    "github": "GitHub",
+    "checking": "Checking…"
+  },
+  "about": {
+    "title": "About ToraSEO",
+    "description": "ToraSEO is a desktop SEO audit tool that pairs with Claude Desktop.",
+    "version": "Version:",
+    "license": "License:",
+    "author": "Author:",
+    "github": "GitHub:",
+    "tagline": "SEE THE TOP. RANK THE TOP."
+  },
+  "settings": {
+    "title": "Settings",
+    "comingSoon": "Coming soon — settings will live here:",
+    "comingSoonItems": {
+      "language": "Language switcher (EN / RU)",
+      "persistence": "Remembering selected tools between launches",
+      "darkMode": "Dark theme",
+      "configPath": "Manual path to Claude Desktop config.json"
+    },
+    "tabs": {
+      "language": "Language settings"
+    },
+    "backToHome": "Back to home",
+    "save": "Save",
+    "saved": "Saved",
+    "language": {
+      "title": "Language settings",
+      "label": "Interface language",
+      "hint": "The change applies immediately. Dialogs from the OS (e.g. file picker) keep using your system language.",
+      "options": {
+        "en": "English",
+        "ru": "Russian"
+      }
+    },
+    "unsaved": {
+      "title": "You have unsaved changes",
+      "body": "If you go back now, your changes will be lost.",
+      "discard": "Discard changes and go back",
+      "stay": "Stay"
+    }
+  },
+  "modeSelection": {
+    "idle": "Idle",
+    "question": "What would you like to check?",
+    "siteByUrl": "Site by URL",
+    "articleText": "Article text",
+    "siteSubtitle": "Site Audit",
+    "articleSubtitle": "v0.2 — coming soon",
+    "claudeOptional": "Connection to Claude Desktop is optional"
+  },
+  "sidebar": {
+    "idleHeading": "Choose a mode",
+    "section": {
+      "project": "Project",
+      "checks": "Checks"
+    },
+    "urlLabel": "Site URL",
+    "urlPlaceholder": "example.com",
+    "urlInvalid": "Enter a valid site address",
+    "noChecks": "Pick at least one check",
+    "scan": "Scan",
+    "scanning": "Scanning…",
+    "scanAgain": "Scan again",
+    "tooltip": {
+      "noUrl": "Enter a site URL",
+      "noChecks": "Pick at least one check",
+      "alreadyScanning": "A scan is already running"
+    },
+    "backToHomeTitle": "Back to home",
+    "settingsTabs": "Settings"
+  },
+  "siteAudit": {
+    "enterUrl": "Enter a site URL in the sidebar",
+    "scanStarted": "Analysis started",
+    "summary": {
+      "title": "Summary",
+      "seconds": "{{seconds}} s",
+      "errors": "Errors"
+    },
+    "stage": {
+      "pending": "Waiting",
+      "running": "Analyzing…",
+      "ok": "OK",
+      "warning": "Warning",
+      "critical": "Critical",
+      "error": "Error"
+    },
+    "issues": {
+      "clean": "no issues",
+      "criticalTitle": "Critical issues",
+      "warningTitle": "Warnings",
+      "infoTitle": "Info"
+    },
+    "status": {
+      "ready": "Ready",
+      "scanning": "Analyzing",
+      "completed": "Completed",
+      "issuesFound": "Issues found",
+      "warnings": "Warnings present",
+      "executionErrors": "Execution errors",
+      "allClean": "All clean"
+    }
+  },
+  "tools": {
+    "robots": {
+      "label": "Robots.txt",
+      "tooltip": "Site availability for search-engine crawlers"
+    },
+    "sitemap": {
+      "label": "Sitemap",
+      "tooltip": "Sitemap discovery and indexed pages list"
+    },
+    "meta": {
+      "label": "Meta tags",
+      "tooltip": "Title, description, Open Graph, viewport"
+    },
+    "headings": {
+      "label": "Headings",
+      "tooltip": "h1–h6 heading structure"
+    },
+    "redirects": {
+      "label": "Redirects",
+      "tooltip": "Redirect chains and broken links"
+    },
+    "content": {
+      "label": "Content",
+      "tooltip": "Text volume, code-to-text ratio"
+    },
+    "scanMinimal": {
+      "label": "Minimal scan",
+      "tooltip": "Overall site health probe"
+    }
+  },
+  "onboarding": {
+    "loading": "Checking components…",
+    "lockedSidebar": "Finish the setup on the right<br/>to continue",
+    "title": "ToraSEO works in tandem with Claude Desktop",
+    "subtitle": "Three components are required to run. When all three are green, scanning unlocks automatically.",
+    "footer": "Status refreshes every 5 seconds automatically.",
+    "claude": {
+      "label": "Claude Desktop is running",
+      "hintRunning": "Process found",
+      "hintMissing": "Open Claude Desktop to continue",
+      "openButton": "Open Claude Desktop",
+      "openFailedFallback": "Could not open Claude Desktop. Launch it manually."
+    },
+    "mcp": {
+      "label": "ToraSEO MCP server is connected",
+      "hintRegistered": "Entry found in claude_desktop_config.json",
+      "hintMissing": "The ToraSEO installer adds MCP automatically. If your config lives in a non-standard location, point us to it manually.",
+      "pickButton": "Choose config manually",
+      "picking": "Opening dialog…",
+      "usingPath": "In use:",
+      "reset": "reset",
+      "errorParse": "The file is not valid JSON. Open it in an editor and check the format.",
+      "errorRead": "Could not read the file.",
+      "infoNoToraseoYet": "File selected, but the mcpServers.toraseo entry is not there yet. The ToraSEO installer will add it next time."
+    },
+    "skill": {
+      "label": "ToraSEO Skill is installed",
+      "hintMissing": "Download the ZIP from GitHub and install it via Claude Desktop: Settings → Skills → Install ZIP. Then click \"I installed Skill\".",
+      "hintFilesystem": "File found on disk (Claude Code)",
+      "hintManual": "Confirmed by user",
+      "downloadButton": "Download ZIP from GitHub",
+      "downloading": "Downloading from GitHub…",
+      "openReleasesButton": "Open releases page",
+      "confirmButton": "I installed Skill",
+      "confirming": "Confirming…",
+      "errorNoRelease": "No skill release found on GitHub. Open the releases page manually.",
+      "errorDownloadFailed": "Failed to reach GitHub.",
+      "errorWriteFailed": "Failed to write file.",
+      "errorNoZip": "Release {{tag}} has no ZIP attached.",
+      "infoDownloaded": "ZIP downloaded ({{tag}}). The folder with the file is open — drag it into Claude Desktop: Settings → Skills → Install from ZIP. After installing, return here and click \"I installed Skill\".",
+      "confirmDialog": "Confirm that the ToraSEO Skill is installed in Claude Desktop via Settings → Skills?\n\nWithout the Skill loaded into Claude's context, the analysis will be incomplete — it will ignore CRAWLING_POLICY, verdict mapping, and the CGS scoring formula.",
+      "tooltipFilesystem": "Skill is detected via the filesystem (Claude Code) — no confirmation needed",
+      "tooltipManual": "Manual confirmation already active — reset it below to confirm again"
+    }
+  },
+  "preflight": {
+    "depsFailed": "Dependency check failed. Open Claude Desktop, make sure MCP is connected and the Skill is installed."
+  },
+  "updater": {
+    "available": {
+      "title": "Update available",
+      "body": "ToraSEO {{version}} is ready to download.",
+      "download": "Download",
+      "later": "Later"
+    },
+    "downloading": {
+      "title": "Downloading update"
+    },
+    "downloaded": {
+      "title": "Update ready",
+      "body": "ToraSEO {{version}} downloaded. The app will restart to install.",
+      "install": "Install and restart",
+      "later": "Later"
+    },
+    "error": {
+      "title": "Update error",
+      "close": "Close"
+    },
+    "check": {
+      "latest": "You're on the latest version ({{version}}).",
+      "found": "Update found: {{version}}. See the notification in the corner.",
+      "errorPrefix": "Check failed:",
+      "errorUnknown": "Could not check for updates"
+    },
+    "dismiss": "Dismiss notification",
+    "installerCallout": "Important: a fresh install (running the .exe directly) shows a regular installer."
+  },
+  "filePickers": {
+    "claudeConfigTitle": "Choose claude_desktop_config.json",
+    "jsonConfig": "JSON config",
+    "allFiles": "All files"
+  },
+  "common": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "yes": "Yes",
+    "no": "No"
+  }
+}

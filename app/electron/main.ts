@@ -6,6 +6,7 @@ import { IPC_CHANNELS, startScan } from "./tools.js";
 import { setupAutoUpdater } from "./updater.js";
 import { setupDetector } from "./detector.js";
 import { setupLauncher } from "./launcher.js";
+import { setupLocale } from "./locale.js";
 import type { StartScanArgs } from "../src/types/ipc";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -67,11 +68,11 @@ function createWindow(): void {
     icon: resolveIconPath(),
     backgroundColor: "#FFF7F0",
     autoHideMenuBar: true,
-    show: false, // показываем окно после ready-to-show, чтобы не было flash
+    show: false, // show the window after ready-to-show to avoid flash
     webPreferences: {
-      // electron-vite кладёт preload в out/preload/preload.js
-      // (CommonJS, потому что sandbox прелоад требует CJS —
-      // см. комментарий в electron.vite.config.ts).
+      // electron-vite places the preload at out/preload/preload.js
+      // (CommonJS, because sandboxed preloads require CJS — see
+      // the comment in electron.vite.config.ts).
       preload: path.join(__dirname, "..", "preload", "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
@@ -83,7 +84,8 @@ function createWindow(): void {
     mainWindow?.show();
   });
 
-  // Открываем внешние ссылки в системном браузере, не внутри окна
+  // Open external links in the system browser, not inside the
+  // app window.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("http://") || url.startsWith("https://")) {
       shell.openExternal(url);
@@ -91,13 +93,13 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
-  // electron-vite инжектит ELECTRON_RENDERER_URL в dev-режиме
+  // electron-vite injects ELECTRON_RENDERER_URL in dev mode.
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
     mainWindow.webContents.openDevTools({ mode: "detach" });
   } else {
-    // Production: рендерер собран в out/renderer/index.html, грузим
-    // через file:// — никакого HTTP-сервера, VPN никак не влияет.
+    // Production: the renderer is built into out/renderer/index.html
+    // and loaded via file:// — no HTTP server, no VPN interference.
     mainWindow.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
   }
 
@@ -162,9 +164,15 @@ app.whenReady().then(() => {
   // platform-specific path discovery.
   setupLauncher();
 
+  // UI locale persistence: read/write userData/locale.txt and
+  // expose app.getLocale() to the renderer for OS-derived defaults.
+  // See electron/locale.ts for the storage format and supported
+  // values.
+  setupLocale();
+
   app.on("activate", () => {
-    // macOS: пересоздать окно при клике на иконку в доке если все
-    // окна закрыты
+    // macOS: re-create the window when the dock icon is clicked
+    // and all windows are closed.
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
@@ -172,8 +180,8 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  // Выходим когда все окна закрыты, кроме macOS где принято
-  // оставлять приложение активным
+  // Quit when all windows are closed, except on macOS where the
+  // convention is to keep the app alive in the dock.
   if (process.platform !== "darwin") {
     app.quit();
   }

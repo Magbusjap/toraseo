@@ -8,6 +8,7 @@ import {
   BookOpen,
   HelpCircle,
 } from "lucide-react";
+import { useUpdater } from "../../hooks/useUpdater";
 
 /**
  * TopToolbar — thin top bar across the entire window (above sidebar
@@ -16,10 +17,17 @@ import {
  *
  * Behavior:
  * - "О ToraSEO" — opens a small modal with version, license, links
- * - "Проверить обновления" — calls window.toraseo.updater.check();
- *   if there's an update, the existing UpdateNotification flow takes
- *   over (the main process emits update-available which the hook
- *   already listens for). If no update, we show a toast for ~3s.
+ * - "Проверить обновления" — calls window.toraseo.updater.check()
+ *   and reports the result through a top-center toast. The four
+ *   meaningful outcomes are:
+ *     1. Update is already downloaded — say "ready to install"
+ *        and remind that the install card is in the corner.
+ *     2. Update is currently downloading — say "in progress".
+ *     3. A newer version exists on the server — say "found, see
+ *        the corner card". The card itself is rendered by the
+ *        existing UpdateNotification component reacting to the
+ *        update-available event.
+ *     4. We're on the latest — say "no updates, you're current".
  * - "Настройки" — placeholder modal "Coming soon" until v0.0.6+
  *   when we wire i18n and persistence settings here.
  * - "Документация" — opens README on GitHub. There's no project
@@ -41,26 +49,63 @@ export default function TopToolbar() {
   const [updateCheckMsg, setUpdateCheckMsg] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
 
+  // Read the updater's lifecycle state so we can produce honest copy
+  // when the user clicks "Check for updates" while a previous update
+  // is already mid-flight (downloading) or sitting fully downloaded
+  // and waiting for an install click. Without this, we'd report
+  // "no new version" because the server's latest matches the version
+  // we've already pulled — which is true but misleading: there IS
+  // an update, it's just no longer remote.
+  const { state: updaterState, info: updaterInfo } = useUpdater();
+
   const handleCheckUpdates = async () => {
     if (checking) return;
     setChecking(true);
     setUpdateCheckMsg(null);
+
+    // Short-circuit: if the user already has an update downloaded
+    // and waiting, OR is in the middle of downloading one, don't
+    // bother re-querying the server. Tell them what's already
+    // happening on their machine.
+    if (updaterState === "downloaded" && updaterInfo) {
+      setUpdateCheckMsg(
+        `Обновление ${updaterInfo.version} уже скачано и готово к установке. См. уведомление в углу.`,
+      );
+      setChecking(false);
+      setTimeout(() => setUpdateCheckMsg(null), 4000);
+      return;
+    }
+    if (updaterState === "downloading") {
+      setUpdateCheckMsg(
+        "Обновление уже скачивается. См. уведомление в углу.",
+      );
+      setChecking(false);
+      setTimeout(() => setUpdateCheckMsg(null), 4000);
+      return;
+    }
+
     try {
       const result = await window.toraseo.updater.check();
       if (!result.ok) {
-        setUpdateCheckMsg(`Ошибка проверки: ${result.error ?? "неизвестно"}`);
-      } else if (
-        result.version &&
-        result.currentVersion &&
-        result.version === result.currentVersion
-      ) {
-        setUpdateCheckMsg(`У вас последняя версия (${result.currentVersion}).`);
-      } else {
-        // If a newer version exists, electron-updater has already
-        // emitted update-available, and useUpdater has caught it,
-        // and UpdateNotification is now visible. We just say so.
+        setUpdateCheckMsg(
+          `Ошибка проверки: ${result.error ?? "неизвестно"}`,
+        );
+      } else if (result.version && result.currentVersion && result.version !== result.currentVersion) {
+        // electron-updater returns the *server* latest in `result.version`
+        // and our installed version in `result.currentVersion`. They
+        // differ ⇒ a newer one exists. The update-available event has
+        // already fired by now, so the corner card is already visible.
         setUpdateCheckMsg(
           `Найдено обновление: ${result.version}. См. уведомление в углу.`,
+        );
+      } else {
+        // No version field, OR server == installed ⇒ we're current.
+        // Use whichever version we have access to (currentVersion
+        // from the API call, or fall back to the preload constant).
+        const v =
+          result.currentVersion ?? window.toraseo.version;
+        setUpdateCheckMsg(
+          `Новых обновлений не найдено. Вы на версии ${v}.`,
         );
       }
     } catch (err) {

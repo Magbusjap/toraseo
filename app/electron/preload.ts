@@ -28,6 +28,7 @@ import type {
   ScanComplete,
   StageUpdate,
   StartScanArgs,
+  SupportedLocale,
   ToraseoApi,
   UpdateInfo,
 } from "../src/types/ipc";
@@ -70,8 +71,15 @@ const LAUNCHER = {
   openClaude: "toraseo:launcher:open-claude",
 } as const;
 
+// Mirror of LOCALE_CHANNELS from electron/locale.ts.
+const LOCALE = {
+  get: "toraseo:locale:get",
+  set: "toraseo:locale:set",
+  getOs: "toraseo:locale:get-os",
+} as const;
+
 const api: ToraseoApi = {
-  version: "0.0.5",
+  version: "0.0.6",
 
   startScan: (args: StartScanArgs) => {
     return ipcRenderer.invoke(SCAN.startScan, args) as Promise<{
@@ -207,6 +215,18 @@ const api: ToraseoApi = {
   launcher: {
     openClaude: () => {
       return ipcRenderer.invoke(LAUNCHER.openClaude) as Promise<OpenClaudeResult>;
+    },
+  },
+
+  locale: {
+    get: () => {
+      return ipcRenderer.invoke(LOCALE.get) as Promise<SupportedLocale | null>;
+    },
+    set: (locale: SupportedLocale) => {
+      return ipcRenderer.invoke(LOCALE.set, locale) as Promise<{ ok: boolean }>;
+    },
+    getOs: () => {
+      return ipcRenderer.invoke(LOCALE.getOs) as Promise<SupportedLocale>;
     },
   },
 };

@@ -1,6 +1,6 @@
 {
   "name": "@toraseo/app",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "private": true,
   "type": "module",
   "description": "ToraSEO desktop application (Electron + React + TypeScript)",
@@ -20,10 +20,12 @@
     "@toraseo/core": "file:../core",
     "electron-log": "^5.2.4",
     "electron-updater": "^6.3.9",
+    "i18next": "^23.16.5",
     "lucide-react": "^0.469.0",
     "ps-list": "^8.1.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-i18next": "^15.2.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

@@ -291,6 +291,35 @@ export interface LauncherApi {
 }
 
 // =====================================================================
+// Locale persistence
+// =====================================================================
+
+/**
+ * Supported UI locales. Adding a third locale is a coordinated
+ * change: extend this union, add a JSON file under
+ * `app/src/i18n/locales/`, register the resource in
+ * `app/src/i18n/index.ts`, and update `mapOsLocaleToSupported()`
+ * in `app/electron/locale.ts`.
+ */
+export type SupportedLocale = "en" | "ru";
+
+/**
+ * Locale surface inside `window.toraseo.locale`.
+ *
+ * `get()` returns the user's persisted choice (null if none).
+ * `set(locale)` writes the choice; UI typically reloads i18next
+ * on success.
+ * `getOs()` returns the OS-derived default — used by the renderer
+ * the first time the app runs to seed i18next without storing
+ * anything yet.
+ */
+export interface LocaleApi {
+  get(): Promise<SupportedLocale | null>;
+  set(locale: SupportedLocale): Promise<{ ok: boolean }>;
+  getOs(): Promise<SupportedLocale>;
+}
+
+// =====================================================================
 // Public API on window.toraseo
 // =====================================================================
 
@@ -331,4 +360,7 @@ export interface ToraseoApi {
 
   /** Claude Desktop launcher API. See LauncherApi. */
   launcher: LauncherApi;
+
+  /** UI locale persistence + OS detection. See LocaleApi. */
+  locale: LocaleApi;
 }
