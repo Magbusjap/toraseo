@@ -1,13 +1,14 @@
 import { ArrowRight } from "lucide-react";
 
 /**
- * IdleSidebar — состояние sidebar до выбора режима работы.
+ * IdleSidebar — sidebar state before any mode is selected.
  *
- * Полностью затемнённый блок с центрированным текстом и стрелкой вправо.
- * Никаких видимых элементов меню — overlay полностью скрывает структуру.
+ * A fully darkened panel with centered text and a right-pointing
+ * arrow. No visible menu items — the overlay completely hides
+ * any structural detail.
  *
- * После выбора режима этот компонент заменяется на ActiveSidebar
- * (Site Audit или Content Audit), привязанный к режиму.
+ * Once a mode is selected, this component is replaced by
+ * ActiveSidebar (Site Audit or Content Audit), bound to that mode.
  */
 export default function IdleSidebar() {
   return (

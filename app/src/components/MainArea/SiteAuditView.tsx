@@ -14,19 +14,19 @@ interface SiteAuditViewProps {
 }
 
 /**
- * SiteAuditView — main area в режиме Site Audit.
+ * SiteAuditView — main area in Site Audit mode.
  *
- * Три визуальных секции:
- *   1. Header (логотип + статус-индикатор + маскот + URL)
- *   2. Прогресс-бар (X / N этапов завершено)
- *   3. Список выбранных tools со статусами и счётчиками verdicts
+ * Three visual sections:
+ *   1. Header (logo + status indicator + mascot + URL)
+ *   2. Progress bar (X / N stages completed)
+ *   3. List of selected tools with statuses and verdict counters
  *
- * После завершения скана появляется блок «Итог» с агрегатными
- * счётчиками critical / warning / info / errors.
+ * After the scan finishes, a "Summary" block shows aggregate
+ * counts (critical / warning / info / errors).
  *
- * Детальный раскрывающийся отчёт по каждому tool — следующая итерация
- * (шаг 7 в roadmap). Сейчас юзер видит «X warnings, Y critical» рядом
- * с этапом, но без расшифровки.
+ * The detailed expandable per-tool report is the next iteration
+ * (step 7 in the roadmap). Today the user sees "X warnings, Y
+ * critical" next to each stage but without the full breakdown.
  */
 export default function SiteAuditView({
   url,
@@ -419,7 +419,7 @@ function pickMascotState(
   if (scanState === "scanning") {
     return {
       src: focusedMascot,
-      alt: "Маскот ToraSEO сосредоточен на анализе",
+      alt: "ToraSEO mascot focused on the analysis",
     };
   }
   if (scanState === "complete" && summary) {
@@ -428,11 +428,11 @@ function pickMascotState(
     // worried/concerned mascot can be added later.
     return {
       src: happyMascot,
-      alt: "Маскот ToraSEO — анализ завершён",
+      alt: "ToraSEO mascot — analysis complete",
     };
   }
   return {
     src: sleepingMascot,
-    alt: "Маскот ToraSEO в режиме ожидания",
+    alt: "ToraSEO mascot in idle state",
   };
 }

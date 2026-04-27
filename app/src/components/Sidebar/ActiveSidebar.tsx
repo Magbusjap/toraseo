@@ -13,12 +13,12 @@ interface ActiveSidebarProps {
 }
 
 /**
- * ActiveSidebar — sidebar в состоянии Site Audit.
+ * ActiveSidebar — sidebar in Site Audit state.
  *
- * MVP-версия: кнопка возврата + URL + selective tools (7 чекбоксов с
- * tooltip) + кнопка запуска скана. Блок «Настройки скана» (timeout,
- * polite mode) и «Подключение» (статус Claude Desktop) — будут
- * добавлены в следующих итерациях.
+ * MVP version: return button + URL input + selective tools (7
+ * checkboxes with tooltips) + scan trigger button. The "Scan
+ * settings" block (timeout, polite mode) and "Connection"
+ * (Claude Desktop status) are deferred to later iterations.
  */
 export default function ActiveSidebar({
   url,
@@ -182,18 +182,18 @@ function ToolCheckbox({ tool, checked, disabled, onChange }: ToolCheckboxProps) 
 }
 
 /**
- * Простая проверка "это похоже на URL?".
+ * Loose "is this string URL-shaped?" check.
  *
- * Принимает:
+ * Accepts:
  * - example.com
  * - https://example.com
  * - https://example.com/path
  * - sub.example.com
  *
- * Не принимает:
- * - просто "test"
- * - "example" (без точки)
- * - пробелы
+ * Rejects:
+ * - bare "test" (no dot, no host parts)
+ * - "example" (no dot)
+ * - anything containing whitespace
  */
 function isLikelyUrl(value: string): boolean {
   const pattern = /^(https?:\/\/)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+(\/.*)?$/;

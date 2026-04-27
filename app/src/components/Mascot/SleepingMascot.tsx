@@ -5,21 +5,22 @@ interface SleepingMascotProps {
 }
 
 /**
- * SleepingMascot — Idle status mascot.
+ * SleepingMascot — the Idle-status mascot.
  *
- * Загружает SVG напрямую из `branding/mascots/tora-sleeping.svg` через
- * Vite alias `@branding`. Никакого дублирования файлов — single source
- * of truth в branding/.
+ * Loads the SVG directly from `branding/mascots/tora-sleeping.svg`
+ * via the Vite alias `@branding`. No file duplication — single
+ * source of truth in branding/.
  *
- * Все 6 поз (sleeping/neutral/focused/happy/surprised/champion) лежат
- * в branding/mascots/. Когда понадобится переключение по статусу —
- * сделаем общий компонент Mascot со status prop'ом.
+ * All six poses (sleeping/neutral/focused/happy/surprised/champion)
+ * live in branding/mascots/. When per-status switching is needed,
+ * we'll introduce a generic `Mascot` component that takes a
+ * `status` prop.
  */
 export default function SleepingMascot({ className }: SleepingMascotProps) {
   return (
     <img
       src={sleepingMascotUrl}
-      alt="Спящий маскот Tora"
+      alt="ToraSEO sleeping mascot"
       className={className}
       draggable={false}
     />

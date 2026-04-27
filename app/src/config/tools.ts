@@ -1,12 +1,16 @@
 /**
- * Список 7 tools, которые умеет анализировать ToraSEO MCP-сервер.
+ * The seven tools the ToraSEO MCP server can run for site audits.
  *
- * Эти id используются:
- * - В sidebar как чекбоксы выбора
- * - В IPC контракте между renderer и main process
- * - В core/ tools (после рефакторинга mcp/ → core/)
+ * These ids are used in three places:
+ * - The sidebar checkboxes
+ * - The IPC contract between renderer and main process
+ * - core/ tool functions (after the mcp/ → core/ refactor)
  *
- * Порядок здесь = порядок отображения в UI.
+ * Order here = display order in the UI.
+ *
+ * Note on labels: `label` and `tooltip` are user-facing strings.
+ * They live as Russian literals here for v0.0.x; in v0.0.6 they
+ * will be extracted into locales/{en,ru}.json and looked up by id.
  */
 
 export type ToolId =
@@ -62,5 +66,5 @@ export const TOOLS: ToolMeta[] = [
   },
 ];
 
-/** Все tools включены по умолчанию. */
+/** All tools enabled by default. */
 export const DEFAULT_SELECTED_TOOLS: Set<ToolId> = new Set(TOOLS.map((t) => t.id));

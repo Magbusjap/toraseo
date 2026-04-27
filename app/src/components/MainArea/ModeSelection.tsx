@@ -1,27 +1,47 @@
 import { Globe, FileText } from "lucide-react";
 import SleepingMascot from "../Mascot/SleepingMascot";
+import toraLogoWordmark from "@branding/logos/tora-logo-wordmark.svg";
 
 interface ModeSelectionProps {
   onSelect: (mode: "site" | "content") => void;
 }
 
 /**
- * ModeSelection — main area в Initial state.
+ * ModeSelection — main area in the Initial state.
  *
- * Логотип + статус Idle + спящий маскот + заголовок + две карточки выбора.
- * Карточка "Текст статьи" disabled до v0.2.
+ * Wordmark logo + Idle status + sleeping mascot + heading + two
+ * mode cards. The "Article text" card is disabled until v0.2.
+ *
+ * The header logo is the wordmark-only version
+ * (tora-logo-wordmark.svg, no mascot face). The screen already
+ * shows a large SleepingMascot below, and a horizontal logo with
+ * a second small mascot beside it killed the visual balance — two
+ * of the same character in one frame split the user's gaze. The
+ * full mascot+wordmark tora-logo-horizontal.svg stays as the
+ * canonical logo for README and external contexts where no
+ * separate mascot illustration is in view.
+ *
+ * Layout: justify-start instead of justify-center so the header
+ * sits closer to the toolbar instead of glued to the vertical
+ * center of the window. pt-8 gives breathing room from the
+ * toolbar; gap-7 between blocks is a hair tighter than gap-8 to
+ * keep the composition compact.
  */
 export default function ModeSelection({ onSelect }: ModeSelectionProps) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 px-8 py-12">
-      {/* Header — logo + tagline */}
+    <div className="flex h-full flex-col items-center justify-start gap-7 px-8 pt-8 pb-12">
+      {/* Header — wordmark only (no mascot face). The screen already
+          shows a large SleepingMascot below; two of the same character
+          in one frame killed the visual focus. The full mascot+wordmark
+          tora-logo-horizontal.svg stays as-is for README and external
+          contexts where there's no separate mascot nearby. */}
       <header className="text-center">
-        <h1 className="font-display text-4xl font-bold tracking-tight text-outline-900">
-          ToraSEO
-        </h1>
-        <p className="mt-1 font-mono text-xs uppercase tracking-[0.2em] text-outline-900/60">
-          See the top
-        </p>
+        <img
+          src={toraLogoWordmark}
+          alt="ToraSEO — See the top. Rank the top."
+          className="h-16 w-auto"
+          draggable={false}
+        />
       </header>
 
       {/* Status indicator */}
