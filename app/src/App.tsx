@@ -1,54 +1,71 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "./i18n";
+
 import IdleSidebar from "./components/Sidebar/IdleSidebar";
 import ActiveSidebar from "./components/Sidebar/ActiveSidebar";
 import ModeSelection from "./components/MainArea/ModeSelection";
 import SiteAuditView from "./components/MainArea/SiteAuditView";
 import { OnboardingView } from "./components/Onboarding";
+import { SettingsView } from "./components/Settings";
 import { TopToolbar } from "./components/TopToolbar";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { DEFAULT_SELECTED_TOOLS, TOOLS, type ToolId } from "./config/tools";
 import { useScan } from "./hooks/useScan";
 import { useDetector } from "./hooks/useDetector";
 
-export type AppMode = "idle" | "site" | "content";
+import type { SupportedLocale } from "./types/ipc";
 
 /**
- * Корень приложения.
+ * App-wide modes. "settings" is a top-level destination reachable
+ * from the toolbar, layered on top of the same outer toolbar /
+ * onboarding gate as everything else.
+ */
+export type AppMode = "idle" | "site" | "content" | "settings";
+
+/**
+ * Application root.
  *
- * Управляет глобальным состоянием:
- * - mode: текущий режим работы (idle / site / content)
- * - url: введённый адрес сайта для аудита (только в site mode)
- * - selectedTools: какие tools юзер выбрал для запуска
+ * Owns global state:
+ *  - mode: which screen is active (idle / site / content / settings)
+ *  - url, selectedTools: scan inputs
+ *  - currentLocale: the persisted UI language; mirrored here so that
+ *    when the user saves a new language in Settings, components below
+ *    re-render with the new translations
  *
- * Состояние скана (stages, scanState, summary) живёт в `useScan` —
- * хук подписан на IPC main process и хранит per-tool результаты.
+ * Per-feature state lives in dedicated hooks:
+ *  - useScan owns scan progress and IPC subscriptions
+ *  - useDetector owns hard-dependency status (Claude/MCP/Skill)
  *
- * Состояние hard dependencies (Claude/MCP/Skill) живёт в `useDetector` —
- * пока allGreen=false, основной экран заменён на OnboardingView,
- * сайдбар — на «locked» панель. Когда все три зелёные — UI
- * автоматически возвращается в обычный режим без явного клика юзера.
+ * Hard dependencies gate: until all three are green, the onboarding
+ * screen replaces the main area and the sidebar is swapped for a
+ * calm "locked" panel. Toolbar stays visible in both states so the
+ * user can reach About / Settings / etc. before scanning unlocks.
  *
- * Skill detection — гибридный: filesystem (`~/.claude/skills/toraseo/`)
- * для Claude Code юзеров, или manual confirmation флаг для Claude
- * Desktop (skills server-side, filesystem detect невозможен). UI
- * предлагает скачать ZIP и подтвердить установку.
+ * Pre-flight check: when the user clicks Scan we re-check dependencies
+ * synchronously to close the race window between the last polling
+ * tick and the click. Failed pre-flight pushes back to onboarding.
  *
- * Pre-flight check: при клике "Сканировать" мы заново проверяем
- * статус (синхронно) — это закрывает race window между последним
- * polling-тиком и кликом. Если что-то упало — toast + переход
- * в onboarding. См. wiki/toraseo/hard-dependency-pivot.md.
- *
- * URL и состояние скана сбрасываются при возврате на главную, но
- * selectedTools сохраняются — юзер может несколько раз сканировать
- * один сайт с одной подборкой tool'ов.
+ * URL and scan state reset when returning home; selectedTools persist
+ * so the user can re-scan with the same picks.
  */
 export default function App() {
+  const { t } = useTranslation();
+
   const [mode, setMode] = useState<AppMode>("idle");
   const [url, setUrl] = useState("");
   const [selectedTools, setSelectedTools] = useState<Set<ToolId>>(
     () => new Set(DEFAULT_SELECTED_TOOLS),
   );
   const [preflightError, setPreflightError] = useState<string | null>(null);
+
+  // Mirror i18next's resolved language as React state. initI18n() in
+  // main.tsx already resolved the language before render, so this
+  // initial value is correct on first paint. We only update it on
+  // explicit Save in Settings — language never changes silently.
+  const [currentLocale, setCurrentLocale] = useState<SupportedLocale>(
+    () => (i18n.resolvedLanguage as SupportedLocale) ?? "en",
+  );
 
   const { stages, scanState, summary, startScan } = useScan();
   const {
@@ -64,12 +81,15 @@ export default function App() {
   } = useDetector();
 
   // Hard dependencies gate. Until allGreen, the onboarding screen
-  // takes over. We allow allGreen===undefined (status not yet
-  // received) to fall through to the regular UI for one render —
-  // but useDetector typically delivers the first status within
-  // 100ms thanks to the immediate first tick in detector.ts.
+  // takes over. Settings is exempt: the user can reach Settings from
+  // the toolbar even before dependencies are satisfied — this is
+  // important because the Settings → Language tab is exactly where
+  // they go to switch the UI language to their preferred one before
+  // troubleshooting onboarding hints they can't read.
   const isOnboarding =
-    detectorStatus !== null && !detectorStatus.allGreen;
+    mode !== "settings" &&
+    detectorStatus !== null &&
+    !detectorStatus.allGreen;
 
   const handleModeSelect = (selected: "site" | "content") => {
     if (selected === "content") {
@@ -81,15 +101,13 @@ export default function App() {
 
   const handleReturnHome = () => {
     if (scanState === "scanning") {
-      const confirmed = window.confirm(
-        "Прервать текущий анализ?\n\nРезультаты сканирования будут потеряны.",
-      );
+      const confirmed = window.confirm(t("siteAudit.confirmCancelScan"));
       if (!confirmed) return;
     }
     setMode("idle");
     setUrl("");
-    // useScan сам перезапишет stages при следующем startScan;
-    // визуально это эквивалентно сбросу.
+    // useScan rewrites stages on the next startScan; visually this
+    // is equivalent to a reset.
   };
 
   const handleToggleTool = (toolId: ToolId) => {
@@ -107,31 +125,78 @@ export default function App() {
   const handleStartScan = async () => {
     setPreflightError(null);
 
-    // Pre-flight: re-check dependencies right now, bypassing the
-    // polling cache. This closes the race window where the user
-    // clicks the scan button within the 5-second poll interval
-    // after Claude was closed.
     const fresh = await checkNow();
     if (!fresh.allGreen) {
-      setPreflightError(
-        "Проверка зависимостей не пройдена. Откройте Claude Desktop, убедитесь что MCP подключён и Skill установлен.",
-      );
-      // Returning to idle takes the user back to the main screen,
-      // which now renders the onboarding overlay automatically
-      // (because isOnboarding is now true).
+      setPreflightError(t("preflight.depsFailed"));
       setMode("idle");
       return;
     }
 
-    // Preserve UI order from TOOLS config (alphabetical insertion into
-    // a Set isn't guaranteed). The renderer doesn't depend on this for
-    // correctness — main runs them in parallel — but ordering keeps the
-    // sidebar tooltip text and the main-area stage list in sync.
     const orderedIds = TOOLS.map((t) => t.id).filter((id) =>
       selectedTools.has(id),
     );
     startScan(url.trim(), orderedIds);
   };
+
+  const handleOpenSettings = () => {
+    setMode("settings");
+  };
+
+  /**
+   * Persist the chosen UI locale, then switch i18next at runtime.
+   *
+   * Order matters: write to disk first (so a crash between i18n
+   * change and write doesn't leave the UI showing the new locale
+   * but the file holding the old one), then change i18n.
+   *
+   * If the disk write fails we still apply the in-memory switch
+   * so the user gets the visual feedback they expect — the next
+   * launch will simply fall back to OS default detection.
+   */
+  const handleSaveLocale = async (locale: SupportedLocale): Promise<void> => {
+    try {
+      await window.toraseo.locale.set(locale);
+    } catch (err) {
+      // Non-fatal: log and continue, the in-memory switch still works.
+      console.warn("[locale] persist failed:", err);
+    }
+    await i18n.changeLanguage(locale);
+    setCurrentLocale(locale);
+  };
+
+  // Keep currentLocale in sync if i18n changes through any path
+  // outside of handleSaveLocale (none today, but defensive against
+  // future code adding direct i18n.changeLanguage() calls).
+  useEffect(() => {
+    const handler = (lng: string) => {
+      if (lng === "en" || lng === "ru") {
+        setCurrentLocale(lng);
+      }
+    };
+    i18n.on("languageChanged", handler);
+    return () => {
+      i18n.off("languageChanged", handler);
+    };
+  }, []);
+
+  // ===================================================================
+  // Settings mode — exempt from the onboarding gate
+  // ===================================================================
+  if (mode === "settings") {
+    return (
+      <div className="flex h-full flex-col bg-orange-50/30">
+        <TopToolbar onOpenSettings={handleOpenSettings} />
+        <div className="flex flex-1 overflow-hidden">
+          <SettingsView
+            currentLocale={currentLocale}
+            onReturnHome={() => setMode("idle")}
+            onSaveLocale={handleSaveLocale}
+          />
+        </div>
+        <UpdateNotification />
+      </div>
+    );
+  }
 
   // ===================================================================
   // Onboarding mode — replaces the entire main area until allGreen
@@ -139,18 +204,15 @@ export default function App() {
   if (isOnboarding) {
     return (
       <div className="flex h-full flex-col bg-orange-50/30">
-        <TopToolbar />
+        <TopToolbar onOpenSettings={handleOpenSettings} />
         <div className="flex flex-1 overflow-hidden">
-          {/* During onboarding the sidebar is fully replaced by a calm
-              "locked" panel — we don't render IdleSidebar underneath
-              because its text bleeds through any translucent overlay.
-              Once allGreen flips, the normal layout takes over and the
-              real sidebar comes back. */}
-          <aside className="flex w-[260px] shrink-0 items-center justify-center border-r border-outline/10 bg-white p-6">
-            <p className="text-center text-sm font-medium leading-relaxed text-slate-700">
-              Завершите проверку справа,<br />
-              чтобы продолжить
-            </p>
+          <aside className="flex w-[260px] shrink-0 items-center justify-center bg-surface p-6">
+            <p
+              className="text-center text-sm font-medium leading-relaxed text-white/80"
+              dangerouslySetInnerHTML={{
+                __html: t("onboarding.lockedSidebar"),
+              }}
+            />
           </aside>
 
           <main className="flex-1 overflow-auto">
@@ -177,10 +239,9 @@ export default function App() {
   // ===================================================================
   return (
     <div className="flex h-full flex-col bg-orange-50/30">
-      <TopToolbar />
+      <TopToolbar onOpenSettings={handleOpenSettings} />
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar — fixed 260px */}
-        <aside className="relative w-[260px] shrink-0 border-r border-outline/10 bg-white">
+        <aside className="relative w-[260px] shrink-0">
           {mode === "idle" ? (
             <IdleSidebar />
           ) : (
@@ -196,7 +257,6 @@ export default function App() {
           )}
         </aside>
 
-        {/* Main area — flexible */}
         <main className="flex-1 overflow-auto">
           {mode === "idle" ? (
             <ModeSelection onSelect={handleModeSelect} />
@@ -210,8 +270,6 @@ export default function App() {
             />
           )}
 
-          {/* Pre-flight error toast: shown briefly when the user
-              clicked Scan but a hard dependency had just dropped. */}
           {preflightError && (
             <div className="fixed left-1/2 top-16 z-50 -translate-x-1/2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg">
               {preflightError}
@@ -220,8 +278,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Auto-update notification — fixed bottom-right, non-modal.
-          Renders only when there's an update event in flight. */}
       <UpdateNotification />
     </div>
   );

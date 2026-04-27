@@ -1,6 +1,7 @@
 import { ArrowLeft, Play, Globe } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { ScanState } from "../../hooks/useScan";
-import { TOOLS, type ToolId } from "../../config/tools";
+import { TOOLS, type ToolId, getToolI18nKeyBase } from "../../config/tools";
 
 interface ActiveSidebarProps {
   url: string;
@@ -19,6 +20,14 @@ interface ActiveSidebarProps {
  * checkboxes with tooltips) + scan trigger button. The "Scan
  * settings" block (timeout, polite mode) and "Connection"
  * (Claude Desktop status) are deferred to later iterations.
+ *
+ * Visual design: dark outline-colored panel matching IdleSidebar
+ * and SettingsSidebar — sidebar background is a brand-defined
+ * constant across all states. Content (text, inputs, borders) is
+ * adapted to read against the dark surface: white headings,
+ * white/70 secondary text, white/10 dividers, semi-transparent
+ * white input backgrounds. The primary CTA button keeps the brand
+ * orange because it's the strongest contrast point on dark.
  */
 export default function ActiveSidebar({
   url,
@@ -29,6 +38,8 @@ export default function ActiveSidebar({
   onReturnHome,
   onStartScan,
 }: ActiveSidebarProps) {
+  const { t } = useTranslation();
+
   const isScanning = scanState === "scanning";
   const isComplete = scanState === "complete";
   const trimmedUrl = url.trim();
@@ -37,43 +48,43 @@ export default function ActiveSidebar({
   const canScan = hasValidUrl && hasSelectedTools && !isScanning;
 
   const scanButtonTooltip = !hasValidUrl
-    ? "Введите URL сайта"
+    ? t("sidebar.tooltip.noUrl")
     : !hasSelectedTools
-      ? "Выберите хотя бы одну проверку"
+      ? t("sidebar.tooltip.noChecks")
       : isScanning
-        ? "Сканирование уже идёт"
+        ? t("sidebar.tooltip.alreadyScanning")
         : undefined;
 
   const scanButtonLabel = isScanning
-    ? "Сканирование..."
+    ? t("sidebar.scanning")
     : isComplete
-      ? "Сканировать заново"
-      : "Сканировать";
+      ? t("sidebar.scanAgain")
+      : t("sidebar.scan");
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-surface text-white">
       {/* Header — return button */}
-      <header className="border-b border-outline/10 px-4 py-3">
+      <header className="border-b border-white/10 px-4 py-3">
         <button
           type="button"
           onClick={onReturnHome}
-          className="flex items-center gap-2 text-sm text-outline-900/70 transition hover:text-primary"
+          className="flex items-center gap-2 text-sm text-white/70 transition hover:text-primary"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={2} />
-          <span>На главную</span>
+          <span>{t("sidebar.backToHomeTitle")}</span>
         </button>
       </header>
 
       {/* Body — settings */}
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
-        <SidebarSection title="Проект">
+        <SidebarSection title={t("sidebar.section.project")}>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-outline-900/60">
-              URL сайта
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/60">
+              {t("sidebar.urlLabel")}
             </span>
             <div className="relative">
               <Globe
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-outline-900/40"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40"
                 strokeWidth={2}
                 aria-hidden="true"
               />
@@ -81,50 +92,55 @@ export default function ActiveSidebar({
                 type="text"
                 value={url}
                 onChange={(e) => onUrlChange(e.target.value)}
-                placeholder="example.com"
+                placeholder={t("sidebar.urlPlaceholder")}
                 disabled={isScanning}
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
-                className="w-full rounded-md border border-outline/15 bg-white py-2 pl-9 pr-3 text-sm text-outline-900 transition placeholder:text-outline-900/30 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-orange-50/50 disabled:opacity-60"
+                className="w-full rounded-md border border-white/15 bg-white/5 py-2 pl-9 pr-3 text-sm text-white transition placeholder:text-white/30 focus:border-primary focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
               />
             </div>
             {trimmedUrl.length > 0 && !isLikelyUrl(trimmedUrl) && (
               <span className="mt-1.5 block text-xs text-status-issues">
-                Введите корректный адрес сайта
+                {t("sidebar.urlInvalid")}
               </span>
             )}
           </label>
         </SidebarSection>
 
-        <SidebarSection title="Проверки">
+        <SidebarSection title={t("sidebar.section.checks")}>
           <ul className="space-y-1.5">
-            {TOOLS.map((tool) => (
-              <ToolCheckbox
-                key={tool.id}
-                tool={tool}
-                checked={selectedTools.has(tool.id)}
-                disabled={isScanning}
-                onChange={() => onToggleTool(tool.id)}
-              />
-            ))}
+            {TOOLS.map((tool) => {
+              const keyBase = getToolI18nKeyBase(tool.id);
+              return (
+                <ToolCheckbox
+                  key={tool.id}
+                  id={tool.id}
+                  label={t(`tools.${keyBase}.label`)}
+                  tooltip={t(`tools.${keyBase}.tooltip`)}
+                  checked={selectedTools.has(tool.id)}
+                  disabled={isScanning}
+                  onChange={() => onToggleTool(tool.id)}
+                />
+              );
+            })}
           </ul>
           {!hasSelectedTools && (
             <p className="mt-2 text-xs text-status-issues">
-              Выберите хотя бы одну проверку
+              {t("sidebar.noChecks")}
             </p>
           )}
         </SidebarSection>
       </div>
 
       {/* Footer — primary CTA */}
-      <footer className="border-t border-outline/10 p-4">
+      <footer className="border-t border-white/10 p-4">
         <button
           type="button"
           onClick={onStartScan}
           disabled={!canScan}
           title={scanButtonTooltip}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/20"
+          className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"
         >
           <Play className="h-4 w-4 fill-current" strokeWidth={2} />
           <span>{scanButtonLabel}</span>
@@ -142,7 +158,7 @@ interface SidebarSectionProps {
 function SidebarSection({ title, children }: SidebarSectionProps) {
   return (
     <section>
-      <h3 className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-outline-900/50">
+      <h3 className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-white/50">
         — {title} —
       </h3>
       {children}
@@ -151,21 +167,30 @@ function SidebarSection({ title, children }: SidebarSectionProps) {
 }
 
 interface ToolCheckboxProps {
-  tool: { id: ToolId; label: string; tooltip: string };
+  id: ToolId;
+  label: string;
+  tooltip: string;
   checked: boolean;
   disabled: boolean;
   onChange: () => void;
 }
 
-function ToolCheckbox({ tool, checked, disabled, onChange }: ToolCheckboxProps) {
+function ToolCheckbox({
+  id,
+  label,
+  tooltip,
+  checked,
+  disabled,
+  onChange,
+}: ToolCheckboxProps) {
   return (
     <li>
       <label
-        title={tool.tooltip}
+        title={tooltip}
         className={`flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-sm transition ${
           disabled
             ? "cursor-not-allowed opacity-60"
-            : "hover:bg-orange-50/60"
+            : "hover:bg-white/5"
         }`}
       >
         <input
@@ -173,9 +198,10 @@ function ToolCheckbox({ tool, checked, disabled, onChange }: ToolCheckboxProps) 
           checked={checked}
           onChange={onChange}
           disabled={disabled}
-          className="h-4 w-4 cursor-pointer rounded border-outline/30 text-primary accent-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed"
+          className="h-4 w-4 cursor-pointer rounded border-white/30 bg-white/5 text-primary accent-primary focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed"
+          data-tool-id={id}
         />
-        <span className="select-none text-outline-900">{tool.label}</span>
+        <span className="select-none text-white/90">{label}</span>
       </label>
     </li>
   );

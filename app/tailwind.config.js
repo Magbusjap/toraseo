@@ -19,6 +19,17 @@ export default {
           900: "#1A0F08",
           800: "#2B1D14",
         },
+        // Surface — warm dark used for sidebars, panels, drawers,
+        // and any large dark surface that should feel "in palette"
+        // rather than pure black. Visually equivalent to the legacy
+        // `bg-outline-900/85` over the cream main area, but defined
+        // as a solid token so layout doesn't depend on background
+        // showing through opacity.
+        surface: {
+          DEFAULT: "#352922",
+          900: "#352922",
+          800: "#42332A",
+        },
         accent: {
           DEFAULT: "#FFB800", // gold (champion / highlights)
         },

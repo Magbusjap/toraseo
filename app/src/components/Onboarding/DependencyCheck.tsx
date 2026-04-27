@@ -1,4 +1,5 @@
 import { Check, X, RotateCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface DependencyCheckProps {
   /** Display label of the dependency. */
@@ -30,6 +31,7 @@ export default function DependencyCheck({
   satisfied,
   action,
 }: DependencyCheckProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-3 rounded-lg border border-outline/10 bg-white p-4">
       <div
@@ -38,7 +40,11 @@ export default function DependencyCheck({
             ? "bg-green-100 text-green-700"
             : "bg-orange-100 text-orange-600"
         }`}
-        aria-label={satisfied ? "Готово" : "Требует действия"}
+        aria-label={
+          satisfied
+            ? t("onboarding.dep.satisfiedLabel")
+            : t("onboarding.dep.actionRequiredLabel")
+        }
       >
         {satisfied ? <Check size={16} /> : <X size={16} />}
       </div>
@@ -57,7 +63,7 @@ export default function DependencyCheck({
           {action.busy ? (
             <span className="flex items-center gap-2">
               <RotateCw className="animate-spin" size={14} />
-              Открываю…
+              {t("onboarding.dep.opening")}
             </span>
           ) : (
             action.label

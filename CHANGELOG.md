@@ -37,16 +37,19 @@ the `skill-v*` namespace.
 
 ## [Unreleased]
 
-Nothing yet. Roadmap after v0.0.5:
+Roadmap after v0.0.6:
 
-- **v0.0.6 — i18n localization.** English as primary, Russian as
-  option. Stack: i18next + react-i18next. Language switcher in the
-  toolbar (placeholder slot already exists in the Settings modal).
-  Persist user choice in `userData/locale.txt`. All UI strings
-  extracted from components into `locales/en.json` and
-  `locales/ru.json`.
+- **v0.0.7 — NSIS multi-language installer.** Build the installer
+  with `multiLanguageInstaller: true` so the setup wizard appears
+  in English or Russian based on the user's Windows system locale.
+  Persist the installer's choice to a registry value the app reads
+  on first launch as the default UI language, before the
+  `userData/locale.txt` written from Settings takes precedence.
+  Doesn't change the runtime i18n stack from v0.0.6 — just adds a
+  pre-app touchpoint so the very first impression matches the
+  user's environment.
 
-- **v0.0.7 — Skill runtime handshake.** Token-matching protocol
+- **v0.0.8 — Skill runtime handshake.** Token-matching protocol
   between MCP server and SKILL.md so the app can verify at runtime
   that Skill is actually loaded into Claude's context (not just
   installed-on-disk). MCP exposes `register_session(token)`; the
@@ -58,14 +61,135 @@ Nothing yet. Roadmap after v0.0.5:
   `runtime verified`. Requires coordinated release of three
   artifacts (MCP, Skill, App) with versioned protocol token.
 
-- **v0.0.8 — First `skill-v*` release.** Bootstraps the skill
+- **v0.0.9 — First `skill-v*` release.** Bootstraps the skill
   release track that v0.0.4's download-ZIP button reads from. Until
   the first `skill-v*` tag exists, the button correctly reports
-  "Не найден skill-релиз на GitHub" and falls back to opening the
-  releases page.
+  "Skill release not found on GitHub" and falls back to opening
+  the releases page.
 
 After that, the **skill track v0.2.0** — Mode B content audit
 (humanizer, readability, style match, AI-detection score).
+
+---
+
+## [App 0.0.6] — Unreleased
+
+Localization runtime + Settings UI. The app now ships English as the
+primary UI language with Russian as a runtime-switchable option, and
+the new Settings screen exposes the language switcher. All previously
+hardcoded UI strings have been extracted into translation bundles.
+
+### Added — i18n runtime
+
+- **i18next + react-i18next stack.** Bundles loaded as static JSON
+  resources at startup (no network fetch, no lazy loading). Language
+  resolved before React mounts via `await initI18n()` in `main.tsx`,
+  so components calling `t()` during their first render get the
+  correct strings on the very first paint without flashing keys.
+- **Locale persistence in main process.** New module
+  `app/electron/locale.ts` stores the user's choice as a single line
+  in `userData/locale.txt`. Three IPC handlers exposed through
+  `window.toraseo.locale`: `get()`, `set(locale)`, `getOs()`. The
+  OS-derived default maps Russian system locale (`ru`, `ru-RU`) to
+  Russian; everything else falls back to English.
+- **Three-step language resolution.** First check `locale.txt`, then
+  `app.getLocale()` from Electron, then hardcoded fallback to
+  English. Once the user explicitly saves a language in Settings,
+  it sticks across launches regardless of OS changes.
+
+### Added — Settings screen
+
+- **New `mode: "settings"`** in `App.tsx`. Reachable via the
+  toolbar's Settings button from any state — including onboarding,
+  before dependencies are satisfied. This is intentional: the
+  Language tab is exactly where a Russian-speaking user goes to
+  switch the UI to a language they can read before troubleshooting
+  onboarding hints.
+- **Sidebar with tabs.** Currently a single tab — Language settings
+  — with a «← Back to home» button on top. Tab list grows naturally
+  as future settings categories are added (theme, persistence,
+  manual config path, etc.) without redesign.
+- **Language tab.** Dropdown with English / Russian, hint paragraph
+  explaining that the change applies immediately but OS-level
+  dialogs (file picker) keep using the system language. Save button
+  enables only when the picked language differs from the current
+  one. After save: write to disk first, then call
+  `i18n.changeLanguage()` so a crash mid-flight can't leave UI and
+  storage out of sync.
+- **Unsaved-changes guard.** Trying to leave Settings (toolbar
+  Home, sidebar Back-to-home) with an unsaved language pick triggers
+  a centered modal: «You have unsaved changes» with two actions —
+  «Discard changes and go back» (resets the picker, navigates away)
+  and «Stay» (closes modal, keeps user in Settings).
+
+### Added — Translation bundles
+
+- **`app/src/i18n/locales/en.json`** and **`ru.json`.** All UI
+  strings touched in v0.0.5 and earlier extracted into hierarchical
+  keys (`toolbar.about`, `siteAudit.status.scanning`, `tools.meta.
+  label`, etc.). English is the source of truth; missing Russian
+  keys fall back to English through i18next's standard
+  `fallbackLng` mechanism.
+- **Tools config rewired.** `app/src/config/tools.ts` no longer
+  hardcodes `label`/`tooltip` strings; instead exports a helper
+  `getToolI18nKeyBase(id)` that maps snake_case tool ids
+  (`check_robots_txt`) to camelCase i18n key bases (`robots`). The
+  MCP server and `core/` functions keep using the original
+  snake_case ids — only the UI lookup layer changed.
+
+### Modified
+
+- **8 components rewritten to call `t()`** instead of inline
+  Russian strings: `ModeSelection`, `IdleSidebar`, `ActiveSidebar`,
+  `SiteAuditView`, `OnboardingView`, `DependencyCheck`,
+  `UpdateNotification`, `SleepingMascot`, plus new `TopToolbar` and
+  Settings components. Russian-language `console.warn` /
+  `window.confirm` / `dialog.title` strings included.
+- **`TopToolbar` Check-for-updates copy.** The toast now
+  distinguishes four honest states — already-downloaded,
+  currently-downloading, server-has-newer, and on-latest — instead
+  of comparing `result.version` (which is undefined when no update
+  exists) against `currentVersion` and producing
+  «Найдено обновление: undefined» when there was nothing to find.
+  The downloaded/downloading short-circuit also avoids
+  re-querying the server when an update is already on disk waiting
+  for an install click.
+- **`App.tsx` layout structure.** New top-level branch for
+  `mode === "settings"` that's exempt from the onboarding gate.
+  `currentLocale` mirrored as React state so language changes
+  cascade through the tree on save. `i18n.on("languageChanged")`
+  listener keeps state in sync if any future code path bypasses
+  the explicit save handler.
+- **Mascot illustration on home screen.** `ModeSelection` now uses
+  the wordmark-only `tora-logo-wordmark.svg` (no embedded mascot
+  face) as its header logo. The previous horizontal logo embedded
+  a small mascot identical to the large `SleepingMascot` rendered
+  right below it — two of the same character in one frame split
+  the user's gaze. The original `tora-logo-horizontal.svg` stays
+  untouched for README and contexts where no separate mascot is in
+  view.
+- **All code comments switched to English.** Per the project's
+  English-first audience policy adopted late in v0.0.5, all jsdoc,
+  inline, and file-header comments are now English-only. User-
+  facing strings remaining in Russian inside JSX have been
+  extracted to `locales/ru.json` as part of this release; nothing
+  hardcoded in Russian remains in source files outside translation
+  bundles.
+
+### Notes
+
+- **NSIS installer language** is unchanged in this release — the
+  setup wizard is still single-language. Installer i18n is
+  scheduled for v0.0.7 via `multiLanguageInstaller: true`, which
+  is independent of the runtime stack and only affects the
+  pre-app first-install experience.
+- **Two `useUpdater` consumers** — `UpdateNotification` and
+  `TopToolbar` both call the hook independently and each holds
+  its own state. In practice the race window is too narrow to
+  matter (both mount synchronously in `App.tsx` before the first
+  updater event fires three seconds after launch), but the right
+  long-term fix is to lift updater state into a shared context.
+  Tracked as technical debt.
 
 ---
 

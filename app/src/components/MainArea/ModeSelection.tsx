@@ -1,4 +1,5 @@
 import { Globe, FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import SleepingMascot from "../Mascot/SleepingMascot";
 import toraLogoWordmark from "@branding/logos/tora-logo-wordmark.svg";
 
@@ -28,6 +29,7 @@ interface ModeSelectionProps {
  * keep the composition compact.
  */
 export default function ModeSelection({ onSelect }: ModeSelectionProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex h-full flex-col items-center justify-start gap-7 px-8 pt-8 pb-12">
       {/* Header — wordmark only (no mascot face). The screen already
@@ -38,7 +40,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
       <header className="text-center">
         <img
           src={toraLogoWordmark}
-          alt="ToraSEO — See the top. Rank the top."
+          alt={`${t("app.name")} — ${t("app.tagline")}`}
           className="h-16 w-auto"
           draggable={false}
         />
@@ -50,7 +52,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
           className="h-2.5 w-2.5 rounded-full bg-status-idle"
           aria-hidden="true"
         />
-        <span>Idle</span>
+        <span>{t("modeSelection.idle")}</span>
       </div>
 
       {/* Mascot */}
@@ -58,21 +60,21 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
 
       {/* Question */}
       <p className="font-display text-lg text-outline-900">
-        Что вы хотите проверить?
+        {t("modeSelection.question")}
       </p>
 
       {/* Mode cards */}
       <div className="flex gap-4">
         <ModeCard
           icon={<Globe className="h-8 w-8" strokeWidth={1.5} />}
-          title="Сайт по URL"
-          subtitle="Site Audit"
+          title={t("modeSelection.siteByUrl")}
+          subtitle={t("modeSelection.siteSubtitle")}
           onClick={() => onSelect("site")}
         />
         <ModeCard
           icon={<FileText className="h-8 w-8" strokeWidth={1.5} />}
-          title="Текст статьи"
-          subtitle="v0.2 — coming soon"
+          title={t("modeSelection.articleText")}
+          subtitle={t("modeSelection.articleSubtitle")}
           disabled
           onClick={() => onSelect("content")}
         />
@@ -80,7 +82,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
 
       {/* Connection hint */}
       <p className="mt-2 text-xs text-outline-900/50">
-        Подключение к Claude Desktop опционально
+        {t("modeSelection.claudeOptional")}
       </p>
     </div>
   );

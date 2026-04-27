@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import sleepingMascotUrl from "@branding/mascots/tora-sleeping.svg";
 
 interface SleepingMascotProps {
@@ -17,10 +18,11 @@ interface SleepingMascotProps {
  * `status` prop.
  */
 export default function SleepingMascot({ className }: SleepingMascotProps) {
+  const { t } = useTranslation();
   return (
     <img
       src={sleepingMascotUrl}
-      alt="ToraSEO sleeping mascot"
+      alt={t("app.altMascotSleeping")}
       className={className}
       draggable={false}
     />

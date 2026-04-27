@@ -10,9 +10,9 @@ import type {
  *
  * States:
  * - "idle":        no update info yet (or already installed)
- * - "available":   server has newer version, awaiting user "Скачать"
+ * - "available":   server has newer version, awaiting user "Download" click
  * - "downloading": download in progress; `progress` is populated
- * - "downloaded":  ready to install, awaiting user "Установить"
+ * - "downloaded":  ready to install, awaiting user "Install" click
  * - "error":       last operation failed; `errorMessage` is populated
  *
  * Transitions are driven by IPC events from `electron/updater.ts`.

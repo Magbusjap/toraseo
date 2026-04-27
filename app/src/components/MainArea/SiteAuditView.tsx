@@ -1,4 +1,6 @@
-import { TOOLS, type ToolId } from "../../config/tools";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { TOOLS, type ToolId, getToolI18nKeyBase } from "../../config/tools";
 import type { ScanComplete } from "../../types/ipc";
 import type { ScanState, StagesMap, StageState } from "../../hooks/useScan";
 import sleepingMascot from "@branding/mascots/tora-sleeping.svg";
@@ -35,22 +37,23 @@ export default function SiteAuditView({
   stages,
   summary,
 }: SiteAuditViewProps) {
+  const { t } = useTranslation();
   const trimmedUrl = url.trim();
-  const orderedSelectedTools = TOOLS.filter((t) => selectedTools.has(t.id));
+  const orderedSelectedTools = TOOLS.filter((tool) => selectedTools.has(tool.id));
   const totalSelected = orderedSelectedTools.length;
-  const finishedCount = orderedSelectedTools.filter((t) =>
-    isFinished(stages[t.id]?.status),
+  const finishedCount = orderedSelectedTools.filter((tool) =>
+    isFinished(stages[tool.id]?.status),
   ).length;
 
   // For the mascot picture we want the OVERALL feel of the run.
-  const mascotState = pickMascotState(scanState, summary);
+  const mascotState = pickMascotState(scanState, summary, t);
 
   return (
     <div className="flex h-full flex-col px-8 py-8">
       {/* Header — logo + status + URL */}
       <header className="mb-6 flex flex-col items-center gap-3 text-center">
         <h1 className="font-display text-2xl font-bold tracking-tight text-outline-900">
-          ToraSEO
+          {t("app.name")}
         </h1>
         <StatusIndicator scanState={scanState} summary={summary} />
         <img
@@ -63,18 +66,18 @@ export default function SiteAuditView({
           <p className="font-mono text-sm text-outline-900/70">{trimmedUrl}</p>
         ) : (
           <p className="text-sm text-outline-900/50">
-            Введите URL сайта в боковой панели
+            {t("siteAudit.enterUrl")}
           </p>
         )}
       </header>
 
       {/* Stage list — only when there's something to show */}
-      {totalSelected > 0 && (scanState !== "idle" || true) && (
+      {totalSelected > 0 && (
         <section className="mx-auto w-full max-w-2xl">
           {/* Progress meta */}
           {scanState === "scanning" && (
             <div className="mb-3 flex items-center justify-between text-sm text-outline-900/70">
-              <span>Анализ запущен</span>
+              <span>{t("siteAudit.scanStarted")}</span>
               <span className="font-mono">
                 {finishedCount} / {totalSelected}
               </span>
@@ -103,7 +106,7 @@ export default function SiteAuditView({
               <StageRow
                 key={tool.id}
                 toolId={tool.id}
-                label={tool.label}
+                label={t(`tools.${getToolI18nKeyBase(tool.id)}.label`)}
                 state={stages[tool.id]}
                 scanState={scanState}
               />
@@ -130,7 +133,8 @@ interface StatusIndicatorProps {
 }
 
 function StatusIndicator({ scanState, summary }: StatusIndicatorProps) {
-  const meta = getStatusMeta(scanState, summary);
+  const { t } = useTranslation();
+  const meta = getStatusMeta(scanState, summary, t);
   return (
     <div className="flex items-center gap-2 text-sm text-outline-900/70">
       <span
@@ -145,29 +149,45 @@ function StatusIndicator({ scanState, summary }: StatusIndicatorProps) {
 function getStatusMeta(
   scanState: ScanState,
   summary: ScanComplete | null,
+  t: TFunction,
 ): { dotClass: string; label: string } {
   switch (scanState) {
     case "idle":
-      return { dotClass: "bg-status-ready", label: "Готов" };
+      return { dotClass: "bg-status-ready", label: t("siteAudit.status.ready") };
     case "scanning":
       return {
         dotClass: "bg-status-working animate-pulse",
-        label: "Анализирую",
+        label: t("siteAudit.status.scanning"),
       };
     case "complete":
       if (!summary) {
-        return { dotClass: "bg-status-complete", label: "Завершено" };
+        return {
+          dotClass: "bg-status-complete",
+          label: t("siteAudit.status.completed"),
+        };
       }
       if (summary.totals.critical > 0) {
-        return { dotClass: "bg-status-issues", label: "Найдены проблемы" };
+        return {
+          dotClass: "bg-status-issues",
+          label: t("siteAudit.status.issuesFound"),
+        };
       }
       if (summary.totals.warning > 0) {
-        return { dotClass: "bg-status-issues", label: "Есть предупреждения" };
+        return {
+          dotClass: "bg-status-issues",
+          label: t("siteAudit.status.warnings"),
+        };
       }
       if (summary.totals.errors > 0) {
-        return { dotClass: "bg-status-issues", label: "Ошибки выполнения" };
+        return {
+          dotClass: "bg-status-issues",
+          label: t("siteAudit.status.executionErrors"),
+        };
       }
-      return { dotClass: "bg-status-complete", label: "Всё чисто" };
+      return {
+        dotClass: "bg-status-complete",
+        label: t("siteAudit.status.allClean"),
+      };
   }
 }
 
@@ -183,10 +203,11 @@ interface StageRowProps {
 }
 
 function StageRow({ toolId, label, state, scanState }: StageRowProps) {
+  const { t } = useTranslation();
   // Idle: never started a scan yet — show muted "ready to run" state.
   // Otherwise reflect the per-tool status from useScan.
   const status = state?.status ?? (scanState === "idle" ? "pending" : "pending");
-  const visual = getStageVisual(status);
+  const visual = getStageVisual(status, t);
 
   // Build a short "issues badge" only when finished with verdicts.
   const summary = state?.summary;
@@ -249,49 +270,49 @@ interface StageVisual {
   label: string;
 }
 
-function getStageVisual(status: StageState["status"]): StageVisual {
+function getStageVisual(status: StageState["status"], t: TFunction): StageVisual {
   switch (status) {
     case "pending":
       return {
         icon: "○",
         iconClass: "text-outline-900/30",
         bgClass: "bg-white/40",
-        label: "Ожидание",
+        label: t("siteAudit.stage.pending"),
       };
     case "running":
       return {
         icon: "⚙",
         iconClass: "text-status-working animate-spin",
         bgClass: "bg-blue-50/40",
-        label: "Анализ...",
+        label: t("siteAudit.stage.running"),
       };
     case "ok":
       return {
         icon: "✓",
         iconClass: "text-status-complete",
         bgClass: "bg-green-50/40",
-        label: "ОК",
+        label: t("siteAudit.stage.ok"),
       };
     case "warning":
       return {
         icon: "⚠",
         iconClass: "text-status-issues",
         bgClass: "bg-orange-50/60",
-        label: "Warning",
+        label: t("siteAudit.stage.warning"),
       };
     case "critical":
       return {
         icon: "✗",
         iconClass: "text-red-600",
         bgClass: "bg-red-50/60",
-        label: "Critical",
+        label: t("siteAudit.stage.critical"),
       };
     case "error":
       return {
         icon: "!",
         iconClass: "text-red-700",
         bgClass: "bg-red-50/60",
-        label: "Ошибка",
+        label: t("siteAudit.stage.error"),
       };
   }
 }
@@ -307,23 +328,24 @@ interface IssuesBadgeProps {
 }
 
 function IssuesBadge({ critical, warning, info }: IssuesBadgeProps) {
+  const { t } = useTranslation();
   if (critical === 0 && warning === 0 && info === 0) {
-    return <span className="text-status-complete">без замечаний</span>;
+    return <span className="text-status-complete">{t("siteAudit.issues.clean")}</span>;
   }
   return (
     <div className="flex items-center gap-2 font-mono">
       {critical > 0 && (
-        <span className="text-red-600" title="Critical issues">
+        <span className="text-red-600" title={t("siteAudit.issues.criticalTitle")}>
           ✗ {critical}
         </span>
       )}
       {warning > 0 && (
-        <span className="text-status-issues" title="Warnings">
+        <span className="text-status-issues" title={t("siteAudit.issues.warningTitle")}>
           ⚠ {warning}
         </span>
       )}
       {info > 0 && (
-        <span className="text-outline-900/50" title="Info">
+        <span className="text-outline-900/50" title={t("siteAudit.issues.infoTitle")}>
           ℹ {info}
         </span>
       )}
@@ -336,15 +358,18 @@ function IssuesBadge({ critical, warning, info }: IssuesBadgeProps) {
  * ------------------------------------------------------------------------- */
 
 function SummaryBlock({ summary }: { summary: ScanComplete }) {
+  const { t } = useTranslation();
   const { totals, durationMs } = summary;
   const seconds = (durationMs / 1000).toFixed(1);
 
   return (
     <section className="mx-auto mt-6 w-full max-w-2xl rounded-lg border border-outline/10 bg-white px-5 py-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-outline-900">Итог</h2>
+        <h2 className="text-sm font-semibold text-outline-900">
+          {t("siteAudit.summary.title")}
+        </h2>
         <span className="font-mono text-xs text-outline-900/60">
-          {seconds} сек
+          {t("siteAudit.summary.seconds", { seconds })}
         </span>
       </div>
       <div className="grid grid-cols-4 gap-3 text-center">
@@ -364,7 +389,7 @@ function SummaryBlock({ summary }: { summary: ScanComplete }) {
           accentClass="text-outline-900/60"
         />
         <SummaryTile
-          label="Ошибки"
+          label={t("siteAudit.summary.errors")}
           value={totals.errors}
           accentClass="text-red-700"
         />
@@ -415,11 +440,12 @@ interface MascotPick {
 function pickMascotState(
   scanState: ScanState,
   summary: ScanComplete | null,
+  t: TFunction,
 ): MascotPick {
   if (scanState === "scanning") {
     return {
       src: focusedMascot,
-      alt: "ToraSEO mascot focused on the analysis",
+      alt: t("app.altMascotFocused"),
     };
   }
   if (scanState === "complete" && summary) {
@@ -428,11 +454,11 @@ function pickMascotState(
     // worried/concerned mascot can be added later.
     return {
       src: happyMascot,
-      alt: "ToraSEO mascot — analysis complete",
+      alt: t("app.altMascotHappy"),
     };
   }
   return {
     src: sleepingMascot,
-    alt: "ToraSEO mascot in idle state",
+    alt: t("app.altMascotIdle"),
   };
 }

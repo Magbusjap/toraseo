@@ -37,9 +37,9 @@
  *   - Claude Code users: filesystem says yes → ✓ automatically
  *   - Claude Desktop users: there's no filesystem signal we can
  *     trust, so we ask them to install skill via the in-app
- *     download/install flow and click "Я установил" — which writes
- *     a marker file in userData. Honest manual confirmation, not
- *     pretend automatic detection.
+ *     download/install flow and click "I installed Skill" — which
+ *     writes a marker file in userData. Honest manual confirmation,
+ *     not pretend automatic detection.
  *
  * Two access patterns:
  *
@@ -463,7 +463,7 @@ async function downloadLatestSkillZip(): Promise<DownloadSkillZipResult> {
     return {
       ok: false,
       error:
-        "Не найден skill-релиз на GitHub. Откройте страницу релизов вручную.",
+        "No skill release found on GitHub. Open the releases page manually.",
     };
   }
 
@@ -473,7 +473,7 @@ async function downloadLatestSkillZip(): Promise<DownloadSkillZipResult> {
   if (!zipAsset) {
     return {
       ok: false,
-      error: `Релиз ${skillRelease.tag_name} не содержит ZIP-файла`,
+      error: `Release ${skillRelease.tag_name} does not contain a ZIP file`,
     };
   }
 
@@ -532,7 +532,7 @@ export function setupDetector(getMainWindow: () => BrowserWindow | null): void {
     async (): Promise<PickMcpConfigResult> => {
       const win = getMainWindow();
       const result = await dialog.showOpenDialog(win ?? undefined!, {
-        title: "Выберите claude_desktop_config.json",
+        title: "Select claude_desktop_config.json",
         properties: ["openFile"],
         filters: [
           { name: "JSON config", extensions: ["json"] },

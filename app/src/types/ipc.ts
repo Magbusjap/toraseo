@@ -178,7 +178,7 @@ export interface DetectorStatus {
   /**
    * Which path produced a positive Skill verdict, for UI copy:
    * - "filesystem" — found at ~/.claude/skills/toraseo/SKILL.md
-   * - "manual" — user clicked "Я установил Skill"
+   * - "manual" — user clicked "I installed Skill"
    * - null — not satisfied
    */
   skillSource: "filesystem" | "manual" | null;

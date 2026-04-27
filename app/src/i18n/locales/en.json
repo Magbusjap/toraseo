@@ -66,7 +66,7 @@
     "claudeOptional": "Connection to Claude Desktop is optional"
   },
   "sidebar": {
-    "idleHeading": "Choose a mode",
+    "idleHeading": "Choose a\nmode",
     "section": {
       "project": "Project",
       "checks": "Checks"
@@ -89,6 +89,7 @@
   "siteAudit": {
     "enterUrl": "Enter a site URL in the sidebar",
     "scanStarted": "Analysis started",
+    "confirmCancelScan": "Cancel the current analysis?\n\nScan results will be lost.",
     "summary": {
       "title": "Summary",
       "seconds": "{{seconds}} s",
@@ -154,6 +155,11 @@
     "title": "ToraSEO works in tandem with Claude Desktop",
     "subtitle": "Three components are required to run. When all three are green, scanning unlocks automatically.",
     "footer": "Status refreshes every 5 seconds automatically.",
+    "dep": {
+      "satisfiedLabel": "Done",
+      "actionRequiredLabel": "Action required",
+      "opening": "Opening…"
+    },
     "claude": {
       "label": "Claude Desktop is running",
       "hintRunning": "Process found",
@@ -219,6 +225,9 @@
     "check": {
       "latest": "You're on the latest version ({{version}}).",
       "found": "Update found: {{version}}. See the notification in the corner.",
+      "noneFound": "No updates found. You're on version {{version}}.",
+      "alreadyDownloaded": "Update {{version}} is already downloaded and ready to install. See the notification in the corner.",
+      "alreadyDownloading": "Update is already downloading. See the notification in the corner.",
       "errorPrefix": "Check failed:",
       "errorUnknown": "Could not check for updates"
     },

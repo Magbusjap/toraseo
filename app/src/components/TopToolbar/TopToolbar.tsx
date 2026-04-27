@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Info,
   RefreshCw,
@@ -10,42 +11,54 @@ import {
 } from "lucide-react";
 import { useUpdater } from "../../hooks/useUpdater";
 
+interface TopToolbarProps {
+  /**
+   * Switch the app into Settings mode. App.tsx handles the actual
+   * routing — the toolbar just signals intent.
+   */
+  onOpenSettings: () => void;
+}
+
 /**
  * TopToolbar — thin top bar across the entire window (above sidebar
- * and main area), 36px tall, white background with subtle bottom
+ * and main area), 36px tall, white background with a subtle bottom
  * border. Holds the application menu items and a GitHub link.
  *
  * Behavior:
- * - "О ToraSEO" — opens a small modal with version, license, links
- * - "Проверить обновления" — calls window.toraseo.updater.check()
- *   and reports the result through a top-center toast. The four
- *   meaningful outcomes are:
- *     1. Update is already downloaded — say "ready to install"
- *        and remind that the install card is in the corner.
+ * - "About ToraSEO" — opens a small modal with version, license, links
+ * - "Check for updates" — calls window.toraseo.updater.check() and
+ *   reports the result via a top-center toast. Four meaningful
+ *   outcomes:
+ *     1. Update is already downloaded — say "ready to install" and
+ *        remind that the install card is in the corner.
  *     2. Update is currently downloading — say "in progress".
- *     3. A newer version exists on the server — say "found, see
- *        the corner card". The card itself is rendered by the
- *        existing UpdateNotification component reacting to the
+ *     3. A newer version exists on the server — say "found, see the
+ *        corner card". The card itself is rendered by the existing
+ *        UpdateNotification component reacting to the
  *        update-available event.
  *     4. We're on the latest — say "no updates, you're current".
- * - "Настройки" — placeholder modal "Coming soon" until v0.0.6+
- *   when we wire i18n and persistence settings here.
- * - "Документация" — opens README on GitHub. There's no project
+ * - "Documentation" — opens README on GitHub. There's no project
  *   website yet; everything lives in the repo.
  * - "FAQ" — opens docs/FAQ.md on GitHub. Same reason: no website,
  *   FAQ is a markdown file in the repo that GitHub renders.
- * - GitHub icon — opens the repo root in the system browser via
- *   the existing webContents.setWindowOpenHandler that delegates
- *   http(s) URLs to shell.openExternal.
+ * - "Settings" — switches the app into Settings mode (App.tsx
+ *   handles routing). The current Settings UI exposes only the
+ *   Language tab; the placeholder modal that used to live here for
+ *   v0.0.5 is gone.
+ * - GitHub icon — opens the repo root in the system browser via the
+ *   existing webContents.setWindowOpenHandler that delegates http(s)
+ *   URLs to shell.openExternal.
  *
  * The toolbar is rendered in App.tsx outside the sidebar/main flex
  * row, on top of it. During onboarding it stays visible — the user
- * should still be able to read "О ToraSEO" or open settings even if
- * dependencies aren't satisfied yet.
+ * should still be able to read About or open Settings even if
+ * dependencies aren't satisfied yet (in fact, Settings → Language
+ * is exactly where they go to switch UI language before
+ * troubleshooting).
  */
-export default function TopToolbar() {
+export default function TopToolbar({ onOpenSettings }: TopToolbarProps) {
+  const { t } = useTranslation();
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [updateCheckMsg, setUpdateCheckMsg] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
 
@@ -63,22 +76,18 @@ export default function TopToolbar() {
     setChecking(true);
     setUpdateCheckMsg(null);
 
-    // Short-circuit: if the user already has an update downloaded
-    // and waiting, OR is in the middle of downloading one, don't
-    // bother re-querying the server. Tell them what's already
-    // happening on their machine.
     if (updaterState === "downloaded" && updaterInfo) {
       setUpdateCheckMsg(
-        `Обновление ${updaterInfo.version} уже скачано и готово к установке. См. уведомление в углу.`,
+        t("updater.check.alreadyDownloaded", {
+          version: updaterInfo.version,
+        }),
       );
       setChecking(false);
       setTimeout(() => setUpdateCheckMsg(null), 4000);
       return;
     }
     if (updaterState === "downloading") {
-      setUpdateCheckMsg(
-        "Обновление уже скачивается. См. уведомление в углу.",
-      );
+      setUpdateCheckMsg(t("updater.check.alreadyDownloading"));
       setChecking(false);
       setTimeout(() => setUpdateCheckMsg(null), 4000);
       return;
@@ -88,54 +97,39 @@ export default function TopToolbar() {
       const result = await window.toraseo.updater.check();
       if (!result.ok) {
         setUpdateCheckMsg(
-          `Ошибка проверки: ${result.error ?? "неизвестно"}`,
+          `${t("updater.check.errorPrefix")} ${result.error ?? t("updater.check.errorUnknown")}`,
         );
-      } else if (result.version && result.currentVersion && result.version !== result.currentVersion) {
-        // electron-updater returns the *server* latest in `result.version`
-        // and our installed version in `result.currentVersion`. They
-        // differ ⇒ a newer one exists. The update-available event has
-        // already fired by now, so the corner card is already visible.
+      } else if (
+        result.version &&
+        result.currentVersion &&
+        result.version !== result.currentVersion
+      ) {
         setUpdateCheckMsg(
-          `Найдено обновление: ${result.version}. См. уведомление в углу.`,
+          t("updater.check.found", { version: result.version }),
         );
       } else {
-        // No version field, OR server == installed ⇒ we're current.
-        // Use whichever version we have access to (currentVersion
-        // from the API call, or fall back to the preload constant).
-        const v =
-          result.currentVersion ?? window.toraseo.version;
-        setUpdateCheckMsg(
-          `Новых обновлений не найдено. Вы на версии ${v}.`,
-        );
+        const v = result.currentVersion ?? window.toraseo.version;
+        setUpdateCheckMsg(t("updater.check.noneFound", { version: v }));
       }
     } catch (err) {
       setUpdateCheckMsg(
-        `Ошибка: ${(err as Error).message ?? "не удалось проверить обновления"}`,
+        `${t("updater.check.errorPrefix")} ${(err as Error).message ?? t("updater.check.errorUnknown")}`,
       );
     } finally {
       setChecking(false);
-      // Auto-dismiss the toast after 4 seconds
       setTimeout(() => setUpdateCheckMsg(null), 4000);
     }
   };
 
   const handleOpenGithub = () => {
-    // setWindowOpenHandler in main.ts catches http(s) and delegates to
-    // shell.openExternal, so a plain anchor with target="_blank" works.
-    // We use window.open to keep the click handler explicit and not
-    // rely on default anchor behavior inside Electron.
     window.open("https://github.com/Magbusjap/toraseo", "_blank");
   };
 
   const handleOpenDocs = () => {
-    // Documentation lives in the repo README until a project website
-    // exists. Anchor #readme makes GitHub scroll past the file tree.
     window.open("https://github.com/Magbusjap/toraseo#readme", "_blank");
   };
 
   const handleOpenFaq = () => {
-    // FAQ is a markdown file rendered by GitHub. If the file moves,
-    // update this URL alongside docs/FAQ.md itself.
     window.open(
       "https://github.com/Magbusjap/toraseo/blob/main/docs/FAQ.md",
       "_blank",
@@ -148,21 +142,19 @@ export default function TopToolbar() {
         className="flex h-9 shrink-0 items-center justify-between border-b border-outline/10 bg-white px-3"
         role="banner"
       >
-        {/* Left: brand */}
         <div className="flex items-center gap-2">
           <span className="font-display text-sm font-semibold text-outline-900">
-            ToraSEO
+            {t("app.name")}
           </span>
           <span className="font-mono text-[10px] uppercase tracking-wider text-outline-900/40">
             v{window.toraseo.version}
           </span>
         </div>
 
-        {/* Right: menu items */}
         <nav className="flex items-center gap-1">
           <ToolbarButton
             icon={<Info size={14} />}
-            label="О ToraSEO"
+            label={t("toolbar.about")}
             onClick={() => setAboutOpen(true)}
           />
           <ToolbarButton
@@ -172,24 +164,24 @@ export default function TopToolbar() {
                 className={checking ? "animate-spin" : ""}
               />
             }
-            label="Проверить обновления"
+            label={t("toolbar.checkUpdates")}
             onClick={handleCheckUpdates}
             disabled={checking}
           />
           <ToolbarButton
             icon={<BookOpen size={14} />}
-            label="Документация"
+            label={t("toolbar.documentation")}
             onClick={handleOpenDocs}
           />
           <ToolbarButton
             icon={<HelpCircle size={14} />}
-            label="FAQ"
+            label={t("toolbar.faq")}
             onClick={handleOpenFaq}
           />
           <ToolbarButton
             icon={<Settings size={14} />}
-            label="Настройки"
-            onClick={() => setSettingsOpen(true)}
+            label={t("toolbar.settings")}
+            onClick={onOpenSettings}
           />
           <span
             className="mx-1 h-4 w-px bg-outline/15"
@@ -197,15 +189,12 @@ export default function TopToolbar() {
           />
           <ToolbarButton
             icon={<Github size={14} />}
-            label="GitHub"
+            label={t("toolbar.github")}
             onClick={handleOpenGithub}
           />
         </nav>
       </header>
 
-      {/* Update-check toast (separate from UpdateNotification because
-          it shows for "no update" / "error" cases too, where the
-          notification card stays hidden). */}
       {updateCheckMsg && (
         <div
           className="fixed left-1/2 top-12 z-40 -translate-x-1/2 rounded-md border border-outline/15 bg-white px-3 py-2 text-xs text-outline-900 shadow-md"
@@ -215,22 +204,21 @@ export default function TopToolbar() {
         </div>
       )}
 
-      {/* About modal */}
       {aboutOpen && (
-        <Modal title="О ToraSEO" onClose={() => setAboutOpen(false)}>
+        <Modal title={t("about.title")} onClose={() => setAboutOpen(false)}>
           <div className="space-y-3 text-sm text-outline-900/80">
             <p>
-              <strong className="text-outline-900">ToraSEO</strong> — настольное
-              приложение для SEO-аудита, работающее в паре с Claude Desktop.
+              <strong className="text-outline-900">{t("app.name")}</strong>{" "}
+              — {t("about.description")}
             </p>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-              <dt className="text-outline-900/50">Версия:</dt>
+              <dt className="text-outline-900/50">{t("about.version")}</dt>
               <dd className="font-mono">{window.toraseo.version}</dd>
-              <dt className="text-outline-900/50">Лицензия:</dt>
+              <dt className="text-outline-900/50">{t("about.license")}</dt>
               <dd>MIT</dd>
-              <dt className="text-outline-900/50">Автор:</dt>
+              <dt className="text-outline-900/50">{t("about.author")}</dt>
               <dd>Mikhail Ankudinov</dd>
-              <dt className="text-outline-900/50">GitHub:</dt>
+              <dt className="text-outline-900/50">{t("about.github")}</dt>
               <dd>
                 <button
                   onClick={handleOpenGithub}
@@ -241,25 +229,8 @@ export default function TopToolbar() {
               </dd>
             </dl>
             <p className="pt-2 text-xs text-outline-900/50">
-              SEE THE TOP
+              {t("about.tagline")}
             </p>
-          </div>
-        </Modal>
-      )}
-
-      {/* Settings modal — placeholder */}
-      {settingsOpen && (
-        <Modal title="Настройки" onClose={() => setSettingsOpen(false)}>
-          <div className="space-y-3 text-sm text-outline-900/70">
-            <p>
-              Раздел настроек пока пуст. В следующих версиях здесь появятся:
-            </p>
-            <ul className="list-inside list-disc space-y-1 text-xs">
-              <li>Переключение языка интерфейса (EN / RU)</li>
-              <li>Сохранение выбранных tools между запусками</li>
-              <li>Тёмная тема</li>
-              <li>Путь к Claude Desktop config.json</li>
-            </ul>
           </div>
         </Modal>
       )}
@@ -298,9 +269,10 @@ interface ModalProps {
  * Lightweight modal with a backdrop. Centered, max-width 420px.
  * No animations for now — simple appears/disappears. Click-outside
  * and X-button both close it; Escape key would be nice-to-have but
- * not required for v0.0.5.
+ * not required for v0.0.6.
  */
 function Modal({ title, onClose, children }: ModalProps) {
+  const { t } = useTranslation();
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
@@ -315,7 +287,7 @@ function Modal({ title, onClose, children }: ModalProps) {
       >
         <button
           onClick={onClose}
-          aria-label="Закрыть"
+          aria-label={t("common.close")}
           className="absolute right-3 top-3 rounded p-1 text-outline-900/40 hover:bg-orange-50 hover:text-outline-900"
         >
           <X size={16} />

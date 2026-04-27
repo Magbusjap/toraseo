@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import DependencyCheck from "./DependencyCheck";
 import type {
   DetectorStatus,
@@ -45,6 +47,8 @@ export default function OnboardingView({
   onConfirmSkillInstalled,
   onClearSkillConfirmation,
 }: OnboardingViewProps) {
+  const { t } = useTranslation();
+
   const [openingClaude, setOpeningClaude] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
 
@@ -68,8 +72,7 @@ export default function OnboardingView({
       const result = await onOpenClaude();
       if (!result.ok) {
         setOpenError(
-          result.error ??
-            "Не удалось открыть Claude Desktop. Запустите его вручную.",
+          result.error ?? t("onboarding.claude.openFailedFallback"),
         );
       }
     } finally {
@@ -86,20 +89,16 @@ export default function OnboardingView({
       if (!result.ok) {
         if (result.reason === "cancelled") return;
         if (result.reason === "parse-error") {
-          setPickError(
-            "Файл не является корректным JSON. Откройте его в редакторе и проверьте формат.",
-          );
+          setPickError(t("onboarding.mcp.errorParse"));
           return;
         }
         setPickError(
-          result.errorMessage ?? "Не удалось прочитать файл.",
+          result.errorMessage ?? t("onboarding.mcp.errorRead"),
         );
         return;
       }
       if (!result.hasToraseo) {
-        setPickInfo(
-          "Файл выбран, но запись mcpServers.toraseo пока не найдена. Установщик ToraSEO добавит её при следующей установке.",
-        );
+        setPickInfo(t("onboarding.mcp.infoNoToraseoYet"));
       }
     } finally {
       setPickingConfig(false);
@@ -114,12 +113,12 @@ export default function OnboardingView({
       const result = await onDownloadSkillZip();
       if (!result.ok) {
         setSkillDownloadError(
-          result.error ?? "Не удалось скачать ZIP с GitHub.",
+          result.error ?? t("onboarding.skill.errorDownloadFailed"),
         );
         return;
       }
       setSkillDownloadInfo(
-        `ZIP скачан (${result.releaseTag}). Папка с файлом открыта — перетащите его в Claude Desktop: Settings → Skills → Install from ZIP. После установки вернитесь сюда и нажмите «Я установил Skill».`,
+        t("onboarding.skill.infoDownloaded", { tag: result.releaseTag }),
       );
     } finally {
       setDownloadingSkill(false);
@@ -129,9 +128,7 @@ export default function OnboardingView({
   const handleConfirmSkill = async () => {
     // Light confirmation step — we're trusting the user, but it's
     // their product gate, so a deliberate click is appropriate.
-    const confirmed = window.confirm(
-      "Подтверждаете, что Skill ToraSEO установлен в Claude Desktop через Settings → Skills?\n\nБез установленного Skill анализ через Claude будет неполным — он проигнорирует CRAWLING_POLICY, verdict-mapping и формулу CGS-балла.",
-    );
+    const confirmed = window.confirm(t("onboarding.skill.confirmDialog"));
     if (!confirmed) return;
     setConfirmingSkill(true);
     try {
@@ -152,7 +149,7 @@ export default function OnboardingView({
   if (!status) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="text-outline/50">Проверяем компоненты…</div>
+        <div className="text-outline/50">{t("onboarding.loading")}</div>
       </div>
     );
   }
@@ -161,26 +158,23 @@ export default function OnboardingView({
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-8">
       <header className="text-center">
         <h1 className="text-2xl font-semibold text-outline">
-          ToraSEO работает в связке с Claude Desktop
+          {t("onboarding.title")}
         </h1>
-        <p className="mt-2 text-outline/70">
-          Для запуска нужно три компонента. Когда все три зелёные —
-          сканирование разблокируется автоматически.
-        </p>
+        <p className="mt-2 text-outline/70">{t("onboarding.subtitle")}</p>
       </header>
 
       <div className="flex flex-col gap-3">
         {/* Row 1 — Claude Desktop process */}
         <DependencyCheck
-          label="Claude Desktop запущен"
+          label={t("onboarding.claude.label")}
           hint={
             status.claudeRunning
-              ? "Процесс найден"
-              : "Откройте Claude Desktop, чтобы продолжить"
+              ? t("onboarding.claude.hintRunning")
+              : t("onboarding.claude.hintMissing")
           }
           satisfied={status.claudeRunning}
           action={{
-            label: "Открыть Claude Desktop",
+            label: t("onboarding.claude.openButton"),
             onClick: handleOpenClaude,
             busy: openingClaude,
           }}
@@ -189,11 +183,11 @@ export default function OnboardingView({
         {/* Row 2 — MCP registration with manual picker fallback */}
         <div className="flex flex-col gap-2">
           <DependencyCheck
-            label="MCP-сервер ToraSEO подключён"
+            label={t("onboarding.mcp.label")}
             hint={
               status.mcpRegistered
-                ? "Запись найдена в claude_desktop_config.json"
-                : "Установщик ToraSEO добавляет MCP автоматически. Если конфиг лежит в нестандартном месте — укажите вручную."
+                ? t("onboarding.mcp.hintRegistered")
+                : t("onboarding.mcp.hintMissing")
             }
             satisfied={status.mcpRegistered}
           />
@@ -205,20 +199,23 @@ export default function OnboardingView({
               disabled={pickingConfig}
               className="rounded-md border border-outline/20 bg-white px-2 py-1 hover:bg-orange-50 disabled:opacity-50"
             >
-              {pickingConfig ? "Открываю диалог…" : "Указать config вручную"}
+              {pickingConfig
+                ? t("onboarding.mcp.picking")
+                : t("onboarding.mcp.pickButton")}
             </button>
 
             {status.manualMcpPath && (
               <>
                 <span className="truncate" title={status.manualMcpPath}>
-                  Используется: <code>{status.manualMcpPath}</code>
+                  {t("onboarding.mcp.usingPath")}{" "}
+                  <code>{status.manualMcpPath}</code>
                 </span>
                 <button
                   type="button"
                   onClick={onClearManualMcpConfig}
                   className="text-orange-600 hover:underline"
                 >
-                  сбросить
+                  {t("onboarding.mcp.reset")}
                 </button>
               </>
             )}
@@ -239,8 +236,8 @@ export default function OnboardingView({
         {/* Row 3 — Skill (hybrid: filesystem OR manual confirmation) */}
         <div className="flex flex-col gap-2">
           <DependencyCheck
-            label="Skill ToraSEO установлен"
-            hint={skillRowHint(status)}
+            label={t("onboarding.skill.label")}
+            hint={skillRowHint(status, t)}
             satisfied={status.skillInstalled}
           />
 
@@ -252,8 +249,8 @@ export default function OnboardingView({
               className="rounded-md border border-outline/20 bg-white px-2 py-1 hover:bg-orange-50 disabled:opacity-50"
             >
               {downloadingSkill
-                ? "Скачиваю с GitHub…"
-                : "Скачать ZIP с GitHub"}
+                ? t("onboarding.skill.downloading")
+                : t("onboarding.skill.downloadButton")}
             </button>
 
             <button
@@ -261,7 +258,7 @@ export default function OnboardingView({
               onClick={onOpenSkillReleasesPage}
               className="rounded-md border border-outline/20 bg-white px-2 py-1 hover:bg-orange-50"
             >
-              Открыть страницу релизов
+              {t("onboarding.skill.openReleasesButton")}
             </button>
 
             <button
@@ -278,13 +275,15 @@ export default function OnboardingView({
               title={
                 status.skillInstalled
                   ? status.skillSource === "filesystem"
-                    ? "Skill уже определён через файловую систему (Claude Code) — подтверждение не требуется"
-                    : "Ручное подтверждение уже активно — сбросьте его ниже, если хотите переподтвердить"
+                    ? t("onboarding.skill.tooltipFilesystem")
+                    : t("onboarding.skill.tooltipManual")
                   : undefined
               }
               className="rounded-md border border-outline/20 bg-white px-2 py-1 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {confirmingSkill ? "Подтверждаю…" : "Я установил Skill"}
+              {confirmingSkill
+                ? t("onboarding.skill.confirming")
+                : t("onboarding.skill.confirmButton")}
             </button>
           </div>
 
@@ -296,18 +295,19 @@ export default function OnboardingView({
             <div className="flex flex-wrap items-center gap-2 pl-11 text-xs text-outline/60">
               {status.skillSource === "filesystem" && (
                 <span>
-                  Используется: <code>~/.claude/skills/toraseo/SKILL.md</code>
+                  {t("onboarding.mcp.usingPath")}{" "}
+                  <code>~/.claude/skills/toraseo/SKILL.md</code>
                 </span>
               )}
               {status.skillSource === "manual" && (
                 <>
-                  <span>Используется: ручное подтверждение</span>
+                  <span>{t("onboarding.skill.hintManual")}</span>
                   <button
                     type="button"
                     onClick={handleClearSkill}
                     className="text-orange-600 hover:underline"
                   >
-                    сбросить
+                    {t("onboarding.mcp.reset")}
                   </button>
                 </>
               )}
@@ -334,7 +334,7 @@ export default function OnboardingView({
       )}
 
       <footer className="text-center text-xs text-outline/40">
-        Проверка обновляется каждые 5 секунд автоматически.
+        {t("onboarding.footer")}
       </footer>
     </div>
   );
@@ -346,12 +346,12 @@ export default function OnboardingView({
  * directly so power users know where it's reading from; manual path
  * acknowledges the trust mode; empty state explains the two options.
  */
-function skillRowHint(status: DetectorStatus): string {
+function skillRowHint(status: DetectorStatus, t: TFunction): string {
   if (!status.skillInstalled) {
-    return "Скачайте ZIP с GitHub и установите через Claude Desktop: Settings → Skills → Install ZIP. После установки нажмите «Я установил Skill».";
+    return t("onboarding.skill.hintMissing");
   }
   if (status.skillSource === "filesystem") {
-    return "Файл найден на диске (Claude Code)";
+    return t("onboarding.skill.hintFilesystem");
   }
-  return "Установка подтверждена пользователем";
+  return t("onboarding.skill.hintManual");
 }

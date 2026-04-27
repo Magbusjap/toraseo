@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Download, RotateCw, X, AlertCircle } from "lucide-react";
 import { useUpdater } from "../../hooks/useUpdater";
 
@@ -15,6 +16,7 @@ import { useUpdater } from "../../hooks/useUpdater";
  * electron/updater.ts.
  */
 export default function UpdateNotification() {
+  const { t } = useTranslation();
   const {
     state,
     info,
@@ -39,7 +41,7 @@ export default function UpdateNotification() {
       {canDismiss && (
         <button
           onClick={dismiss}
-          aria-label="Закрыть уведомление"
+          aria-label={t("updater.dismiss")}
           className="absolute right-2 top-2 rounded p-1 text-outline/50 hover:bg-orange-50 hover:text-outline"
         >
           <X size={16} />
@@ -55,11 +57,11 @@ export default function UpdateNotification() {
         <div className="mb-2 flex items-center gap-2">
           <Download className="text-orange-500" size={20} />
           <h3 className="font-semibold text-outline">
-            Доступно обновление
+            {t("updater.available.title")}
           </h3>
         </div>
         <p className="mb-3 text-sm text-outline/70">
-          ToraSEO {info.version} готова к загрузке.
+          {t("updater.available.body", { version: info.version })}
           {info.releaseNotes && (
             <span className="mt-1 block text-xs text-outline/50">
               {truncate(stripHtml(info.releaseNotes), 120)}
@@ -71,13 +73,13 @@ export default function UpdateNotification() {
             onClick={download}
             className="flex-1 rounded-md bg-orange-500 px-3 py-2 text-sm font-medium text-white hover:bg-orange-600"
           >
-            Скачать
+            {t("updater.available.download")}
           </button>
           <button
             onClick={dismiss}
             className="rounded-md border border-outline/20 px-3 py-2 text-sm text-outline/70 hover:bg-orange-50"
           >
-            Позже
+            {t("updater.available.later")}
           </button>
         </div>
       </>,
@@ -95,7 +97,7 @@ export default function UpdateNotification() {
         <div className="mb-2 flex items-center gap-2">
           <RotateCw className="animate-spin text-orange-500" size={20} />
           <h3 className="font-semibold text-outline">
-            Загрузка обновления
+            {t("updater.downloading.title")}
           </h3>
         </div>
         <div className="mb-2 flex items-baseline justify-between text-sm">
@@ -119,25 +121,24 @@ export default function UpdateNotification() {
         <div className="mb-2 flex items-center gap-2">
           <Download className="text-green-600" size={20} />
           <h3 className="font-semibold text-outline">
-            Обновление готово
+            {t("updater.downloaded.title")}
           </h3>
         </div>
         <p className="mb-3 text-sm text-outline/70">
-          ToraSEO {info.version} скачана. Приложение перезапустится
-          для установки.
+          {t("updater.downloaded.body", { version: info.version })}
         </p>
         <div className="flex gap-2">
           <button
             onClick={install}
             className="flex-1 rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
           >
-            Установить и перезапустить
+            {t("updater.downloaded.install")}
           </button>
           <button
             onClick={dismiss}
             className="rounded-md border border-outline/20 px-3 py-2 text-sm text-outline/70 hover:bg-orange-50"
           >
-            Позже
+            {t("updater.downloaded.later")}
           </button>
         </div>
       </>,
@@ -150,7 +151,7 @@ export default function UpdateNotification() {
         <div className="mb-2 flex items-center gap-2">
           <AlertCircle className="text-red-500" size={20} />
           <h3 className="font-semibold text-outline">
-            Ошибка обновления
+            {t("updater.error.title")}
           </h3>
         </div>
         <p className="mb-3 text-sm text-outline/70">
@@ -160,7 +161,7 @@ export default function UpdateNotification() {
           onClick={dismiss}
           className="w-full rounded-md border border-outline/20 px-3 py-2 text-sm text-outline/70 hover:bg-orange-50"
         >
-          Закрыть
+          {t("updater.error.close")}
         </button>
       </>,
     );
