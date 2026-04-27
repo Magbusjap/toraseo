@@ -22,10 +22,15 @@ export type AppMode = "idle" | "site" | "content";
  * Состояние скана (stages, scanState, summary) живёт в `useScan` —
  * хук подписан на IPC main process и хранит per-tool результаты.
  *
- * Состояние hard dependencies (Claude/MCP/Skill) живёт в `useDetector` —
+ * Состояние hard dependencies (Claude/MCP) живёт в `useDetector` —
  * пока allGreen=false, основной экран заменён на OnboardingView,
- * сайдбар — на «locked» панель. Когда все три зелёные — UI
+ * сайдбар — на «locked» панель. Когда оба зелёные — UI
  * автоматически возвращается в обычный режим без явного клика юзера.
+ *
+ * Skill detection НЕ входит в hard dependencies в v0.0.3 — Skills
+ * в Claude Desktop server-side (привязаны к аккаунту), filesystem
+ * detection невозможен. Установка Skill — через документацию /
+ * Phase 2 instructions overlay.
  *
  * Pre-flight check: при клике "Сканировать" мы заново проверяем
  * статус (синхронно) — это закрывает race window между последним

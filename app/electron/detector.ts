@@ -1,29 +1,38 @@
 /**
  * Hard-dependency detector for ToraSEO companion-app architecture.
  *
- * The app requires three components to be present before scanning is
+ * The app requires two components to be present before scanning is
  * unlocked. See `wiki/toraseo/hard-dependency-pivot.md` for the
- * design rationale.
+ * design rationale and `wiki/toraseo/hard-deps-phase-1.md` for the
+ * implementation notes.
  *
  *   1. Claude Desktop is currently running (a process named "Claude"
  *      / "claude.exe" exists on the system).
  *   2. claude_desktop_config.json contains an `mcpServers.toraseo`
  *      entry — meaning ToraSEO MCP is registered.
- *   3. ~/.claude/skills/toraseo/SKILL.md exists on disk — meaning
- *      the Claude Skill is installed (file-based variant; MCPB-format
- *      skills aren't detectable via filesystem and are out of scope
- *      for the alpha).
+ *
+ * Skill detection used to be a third dependency in v0.0.3 pre-release
+ * but was dropped after dogfooding on 2026-04-26 revealed that Skills
+ * in Claude Desktop are server-side (account-bound), not file-based.
+ * The runtime cache in
+ * `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\...\skills-plugin\
+ * <session-uuid>\<skill-uuid>\skills\` is just a per-session unpack
+ * from the cloud — there's no install path on disk we can detect.
+ * `~/.claude/skills/` is used by Claude Code (CLI) only. So the app
+ * cannot honestly verify whether a Skill is "installed" for a Claude
+ * Desktop user. Skill installation moves to a documentation/Phase-2
+ * onboarding step instead.
  *
  * Two access patterns:
  *
  *   - Polling (started in main on app ready). Every POLL_INTERVAL_MS
- *     re-checks all three and emits a status update event to renderer.
+ *     re-checks both and emits a status update event to renderer.
  *     This drives the live checkboxes in the onboarding screen.
  *
- *   - On-demand `checkNow()` — bypasses the polling cache and runs all
- *     three checks synchronously. Used by the renderer immediately
- *     before kicking off a scan, to close the race window between the
- *     last poll tick and the user click.
+ *   - On-demand `checkNow()` — bypasses the polling cache and runs
+ *     both checks synchronously. Used by the renderer immediately
+ *     before kicking off a scan, to close the race window between
+ *     the last poll tick and the user click.
  */
 
 import { app, BrowserWindow, ipcMain } from "electron";
@@ -51,9 +60,7 @@ export interface DetectorStatus {
   claudeRunning: boolean;
   /** mcpServers.toraseo present in claude_desktop_config.json. */
   mcpRegistered: boolean;
-  /** ~/.claude/skills/toraseo/SKILL.md exists. */
-  skillInstalled: boolean;
-  /** Convenience: all three are true. UI uses this to gate scanning. */
+  /** Convenience: both above are true. UI uses this to gate scanning. */
   allGreen: boolean;
   /** When this status was computed (ISO-8601, for staleness checks). */
   checkedAt: string;
@@ -208,44 +215,24 @@ async function checkMcpRegistered(): Promise<boolean> {
   return false;
 }
 
-/**
- * Path to the local skill folder. Same on all platforms — Claude uses
- * ~/.claude/skills/ as the convention for both Claude Desktop and
- * Claude Code (file-based variant).
- */
-function skillPath(): string {
-  return path.join(os.homedir(), ".claude", "skills", "toraseo", "SKILL.md");
-}
-
-async function checkSkillInstalled(): Promise<boolean> {
-  try {
-    await fs.access(skillPath(), fs.constants.R_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // =====================================================================
 // Aggregated check + lifecycle
 // =====================================================================
 
 /**
- * Run all three checks in parallel. Total wall time ≈ slowest of
- * (process scan ~100ms, file read ~5ms, file stat ~5ms) = ~100ms.
+ * Run both checks in parallel. Total wall time ≈ slowest of
+ * (process scan ~100ms, file read ~5ms) = ~100ms.
  */
 export async function checkAll(): Promise<DetectorStatus> {
-  const [claudeRunning, mcpRegistered, skillInstalled] = await Promise.all([
+  const [claudeRunning, mcpRegistered] = await Promise.all([
     checkClaudeProcess(),
     checkMcpRegistered(),
-    checkSkillInstalled(),
   ]);
 
   return {
     claudeRunning,
     mcpRegistered,
-    skillInstalled,
-    allGreen: claudeRunning && mcpRegistered && skillInstalled,
+    allGreen: claudeRunning && mcpRegistered,
     checkedAt: new Date().toISOString(),
   };
 }

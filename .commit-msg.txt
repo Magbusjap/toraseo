@@ -1,0 +1,64 @@
+:paperclip: feat(app): implement hard-dependency detector and onboarding screen
+
+App now requires three components before scanning is unlocked:
+Claude Desktop running, ToraSEO MCP registered in config, ToraSEO Skill
+installed on disk. Without all three the main UI is replaced with an
+onboarding screen with live checkboxes and a button to launch Claude
+Desktop. The transition back to normal UI is automatic — no explicit
+user click needed once all three are green.
+
+Implements Q1–Q4 from hard-dependency-pivot.md:
+- Q1 (Skill distribution): file-based ZIP in ~/.claude/skills/toraseo/.
+  Detected via fs.access on SKILL.md.
+- Q2 (Claude not running): "Open Claude Desktop" button via
+  cross-platform launcher with known-path discovery and claude://
+  URI fallback.
+- Q3 (polling interval): 5 seconds.
+- Q4 (onboarding design): three calm rows with hint text, single
+  primary action, no blame in copy.
+
+Race condition between polling tick and user click closed via
+pre-flight checkNow(): renderer invokes a synchronous IPC handler
+right before starting a scan. If anything dropped within the last
+5 seconds → toast + return to onboarding.
+
+New files:
+- electron/detector.ts — process scan via ps-list, JSON config read,
+  filesystem check; polling loop on 5s interval; checkNow() handler
+- electron/launcher.ts — Windows/macOS/Linux known paths plus
+  claude:// URI scheme fallback; spawn detached so Claude survives
+  ToraSEO closing
+- src/hooks/useDetector.ts — subscription to status pushes,
+  exposes checkNow() and openClaude() actions
+- src/components/Onboarding/OnboardingView.tsx — main screen with
+  three DependencyCheck rows and a single primary launcher button
+- src/components/Onboarding/DependencyCheck.tsx — one row, satisfied
+  state shows green check, missing state shows orange X plus action
+- src/components/Onboarding/index.ts — barrel export
+
+Modified files:
+- electron/main.ts — calls setupDetector(getMainWindow) and
+  setupLauncher() after app.whenReady()
+- electron/preload.ts — extends bridge with detector and launcher
+  namespaces; mirrors channel constants
+- src/types/ipc.ts — DetectorStatus, DetectorApi, LauncherApi,
+  OpenClaudeResult; ToraseoApi extended
+- src/App.tsx — isOnboarding gate before normal layout; pre-flight
+  check inside handleStartScan; preflight error toast
+- package.json — bump 0.0.2 → 0.0.3, add ps-list@8.1.1 dep
+
+Deferred to Phase 2-5:
+- Instructions overlay (per-row click → step-by-step setup)
+- Automatic MCP installation (NSIS installer writes config)
+- App as Skill package manager (auto-update Skill via GitHub)
+- Localization, animations, dark mode
+
+CHANGELOG entry [App 0.0.3] added with the same details.
+
+---
+
+Реализована проверка трёх hard dependencies (Claude процесс /
+MCP конфиг / Skill на диске) с polling каждые 5 сек и pre-flight
+проверкой при клике "Сканировать". OnboardingView заменяет основной
+UI пока хотя бы одна проверка не пройдена; возврат в normal mode
+автоматический без действий юзера.

@@ -155,20 +155,21 @@ export interface UpdaterApi {
 // =====================================================================
 
 /**
- * Aggregated status of the three hard dependencies.
+ * Aggregated status of the two hard dependencies.
  *
  * `allGreen` is the only field the UI needs to gate the scan button;
  * the individual booleans drive the per-row checkboxes in the
  * onboarding screen.
+ *
+ * Skill detection used to be a third dependency in v0.0.3 pre-release
+ * but was dropped — see detector.ts header comment for rationale.
  */
 export interface DetectorStatus {
   /** Claude Desktop process is currently running. */
   claudeRunning: boolean;
   /** mcpServers.toraseo present in claude_desktop_config.json. */
   mcpRegistered: boolean;
-  /** ~/.claude/skills/toraseo/SKILL.md exists. */
-  skillInstalled: boolean;
-  /** All three above are true. UI uses this to enable scanning. */
+  /** Both above are true. UI uses this to enable scanning. */
   allGreen: boolean;
   /** ISO-8601 timestamp; for staleness checks if needed. */
   checkedAt: string;

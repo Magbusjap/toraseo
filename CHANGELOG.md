@@ -50,20 +50,23 @@ AI-detection score).
 ## [App 0.0.3] — 2026-04-26
 
 Hard-dependency detector and onboarding screen. The app now requires
-three components before scanning is unlocked: Claude Desktop running,
-ToraSEO MCP registered in `claude_desktop_config.json`, and ToraSEO
-Skill installed on disk at `~/.claude/skills/toraseo/SKILL.md`.
-Without all three the main UI is replaced with an onboarding screen.
-When all three become green, the UI returns to normal automatically.
+two components before scanning is unlocked: Claude Desktop running,
+and ToraSEO MCP registered in `claude_desktop_config.json`.
+Without both the main UI is replaced with an onboarding screen.
+When both become green, the UI returns to normal automatically.
 
 ### Added — Detector
 
-- **`app/electron/detector.ts`** — three checks running in parallel:
+- **`app/electron/detector.ts`** — two checks running in parallel:
   - Claude Desktop process scan via `ps-list@8` (case-insensitive
     match on basename `claude` / `claude.exe`)
-  - `mcpServers.toraseo` lookup in `claude_desktop_config.json`
-    (platform-specific path)
-  - `fs.access` on `~/.claude/skills/toraseo/SKILL.md`
+  - `mcpServers.toraseo` lookup with **multi-path support** — four
+    known Windows config locations are checked in order, MCP is
+    considered registered if `toraseo` exists in any of them. This
+    handles users with Microsoft Store Claude Desktop (sandbox-
+    redirected to `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\`),
+    standalone installer (`%APPDATA%\Claude\`), and two legacy
+    preview-build locations.
 - **Polling** every 5 seconds (compromise between UX reactivity and
   CPU load), with an immediate first tick so the UI doesn't sit on
   default-false values for the first 5 seconds.
@@ -87,19 +90,42 @@ When all three become green, the UI returns to normal automatically.
 
 ### Added — Onboarding UI
 
-- **`OnboardingView`** — calm three-row checklist with single
-  primary action ("Открыть Claude Desktop"). MCP and Skill rows
-  show hint text but no action button — those installations are
-  manual for now (automatic MCP install is Phase 3, app-managed
-  Skill is Phase 4).
+- **`OnboardingView`** — calm two-row checklist with single
+  primary action ("Открыть Claude Desktop"). The MCP row shows
+  hint text but no action button — automatic MCP install via the
+  smart NSIS installer is Phase 3. A footer note points users to
+  Claude Desktop's own Settings → Skills → Install ZIP for the
+  Skill installation step.
 - **`DependencyCheck`** — one row component with satisfied/missing
   visual states; green check vs orange X.
-- **Sidebar overlay** during onboarding: dimmed white scrim with
-  hint "Завершите проверку справа". Sidebar still visible to
-  preserve layout consistency.
+- **Replaced sidebar during onboarding** — the full sidebar is
+  swapped for a calm "locked" panel with centered text "Завершите
+  проверку справа". An earlier translucent overlay approach
+  was abandoned because IdleSidebar text bled through.
 - **Pre-flight error toast** — when a scan click fails the
   `checkNow()` gate, a top-center toast explains the reason and
   the app routes to the onboarding view automatically.
+
+### Removed — Skill detection
+
+The pre-release plan included a third dependency check on
+`~/.claude/skills/toraseo/SKILL.md`. This was dropped after
+dogfooding revealed that Skills in Claude Desktop are **server-side**
+and bound to the user's Anthropic account, not file-based. The
+filesystem path `~/.claude/skills/` is used by Claude Code (CLI)
+only. Microsoft Store Claude Desktop maintains a runtime cache at
+`%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\
+Claude\local-agent-mode-sessions\skills-plugin\<session-uuid>\
+<skill-uuid>\skills\` — but that path uses session-scoped UUIDs,
+is recreated on every session, and isn't a stable install marker.
+
+Detecting Skill installation from disk for a Claude Desktop user is
+therefore fundamentally not possible. Honest detection of two
+components is preferred over a checkmark that lies. Skill
+installation moves to onboarding documentation: users install via
+Claude Desktop's own Settings → Skills → Install ZIP, and the app
+points them there. Phase 2 instructions overlay (slated for v0.0.4)
+will embed step-by-step screenshots and a download link.
 
 ### Modified
 
@@ -108,8 +134,9 @@ When all three become green, the UI returns to normal automatically.
 - **`app/electron/preload.ts`** — bridge surface extended with
   `detector` and `launcher` namespaces; channel constants
   mirrored from main process.
-- **`app/src/types/ipc.ts`** — `DetectorStatus`, `DetectorApi`,
-  `LauncherApi`, `OpenClaudeResult` added; `ToraseoApi` extended.
+- **`app/src/types/ipc.ts`** — `DetectorStatus` (two booleans),
+  `DetectorApi`, `LauncherApi`, `OpenClaudeResult` added; `ToraseoApi`
+  extended.
 - **`app/src/App.tsx`** — `isOnboarding` gate before the normal
   layout; pre-flight `checkNow()` inside `handleStartScan`.
 - **`app/package.json`** — bump 0.0.2 → 0.0.3; `ps-list@8.1.1`
@@ -122,17 +149,21 @@ Following slices fill out the rest:
 
 - **Phase 2** — click-through instructions overlay for each row
   ("Как установить?"), with screenshots and copy-paste paths.
-- **Phase 3** — automatic MCP installation: the NSIS installer
-  writes `mcpServers.toraseo` into `claude_desktop_config.json`
-  on first run, merging with existing entries instead of
-  overwriting.
-- **Phase 4** — app as Skill package manager. App reads version
-  from SKILL.md frontmatter, polls GitHub for the latest skill
-  release, and offers an in-app "Update Skill" action. This
-  fills the gap left by Claude Desktop having no native
-  update mechanism for file-based skills.
+  Includes Skill onboarding step pointing to Settings → Skills
+  → Install ZIP with a direct download link.
+- **Phase 3** — *smart* automatic MCP installation: the NSIS
+  installer detects whether Claude Desktop is installed from
+  Microsoft Store (via `Get-AppxPackage`) or as a standalone .exe,
+  then writes `mcpServers.toraseo` into the appropriate config
+  path. Merges with existing entries instead of overwriting.
+  Critically prevents creating orphan config files (which is what
+  our naive in-session PowerShell script did during dogfooding).
+- **Phase 4** — evaluate whether app needs to manage Skill at all,
+  given that Skill is server-side. Possibly the bridge-mode design
+  obviates app-managed Skill entirely; revisit after Phase 2.
 - **Phase 5** — polish: localization (EN/RU), transition
-  animations, dark mode.
+  animations, dark mode, DevTools diagnostics (which config files
+  were found, which one provided the toraseo entry).
 
 ---
 
@@ -321,5 +352,7 @@ These are **deliberately out of scope for v0.1.0-alpha**, not bugs:
 - **OS tested:** Windows, Linux. macOS expected to work but
   not verified
 
-[Unreleased]: https://github.com/Magbusjap/toraseo/compare/v0.1.0-alpha...HEAD
+[Unreleased]: https://github.com/Magbusjap/toraseo/compare/v0.0.3...HEAD
+[App 0.0.3]: https://github.com/Magbusjap/toraseo/compare/v0.0.2...v0.0.3
+[App 0.0.2]: https://github.com/Magbusjap/toraseo/releases/tag/v0.0.2
 [0.1.0-alpha]: https://github.com/Magbusjap/toraseo/releases/tag/v0.1.0-alpha

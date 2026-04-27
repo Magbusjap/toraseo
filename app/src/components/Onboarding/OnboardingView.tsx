@@ -8,17 +8,19 @@ interface OnboardingViewProps {
 }
 
 /**
- * Onboarding screen shown when one or more hard dependencies are
- * missing. Replaces the normal main area until all three checks
+ * Onboarding screen shown when one or both hard dependencies are
+ * missing. Replaces the normal main area until both checks
  * are satisfied (status.allGreen === true), at which point App.tsx
  * routes back to the regular ModeSelection.
  *
  * The screen is purposely calm: it doesn't blame the user for not
  * having things set up, it just shows what's missing and offers a
  * single button to fix the most actionable item (launching Claude
- * Desktop). MCP and Skill installation are explained but not
- * automated yet — that's slated for a later phase when the installer
- * mechanism is in place.
+ * Desktop). MCP installation is explained but not automated yet —
+ * that's slated for Phase 3 when the smart NSIS installer is in
+ * place. Skill installation is documentation-only (Phase 2 overlay)
+ * because Skills in Claude Desktop are server-side and can't be
+ * detected from disk — see detector.ts header for rationale.
  */
 export default function OnboardingView({
   status,
@@ -60,7 +62,7 @@ export default function OnboardingView({
           ToraSEO работает в связке с Claude Desktop
         </h1>
         <p className="mt-2 text-outline/70">
-          Для запуска нужно три компонента. Когда все три зелёные —
+          Для запуска нужно два компонента. Когда оба зелёные —
           сканирование разблокируется автоматически.
         </p>
       </header>
@@ -90,16 +92,6 @@ export default function OnboardingView({
           }
           satisfied={status.mcpRegistered}
         />
-
-        <DependencyCheck
-          label="Skill ToraSEO установлен"
-          hint={
-            status.skillInstalled
-              ? "Папка ~/.claude/skills/toraseo/ найдена"
-              : "Скачайте ZIP с GitHub Releases и распакуйте в ~/.claude/skills/toraseo/"
-          }
-          satisfied={status.skillInstalled}
-        />
       </div>
 
       {openError && (
@@ -110,6 +102,9 @@ export default function OnboardingView({
 
       <footer className="text-center text-xs text-outline/40">
         Проверка обновляется каждые 5 секунд автоматически.
+        <br />
+        Skill ToraSEO устанавливается отдельно через Claude Desktop —
+        Settings → Skills → Install ZIP. Подробнее в документации.
       </footer>
     </div>
   );
