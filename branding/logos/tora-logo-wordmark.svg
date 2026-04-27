@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 90" width="600" height="180" role="img">
+  <title>ToraSEO wordmark</title>
+  <desc>Text-only wordmark version of the ToraSEO logo (no mascot). Used inside the desktop app where a separate mascot illustration is already shown nearby.</desc>
+  <!--
+    Layout (single source of truth — keep these numbers consistent
+    when changing the wordmark; changing one without the others
+    breaks the centering).
+
+    Canvas: 300×90.
+
+    Wordmark "ToraSEO":
+      - "Tora" at x=50, weight 700, advances to ~x=132
+      - "SEO"  at x=140 (~8px hair gap), weight 600, advances to ~x=240
+      - Wordmark spans roughly x=50..240, midpoint ≈ x=145.
+
+    Tagline "SEE THE TOP. RANK THE TOP.":
+      - text-anchor="middle" at x=145 — same midpoint as the
+        wordmark above. Letter-spacing 1.5 gives total width ~250px
+        which fits comfortably inside the 300-wide canvas with ~25px
+        breathing room left and right.
+
+    Earlier iterations failed in two ways: (a) viewBox 200/220 was too
+    narrow and clipped the tagline edges; (b) anchoring the tagline at
+    canvas midpoint (140 of 280) put it visibly right of the wordmark
+    because the wordmark itself wasn't horizontally centered in the
+    canvas. The fix is to give the wordmark a left margin and use the
+    actual visual midpoint of the wordmark as the tagline anchor.
+  -->
+  <text x="50" y="48"
+        font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+        font-size="40" font-weight="700"
+        fill="#1A1A1A">Tora</text>
+  <text x="140" y="48"
+        font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+        font-size="40" font-weight="600"
+        fill="#FF6B35">SEO</text>
+  <text x="145" y="74"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+        font-size="12" fill="#666" letter-spacing="1.5">SEE THE TOP. RANK THE TOP.</text>
+</svg>
