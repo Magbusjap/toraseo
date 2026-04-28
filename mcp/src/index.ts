@@ -5,12 +5,17 @@
  * Launches as a child process under Claude Desktop, communicates over
  * stdio JSON-RPC, and exposes tools that perform SEO analysis.
  *
- * Architecture (post-Stage-4 refactor):
+ * Architecture:
  *   The actual analyzer logic lives in `@toraseo/core` — a sibling
  *   workspace shared with the desktop app. This file is now a pure
  *   transport: it imports the tool functions from core, registers them
- *   with the MCP SDK, and bridges stdio JSON-RPC to those functions.
- *   No business logic lives here.
+ *   with the MCP SDK via `bridgeWrap`, and bridges stdio JSON-RPC to
+ *   those functions.
+ *
+ *   `bridgeWrap` adds Bridge Mode behavior: each tool checks for an
+ *   active scan in the shared state-file, writes "running" + result
+ *   entries to it, and falls back to legacy chat-only mode when no
+ *   scan is active. See `bridgeWrapper.ts` for details.
  *
  * Tool grouping (per `wiki/toraseo/product-modes.md`):
  *   Mode A — Site Audit:    scan_site_minimal, check_robots_txt,
@@ -18,6 +23,10 @@
  *                            analyze_sitemap, check_redirects,
  *                            analyze_content
  *   Mode B — Content Audit: (none yet)
+ *
+ *   Plus the v0.0.7+ Bridge Mode handshake tool:
+ *     verify_skill_loaded — required first call when an active
+ *     ToraSEO scan is waiting; never called in standalone use.
  *
  * Mode A MVP is complete (7 of 7 standard checks per
  * product-modes.md). Schema.org analysis is intentionally deferred
@@ -51,6 +60,12 @@ import {
   AnalyzeContentError,
 } from "@toraseo/core";
 
+import { bridgeWrap } from "./bridgeWrapper.js";
+import {
+  verifySkillLoadedHandler,
+  verifySkillLoadedInputSchema,
+} from "./verifySkillLoaded.js";
+
 // --- Server setup ---------------------------------------------------------
 
 const server = new McpServer({
@@ -58,7 +73,41 @@ const server = new McpServer({
   version: VERSION,
 });
 
+// --- Bridge Mode handshake tool -------------------------------------------
+
+server.registerTool(
+  "verify_skill_loaded",
+  {
+    title: "Verify Skill Loaded (Bridge Mode handshake)",
+    description:
+      "Required first call when the user has an active ToraSEO scan " +
+      "waiting (i.e. they clicked 'Scan' in the desktop app). Confirms " +
+      "that SKILL.md is loaded with a compatible protocol version. The " +
+      "response includes the scan parameters (URL and selected tools) " +
+      "so Claude can proceed without those fields being explicitly in " +
+      "the prompt. " +
+      "If no scan is waiting, the call returns ok=false with " +
+      "error=no_active_scan and Claude can ignore it. " +
+      "When the user mentions ToraSEO and a URL together, ALWAYS call " +
+      "this first before any analysis tools. SKILL.md contains the " +
+      "exact token to pass.",
+    inputSchema: verifySkillLoadedInputSchema,
+  },
+  verifySkillLoadedHandler,
+);
+
 // --- Tools: Mode A (Site Audit) ------------------------------------------
+//
+// Each tool is wrapped via `bridgeWrap`, which transparently:
+//   - writes "running" → state-file when an active scan exists
+//   - calls the core function with the user's input
+//   - on success: writes complete entry with verdict + summary, returns
+//     a brief summary to Claude (or full JSON in legacy mode)
+//   - on error: writes error entry to state-file, returns formatted
+//     error string to Claude
+//
+// The wrapper handles all the try/catch + JSON formatting that used
+// to live in each handler inline. See bridgeWrapper.ts.
 
 server.registerTool(
   "scan_site_minimal",
@@ -73,35 +122,7 @@ server.registerTool(
       "Use this for a quick check of a single page.",
     inputSchema: scanSiteMinimalInputSchema,
   },
-  async ({ url }) => {
-    try {
-      const result = await scanSiteMinimal(url);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    } catch (error: unknown) {
-      const errorText =
-        error instanceof ScanSiteError
-          ? `[${error.code}] ${error.message}`
-          : `[unexpected] ${
-              error instanceof Error ? error.message : String(error)
-            }`;
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: errorText,
-          },
-        ],
-      };
-    }
-  },
+  bridgeWrap("scan_site_minimal", scanSiteMinimal, ScanSiteError),
 );
 
 server.registerTool(
@@ -116,31 +137,7 @@ server.registerTool(
       "allowed before launching one, or to inspect a site's crawler policy.",
     inputSchema: checkRobotsInputSchema,
   },
-  async ({ url }) => {
-    try {
-      const result = await checkRobots(url);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    } catch (error: unknown) {
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: `[unexpected] ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          },
-        ],
-      };
-    }
-  },
+  bridgeWrap("check_robots_txt", checkRobots, null),
 );
 
 server.registerTool(
@@ -158,35 +155,7 @@ server.registerTool(
       "Use this when the user wants a meta-tag audit of a specific page.",
     inputSchema: analyzeMetaInputSchema,
   },
-  async ({ url }) => {
-    try {
-      const result = await analyzeMeta(url);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    } catch (error: unknown) {
-      const errorText =
-        error instanceof AnalyzeMetaError
-          ? `[${error.code}] ${error.message}`
-          : `[unexpected] ${
-              error instanceof Error ? error.message : String(error)
-            }`;
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: errorText,
-          },
-        ],
-      };
-    }
-  },
+  bridgeWrap("analyze_meta", analyzeMeta, AnalyzeMetaError),
 );
 
 server.registerTool(
@@ -205,35 +174,7 @@ server.registerTool(
       "hierarchy.",
     inputSchema: analyzeHeadingsInputSchema,
   },
-  async ({ url }) => {
-    try {
-      const result = await analyzeHeadings(url);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    } catch (error: unknown) {
-      const errorText =
-        error instanceof AnalyzeHeadingsError
-          ? `[${error.code}] ${error.message}`
-          : `[unexpected] ${
-              error instanceof Error ? error.message : String(error)
-            }`;
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: errorText,
-          },
-        ],
-      };
-    }
-  },
+  bridgeWrap("analyze_headings", analyzeHeadings, AnalyzeHeadingsError),
 );
 
 server.registerTool(
@@ -255,35 +196,7 @@ server.registerTool(
       "can decide which to inspect next. Honors per-host rate limits.",
     inputSchema: analyzeSitemapInputSchema,
   },
-  async ({ url }) => {
-    try {
-      const result = await analyzeSitemap(url);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    } catch (error: unknown) {
-      const errorText =
-        error instanceof AnalyzeSitemapError
-          ? `[${error.code}] ${error.message}`
-          : `[unexpected] ${
-              error instanceof Error ? error.message : String(error)
-            }`;
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: errorText,
-          },
-        ],
-      };
-    }
-  },
+  bridgeWrap("analyze_sitemap", analyzeSitemap, AnalyzeSitemapError),
 );
 
 server.registerTool(
@@ -304,35 +217,7 @@ server.registerTool(
       "point and per-host rate limits at every step.",
     inputSchema: checkRedirectsInputSchema,
   },
-  async ({ url }) => {
-    try {
-      const result = await checkRedirects(url);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    } catch (error: unknown) {
-      const errorText =
-        error instanceof CheckRedirectsError
-          ? `[${error.code}] ${error.message}`
-          : `[unexpected] ${
-              error instanceof Error ? error.message : String(error)
-            }`;
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: errorText,
-          },
-        ],
-      };
-    }
-  },
+  bridgeWrap("check_redirects", checkRedirects, CheckRedirectsError),
 );
 
 server.registerTool(
@@ -354,35 +239,7 @@ server.registerTool(
       "all images. Honors robots.txt and per-host rate limits.",
     inputSchema: analyzeContentInputSchema,
   },
-  async ({ url }) => {
-    try {
-      const result = await analyzeContent(url);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    } catch (error: unknown) {
-      const errorText =
-        error instanceof AnalyzeContentError
-          ? `[${error.code}] ${error.message}`
-          : `[unexpected] ${
-              error instanceof Error ? error.message : String(error)
-            }`;
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: errorText,
-          },
-        ],
-      };
-    }
-  },
+  bridgeWrap("analyze_content", analyzeContent, AnalyzeContentError),
 );
 
 // --- Transport & startup --------------------------------------------------
