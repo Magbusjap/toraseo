@@ -10,9 +10,11 @@ import { OnboardingView } from "./components/Onboarding";
 import { SettingsView } from "./components/Settings";
 import { TopToolbar } from "./components/TopToolbar";
 import { UpdateNotification } from "./components/UpdateNotification";
+import { NativeLayout } from "./components/NativeLayout";
 import { DEFAULT_SELECTED_TOOLS, TOOLS, type ToolId } from "./config/tools";
 import { useScan } from "./hooks/useScan";
 import { useDetector } from "./hooks/useDetector";
+import { useNativeRuntimeFlag } from "./runtime/useNativeRuntimeFlag";
 
 import type { SupportedLocale } from "./types/ipc";
 
@@ -79,6 +81,12 @@ export default function App() {
     confirmSkillInstalled,
     clearSkillConfirmation,
   } = useDetector();
+
+  // Native Runtime feature flag (Stage 1). When ON, the right-most
+  // branch in this component renders the new 3-column layout
+  // instead of the legacy main-area. Default OFF — existing flow
+  // is untouched until the user opts in.
+  const { enabled: nativeRuntimeEnabled } = useNativeRuntimeFlag();
 
   // Hard dependencies gate. Until allGreen, the onboarding screen
   // takes over. Settings is exempt: the user can reach Settings from
@@ -229,6 +237,42 @@ export default function App() {
           </main>
         </div>
 
+        <UpdateNotification />
+      </div>
+    );
+  }
+
+  // ===================================================================
+  // Native Runtime mode (Stage 1) — three-column layout, opt-in
+  // via TORASEO_NATIVE_RUNTIME=1. Reuses the existing sidebar so
+  // the user keeps URL/tools selection while we swap the right
+  // side to chat + analysis panels.
+  // ===================================================================
+  if (nativeRuntimeEnabled) {
+    const sidebar =
+      mode === "idle" ? (
+        <IdleSidebar />
+      ) : (
+        <ActiveSidebar
+          url={url}
+          onUrlChange={setUrl}
+          selectedTools={selectedTools}
+          onToggleTool={handleToggleTool}
+          scanState={scanState}
+          onReturnHome={handleReturnHome}
+          onStartScan={handleStartScan}
+        />
+      );
+
+    return (
+      <div className="flex h-full flex-col bg-orange-50/30">
+        <TopToolbar onOpenSettings={handleOpenSettings} />
+        <NativeLayout sidebar={sidebar} locale={currentLocale} />
+        {preflightError && (
+          <div className="fixed left-1/2 top-16 z-50 -translate-x-1/2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg">
+            {preflightError}
+          </div>
+        )}
         <UpdateNotification />
       </div>
     );

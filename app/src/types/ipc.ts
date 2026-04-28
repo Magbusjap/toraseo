@@ -549,4 +549,14 @@ export interface ToraseoApi {
 
   /** Bridge Mode (v0.0.7+) scan orchestration. See BridgeApi. */
   bridge: BridgeApi;
+
+  /**
+   * Native Runtime (v0.0.7 redesign) — orchestrator + providers
+   * + policy. See `src/types/runtime.ts` for the contract.
+   *
+   * Always present, but disabled by default (feature flag).
+   * Renderer must call `runtime.isEnabled()` before exposing
+   * the new layout.
+   */
+  runtime: import("./runtime").RuntimeApi;
 }

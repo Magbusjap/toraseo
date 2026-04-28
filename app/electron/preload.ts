@@ -35,6 +35,11 @@ import type {
   ToraseoApi,
   UpdateInfo,
 } from "../src/types/ipc";
+import type {
+  OrchestratorMessageInput,
+  OrchestratorMessageResult,
+  ProviderInfo,
+} from "../src/types/runtime";
 
 // Mirror of IPC_CHANNELS from electron/tools.ts. Kept in sync manually;
 // if you add a channel there, add it here too.
@@ -88,6 +93,13 @@ const BRIDGE = {
   retryHandshake: "toraseo:bridge:retry-handshake",
   getState: "toraseo:bridge:get-state",
   stateUpdate: "toraseo:bridge:state-update",
+} as const;
+
+// Mirror of RUNTIME_CHANNELS from electron/runtime/index.ts.
+const RUNTIME = {
+  isEnabled: "toraseo:runtime:is-enabled",
+  listProviders: "toraseo:runtime:list-providers",
+  sendMessage: "toraseo:runtime:send-message",
 } as const;
 
 const api: ToraseoApi = {
@@ -274,6 +286,25 @@ const api: ToraseoApi = {
         ok: boolean;
         error?: string;
       }>;
+    },
+  },
+
+  runtime: {
+    isEnabled: () => {
+      return ipcRenderer.invoke(RUNTIME.isEnabled) as Promise<boolean>;
+    },
+
+    listProviders: () => {
+      return ipcRenderer.invoke(RUNTIME.listProviders) as Promise<
+        ProviderInfo[]
+      >;
+    },
+
+    sendMessage: (input: OrchestratorMessageInput) => {
+      return ipcRenderer.invoke(
+        RUNTIME.sendMessage,
+        input,
+      ) as Promise<OrchestratorMessageResult>;
     },
   },
 };

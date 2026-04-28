@@ -13,12 +13,26 @@
  * fields being in the user's prompt — the prompt only references
  * the scan abstractly.
  *
- * On failure, it writes the error to the state-file (so the App
- * knows what went wrong) and returns a structured error to Claude.
+ * On failure, it returns a structured error to Claude. The error
+ * includes a reason code so Claude can give the user a useful
+ * actionable message:
+ *
+ *   - app_not_running        — App process isn't alive (no alive-file
+ *                              or stale PID). Tell user to start app.
+ *   - app_running_no_scan    — App is alive but the user hasn't
+ *                              clicked Scan yet. Offer choice: scan
+ *                              in chat (Mode A fallback) or wait for
+ *                              the user to click Scan.
+ *   - wrong_state            — State-file exists but isn't in
+ *                              awaiting_handshake (e.g. previous
+ *                              scan still in_progress or terminal).
+ *   - token_mismatch         — Skill version is out of sync with MCP.
+ *                              Tell user to update the Skill.
  */
 
 import { z } from "zod";
-import { applyHandshake } from "./stateFile.js";
+import { applyHandshake, readState } from "./stateFile.js";
+import { probeAppAlive } from "./aliveFile.js";
 import { BRIDGE_PROTOCOL_TOKEN } from "./constants.js";
 
 /**
@@ -38,6 +52,13 @@ export const verifySkillLoadedInputSchema = {
  * MCP handler. Takes the token, applies handshake against the
  * state-file, returns success info or a structured error to Claude.
  *
+ * Order of checks:
+ *   1. Try the handshake (against current-scan.json).
+ *   2. If that returns "no_scan", probe the alive-file to refine
+ *      the diagnosis: app_not_running vs app_running_no_scan.
+ *   3. If "mismatch", surface token_mismatch.
+ *   4. If "verified", return scan parameters.
+ *
  * The shape of the success response is intentionally rich (scanId,
  * url, selectedTools) so Claude doesn't need any other context to
  * proceed with the scan. The error response includes a reason
@@ -51,8 +72,74 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
 
   if (result === "no_scan") {
     // Either no state-file at all, or it's not in awaiting_handshake.
-    // Most common cause: user mentioned ToraSEO but didn't actually
-    // click Scan in the app, or app isn't running.
+    // Probe the alive-file to figure out which sub-case applies.
+    const alive = await probeAppAlive();
+
+    if (alive.kind === "not_running") {
+      // App is not running at all.
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                ok: false,
+                error: "app_not_running",
+                reason: alive.reason,
+                message:
+                  "The ToraSEO Desktop App is not running. " +
+                  "Tell the user: please start the ToraSEO app, " +
+                  "then continue. If they want a regular SEO audit " +
+                  "without the app, you can offer that as an " +
+                  "alternative — but ask them first; do not silently " +
+                  "fall back.",
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    }
+
+    // App is running. State-file may be missing entirely (no scan
+    // started) or present-but-not-awaiting (previous scan in
+    // terminal state).
+    const stateNow = await readState();
+    if (stateNow === null) {
+      // App alive, no scan started.
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                ok: false,
+                error: "app_running_no_scan",
+                appPid: alive.pid,
+                appVersion: alive.version,
+                message:
+                  "The ToraSEO Desktop App is running, but the user " +
+                  "hasn't clicked the Scan button yet. " +
+                  "Use ask_user_input_v0 to give them two choices: " +
+                  "(a) 'I want results in chat' — fall back to a " +
+                  "regular Mode A audit using the URL they mentioned. " +
+                  "(b) 'I'll click Scan in the app' — pause and wait " +
+                  "for the user's confirmation that they clicked it; " +
+                  "do nothing until they message again. Do NOT start " +
+                  "any tool calls without explicit user choice.",
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    }
+
+    // App alive, state file exists but not in awaiting_handshake.
     return {
       isError: true,
       content: [
@@ -61,11 +148,14 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
           text: JSON.stringify(
             {
               ok: false,
-              error: "no_active_scan",
+              error: "wrong_state",
+              state: stateNow.status,
               message:
-                "No scan is currently waiting. The user may not have " +
-                "the ToraSEO app open, or hasn't clicked Scan yet. Ask " +
-                "them to start a scan in the app first.",
+                "The app already has a scan in another state " +
+                `(${stateNow.status}). Tell the user to cancel ` +
+                "or finish the existing scan in the app, then click " +
+                "Scan again with the URL they want, and resend the " +
+                "prompt.",
             },
             null,
             2,
@@ -90,8 +180,10 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               message:
                 "The Skill protocol token does not match. The user has " +
                 "an outdated SKILL.md file. They need to update the " +
-                "ToraSEO Skill — see the app's onboarding screen for " +
-                "instructions, or use the 'Reinstall Skill' button.",
+                "ToraSEO Skill: download the latest skill ZIP from " +
+                "GitHub Releases, then in Claude Desktop go to " +
+                "Settings → Skills, delete the existing toraseo skill, " +
+                "and install the new ZIP.",
             },
             null,
             2,

@@ -62,6 +62,14 @@ import type {
  * by code review during coordinated releases). Future improvement:
  * generate this at build time from a shared root constant so the
  * two can never diverge silently.
+ *
+ * SECURITY NOTE: this token is used here ONLY to populate the
+ * state-file's `handshake.expectedToken` field, which MCP reads
+ * to validate calls to verify_skill_loaded. The token is NEVER
+ * passed to the prompt builder — see promptBuilder.ts for the
+ * full reasoning. Without this discipline, the Skill becomes
+ * optional and Bridge Mode can be triggered by any model with
+ * MCP access, defeating the architectural contract.
  */
 export const BRIDGE_PROTOCOL_TOKEN = "bridge-v1-2026-04-27";
 
@@ -107,8 +115,8 @@ function clearAllTimers(): void {
  *      removed, timers cleared) — caller is expected to have
  *      confirmed this with the user.
  *   2. Create a fresh scan-state with status=awaiting_handshake.
- *   3. Build a localized prompt referencing the protocol token,
- *      copy it to the clipboard.
+ *   3. Build a localized prompt (no token; the token lives only
+ *      in SKILL.md — see promptBuilder.ts), copy to clipboard.
  *   4. Start the handshake timeout.
  *   5. Return scanId + prompt to the renderer.
  */
@@ -149,7 +157,7 @@ export async function startScan(
   await writeState(state);
 
   const locale = await getCurrentLocale();
-  const prompt = buildScanPrompt(url, toolIds, BRIDGE_PROTOCOL_TOKEN, locale);
+  const prompt = buildScanPrompt(url, toolIds, locale);
 
   // Copy to clipboard. clipboard.writeText is sync and trivially
   // fast — no need to await anything.
@@ -251,12 +259,7 @@ export async function retryHandshake(): Promise<{
 
   // Re-copy prompt.
   const locale = await getCurrentLocale();
-  const prompt = buildScanPrompt(
-    reset.url,
-    reset.selectedTools,
-    BRIDGE_PROTOCOL_TOKEN,
-    locale,
-  );
+  const prompt = buildScanPrompt(reset.url, reset.selectedTools, locale);
   clipboard.writeText(prompt);
 
   // Restart timers (clear any old, set fresh).

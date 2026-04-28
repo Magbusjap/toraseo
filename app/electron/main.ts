@@ -8,6 +8,12 @@ import { setupDetector } from "./detector.js";
 import { setupLauncher } from "./launcher.js";
 import { setupLocale } from "./locale.js";
 import { setupBridge } from "./bridge/index.js";
+import {
+  detectExistingInstance,
+  setupAliveFile,
+  teardownAliveFile,
+} from "./bridge/aliveFile.js";
+import { setupRuntime } from "./runtime/index.js";
 import type { StartScanArgs } from "../src/types/ipc";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -144,7 +150,36 @@ function registerIpcHandlers(): void {
   );
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Stale-lock detection. If a previous app instance crashed and
+  // left the alive-file behind, we may need to either ignore it
+  // (PID dead) or surface an error (another copy of the app is
+  // already running).
+  //
+  // For v0.0.7 we don't enforce single-instance: detectExistingInstance
+  // is informational only. If kind === "alive", we log a warning and
+  // continue — the second instance will just overwrite the alive-file
+  // on its first heartbeat. A future release can call app.quit() here
+  // for hard single-instance enforcement (issue tracking pending).
+  const existing = await detectExistingInstance();
+  if (existing.kind === "alive") {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[startup] another ToraSEO instance appears to be running (pid=${existing.pid}); continuing anyway`,
+    );
+  } else if (existing.kind === "stale") {
+    // eslint-disable-next-line no-console
+    console.info(
+      `[startup] removing stale alive-file from previous instance (pid=${existing.pid})`,
+    );
+  }
+
+  // Initialize the alive-file so MCP can detect that the App is
+  // running. This must happen BEFORE setupBridge() so by the time
+  // a user could click Scan, the alive-file already reflects this
+  // instance's PID.
+  await setupAliveFile();
+
   registerIpcHandlers();
   createWindow();
 
@@ -177,6 +212,12 @@ app.whenReady().then(() => {
   // See electron/bridge/index.ts for IPC channels and lifecycle.
   setupBridge(() => mainWindow);
 
+  // Native Runtime (v0.0.7 redesign, Stage 1): registers IPC
+  // handlers for the in-app SKILL runtime, provider adapters,
+  // and orchestrator. Disabled by default via feature flag —
+  // turn on with TORASEO_NATIVE_RUNTIME=1. See electron/runtime/.
+  setupRuntime();
+
   app.on("activate", () => {
     // macOS: re-create the window when the dock icon is clicked
     // and all windows are closed.
@@ -184,6 +225,34 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+/**
+ * Graceful shutdown: remove the alive-file so MCP sees the App
+ * as "not running" on its next probe.
+ *
+ * before-quit fires before windows close, while we still have a
+ * chance to do async work. We pause quit (event.preventDefault),
+ * tear down the alive-file, then call app.quit() again — which
+ * skips the handler the second time because we set a flag.
+ *
+ * If something goes wrong with the async cleanup (file locked,
+ * disk error), we still proceed with quit — the worst case is a
+ * stale alive-file, and MCP's PID-check handles that.
+ */
+let teardownStarted = false;
+app.on("before-quit", (event) => {
+  if (teardownStarted) return;
+  teardownStarted = true;
+  event.preventDefault();
+  void (async () => {
+    try {
+      await teardownAliveFile();
+    } catch {
+      // ignore; we still need to quit
+    }
+    app.quit();
+  })();
 });
 
 app.on("window-all-closed", () => {
