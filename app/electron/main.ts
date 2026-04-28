@@ -7,6 +7,7 @@ import { setupAutoUpdater } from "./updater.js";
 import { setupDetector } from "./detector.js";
 import { setupLauncher } from "./launcher.js";
 import { setupLocale } from "./locale.js";
+import { setupBridge } from "./bridge/index.js";
 import type { StartScanArgs } from "../src/types/ipc";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -169,6 +170,12 @@ app.whenReady().then(() => {
   // See electron/locale.ts for the storage format and supported
   // values.
   setupLocale();
+
+  // Bridge Mode (v0.0.7+): orchestrates scan lifecycle through a
+  // shared state-file with the MCP server. App writes the request,
+  // MCP writes results as Claude calls tools, App polls and renders.
+  // See electron/bridge/index.ts for IPC channels and lifecycle.
+  setupBridge(() => mainWindow);
 
   app.on("activate", () => {
     // macOS: re-create the window when the dock icon is clicked

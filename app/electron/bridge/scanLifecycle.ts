@@ -1,0 +1,456 @@
+/**
+ * Bridge Mode scan lifecycle — orchestrates state-file transitions
+ * and timeouts.
+ *
+ * Each scan owns a small set of timers:
+ *
+ *   - HANDSHAKE_TIMEOUT_MS  — verify_skill_loaded must be called
+ *                             within this window after creation,
+ *                             else status flips to error
+ *                             (handshake_timeout)
+ *   - FIRST_TOOL_TIMEOUT_MS — after handshake_verified, at least
+ *                             one tool must start within this
+ *                             window, else error (no_tool_response)
+ *   - GLOBAL_TIMEOUT_MS     — total scan duration cap; remaining
+ *                             tools marked skipped_timeout
+ *   - COMPLETION_GRACE_MS   — after status flips to complete /
+ *                             cancelled / error, wait this long
+ *                             before removing the file (so App's
+ *                             last poll cycle can render the final
+ *                             state)
+ *
+ * This module is the single source of truth for transitions. The
+ * stateFile module is dumb storage; the IPC layer just exposes
+ * commands. All decisions about "is this transition valid?" /
+ * "should I clear timer X?" / etc. live here.
+ *
+ * Concurrency: only one active scan at a time. Starting a new scan
+ * while another is in flight clears the existing one (App should
+ * confirm this with the user before calling).
+ */
+
+import { randomUUID } from "node:crypto";
+import { clipboard } from "electron";
+import log from "electron-log";
+
+import {
+  readState,
+  writeState,
+  removeState,
+  STATE_FILE_SCHEMA_VERSION,
+} from "./stateFile.js";
+import { buildScanPrompt } from "./promptBuilder.js";
+import { getCurrentLocale } from "../locale.js";
+
+import type {
+  CurrentScanState,
+  ToolId,
+  StartBridgeScanResult,
+} from "../../src/types/ipc.js";
+
+/**
+ * The Bridge Mode protocol token. Both App and MCP must agree on
+ * this value; mismatch is the failure path. Format: bridge-vN-DATE.
+ *
+ * Bumped when the protocol changes in a backwards-incompatible
+ * way (renamed fields, new mandatory steps, schema bump). Date is
+ * informational. Released coordinately with skill-v0.x.x and a
+ * matching MCP version.
+ *
+ * Currently exported from a single constant in App; the MCP server
+ * imports the same value from its own constants.ts (kept in sync
+ * by code review during coordinated releases). Future improvement:
+ * generate this at build time from a shared root constant so the
+ * two can never diverge silently.
+ */
+export const BRIDGE_PROTOCOL_TOKEN = "bridge-v1-2026-04-27";
+
+/** Timer durations in milliseconds. */
+const HANDSHAKE_TIMEOUT_MS = 10_000;
+const FIRST_TOOL_TIMEOUT_MS = 30_000;
+const GLOBAL_TIMEOUT_MS = 5 * 60_000;
+const COMPLETION_GRACE_MS = 5_000;
+
+/**
+ * Active timer set for the current scan. Stored at module scope
+ * because there's only ever one active scan; multiple would be a
+ * design error (state-file is singleton).
+ */
+interface ScanTimers {
+  scanId: string;
+  handshakeTimer: NodeJS.Timeout | null;
+  firstToolTimer: NodeJS.Timeout | null;
+  globalTimer: NodeJS.Timeout | null;
+  cleanupTimer: NodeJS.Timeout | null;
+}
+
+let activeTimers: ScanTimers | null = null;
+
+/**
+ * Clear all timers for the active scan and forget the entry.
+ * Safe to call when there's no active scan (idempotent).
+ */
+function clearAllTimers(): void {
+  if (!activeTimers) return;
+  if (activeTimers.handshakeTimer) clearTimeout(activeTimers.handshakeTimer);
+  if (activeTimers.firstToolTimer) clearTimeout(activeTimers.firstToolTimer);
+  if (activeTimers.globalTimer) clearTimeout(activeTimers.globalTimer);
+  if (activeTimers.cleanupTimer) clearTimeout(activeTimers.cleanupTimer);
+  activeTimers = null;
+}
+
+/**
+ * Start a new Bridge Mode scan.
+ *
+ * Steps:
+ *   1. If a previous scan is in flight, cancel it (state-file
+ *      removed, timers cleared) — caller is expected to have
+ *      confirmed this with the user.
+ *   2. Create a fresh scan-state with status=awaiting_handshake.
+ *   3. Build a localized prompt referencing the protocol token,
+ *      copy it to the clipboard.
+ *   4. Start the handshake timeout.
+ *   5. Return scanId + prompt to the renderer.
+ */
+export async function startScan(
+  url: string,
+  toolIds: ToolId[],
+): Promise<StartBridgeScanResult> {
+  // Cancel any prior scan (caller should have asked the user).
+  if (activeTimers) {
+    log.info(
+      `[bridge:lifecycle] new scan requested while ${activeTimers.scanId} active — cancelling previous`,
+    );
+    clearAllTimers();
+    await removeState();
+  }
+
+  const scanId = randomUUID();
+  const now = new Date().toISOString();
+
+  const state: CurrentScanState = {
+    schemaVersion: STATE_FILE_SCHEMA_VERSION,
+    scanId,
+    status: "awaiting_handshake",
+    url,
+    createdAt: now,
+    finishedAt: null,
+    selectedTools: toolIds,
+    handshake: {
+      expectedToken: BRIDGE_PROTOCOL_TOKEN,
+      receivedToken: null,
+      status: "pending",
+      verifiedAt: null,
+    },
+    buffer: {},
+    error: null,
+  };
+
+  await writeState(state);
+
+  const locale = await getCurrentLocale();
+  const prompt = buildScanPrompt(url, toolIds, BRIDGE_PROTOCOL_TOKEN, locale);
+
+  // Copy to clipboard. clipboard.writeText is sync and trivially
+  // fast — no need to await anything.
+  clipboard.writeText(prompt);
+
+  // Set up timers.
+  const handshakeTimer = setTimeout(() => {
+    void onHandshakeTimeout(scanId);
+  }, HANDSHAKE_TIMEOUT_MS);
+
+  const globalTimer = setTimeout(() => {
+    void onGlobalTimeout(scanId);
+  }, GLOBAL_TIMEOUT_MS);
+
+  activeTimers = {
+    scanId,
+    handshakeTimer,
+    firstToolTimer: null,
+    globalTimer,
+    cleanupTimer: null,
+  };
+
+  log.info(
+    `[bridge:lifecycle] scan ${scanId} started -- url=${url}, tools=${toolIds.length}, locale=${locale}`,
+  );
+
+  return {
+    scanId,
+    prompt,
+    expectedToken: BRIDGE_PROTOCOL_TOKEN,
+  };
+}
+
+/**
+ * Cancel the active scan. Used when:
+ *   - User clicks Cancel in the sidebar
+ *   - User starts a new scan (covered by startScan internal cancel)
+ *   - App is quitting
+ *
+ * Removes the state-file and clears timers. The MCP server, if
+ * mid-call, will see no_active_scan on its next state-file read
+ * and bail out gracefully.
+ *
+ * Idempotent — calling cancel when nothing is active is a no-op.
+ */
+export async function cancelScan(): Promise<{ ok: boolean }> {
+  if (!activeTimers) {
+    log.debug("[bridge:lifecycle] cancel called but no active scan");
+    return { ok: true };
+  }
+
+  log.info(`[bridge:lifecycle] cancelling scan ${activeTimers.scanId}`);
+  clearAllTimers();
+  await removeState();
+  return { ok: true };
+}
+
+/**
+ * Re-arm the handshake after a timeout / mismatch. Reuses the
+ * same scanId and selectedTools; resets handshake to pending,
+ * status back to awaiting_handshake, clears any partial buffer
+ * (a fresh attempt is a clean slate), restarts the handshake
+ * timer, re-copies the prompt to clipboard.
+ *
+ * If there's no error state to retry from, returns
+ * {ok: false, error: "..."}.
+ */
+export async function retryHandshake(): Promise<{
+  ok: boolean;
+  error?: string;
+}> {
+  const current = await readState();
+  if (!current) {
+    return { ok: false, error: "no_active_scan" };
+  }
+  if (current.status !== "error") {
+    return {
+      ok: false,
+      error: `cannot_retry_in_state_${current.status}`,
+    };
+  }
+
+  // Reset state.
+  const reset: CurrentScanState = {
+    ...current,
+    status: "awaiting_handshake",
+    handshake: {
+      expectedToken: BRIDGE_PROTOCOL_TOKEN,
+      receivedToken: null,
+      status: "pending",
+      verifiedAt: null,
+    },
+    buffer: {},
+    error: null,
+    finishedAt: null,
+  };
+
+  await writeState(reset);
+
+  // Re-copy prompt.
+  const locale = await getCurrentLocale();
+  const prompt = buildScanPrompt(
+    reset.url,
+    reset.selectedTools,
+    BRIDGE_PROTOCOL_TOKEN,
+    locale,
+  );
+  clipboard.writeText(prompt);
+
+  // Restart timers (clear any old, set fresh).
+  clearAllTimers();
+  const handshakeTimer = setTimeout(() => {
+    void onHandshakeTimeout(reset.scanId);
+  }, HANDSHAKE_TIMEOUT_MS);
+  const globalTimer = setTimeout(() => {
+    void onGlobalTimeout(reset.scanId);
+  }, GLOBAL_TIMEOUT_MS);
+  activeTimers = {
+    scanId: reset.scanId,
+    handshakeTimer,
+    firstToolTimer: null,
+    globalTimer,
+    cleanupTimer: null,
+  };
+
+  log.info(`[bridge:lifecycle] scan ${reset.scanId} handshake retried`);
+  return { ok: true };
+}
+
+/**
+ * Read the current scan state. Used by IPC handler for an
+ * imperative read (separate from polling). Returns null if no
+ * scan is active.
+ */
+export async function getCurrentState(): Promise<CurrentScanState | null> {
+  return readState();
+}
+
+// =====================================================================
+// Internal — timer callbacks
+// =====================================================================
+
+/**
+ * Called when HANDSHAKE_TIMEOUT_MS elapses without a successful
+ * verify_skill_loaded. If the scanId in activeTimers no longer
+ * matches (a different scan started, or one was cancelled), bail.
+ */
+async function onHandshakeTimeout(scanId: string): Promise<void> {
+  if (!activeTimers || activeTimers.scanId !== scanId) {
+    log.debug(
+      `[bridge:lifecycle] handshake timer fired for stale scan ${scanId}`,
+    );
+    return;
+  }
+
+  const state = await readState();
+  if (!state || state.scanId !== scanId) return;
+
+  // If handshake already verified, nothing to do — timer will be
+  // cleared by the handshake-verified path (which is in MCP, not
+  // here, but the state read confirms).
+  if (state.status !== "awaiting_handshake") return;
+
+  log.warn(`[bridge:lifecycle] scan ${scanId} handshake timed out`);
+
+  await writeState({
+    ...state,
+    status: "error",
+    finishedAt: new Date().toISOString(),
+    handshake: { ...state.handshake, status: "timeout" },
+    error: {
+      code: "handshake_timeout",
+      message:
+        "Claude did not call verify_skill_loaded within 10 seconds. Check that Claude Desktop is running, MCP is connected, and ToraSEO Skill is loaded.",
+    },
+  });
+
+  // Don't clear timers here — the cleanup grace timer below.
+  scheduleCleanup(scanId);
+}
+
+/**
+ * Called when FIRST_TOOL_TIMEOUT_MS elapses after handshake
+ * verified, without any tool entry appearing in buffer. (This
+ * timer is set when the App observes the handshake_verified
+ * transition — see scheduleFirstToolTimer.)
+ */
+async function onFirstToolTimeout(scanId: string): Promise<void> {
+  if (!activeTimers || activeTimers.scanId !== scanId) return;
+
+  const state = await readState();
+  if (!state || state.scanId !== scanId) return;
+
+  if (state.status !== "in_progress") return;
+  if (Object.keys(state.buffer).length > 0) return; // tools already started
+
+  log.warn(`[bridge:lifecycle] scan ${scanId} no tool response`);
+
+  await writeState({
+    ...state,
+    status: "error",
+    finishedAt: new Date().toISOString(),
+    error: {
+      code: "no_tool_response",
+      message:
+        "Handshake succeeded but no tools started within 30 seconds. Claude may not have understood the request.",
+    },
+  });
+
+  scheduleCleanup(scanId);
+}
+
+/**
+ * Called when GLOBAL_TIMEOUT_MS elapses. Marks remaining tools
+ * as skipped_timeout, transitions to complete (with errors).
+ */
+async function onGlobalTimeout(scanId: string): Promise<void> {
+  if (!activeTimers || activeTimers.scanId !== scanId) return;
+
+  const state = await readState();
+  if (!state || state.scanId !== scanId) return;
+
+  // If already terminal, nothing to do.
+  if (
+    state.status === "complete" ||
+    state.status === "cancelled" ||
+    state.status === "error"
+  ) {
+    return;
+  }
+
+  log.warn(`[bridge:lifecycle] scan ${scanId} global timeout`);
+
+  // Mark remaining tools as skipped.
+  const finishedAt = new Date().toISOString();
+  const buffer = { ...state.buffer };
+  for (const toolId of state.selectedTools) {
+    if (!buffer[toolId]) {
+      buffer[toolId] = {
+        status: "error",
+        startedAt: finishedAt,
+        completedAt: finishedAt,
+        errorCode: "skipped_timeout",
+        errorMessage: "Tool was not called before global timeout (5min).",
+      };
+    } else if (buffer[toolId]!.status === "running") {
+      buffer[toolId] = {
+        ...buffer[toolId]!,
+        status: "error",
+        completedAt: finishedAt,
+        errorCode: "skipped_timeout",
+        errorMessage: "Tool was running when global timeout fired.",
+      };
+    }
+  }
+
+  await writeState({
+    ...state,
+    status: "complete",
+    finishedAt,
+    buffer,
+  });
+
+  scheduleCleanup(scanId);
+}
+
+/**
+ * Schedule the state-file cleanup. Runs COMPLETION_GRACE_MS after
+ * a terminal status (complete / cancelled / error) so the App can
+ * render the final state, then unlink the file.
+ *
+ * Idempotent — multiple terminal events for the same scan only
+ * schedule one cleanup (subsequent calls find the cleanupTimer
+ * already set).
+ */
+function scheduleCleanup(scanId: string): void {
+  if (!activeTimers || activeTimers.scanId !== scanId) return;
+  if (activeTimers.cleanupTimer) return;
+
+  // Stop in-flight timers immediately — only the cleanup is left.
+  if (activeTimers.handshakeTimer) {
+    clearTimeout(activeTimers.handshakeTimer);
+    activeTimers.handshakeTimer = null;
+  }
+  if (activeTimers.firstToolTimer) {
+    clearTimeout(activeTimers.firstToolTimer);
+    activeTimers.firstToolTimer = null;
+  }
+  if (activeTimers.globalTimer) {
+    clearTimeout(activeTimers.globalTimer);
+    activeTimers.globalTimer = null;
+  }
+
+  activeTimers.cleanupTimer = setTimeout(() => {
+    void (async () => {
+      const state = await readState();
+      if (state && state.scanId === scanId) {
+        log.info(`[bridge:lifecycle] cleaning up scan ${scanId}`);
+        await removeState();
+      }
+      clearAllTimers();
+    })();
+  }, COMPLETION_GRACE_MS);
+}

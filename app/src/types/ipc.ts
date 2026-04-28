@@ -320,6 +320,189 @@ export interface LocaleApi {
 }
 
 // =====================================================================
+// Bridge Mode — v0.0.7+
+// =====================================================================
+
+/**
+ * Lifecycle stage of an active Bridge Mode scan.
+ *
+ * Transitions:
+ *   awaiting_handshake → in_progress (verify_skill_loaded ok)
+ *   awaiting_handshake → error      (verify_skill_loaded mismatch / timeout)
+ *   in_progress        → complete   (all selected tools finished)
+ *   in_progress        → error      (no_tool_response / global timeout)
+ *   any                → cancelled  (user cancelled)
+ */
+export type BridgeScanStatus =
+  | "awaiting_handshake"
+  | "in_progress"
+  | "complete"
+  | "cancelled"
+  | "error";
+
+/**
+ * Status of the Skill protocol handshake.
+ *
+ * "pending"  — file created, waiting for verify_skill_loaded()
+ * "verified" — token matched, scan can proceed
+ * "mismatch" — token didn't match (Skill outdated)
+ * "timeout"  — no verify_skill_loaded call within HANDSHAKE_TIMEOUT_MS
+ */
+export type HandshakeStatus =
+  | "pending"
+  | "verified"
+  | "mismatch"
+  | "timeout";
+
+/**
+ * Per-tool entry in the scan buffer. Tools NOT in the buffer
+ * map are still pending — Claude hasn't called them yet.
+ *
+ * - status "running":   MCP tool started, hasn't finished
+ * - status "complete":  data + verdict + summary populated
+ * - status "error":     errorCode + errorMessage populated
+ */
+export interface ToolBufferEntry {
+  status: "running" | "complete" | "error";
+  startedAt: string;
+  completedAt: string | null;
+  /** Severity verdict (only when status="complete"). */
+  verdict?: "ok" | "warning" | "critical";
+  /** Raw tool output (only when status="complete"). Schema differs per tool. */
+  data?: unknown;
+  /** Issue counts (only when status="complete"). */
+  summary?: {
+    critical: number;
+    warning: number;
+    info: number;
+  };
+  /** Set when status="error". */
+  errorCode?: string;
+  /** Set when status="error". */
+  errorMessage?: string;
+}
+
+/**
+ * Skill handshake details inside CurrentScanState.
+ *
+ * `expectedToken` is the protocol token the App+MCP both reference
+ * (constant compiled into MCP, exposed via IPC for the App to
+ * cross-check). `receivedToken` is what the MCP got from Claude
+ * via verify_skill_loaded() — null until that call lands.
+ */
+export interface BridgeHandshake {
+  expectedToken: string;
+  receivedToken: string | null;
+  status: HandshakeStatus;
+  verifiedAt: string | null;
+}
+
+/**
+ * Top-level error that aborted the scan, distinct from per-tool
+ * errors which live in `buffer[toolId].errorCode/errorMessage`.
+ *
+ * Codes used in v0.0.7:
+ *   handshake_timeout      — verify_skill_loaded never called within 10s
+ *   handshake_mismatch     — token didn't match (Skill outdated)
+ *   no_tool_response       — handshake passed but no tool started in 30s
+ *   global_timeout         — 5min total elapsed, abort remaining tools
+ */
+export interface BridgeScanError {
+  code: string;
+  message: string;
+}
+
+/**
+ * Full state-file content. App reads this via polling, MCP writes
+ * to it as Claude calls tools.
+ *
+ * Lives at: path.join(app.getPath("userData"), "current-scan.json")
+ *
+ * Single active scan in flight at a time. Starting a new scan
+ * overwrites the previous file (after cancel confirmation in UI).
+ *
+ * Schema versioning: bump `schemaVersion` on breaking changes.
+ * MCP and App both check the version on read — mismatch is fatal
+ * (signals coordinated-release went wrong).
+ */
+export interface CurrentScanState {
+  schemaVersion: 1;
+  scanId: string;
+  status: BridgeScanStatus;
+  url: string;
+  createdAt: string;
+  finishedAt: string | null;
+  selectedTools: ToolId[];
+  handshake: BridgeHandshake;
+  buffer: Partial<Record<ToolId, ToolBufferEntry>>;
+  error: BridgeScanError | null;
+}
+
+/**
+ * Result of `bridge.startScan(...)`. Renderer needs the prompt
+ * (already copied to clipboard but returned for fallback) and
+ * the scanId for diagnostic display.
+ */
+export interface StartBridgeScanResult {
+  scanId: string;
+  prompt: string;
+  expectedToken: string;
+}
+
+/**
+ * Bridge Mode surface inside `window.toraseo.bridge`.
+ *
+ * v0.0.7 introduces this as the new way to run scans. The legacy
+ * top-level `startScan()` / `onStageUpdate()` / `onScanComplete()`
+ * stay in place during v0.0.7 development for fallback testing
+ * but are removed in the final v0.0.7 commit (Commit 4) once UI
+ * is fully migrated to useBridgeScan.
+ *
+ * Lifecycle:
+ *   1. UI calls bridge.startScan(url, toolIds)
+ *   2. Main process creates current-scan.json with status=
+ *      awaiting_handshake, copies the localized prompt to
+ *      clipboard, starts the handshake timeout timer
+ *   3. Main process emits state changes via onStateUpdate as
+ *      MCP tools write to the file (polled at ~500ms)
+ *   4. UI calls cancelScan() at any time to abort — file removed,
+ *      timers cleared
+ *   5. UI calls retryHandshake() after a handshake_timeout error
+ *      — same scanId, fresh timer, file status reset to
+ *      awaiting_handshake (preserving any partial buffer entries
+ *      from a previous run is unnecessary; retry is a clean slate)
+ */
+export interface BridgeApi {
+  /**
+   * Create a new scan-state file, copy the localized prompt to
+   * the clipboard, return diagnostic info to the caller.
+   */
+  startScan(url: string, toolIds: ToolId[]): Promise<StartBridgeScanResult>;
+
+  /**
+   * Subscribe to state-file changes. Listener called immediately
+   * with the current state (or null if no scan is active), then on
+   * every change detected by the polling watcher. Returns
+   * unsubscribe.
+   */
+  onStateUpdate(listener: (state: CurrentScanState | null) => void): () => void;
+
+  /** Read the current scan state synchronously. Null if no scan. */
+  getCurrentState(): Promise<CurrentScanState | null>;
+
+  /** Abort the active scan and remove the state-file. */
+  cancelScan(): Promise<{ ok: boolean }>;
+
+  /**
+   * Re-arm the handshake after a handshake_timeout / handshake_
+   * mismatch error. Same scanId; status flips back to
+   * awaiting_handshake; clipboard is re-populated with the prompt;
+   * timer restarts.
+   */
+  retryHandshake(): Promise<{ ok: boolean; error?: string }>;
+}
+
+// =====================================================================
 // Public API on window.toraseo
 // =====================================================================
 
@@ -363,4 +546,7 @@ export interface ToraseoApi {
 
   /** UI locale persistence + OS detection. See LocaleApi. */
   locale: LocaleApi;
+
+  /** Bridge Mode (v0.0.7+) scan orchestration. See BridgeApi. */
+  bridge: BridgeApi;
 }

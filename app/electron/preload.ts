@@ -20,6 +20,7 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import type {
   CheckUpdateResult,
+  CurrentScanState,
   DetectorStatus,
   DownloadProgress,
   DownloadSkillZipResult,
@@ -27,8 +28,10 @@ import type {
   PickMcpConfigResult,
   ScanComplete,
   StageUpdate,
+  StartBridgeScanResult,
   StartScanArgs,
   SupportedLocale,
+  ToolId,
   ToraseoApi,
   UpdateInfo,
 } from "../src/types/ipc";
@@ -76,6 +79,15 @@ const LOCALE = {
   get: "toraseo:locale:get",
   set: "toraseo:locale:set",
   getOs: "toraseo:locale:get-os",
+} as const;
+
+// Mirror of BRIDGE_CHANNELS from electron/bridge/index.ts.
+const BRIDGE = {
+  startScan: "toraseo:bridge:start-scan",
+  cancelScan: "toraseo:bridge:cancel-scan",
+  retryHandshake: "toraseo:bridge:retry-handshake",
+  getState: "toraseo:bridge:get-state",
+  stateUpdate: "toraseo:bridge:state-update",
 } as const;
 
 const api: ToraseoApi = {
@@ -227,6 +239,41 @@ const api: ToraseoApi = {
     },
     getOs: () => {
       return ipcRenderer.invoke(LOCALE.getOs) as Promise<SupportedLocale>;
+    },
+  },
+
+  bridge: {
+    startScan: (url: string, toolIds: ToolId[]) => {
+      return ipcRenderer.invoke(BRIDGE.startScan, {
+        url,
+        toolIds,
+      }) as Promise<StartBridgeScanResult>;
+    },
+
+    onStateUpdate: (listener) => {
+      const wrapped = (_event: unknown, state: CurrentScanState | null) =>
+        listener(state);
+      ipcRenderer.on(BRIDGE.stateUpdate, wrapped);
+      return () => {
+        ipcRenderer.removeListener(BRIDGE.stateUpdate, wrapped);
+      };
+    },
+
+    getCurrentState: () => {
+      return ipcRenderer.invoke(BRIDGE.getState) as Promise<
+        CurrentScanState | null
+      >;
+    },
+
+    cancelScan: () => {
+      return ipcRenderer.invoke(BRIDGE.cancelScan) as Promise<{ ok: boolean }>;
+    },
+
+    retryHandshake: () => {
+      return ipcRenderer.invoke(BRIDGE.retryHandshake) as Promise<{
+        ok: boolean;
+        error?: string;
+      }>;
     },
   },
 };

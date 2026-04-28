@@ -110,3 +110,20 @@ export function setupLocale(): void {
     return mapOsLocaleToSupported(app.getLocale());
   });
 }
+
+/**
+ * Resolve the user's effective locale for use in main process
+ * code that needs to localize strings (e.g. Bridge Mode prompt
+ * builder). Mirrors the renderer's three-step fallback:
+ *   1. Persisted choice from locale.txt
+ *   2. OS-derived default
+ *   3. Hardcoded "en" if both fail
+ *
+ * This is intentionally a different surface from the IPC handlers
+ * — IPC is for renderer→main calls, this is for main→main use.
+ */
+export async function getCurrentLocale(): Promise<SupportedLocale> {
+  const persisted = await readLocale();
+  if (persisted) return persisted;
+  return mapOsLocaleToSupported(app.getLocale());
+}
