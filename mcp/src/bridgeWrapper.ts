@@ -169,7 +169,7 @@ export function bridgeWrap<TArgs, TResult>(
         isError: true,
         content: [
           {
-            type: "text",
+            type: "text" as const,
             text: `[${errorCode}] ${errorMessage}`,
           },
         ],
@@ -211,7 +211,7 @@ export function bridgeWrap<TArgs, TResult>(
       return {
         content: [
           {
-            type: "text",
+            type: "text" as const,
             text: summaryParts.join(" "),
           },
         ],
@@ -225,7 +225,7 @@ export function bridgeWrap<TArgs, TResult>(
     return {
       content: [
         {
-          type: "text",
+          type: "text" as const,
           text: JSON.stringify(result, null, 2),
         },
       ],

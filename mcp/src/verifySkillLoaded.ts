@@ -43,7 +43,10 @@ export const verifySkillLoadedInputSchema = {
  * proceed with the scan. The error response includes a reason
  * code Claude can use to give the user a useful message.
  */
-export async function verifySkillLoadedHandler({ token }: { token: string }) {
+export async function verifySkillLoadedHandler({ token }: { token: string }): Promise<{
+  isError?: boolean;
+  content: Array<{ type: "text"; text: string }>;
+}> {
   const { result, state } = await applyHandshake(token, BRIDGE_PROTOCOL_TOKEN);
 
   if (result === "no_scan") {
@@ -54,7 +57,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }) {
       isError: true,
       content: [
         {
-          type: "text",
+          type: "text" as const,
           text: JSON.stringify(
             {
               ok: false,
@@ -77,7 +80,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }) {
       isError: true,
       content: [
         {
-          type: "text",
+          type: "text" as const,
           text: JSON.stringify(
             {
               ok: false,
@@ -102,7 +105,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }) {
   return {
     content: [
       {
-        type: "text",
+        type: "text" as const,
         text: JSON.stringify(
           {
             ok: true,

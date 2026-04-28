@@ -98,46 +98,146 @@ export interface CurrentScanState {
 // =====================================================================
 
 /**
- * Resolve the user's app-data directory for ToraSEO. This must
- * match Electron's `app.getPath("userData")` exactly, otherwise
- * App writes the state-file in one place and MCP reads from
- * another and the bridge silently fails.
+ * Resolve the user's app-data directory(ies) for ToraSEO. Returns a
+ * list of candidate paths to try in order — the first one that
+ * contains a state-file wins.
  *
- * Electron's path derivation:
- *   Windows: %APPDATA%\<productName>
- *   macOS:   ~/Library/Application Support/<productName>
- *   Linux:   ~/.config/<productName>     (XDG_CONFIG_HOME if set)
+ * Why a list instead of a single path: Electron uses different
+ * directory names depending on how the app is launched:
  *
- * We replicate this here without importing Electron.
+ *   Production (installer):  %APPDATA%\ToraSEO\           (productName)
+ *   Dev (`npm run dev`):     %APPDATA%\@toraseo\app\      (package.json name)
+ *
+ * The two are mutually exclusive on a single machine in normal use,
+ * but a developer running `npm run dev` against a machine that also
+ * has the production app installed could trip the wrong path. By
+ * trying both, MCP works in dev and prod without any environment
+ * detection.
+ *
+ * Path derivation per platform follows Electron's app.getPath
+ * ("userData") logic:
+ *   Windows: %APPDATA%\<dirName>
+ *   macOS:   ~/Library/Application Support/<dirName>
+ *   Linux:   ~/.config/<dirName>     (XDG_CONFIG_HOME if set)
+ *
+ * The dirName is what differs: prod gets "ToraSEO", dev gets the
+ * package.json name with the `@scope/` slash kept (so on Windows it
+ * becomes a `@toraseo\app` two-level subfolder, since backslash and
+ * forward slash are equivalent in Windows path APIs).
  */
-function userDataDir(): string {
+function userDataDirs(): string[] {
   const product = APP_PRODUCT_NAME;
+  // Dev-mode dir: derived from package.json `name` field
+  // "@toraseo/app". Electron joins this directly into the userData
+  // path; on Windows the forward slash becomes a directory separator,
+  // so it produces a nested `@toraseo\app` folder.
+  const devSegments = ["@toraseo", "app"];
+
   switch (process.platform) {
     case "win32": {
-      const appdata = process.env.APPDATA;
-      if (!appdata) {
-        // Extreme edge case — APPDATA missing on Windows. Fall back
-        // to a sensible default rather than crashing.
-        return path.join(homedir(), "AppData", "Roaming", product);
-      }
-      return path.join(appdata, product);
+      const appdata =
+        process.env.APPDATA ??
+        path.join(homedir(), "AppData", "Roaming");
+      return [
+        path.join(appdata, product),
+        path.join(appdata, ...devSegments),
+      ];
     }
-    case "darwin":
-      return path.join(homedir(), "Library", "Application Support", product);
+    case "darwin": {
+      const base = path.join(homedir(), "Library", "Application Support");
+      return [
+        path.join(base, product),
+        path.join(base, ...devSegments),
+      ];
+    }
     default: {
-      // Linux + others — XDG spec.
-      const xdg = process.env.XDG_CONFIG_HOME;
-      if (xdg) {
-        return path.join(xdg, product);
-      }
-      return path.join(homedir(), ".config", product);
+      const base = process.env.XDG_CONFIG_HOME ?? path.join(homedir(), ".config");
+      return [
+        path.join(base, product),
+        path.join(base, ...devSegments),
+      ];
     }
   }
 }
 
-/** Absolute path to the active scan-state file. */
+/**
+ * Find the active state-file. Tries each candidate userData dir in
+ * order; returns the first one that exists, or null if none do.
+ *
+ * The result is cached for the lifetime of this MCP process — once
+ * we know which userData dir the App is writing to, we don't need
+ * to probe again. Cache invalidates on null result (file might appear
+ * later when App starts a scan).
+ */
+let cachedStateFilePath: string | null = null;
+
+async function findStateFilePath(): Promise<string | null> {
+  if (cachedStateFilePath) {
+    // Verify cached path still has a file. If the App was uninstalled
+    // or moved, the cache is stale and we should rediscover.
+    try {
+      await fs.access(cachedStateFilePath);
+      return cachedStateFilePath;
+    } catch {
+      cachedStateFilePath = null;
+    }
+  }
+
+  const dirs = userDataDirs();
+  process.stderr.write(
+    `[bridge:stateFile] searching candidates: ${dirs.join(" | ")}\n`,
+  );
+  for (const dir of dirs) {
+    const candidate = path.join(dir, "current-scan.json");
+    try {
+      await fs.access(candidate);
+      cachedStateFilePath = candidate;
+      process.stderr.write(
+        `[bridge:stateFile] found state file at: ${candidate}\n`,
+      );
+      return candidate;
+    } catch {
+      // File doesn't exist at this candidate — try next.
+    }
+  }
+  process.stderr.write(
+    `[bridge:stateFile] no state file in any candidate dir\n`,
+  );
+  return null;
+}
+
+/**
+ * Resolve the path where MCP should WRITE the state-file. This is
+ * trickier than reading: when App hasn't created a file yet, we
+ * have no way to know which userData dir it would use. In practice
+ * MCP only writes to the file when there's an active scan (which
+ * means App created the file and we already discovered its dir),
+ * so we use the cached discovery.
+ *
+ * If write is called when no file has been discovered (shouldn't
+ * happen in normal flow — verify_skill_loaded reads first), default
+ * to the production path so we don't silently lose data in a
+ * non-standard location.
+ */
+async function writeStateFilePath(): Promise<string> {
+  const found = await findStateFilePath();
+  if (found) return found;
+  const dirs = userDataDirs();
+  // dirs always returns at least one entry per the switch in
+  // userDataDirs, but TS doesn't infer that — fallback explicitly.
+  const fallback = dirs[0] ?? path.join(homedir(), "AppData", "Roaming", APP_PRODUCT_NAME);
+  return path.join(fallback, "current-scan.json");
+}
+
+/** Absolute path to the active scan-state file. Public for diagnostics. */
 export function stateFilePath(): string {
-  return path.join(userDataDir(), "current-scan.json");
+  // Synchronous version for compatibility — uses cache if available,
+  // else falls back to production path. Most callers should use
+  // findStateFilePath() / writeStateFilePath() instead.
+  if (cachedStateFilePath) return cachedStateFilePath;
+  const dirs = userDataDirs();
+  const fallback = dirs[0] ?? path.join(homedir(), "AppData", "Roaming", APP_PRODUCT_NAME);
+  return path.join(fallback, "current-scan.json");
 }
 
 // =====================================================================
@@ -157,12 +257,20 @@ export function stateFilePath(): string {
  * around every read.
  */
 export async function readState(): Promise<CurrentScanState | null> {
+  const filePath = await findStateFilePath();
+  if (!filePath) return null;
+
   let raw: string;
   try {
-    raw = await fs.readFile(stateFilePath(), "utf-8");
+    raw = await fs.readFile(filePath, "utf-8");
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") return null;
+    if (code === "ENOENT") {
+      // File disappeared between findStateFilePath and readFile.
+      // Invalidate cache so next call rediscovers.
+      cachedStateFilePath = null;
+      return null;
+    }
     // Other errors (permission denied, IO error) — log to stderr
     // for diagnostics, return null so MCP can fall back.
     process.stderr.write(
@@ -196,7 +304,7 @@ export async function readState(): Promise<CurrentScanState | null> {
  * tool calls in parallel) don't clobber each other's tmp file.
  */
 export async function writeState(state: CurrentScanState): Promise<void> {
-  const target = stateFilePath();
+  const target = await writeStateFilePath();
   const tmp = `${target}.${process.pid}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(state, null, 2), "utf-8");
   await fs.rename(tmp, target);
