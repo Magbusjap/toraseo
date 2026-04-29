@@ -226,6 +226,11 @@ export class OpenRouterAdapter implements ProviderAdapter {
       "User request:",
       request.userText,
       "",
+      "Active analysis type:",
+      request.analysisType === "site"
+        ? "Site audit by URL. Redirect unrelated or generic assistant requests back to the current site audit."
+        : "Unsupported analysis type. Do not answer outside the active ToraSEO workflow.",
+      "",
       "Current scan context:",
       factsSection,
       "",

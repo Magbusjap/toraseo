@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { TOOLS, type ToolId } from "../config/tools";
 import type {
+  BridgeClient,
   CurrentScanState,
   StartBridgeScanResult,
   ToolBufferEntry,
@@ -25,9 +26,14 @@ interface UseBridgeScanReturn {
   state: CurrentScanState | null;
   stages: BridgeStagesMap;
   prompt: string | null;
-  startScan: (url: string, toolIds: ToolId[]) => Promise<StartBridgeScanResult>;
+  startScan: (
+    url: string,
+    toolIds: ToolId[],
+    bridgeClient?: BridgeClient,
+  ) => Promise<StartBridgeScanResult>;
   cancelScan: () => Promise<void>;
   retryHandshake: () => Promise<void>;
+  copyCodexSetupPrompt: () => Promise<string>;
   isAwaitingHandshake: boolean;
 }
 
@@ -67,11 +73,22 @@ export function useBridgeScan(): UseBridgeScanReturn {
     };
   }, []);
 
-  const startScan = useCallback(async (url: string, toolIds: ToolId[]) => {
-    const result = await window.toraseo.bridge.startScan(url, toolIds);
-    setPrompt(result.prompt);
-    return result;
-  }, []);
+  const startScan = useCallback(
+    async (
+      url: string,
+      toolIds: ToolId[],
+      bridgeClient?: BridgeClient,
+    ) => {
+      const result = await window.toraseo.bridge.startScan(
+        url,
+        toolIds,
+        bridgeClient,
+      );
+      setPrompt(result.prompt);
+      return result;
+    },
+    [],
+  );
 
   const cancelScan = useCallback(async () => {
     await window.toraseo.bridge.cancelScan();
@@ -82,6 +99,11 @@ export function useBridgeScan(): UseBridgeScanReturn {
     if (!result.ok) {
       throw new Error(result.error ?? "bridge_retry_failed");
     }
+  }, []);
+
+  const copyCodexSetupPrompt = useCallback(async () => {
+    const result = await window.toraseo.bridge.copyCodexSetupPrompt();
+    return result.prompt;
   }, []);
 
   const stages = useMemo<BridgeStagesMap>(() => {
@@ -101,6 +123,7 @@ export function useBridgeScan(): UseBridgeScanReturn {
     startScan,
     cancelScan,
     retryHandshake,
+    copyCodexSetupPrompt,
     isAwaitingHandshake: state?.status === "awaiting_handshake",
   };
 }

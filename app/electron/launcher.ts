@@ -22,6 +22,7 @@ import log from "electron-log";
 
 export const LAUNCHER_CHANNELS = {
   openClaude: "toraseo:launcher:open-claude",
+  openCodex: "toraseo:launcher:open-codex",
 } as const;
 
 export interface OpenClaudeResult {
@@ -31,6 +32,8 @@ export interface OpenClaudeResult {
   /** Set when ok = false. */
   error?: string;
 }
+
+export type OpenCodexResult = OpenClaudeResult;
 
 /**
  * Likely install locations for Claude Desktop on Windows.
@@ -56,11 +59,40 @@ function windowsCandidates(): string[] {
   ];
 }
 
+function windowsCodexCandidates(): string[] {
+  const localAppData =
+    process.env.LOCALAPPDATA ??
+    path.join(os.homedir(), "AppData", "Local");
+  const programFiles =
+    process.env["PROGRAMFILES"] ?? "C:\\Program Files";
+  const programFilesX86 =
+    process.env["PROGRAMFILES(X86)"] ?? "C:\\Program Files (x86)";
+
+  return [
+    path.join(localAppData, "Programs", "Codex", "Codex.exe"),
+    path.join(localAppData, "Programs", "OpenAI Codex", "Codex.exe"),
+    path.join(programFiles, "Codex", "Codex.exe"),
+    path.join(programFiles, "OpenAI Codex", "Codex.exe"),
+    path.join(programFilesX86, "Codex", "Codex.exe"),
+    path.join(programFilesX86, "OpenAI Codex", "Codex.exe"),
+  ];
+}
+
 function macCandidates(): string[] {
   const home = os.homedir();
   return [
     "/Applications/Claude.app",
     path.join(home, "Applications", "Claude.app"),
+  ];
+}
+
+function macCodexCandidates(): string[] {
+  const home = os.homedir();
+  return [
+    "/Applications/Codex.app",
+    "/Applications/OpenAI Codex.app",
+    path.join(home, "Applications", "Codex.app"),
+    path.join(home, "Applications", "OpenAI Codex.app"),
   ];
 }
 
@@ -70,6 +102,15 @@ function linuxCandidates(): string[] {
     "/usr/bin/claude",
     "/usr/local/bin/claude",
     path.join(home, ".local", "bin", "claude"),
+  ];
+}
+
+function linuxCodexCandidates(): string[] {
+  const home = os.homedir();
+  return [
+    "/usr/bin/codex",
+    "/usr/local/bin/codex",
+    path.join(home, ".local", "bin", "codex"),
   ];
 }
 
@@ -151,6 +192,57 @@ async function tryLaunch(): Promise<OpenClaudeResult> {
   }
 }
 
+async function tryLaunchCodex(): Promise<OpenCodexResult> {
+  if (process.platform === "win32") {
+    const exe = await firstExisting(windowsCodexCandidates());
+    if (exe) {
+      try {
+        const child = spawn(exe, [], {
+          detached: true,
+          stdio: "ignore",
+        });
+        child.unref();
+        return { ok: true, launchedFrom: exe };
+      } catch (err) {
+        log.warn(`[launcher] codex spawn failed: ${(err as Error).message}`);
+      }
+    }
+  } else if (process.platform === "darwin") {
+    const appBundle = await firstExisting(macCodexCandidates());
+    if (appBundle) {
+      const result = await shell.openPath(appBundle);
+      if (result === "") {
+        return { ok: true, launchedFrom: appBundle };
+      }
+      log.warn(`[launcher] codex shell.openPath failed: ${result}`);
+    }
+  } else if (process.platform === "linux") {
+    const bin = await firstExisting(linuxCodexCandidates());
+    if (bin) {
+      try {
+        const child = spawn(bin, [], {
+          detached: true,
+          stdio: "ignore",
+        });
+        child.unref();
+        return { ok: true, launchedFrom: bin };
+      } catch (err) {
+        log.warn(`[launcher] codex spawn failed: ${(err as Error).message}`);
+      }
+    }
+  }
+
+  try {
+    await shell.openExternal("codex://");
+    return { ok: true, launchedFrom: "codex:// protocol handler" };
+  } catch (err) {
+    return {
+      ok: false,
+      error: `Could not launch Codex: ${(err as Error).message}`,
+    };
+  }
+}
+
 export function setupLauncher(): void {
   ipcMain.handle(LAUNCHER_CHANNELS.openClaude, async () => {
     log.info("[launcher] User requested Claude Desktop launch");
@@ -159,6 +251,17 @@ export function setupLauncher(): void {
       log.info(`[launcher] Launched: ${result.launchedFrom}`);
     } else {
       log.error(`[launcher] All launch strategies failed: ${result.error}`);
+    }
+    return result;
+  });
+
+  ipcMain.handle(LAUNCHER_CHANNELS.openCodex, async () => {
+    log.info("[launcher] User requested Codex launch");
+    const result = await tryLaunchCodex();
+    if (result.ok) {
+      log.info(`[launcher] Launched Codex: ${result.launchedFrom}`);
+    } else {
+      log.error(`[launcher] Codex launch strategies failed: ${result.error}`);
     }
     return result;
   });

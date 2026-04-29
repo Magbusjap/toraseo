@@ -1,5 +1,5 @@
-/**
- * verify_skill_loaded — the Bridge Mode handshake tool.
+﻿/**
+ * verify_skill_loaded вЂ” the Bridge Mode handshake tool.
  *
  * Called by Claude as the first action when handling a ToraSEO scan
  * request. Confirms that:
@@ -10,23 +10,23 @@
  *
  * On success, the tool returns the scan parameters (url,
  * selectedTools) to Claude, so Claude can proceed without those
- * fields being in the user's prompt — the prompt only references
+ * fields being in the user's prompt вЂ” the prompt only references
  * the scan abstractly.
  *
  * On failure, it returns a structured error to Claude. The error
  * includes a reason code so Claude can give the user a useful
  * actionable message:
  *
- *   - app_not_running        — App process isn't alive (no alive-file
+ *   - app_not_running        вЂ” App process isn't alive (no alive-file
  *                              or stale PID). Tell user to start app.
- *   - app_running_no_scan    — App is alive but the user hasn't
+ *   - app_running_no_scan    вЂ” App is alive but the user hasn't
  *                              clicked Scan yet. Offer choice: scan
  *                              in chat (Mode A fallback) or wait for
  *                              the user to click Scan.
- *   - wrong_state            — State-file exists but isn't in
+ *   - wrong_state            вЂ” State-file exists but isn't in
  *                              awaiting_handshake (e.g. previous
  *                              scan still in_progress or terminal).
- *   - token_mismatch         — Skill version is out of sync with MCP.
+ *   - token_mismatch         вЂ” Skill version is out of sync with MCP.
  *                              Tell user to update the Skill.
  */
 
@@ -36,7 +36,7 @@ import { probeAppAlive } from "./aliveFile.js";
 import { BRIDGE_PROTOCOL_TOKEN } from "./constants.js";
 
 /**
- * Input schema. The token is the only argument — Claude reads it
+ * Input schema. The token is the only argument вЂ” Claude reads it
  * from SKILL.md and passes it verbatim.
  */
 export const verifySkillLoadedInputSchema = {
@@ -68,7 +68,11 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
   isError?: boolean;
   content: Array<{ type: "text"; text: string }>;
 }> {
-  const { result, state } = await applyHandshake(token, BRIDGE_PROTOCOL_TOKEN);
+  const { result, state } = await applyHandshake(
+    token,
+    BRIDGE_PROTOCOL_TOKEN,
+    "claude",
+  );
 
   if (result === "no_scan") {
     // Either no state-file at all, or it's not in awaiting_handshake.
@@ -92,7 +96,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                   "Tell the user: please start the ToraSEO app, " +
                   "then continue. If they want a regular SEO audit " +
                   "without the app, you can offer that as an " +
-                  "alternative — but ask them first; do not silently " +
+                  "alternative вЂ” but ask them first; do not silently " +
                   "fall back.",
               },
               null,
@@ -124,9 +128,9 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                   "The ToraSEO Desktop App is running, but the user " +
                   "hasn't clicked the Scan button yet. " +
                   "Use ask_user_input_v0 to give them two choices: " +
-                  "(a) 'I want results in chat' — fall back to a " +
+                  "(a) 'I want results in chat' вЂ” fall back to a " +
                   "regular Mode A audit using the URL they mentioned. " +
-                  "(b) 'I'll click Scan in the app' — pause and wait " +
+                  "(b) 'I'll click Scan in the app' вЂ” pause and wait " +
                   "for the user's confirmation that they clicked it; " +
                   "do nothing until they message again. Do NOT start " +
                   "any tool calls without explicit user choice.",
@@ -178,11 +182,11 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               expected: BRIDGE_PROTOCOL_TOKEN,
               received: token,
               message:
-                "The Skill protocol token does not match. The user has " +
+                "The Claude Bridge Instructions token does not match. The user has " +
                 "an outdated SKILL.md file. They need to update the " +
-                "ToraSEO Skill: download the latest skill ZIP from " +
+                "ToraSEO Claude Bridge Instructions: download the latest skill ZIP from " +
                 "GitHub Releases, then in Claude Desktop go to " +
-                "Settings → Skills, delete the existing toraseo skill, " +
+                "Settings в†’ Skills, delete the existing toraseo instructions, " +
                 "and install the new ZIP.",
             },
             null,
@@ -193,7 +197,31 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
     };
   }
 
-  // Success — return scan parameters so Claude can proceed.
+  // Success вЂ” return scan parameters so Claude can proceed.
+  if (result === "wrong_client") {
+    return {
+      isError: true,
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              ok: false,
+              error: "wrong_bridge_client",
+              expected: state?.bridgeClient ?? "unknown",
+              message:
+                "The active ToraSEO scan was started for a different " +
+                "external agent. Use the matching bridge prompt and " +
+                "handshake tool for that agent.",
+            },
+            null,
+            2,
+          ),
+        },
+      ],
+    };
+  }
+
   return {
     content: [
       {
@@ -218,3 +246,4 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
     ],
   };
 }
+

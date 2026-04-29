@@ -27,7 +27,7 @@ import type {
 } from "../../../src/types/runtime.js";
 
 interface RegistryEntry {
-  adapter: ProviderAdapter;
+      adapter: ProviderAdapter;
   /** Snapshot of last persisted public info (lastFour, defaultModel). */
   publicInfo: ProviderConfigPublic | null;
 }
@@ -144,7 +144,10 @@ export function listProviders(): ProviderInfo[] {
         id: builtin.id,
         label: builtin.label,
         configured: false,
+        baseUrl: null,
         defaultModel: null,
+        defaultModelProfileId: null,
+        modelProfiles: [],
         lastFour: null,
         capabilities: {
           streaming: false,
@@ -157,7 +160,10 @@ export function listProviders(): ProviderInfo[] {
       id: entry.adapter.id,
       label: entry.adapter.label,
       configured: entry.adapter.isConfigured(),
+      baseUrl: entry.publicInfo?.baseUrl ?? null,
       defaultModel: entry.publicInfo?.defaultModel ?? null,
+      defaultModelProfileId: entry.publicInfo?.defaultModelProfileId ?? null,
+      modelProfiles: entry.publicInfo?.modelProfiles ?? [],
       lastFour: entry.publicInfo?.lastFour ?? null,
       capabilities: entry.adapter.capabilities,
     };

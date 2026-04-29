@@ -65,6 +65,10 @@ import {
   verifySkillLoadedHandler,
   verifySkillLoadedInputSchema,
 } from "./verifySkillLoaded.js";
+import {
+  verifyCodexWorkflowLoadedHandler,
+  verifyCodexWorkflowLoadedInputSchema,
+} from "./verifyCodexWorkflowLoaded.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -78,11 +82,11 @@ const server = new McpServer({
 server.registerTool(
   "verify_skill_loaded",
   {
-    title: "Verify Skill Loaded (Bridge Mode handshake)",
+    title: "Verify Claude Bridge Instructions Loaded (Bridge Mode handshake)",
     description:
       "Required first call when the user has an active ToraSEO scan " +
       "waiting (i.e. they clicked 'Scan' in the desktop app). Confirms " +
-      "that SKILL.md is loaded with a compatible protocol version. The " +
+      "that Claude Bridge Instructions are loaded with a compatible protocol version. The " +
       "response includes the scan parameters (URL and selected tools) " +
       "so Claude can proceed without those fields being explicitly in " +
       "the prompt. " +
@@ -94,6 +98,22 @@ server.registerTool(
     inputSchema: verifySkillLoadedInputSchema,
   },
   verifySkillLoadedHandler,
+);
+
+server.registerTool(
+  "verify_codex_workflow_loaded",
+  {
+    title: "Verify Codex Workflow Loaded (Bridge Mode handshake)",
+    description:
+      "Required first call when the user has an active ToraSEO Codex " +
+      "bridge scan waiting. Confirms that Codex can reach the ToraSEO " +
+      "MCP server and that the Codex Workflow Instructions are loaded " +
+      "with a compatible protocol token. The prompt never contains the " +
+      "token; the Codex Workflow Instructions package contains the exact " +
+      "token to pass.",
+    inputSchema: verifyCodexWorkflowLoadedInputSchema,
+  },
+  verifyCodexWorkflowLoadedHandler,
 );
 
 // --- Tools: Mode A (Site Audit) ------------------------------------------

@@ -4,18 +4,37 @@ Visual desktop application for ToraSEO. Electron + React + TypeScript.
 
 ## Status
 
-**Stage 4 MVP — in progress.** Initial state UI implemented, Active state pending.
+**App 0.0.7 release candidate - in progress.** The desktop app now
+supports two explicit audit paths:
+
+- `MCP + Instructions` for external-agent bridge workflows
+- `API + AI Chat` for the native in-app runtime
 
 See:
-- [stage-4-mvp-scope](../wiki/toraseo/stage-4-mvp-scope.md) — full MVP scope
-- [architecture-stack-decision](../wiki/toraseo/architecture-stack-decision.md) — why Electron
+- [SMOKE_TESTS.md](../docs/SMOKE_TESTS.md) - release verification checklist
+- [architecture-stack-decision](../wiki/toraseo/architecture-stack-decision.md) - why Electron
 
 ## Quick start
+
+Use Node.js 22 for release verification.
 
 ```bash
 cd app
 npm install
 npm run dev
+```
+
+From the repository root, the equivalent workspace command is:
+
+```bash
+npm run dev:app
+```
+
+On Windows PowerShell, use `npm.cmd` if script execution blocks
+`npm.ps1`:
+
+```powershell
+npm.cmd run dev:app
 ```
 
 `npm run dev` will:
@@ -24,6 +43,12 @@ npm run dev
 3. Launch the Electron main process, which opens a window pointing at the dev server
 
 DevTools open automatically (detached). Hot reload works for both renderer (React) and main process (Electron).
+
+For Bridge Mode testing, run the MCP watcher in a second terminal:
+
+```powershell
+npm.cmd run dev:mcp
+```
 
 ## Production build
 
@@ -68,7 +93,7 @@ app/
     ├── main.tsx                ← React entry point
     ├── index.css               ← Tailwind directives
     ├── vite-env.d.ts           ← SVG import types
-    ├── App.tsx                 ← two-column layout + mode state
+    ├── App.tsx                 ← dual-mode workspace + mode state
     └── components/
         ├── Sidebar/
         │   └── IdleSidebar.tsx     ← overlay state

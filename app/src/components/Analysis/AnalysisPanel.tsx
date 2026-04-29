@@ -1,5 +1,12 @@
 import { useMemo, useState } from "react";
-import { ExternalLink, FileDown, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  ExternalLink,
+  FileDown,
+  FileText,
+  Presentation,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 
 import type { CurrentScanState, ScanComplete } from "../../types/ipc";
 import type {
@@ -129,6 +136,28 @@ export default function AnalysisPanel({
     }
   };
 
+  const handleExportDocument = async () => {
+    if (!effectiveReport) return;
+    const result =
+      await window.toraseo.runtime.exportReportDocument(effectiveReport);
+    if (result.ok) {
+      setExportStatus(result.filePath ?? "Exported");
+    } else if (result.error !== "cancelled") {
+      setExportStatus(result.error ?? "Export failed");
+    }
+  };
+
+  const handleExportPresentation = async () => {
+    if (!effectiveReport) return;
+    const result =
+      await window.toraseo.runtime.exportReportPresentation(effectiveReport);
+    if (result.ok) {
+      setExportStatus(result.filePath ?? "Exported");
+    } else if (result.error !== "cancelled") {
+      setExportStatus(result.error ?? "Export failed");
+    }
+  };
+
   return (
     <section className="flex h-full min-w-0 flex-col border-l border-orange-100 bg-orange-50/40">
       <header className="flex items-center justify-between border-b border-orange-100 bg-white px-5 py-3">
@@ -244,6 +273,28 @@ export default function AnalysisPanel({
             <FileDown size={14} />
             <span>Export PDF</span>
           </button>
+          {executionMode === "native" && (
+            <>
+              <button
+                type="button"
+                onClick={handleExportDocument}
+                disabled={!effectiveReport}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-200 bg-white px-4 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-50 disabled:opacity-50"
+              >
+                <FileText size={14} />
+                <span>Document</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportPresentation}
+                disabled={!effectiveReport}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-200 bg-white px-4 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-50 disabled:opacity-50"
+              >
+                <Presentation size={14} />
+                <span>Presentation</span>
+              </button>
+            </>
+          )}
         </div>
         {exportStatus && (
           <p className="text-xs text-orange-700/70">{exportStatus}</p>

@@ -218,27 +218,27 @@
       "infoNoToraseoYet": "Файл выбран, но запись mcpServers.toraseo пока не найдена. Установщик ToraSEO добавит её при следующей установке."
     },
     "skill": {
-      "label": "Skill ToraSEO установлен",
-      "hintMissing": "Скачайте ZIP с GitHub и установите через Claude Desktop: Settings → Skills → Install ZIP. После установки нажмите «Я установил Skill».",
-      "hintFilesystem": "Файл найден на диске (Claude Code)",
+      "label": "Claude Bridge Instructions are installed",
+      "hintMissing": "Скачайте ZIP с GitHub и установите через Claude Desktop: Settings → Skills → Install ZIP. После установки нажмите «Я установил Claude Bridge Instructions».",
+      "hintFilesystem": "File found in Claude local skills folder",
       "hintManual": "Установка подтверждена пользователем",
       "downloadButton": "Скачать ZIP с GitHub",
       "downloading": "Скачиваю с GitHub…",
       "openReleasesButton": "Открыть страницу релизов",
-      "confirmButton": "Я установил Skill",
+      "confirmButton": "Я установил Claude Bridge Instructions",
       "confirming": "Подтверждаю…",
-      "errorNoRelease": "Не найден skill-релиз на GitHub. Откройте страницу релизов вручную.",
+      "errorNoRelease": "Не найден релиз Claude Bridge Instructions на GitHub. Откройте страницу релизов вручную.",
       "errorDownloadFailed": "Не удалось скачать с GitHub.",
       "errorWriteFailed": "Не удалось записать файл.",
       "errorNoZip": "Релиз {{tag}} не содержит ZIP-файла.",
-      "infoDownloaded": "ZIP скачан ({{tag}}). Папка с файлом открыта — перетащите его в Claude Desktop: Settings → Skills → Install from ZIP. После установки вернитесь сюда и нажмите «Я установил Skill».",
-      "confirmDialog": "Подтверждаете, что Skill ToraSEO установлен в Claude Desktop через Settings → Skills?\n\nБез установленного Skill анализ через Claude будет неполным — он проигнорирует CRAWLING_POLICY, verdict-mapping и формулу CGS-балла.",
-      "tooltipFilesystem": "Skill уже определён через файловую систему (Claude Code) — подтверждение не требуется",
+      "infoDownloaded": "ZIP скачан ({{tag}}). Папка с файлом открыта — перетащите его в Claude Desktop: Settings → Skills → Install from ZIP. После установки вернитесь сюда и нажмите «Я установил Claude Bridge Instructions».",
+      "confirmDialog": "Confirm that the ToraSEO Claude Bridge Instructions are installed in Claude Desktop via Settings → Skills?\n\nWithout those instructions loaded into Claude's context, the analysis will be incomplete — it will ignore CRAWLING_POLICY, verdict mapping, and the CGS scoring formula.",
+      "tooltipFilesystem": "Claude Bridge Instructions are detected via the filesystem — no confirmation needed",
       "tooltipManual": "Ручное подтверждение уже активно — сбросьте его ниже, если хотите переподтвердить"
     }
   },
   "preflight": {
-    "depsFailed": "Проверка зависимостей не пройдена. Откройте Claude Desktop, убедитесь что MCP подключён и Skill установлен."
+    "depsFailed": "Проверка зависимостей не пройдена. Откройте Claude Desktop, убедитесь что MCP подключён и Claude Bridge Instructions установлены."
   },
   "updater": {
     "available": {

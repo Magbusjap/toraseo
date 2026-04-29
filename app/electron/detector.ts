@@ -10,23 +10,26 @@
  *      / "claude.exe" exists on the system).
  *   2. claude_desktop_config.json contains an `mcpServers.toraseo`
  *      entry — meaning ToraSEO MCP is registered.
- *   3. Skill ToraSEO is confirmed installed — either via filesystem
- *      (Claude Code users have it at `~/.claude/skills/toraseo/`) or
- *      via the user's manual confirmation that they installed the
- *      skill ZIP through Claude Desktop's Settings → Skills UI.
+ *   3. Claude Bridge Instructions are confirmed installed — either via
+ *      filesystem (Claude Code users have them at
+ *      `~/.claude/skills/toraseo/`) or via the user's manual
+ *      confirmation that they installed the Claude ZIP through Claude
+ *      Desktop's Settings → Skills UI.
  *
  * Why three checks, including the manual one:
  *
- * MCP gives Claude the *tools*. Skill gives Claude the *rules* —
- * CRAWLING_POLICY, verdict-mapping, the CGS scoring formula, the
- * report format, etc. Without skill loaded into Claude's context,
+ * MCP gives Claude the *tools*. Claude Bridge Instructions give Claude
+ * the *rules* — CRAWLING_POLICY, verdict-mapping, the CGS scoring
+ * formula, the report format, etc. Without those instructions loaded
+ * into Claude's context,
  * the user's "analyze this site" request still works mechanically
  * (MCP tools return raw JSON), but the answer is no longer the
  * ToraSEO methodology — it's whatever generic interpretation the
  * underlying Claude does. That's a silent quality regression we
  * can't accept: users came for ToraSEO, and we owe them ToraSEO.
  *
- * The original v0.0.3 plan tried to detect skill via filesystem, then
+ * The original v0.0.3 plan tried to detect the Claude package via
+ * filesystem, then
  * dropped detection entirely after realising Claude Desktop skills
  * are server-side (account-bound) and `~/.claude/skills/` only applies
  * to Claude Code (CLI). The drop was wrong in retrospect: it solved
@@ -36,10 +39,11 @@
  *
  *   - Claude Code users: filesystem says yes → ✓ automatically
  *   - Claude Desktop users: there's no filesystem signal we can
- *     trust, so we ask them to install skill via the in-app
- *     download/install flow and click "I installed Skill" — which
- *     writes a marker file in userData. Honest manual confirmation,
- *     not pretend automatic detection.
+ *     trust, so we ask them to install the Claude package via the
+ *     in-app download/install flow and click
+ *     "I installed Claude Bridge Instructions" — which writes a marker
+ *     file in userData. Honest manual confirmation, not pretend
+ *     automatic detection.
  *
  * Two access patterns:
  *
@@ -55,11 +59,16 @@
  */
 
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { execFile as execFileCallback } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { promisify } from "node:util";
 import psList from "ps-list";
 import log from "electron-log";
+
+const execFile = promisify(execFileCallback);
+const CODEX_SETUP_VERIFICATION_FILE = "codex-setup-verification.json";
 
 // 5 seconds is the compromise from hard-dependency-pivot Q3:
 // fast enough that "Claude closed" → UI reflects it within 5s
@@ -84,6 +93,12 @@ export const DETECTOR_CHANNELS = {
 export interface DetectorStatus {
   /** Claude Desktop process running anywhere on the system. */
   claudeRunning: boolean;
+  /** Codex desktop process running anywhere on the system. */
+  codexRunning: boolean;
+  /** Codex setup was verified in a live no-scan session. */
+  codexSetupVerified: boolean;
+  /** Timestamp of the last successful Codex setup verification. */
+  codexSetupVerifiedAt: string | null;
   /** mcpServers.toraseo present in claude_desktop_config.json. */
   mcpRegistered: boolean;
   /**
@@ -134,6 +149,10 @@ function manualMcpPathFile(): string {
 
 function skillConfirmationFile(): string {
   return path.join(app.getPath("userData"), "skill-installed.flag");
+}
+
+function codexSetupVerificationFile(): string {
+  return path.join(app.getPath("userData"), CODEX_SETUP_VERIFICATION_FILE);
 }
 
 async function readManualMcpPath(): Promise<string | null> {
@@ -199,6 +218,28 @@ async function clearSkillConfirmationFile(): Promise<void> {
   }
 }
 
+async function readCodexSetupVerification(): Promise<{
+  verified: boolean;
+  verifiedAt: string | null;
+}> {
+  try {
+    const raw = await fs.readFile(codexSetupVerificationFile(), "utf-8");
+    const parsed = JSON.parse(raw) as { verifiedAt?: unknown };
+    return {
+      verified: typeof parsed.verifiedAt === "string",
+      verifiedAt: typeof parsed.verifiedAt === "string" ? parsed.verifiedAt : null,
+    };
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code && code !== "ENOENT") {
+      log.warn(
+        `[detector] failed to read Codex setup verification: ${(err as Error).message}`,
+      );
+    }
+    return { verified: false, verifiedAt: null };
+  }
+}
+
 // =====================================================================
 // Individual checks
 // =====================================================================
@@ -227,6 +268,55 @@ async function checkClaudeProcess(): Promise<boolean> {
     });
   } catch (err) {
     log.warn(`[detector] ps-list failed: ${(err as Error).message}`);
+    return false;
+  }
+}
+
+async function checkCodexProcess(): Promise<boolean> {
+  if (process.platform === "win32") {
+    return checkCodexDesktopWindowOnWindows();
+  }
+
+  try {
+    const processes = await psList();
+    return processes.some((p) => {
+      const name = p.name.toLowerCase();
+      return (
+        name === "codex" ||
+        name === "codex.exe" ||
+        name === "openai codex" ||
+        name === "openai codex.exe"
+      );
+    });
+  } catch (err) {
+    log.warn(`[detector] ps-list failed for Codex: ${(err as Error).message}`);
+    return false;
+  }
+}
+
+async function checkCodexDesktopWindowOnWindows(): Promise<boolean> {
+  const script = [
+    "$ErrorActionPreference = 'SilentlyContinue'",
+    "$hits = Get-Process Codex,codex | Where-Object {",
+    "  -not [string]::IsNullOrWhiteSpace($_.Path) -and",
+    "  $_.Path -like '*\\WindowsApps\\OpenAI.Codex_*' -and",
+    "  $_.Path -notlike '*\\.vscode\\extensions*' -and",
+    "  $_.Path -notlike '*\\.codex\\.sandbox-bin*'",
+    "}",
+    "if ($hits) { 'true' } else { 'false' }",
+  ].join("\n");
+
+  try {
+    const { stdout } = await execFile(
+      "powershell.exe",
+      ["-NoProfile", "-Command", script],
+      { windowsHide: true, encoding: "utf8" },
+    );
+    return stdout.trim().toLowerCase() === "true";
+  } catch (err) {
+    log.warn(
+      `[detector] Windows Codex window probe failed: ${(err as Error).message}`,
+    );
     return false;
   }
 }
@@ -372,9 +462,18 @@ async function checkSkillInstalled(): Promise<{
  * (process scan ~100ms, file reads ~5ms each) = ~100ms.
  */
 export async function checkAll(): Promise<DetectorStatus> {
-  const [claudeRunning, mcpRegistered, skill, manualMcpPath] =
+  const [
+    claudeRunning,
+    codexRunning,
+    codexSetup,
+    mcpRegistered,
+    skill,
+    manualMcpPath,
+  ] =
     await Promise.all([
       checkClaudeProcess(),
+      checkCodexProcess(),
+      readCodexSetupVerification(),
       checkMcpRegistered(),
       checkSkillInstalled(),
       readManualMcpPath(),
@@ -382,6 +481,9 @@ export async function checkAll(): Promise<DetectorStatus> {
 
   return {
     claudeRunning,
+    codexRunning,
+    codexSetupVerified: codexSetup.verified,
+    codexSetupVerifiedAt: codexSetup.verifiedAt,
     mcpRegistered,
     skillInstalled: skill.installed,
     skillSource: skill.source,
@@ -463,7 +565,7 @@ async function downloadLatestSkillZip(): Promise<DownloadSkillZipResult> {
     return {
       ok: false,
       error:
-        "No skill release found on GitHub. Open the releases page manually.",
+        "No Claude Bridge Instructions release found on GitHub. Open the releases page manually.",
     };
   }
 

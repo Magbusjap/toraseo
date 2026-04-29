@@ -3,16 +3,17 @@
  *
  * Stage 1 (skeleton): provides a tiny, deterministic policy
  * compiler that builds a system prompt + rule bundle for a given
- * mode/locale. Real SKILL.md mirroring (full ruleset extracted
- * from skill/SKILL.md) lands in Stage 2.
+ * mode/locale. A fuller policy system will land later, but it
+ * should stay split into curated fragments rather than mirroring
+ * a giant external SKILL.md wholesale.
  *
  * Why this lives in main process:
  *   - System prompts assemble inputs that may include provider
  *     credentials, MCP scan results, and user data. Composing
  *     them outside the sandbox keeps the renderer ignorant of
  *     secrets.
- *   - Stage 2 will read SKILL.md from disk; only main has fs
- *     access in our sandboxed setup.
+ *   - Later policy stages may read curated rule files from disk;
+ *     only main has fs access in our sandboxed setup.
  *
  * Contract guarantee: the orchestrator never builds a system
  * prompt itself — it always asks the policy layer. This is the
@@ -29,13 +30,18 @@ import type { SupportedLocale } from "../../src/types/ipc.js";
 
 /**
  * Stage-1 placeholder rules. Hardcoded for now to keep the
- * skeleton deterministic; Stage 2 swaps these out for rules
- * loaded from `skill/SKILL.md` at runtime.
+ * skeleton deterministic; later stages can replace them with
+ * curated rule packs without forcing the runtime to ingest a
+ * monolithic instruction file.
  */
 const STAGE1_RULES: RuntimePolicyRule[] = [
   {
     id: "scope.toraseo-only",
     text: "You operate strictly inside the ToraSEO product context. Decline tasks unrelated to SEO audit, content review, or interpretation of MCP tool results.",
+  },
+  {
+    id: "scope.active-analysis",
+    text: "Answer only for the active analysis type and current scan evidence. Redirect generic assistant requests back to the active ToraSEO workflow.",
   },
   {
     id: "facts.vs.hypotheses",

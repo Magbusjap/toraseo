@@ -50,7 +50,11 @@
  * inline approach is simplest and reliable.
  */
 
-import type { ToolId, SupportedLocale } from "../../src/types/ipc.js";
+import type {
+  BridgeClient,
+  ToolId,
+  SupportedLocale,
+} from "../../src/types/ipc.js";
 
 /**
  * Russian template. Kept terse and direct — Claude follows
@@ -85,6 +89,55 @@ Use the tools: ${tools}.
 Results will be displayed in the ToraSEO Desktop App.
 After all tools complete, provide recommendations in chat based on the data.`;
 
+const CODEX_TEMPLATE_EN = (url: string, tools: string): string =>
+  `/toraseo codex-bridge-mode
+
+The ToraSEO Desktop App is running and waiting for a Codex bridge scan of ${url}.
+
+First call verify_codex_workflow_loaded from the ToraSEO MCP server.
+Then use the tools: ${tools}.
+
+Do not start analyzer tools until the Codex Workflow Instructions handshake succeeds.
+Results will be displayed in the ToraSEO Desktop App.
+After all tools complete, provide recommendations in chat based on the data.`;
+
+const CODEX_TEMPLATE_RU = (url: string, tools: string): string =>
+  `/toraseo codex-bridge-mode
+
+ToraSEO Desktop App is running and waiting for a Codex bridge scan of ${url}.
+
+First call verify_codex_workflow_loaded from the ToraSEO MCP server.
+Then use the tools: ${tools}.
+
+Do not start analyzer tools until the Codex Workflow Instructions handshake succeeds.
+Results will be displayed in the ToraSEO Desktop App.`;
+
+const CODEX_SETUP_TEMPLATE_EN = (): string =>
+  `Use $toraseo-codex-workflow for this task.
+
+The ToraSEO Desktop App is already running in MCP + Instructions -> Codex mode.
+
+This is a setup check, not a site scan.
+First call verify_codex_workflow_loaded from the ToraSEO MCP server.
+
+If setup is correct, tell me in one short answer that:
+1. ToraSEO MCP is reachable from Codex.
+2. Codex Workflow Instructions are active in this session.
+3. I can return to ToraSEO and continue.`;
+
+const CODEX_SETUP_TEMPLATE_RU = (): string =>
+  `Use $toraseo-codex-workflow for this task.
+
+The ToraSEO Desktop App is already running in MCP + Instructions -> Codex mode.
+
+This is a setup check, not a site scan.
+First call verify_codex_workflow_loaded from the ToraSEO MCP server.
+
+If setup is correct, answer briefly that:
+1. ToraSEO MCP is reachable from Codex.
+2. Codex Workflow Instructions are active in this session.
+3. I can return to ToraSEO and continue.`;
+
 /**
  * Build the full prompt for clipboard.
  *
@@ -100,9 +153,21 @@ export function buildScanPrompt(
   url: string,
   toolIds: ToolId[],
   locale: SupportedLocale,
+  bridgeClient: BridgeClient = "claude",
 ): string {
   // Comma-separated tool names — Claude reads this as a list.
   const toolsList = toolIds.join(", ");
-  const template = locale === "ru" ? TEMPLATE_RU : TEMPLATE_EN;
+  const template =
+    bridgeClient === "codex"
+      ? locale === "ru"
+        ? CODEX_TEMPLATE_RU
+        : CODEX_TEMPLATE_EN
+      : locale === "ru"
+        ? TEMPLATE_RU
+        : TEMPLATE_EN;
   return template(url, toolsList);
+}
+
+export function buildCodexSetupPrompt(locale: SupportedLocale): string {
+  return locale === "ru" ? CODEX_SETUP_TEMPLATE_RU() : CODEX_SETUP_TEMPLATE_EN();
 }

@@ -5,7 +5,10 @@
     "altMascotIdle": "ToraSEO mascot in idle state",
     "altMascotFocused": "ToraSEO mascot focused on the analysis",
     "altMascotHappy": "ToraSEO mascot — analysis complete",
-    "altMascotSleeping": "ToraSEO sleeping mascot"
+    "altMascotSleeping": "ToraSEO sleeping mascot",
+    "altMascotNeutral": "ToraSEO mascot reviewing warnings",
+    "altMascotSurprised": "ToraSEO mascot surprised by issues",
+    "altMascotChampion": "ToraSEO champion mascot"
   },
   "toolbar": {
     "about": "About ToraSEO",
@@ -63,33 +66,72 @@
       "labels": {
         "apiKey": "API key",
         "baseUrl": "Custom endpoint URL (optional)",
-        "defaultModel": "Default model (optional)"
+        "defaultModel": "Default model (optional)",
+        "modelName": "Display name",
+        "modelId": "Model ID",
+        "usageHint": "Usage hint"
       },
       "placeholders": {
         "apiKey": "Paste your secret key here",
+        "apiKeySaved": "Stored key is masked",
         "baseUrl": "https://openrouter.ai/api/v1",
-        "defaultModel": "openrouter/auto"
+        "defaultModel": "openrouter/auto",
+        "modelName": "GPT-5.5",
+        "modelId": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "usageHint": "Deep audit"
+      },
+      "hints": {
+        "apiKey": "Use an OpenRouter key from your OpenRouter account. It usually starts with sk-or-.",
+        "apiKeySaved": "Saved keys are shown as a mask. ToraSEO cannot reveal the stored secret back into this field.",
+        "baseUrl": "Leave empty to use the default OpenRouter endpoint: {{url}}",
+        "modelId": "Paste the exact OpenRouter model ID shown under the model name."
       },
       "status": {
         "configured": "Configured",
         "notConfigured": "Not configured",
         "lastFour": "ends in …{{value}}",
         "savedJustNow": "Saved",
-        "deleted": "Removed"
+        "deleted": "Removed",
+        "tested": "Connection works"
       },
       "actions": {
         "save": "Save",
+        "saveKey": "Save key",
+        "saveModels": "Save models",
         "delete": "Remove key",
         "show": "Show",
-        "hide": "Hide"
+        "hide": "Hide",
+        "replaceKey": "Replace key",
+        "replaceStoredKey": "Replace key",
+        "cancelKeyEdit": "Cancel",
+        "saveProvider": "Save settings",
+        "addModel": "Add",
+        "updateModel": "Update",
+        "editModel": "Edit model",
+        "removeModel": "Remove model",
+        "makeDefault": "Set default",
+        "testModel": "Test default model"
       },
       "openrouter": {
         "name": "OpenRouter",
         "blurb": "Single key, many models — OpenAI, Anthropic, Google, open-source. Recommended default."
       },
+      "models": {
+        "title": "OpenRouter models",
+        "body": "Use one OpenRouter key, then save the models you want to use inside ToraSEO.",
+        "empty": "Add at least one OpenRouter model before API + AI Chat can start.",
+        "modelIdHelp": "Use the model ID from the OpenRouter model page, not the page link. Example: {{example}}",
+        "modelIdUrlError": "Paste the model ID, not the OpenRouter page URL. Example: {{example}}",
+        "modelIdKeyError": "Paste the OpenRouter model ID here, not your API key. Example: {{example}}",
+        "testHelp": "Testing is optional and only runs from Settings. It becomes available after the OpenRouter key and at least one model profile are present.",
+        "default": "Default"
+      },
       "errors": {
+        "api_key_url": "Paste the OpenRouter API key here, not a model page URL.",
+        "api_key_format": "OpenRouter API keys usually start with sk-or-. Paste the key from OpenRouter -> Keys, not a model ID.",
         "encryption_unavailable": "Cannot encrypt: OS keyring is not available.",
         "invalid_input": "Please fill in the API key.",
+        "provider_not_configured": "Save the OpenRouter key before saving models.",
         "write_failed": "Could not save the key. Try again."
       }
     }
@@ -100,8 +142,56 @@
     "siteByUrl": "Site by URL",
     "articleText": "Article text",
     "siteSubtitle": "Site Audit",
-    "articleSubtitle": "v0.2 — coming soon",
-    "claudeOptional": "Connection to Claude Desktop is optional"
+    "articleSubtitle": "v0.2 - coming soon",
+    "claudeOptional": "Connection to Claude Desktop is optional",
+    "execution": {
+      "title": "Execution mode",
+      "change": "Change",
+      "confirm": "Confirm mode"
+    },
+    "bridge": {
+      "readyTitle": "Claude Desktop path is ready",
+      "readyBody": "Site audits will copy the Bridge prompt and stream MCP facts back into ToraSEO.",
+      "codexTitle": "Codex path readiness",
+      "codexBody": "ToraSEO first confirms that Codex is open. Then you run one short setup check so ToraSEO can prove MCP access and Codex Workflow Instructions in a live Codex session.",
+      "codexOnboardingTitle": "ToraSEO works in tandem with Codex",
+      "codexOnboardingSubtitle": "Three components are required to run. When all three are green, scanning unlocks automatically.",
+      "codexSetupTitle": "How to connect Codex",
+      "codexSetupStepOne": "Keep ToraSEO open on this screen and make sure Codex is open.",
+      "codexSetupStepTwo": "Install the `toraseo-codex-workflow` package into your Codex local skills folder (`~/.codex/skills` by default) so Codex can load it by name.",
+      "codexSetupStepThree": "Use the button below, paste the prepared text into Codex, and wait for Codex to confirm that MCP and Codex Workflow Instructions are active.",
+      "copyCodexSetupPrompt": "Copy setup prompt",
+      "codexSetupHint": "This setup check does not start a site scan. It only proves that ToraSEO MCP and Codex Workflow Instructions are really active in the current Codex session.",
+      "codexChecklistTitle": "What the handshake verifies",
+      "codexChecklistBody": "After Scan starts, Codex must call verify_codex_workflow_loaded. That proves both ToraSEO MCP access and Codex Workflow Instructions for this session.",
+      "codexConfirm": "Start Codex handshake",
+      "codexConfirmed": "Codex handshake verified",
+      "codexReset": "Reset handshake",
+      "codexRunningLabel": "Codex is running",
+      "codexRunningOk": "Process found",
+      "codexRunningMissing": "Open Codex to continue",
+      "openCodex": "Open Codex",
+      "codexMcpLabel": "ToraSEO MCP is available to Codex",
+      "codexMcpSetupVerified": "Verified in a live Codex setup check. The scan handshake will verify it again for the active analysis session.",
+      "codexMcpHint": "Verified when Codex calls verify_codex_workflow_loaded from the ToraSEO MCP server.",
+      "codexInstructionsLabel": "Codex Workflow Instructions are available",
+      "codexInstructionsSetupVerified": "Verified in a live Codex setup check. ToraSEO saw the workflow token from the active Codex session.",
+      "codexInstructionsHint": "The handshake token lives only in the Codex Workflow Instructions package and the MCP server.",
+      "confirm": "Confirm",
+      "resetConfirmation": "Reset"
+    },
+    "native": {
+      "checking": "Checking...",
+      "connectionOk": "Connected: {{model}}",
+      "providerSaved": "Provider settings are saved.",
+      "providerMissing": "Add an AI provider before starting this mode.",
+      "modelMissing": "Add at least one OpenRouter model in Settings.",
+      "modelReady": "Ready with {{model}}.",
+      "modelLabel": "Model",
+      "disabledTitle": "Native runtime is unavailable",
+      "title": "AI provider and model",
+      "openProviders": "AI providers"
+    }
   },
   "sidebar": {
     "idleHeading": "Choose a\nmode",
@@ -111,7 +201,7 @@
       "checks": "Checks"
     },
     "mode": {
-      "bridge": "MCP + Skill",
+      "bridge": "MCP + Instructions",
       "bridgeHint": "Run through Claude Desktop and stream MCP facts back into the app.",
       "native": "API + AI Chat",
       "nativeHint": "Run the scan locally, then interpret it with the in-app AI runtime."
@@ -227,27 +317,42 @@
       "infoNoToraseoYet": "File selected, but the mcpServers.toraseo entry is not there yet. The ToraSEO installer will add it next time."
     },
     "skill": {
-      "label": "ToraSEO Skill is installed",
-      "hintMissing": "Download the ZIP from GitHub and install it via Claude Desktop: Settings → Skills → Install ZIP. Then click \"I installed Skill\".",
-      "hintFilesystem": "File found on disk (Claude Code)",
+      "label": "Claude Bridge Instructions are installed",
+      "hintMissing": "Download the ZIP from GitHub and install it via Claude Desktop: Settings → Skills → Install ZIP. Then click \"I installed Claude Bridge Instructions\".",
+      "hintFilesystem": "File found in Claude local skills folder",
       "hintManual": "Confirmed by user",
       "downloadButton": "Download ZIP from GitHub",
       "downloading": "Downloading from GitHub…",
       "openReleasesButton": "Open releases page",
-      "confirmButton": "I installed Skill",
+      "confirmButton": "I installed Claude Bridge Instructions",
       "confirming": "Confirming…",
-      "errorNoRelease": "No skill release found on GitHub. Open the releases page manually.",
+      "errorNoRelease": "No Claude Bridge Instructions release found on GitHub. Open the releases page manually.",
       "errorDownloadFailed": "Failed to reach GitHub.",
       "errorWriteFailed": "Failed to write file.",
       "errorNoZip": "Release {{tag}} has no ZIP attached.",
-      "infoDownloaded": "ZIP downloaded ({{tag}}). The folder with the file is open — drag it into Claude Desktop: Settings → Skills → Install from ZIP. After installing, return here and click \"I installed Skill\".",
-      "confirmDialog": "Confirm that the ToraSEO Skill is installed in Claude Desktop via Settings → Skills?\n\nWithout the Skill loaded into Claude's context, the analysis will be incomplete — it will ignore CRAWLING_POLICY, verdict mapping, and the CGS scoring formula.",
-      "tooltipFilesystem": "Skill is detected via the filesystem (Claude Code) — no confirmation needed",
+      "infoDownloaded": "ZIP downloaded ({{tag}}). The folder with the file is open — drag it into Claude Desktop: Settings → Skills → Install from ZIP. After installing, return here and click \"I installed Claude Bridge Instructions\".",
+      "confirmDialog": "Confirm that the ToraSEO Claude Bridge Instructions are installed in Claude Desktop via Settings → Skills?\n\nWithout those instructions loaded into Claude's context, the analysis will be incomplete — it will ignore CRAWLING_POLICY, verdict mapping, and the CGS scoring formula.",
+      "tooltipFilesystem": "Claude Bridge Instructions are detected via the filesystem — no confirmation needed",
       "tooltipManual": "Manual confirmation already active — reset it below to confirm again"
     }
   },
   "preflight": {
-    "depsFailed": "Dependency check failed. Open Claude Desktop, make sure MCP is connected and the Skill is installed."
+    "depsFailed": "Dependency check failed. Open Claude Desktop, make sure MCP is connected and Claude Bridge Instructions are installed.",
+    "executionModeMissing": "Confirm an execution mode first.",
+    "providerMissing": "Add an AI provider before using API + AI Chat.",
+    "modelMissing": "Choose an OpenRouter model before starting analysis.",
+    "nativeUnavailable": "API + AI Chat is unavailable in this build.",
+    "codexNeedsConfirmation": "Open Codex before starting the Codex bridge path.",
+    "codexSetupMissing": "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions."
+  },
+  "analysisHero": {
+    "nativeMode": "API + AI Chat",
+    "bridgeMode": "MCP + Instructions",
+    "ready": "Ready to scan",
+    "scanning": "Analysis in progress",
+    "issues": "Issues found",
+    "warnings": "Warnings found",
+    "topReady": "Top-ready result"
   },
   "updater": {
     "available": {

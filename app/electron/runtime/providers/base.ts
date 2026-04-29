@@ -17,6 +17,7 @@ import type {
   ProviderCapabilities,
   ProviderConfig,
   ProviderId,
+  RuntimeAnalysisType,
   RuntimeAuditReport,
   RuntimePolicyBundle,
   RuntimeScanContext,
@@ -32,6 +33,8 @@ export interface ProviderChatRequest {
   policy: RuntimePolicyBundle;
   /** User message text for this turn. */
   userText: string;
+  /** Active analysis type that bounds the answer. */
+  analysisType: RuntimeAnalysisType;
   /** Scan facts the assistant may cite. */
   scanContext?: RuntimeScanContext | null;
   /** Override default model for this request. */

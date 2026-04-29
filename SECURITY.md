@@ -2,7 +2,7 @@
 
 We take the security of ToraSEO seriously. ToraSEO is an SEO toolkit
 that performs HTTP requests to user-supplied URLs, runs as an MCP server
-with tool execution privileges in Claude Desktop, and ships a Tauri
+with tool execution privileges in Claude Desktop, and ships an Electron
 desktop application as a signed binary. Each of these layers carries
 its own class of risk, and we treat security reports across all of them
 as a first-class concern.
@@ -111,13 +111,18 @@ validation matters here in ways it would not in a normal CLI:
 - **State leakage between sessions** — any path where one chat
   session's state becomes visible to another.
 
-### Tauri desktop application
+### Electron desktop application
 
-- **WebSocket binding** — the local WebSocket bridge between the app
-  and the MCP server should not be reachable by other processes or
-  network hosts.
-- **IPC abuse** — Tauri commands invoked from web content that should
-  only be invoked by the trusted frontend bundle.
+- **IPC abuse** — Electron IPC handlers invoked from web content that
+  should only be invoked by the trusted frontend bundle.
+- **Preload boundary bypass** — renderer code must use the typed
+  `contextBridge` surface; it must not receive raw `ipcRenderer` or
+  Node.js access.
+- **Credential exposure** — provider API keys must stay in the main
+  process and should be encrypted through OS-level storage when
+  available.
+- **Bridge state leakage** — local state files used for Bridge Mode
+  must not expose one scan's data to unrelated sessions.
 - **Update channel integrity** — anything that could let a third party
   serve a forged update to a running app.
 - **Code-signing and supply chain** — issues with the way release
@@ -138,7 +143,8 @@ rather than a vulnerability, but we still want to hear about them.
   cap.
 - The User-Agent identifies ToraSEO honestly and links to this
   repository; we do not spoof.
-- The local WebSocket bridge binds to `127.0.0.1` only.
+- The renderer runs behind a narrow preload API and does not receive
+  raw Node.js or `ipcRenderer` access.
 - Release binaries are built from tagged commits and their checksums
   are published alongside the release.
 
@@ -197,14 +203,15 @@ treated as design questions, not as patches; they are answered in
 ## For Contributors
 
 If you are submitting a pull request that touches network code, MCP
-tools, or Tauri IPC, please confirm in the PR description that you
+tools, or Electron IPC, please confirm in the PR description that you
 considered the relevant section of this document. Reviewers will ask.
 
 A non-exhaustive checklist:
 
 - New MCP tools validate every argument before use.
 - New crawler code respects the rate limiter and page cap.
-- New IPC handlers check the calling context.
+- New IPC handlers expose only narrow, typed operations to the renderer.
+- New provider integrations never return raw secrets to the renderer.
 - New release-pipeline changes preserve checksum publication.
 
 ## Security Contributors

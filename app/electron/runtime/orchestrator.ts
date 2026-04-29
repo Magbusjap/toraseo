@@ -44,7 +44,9 @@ export async function handleUserMessage(
   const response = await adapter.sendChat({
     policy,
     userText: input.text,
+    analysisType: input.analysisType,
     scanContext: input.scanContext,
+    modelOverride: input.modelOverride,
   });
 
   if (!response.ok) {

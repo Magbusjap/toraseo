@@ -37,6 +37,16 @@ the `skill-v*` namespace.
 
 ## [Unreleased]
 
+Current active app release candidate:
+
+- **App 0.0.7 - dual-mode desktop runtime.** This is now the
+  release being hardened. It supersedes the older Bridge-only and
+  NSIS-only planning notes below.
+- `API + AI Chat` now uses saved OpenRouter model profiles instead of
+  a mandatory home-screen connection check.
+- `MCP + Instructions` now distinguishes Claude Bridge Instructions from the
+  new Codex Workflow Instructions package.
+
 Roadmap after v0.0.6:
 
 - **v0.0.7 — NSIS multi-language installer.** Build the installer
@@ -69,6 +79,95 @@ Roadmap after v0.0.6:
 
 After that, the **skill track v0.2.0** — Mode B content audit
 (humanizer, readability, style match, AI-detection score).
+
+---
+
+## [App 0.0.7] - Unreleased
+
+Dual-mode desktop runtime. This release reshapes the app from a
+Claude-dependent Bridge workflow into a product with two explicit
+execution modes: `MCP + Instructions` and `API + AI Chat`.
+
+### Added - dual-mode workspace
+
+- **Home-screen execution mode selection.** The user now confirms
+  `MCP + Instructions` or `API + AI Chat` before choosing the analysis type;
+  the selected mode is highlighted and persisted across restarts.
+- **Mode-specific setup flows.** `MCP + Instructions` exposes a Claude
+  Desktop guided setup and a Codex setup verification path, while
+  `API + AI Chat` routes missing providers and models to Settings
+  without forcing a home-screen connection check.
+- **Standalone native AI chat window.** Native analysis opens the AI
+  chat in a separate window instead of embedding it in the main
+  workspace.
+- **Analysis status hero.** Site analysis now keeps a visible mascot,
+  animated progress stripe, and issue counters at the top of the main
+  workspace during and after scans.
+- **Main analysis workspace.** The main window keeps scan controls and
+  structured analysis together, rendering confirmed facts, expert
+  hypotheses, priority, expected impact, validation method, and scan
+  totals.
+- **Second-screen details.** Reports can be opened in a separate
+  details window. Returning home leaves open details/chat windows in
+  an inactive ended state.
+- **Report exports.** The app can export generated audit reports as
+  PDF, a standard Markdown document, or a lightweight HTML
+  presentation through the same structured report contract.
+
+### Added - native runtime
+
+- **OpenRouter provider adapter.** Replaced the Stage 1 stub with a
+  real chat-completions request path, timeout handling, retry logic,
+  and stable provider error mapping.
+- **Provider configuration.** Added local provider setup with
+  encrypted API-key storage through Electron `safeStorage`; raw keys
+  do not round-trip back to the renderer.
+- **OpenRouter model profiles.** One saved OpenRouter key can now
+  power multiple saved model profiles, with a default model selected
+  for analysis and follow-up chat.
+- **Structured report contract.** Runtime responses must keep
+  confirmed facts separate from expert hypotheses and include
+  priority, expected impact, and validation guidance.
+- **Policy modes.** `strict_audit` forbids hypotheses; `audit_plus_ideas`
+  allows hypotheses only when explicitly labeled.
+
+### Changed
+
+- **Native mode no longer depends on Claude Desktop readiness.** The
+  legacy dependency gate remains relevant for Bridge Mode, but the
+  native API path is intended to work with Claude Desktop fully closed.
+- **Bridge mode has no in-app AI chat.** The integrated chat is scoped
+  to `API + AI Chat`; `MCP + Instructions` keeps the live conversation in the
+  external Claude Desktop workflow.
+- **Provider registry precedence.** Environment overrides can win over
+  stored provider config, which is useful for local testing and
+  emergency recovery.
+- **Bridge scan state mapping.** Bridge Mode state is mapped into the
+  shared workspace so MCP facts can populate the analysis view without
+  removing the Claude Desktop path.
+- **Standalone chat stability.** The AI chat window no longer resets
+  its own session in a render loop when the analysis report state is
+  synchronized.
+- **Release workflow Node version.** The app release workflow now uses
+  Node.js 22, matching the root `engines.node` requirement.
+
+### Security and trust
+
+- API keys are stored only in the Electron main process using OS-level
+  encrypted storage when available.
+- Provider errors are normalized before reaching the renderer.
+- The UI and report contract keep factual tool output distinct from AI
+  interpretation.
+- Bridge prompt construction keeps the protocol token out of renderer
+  prompt text; the token remains sourced from `SKILL.md`.
+
+### Verification required before tag
+
+- Run the smoke tests in `docs/SMOKE_TESTS.md`.
+- Confirm `MCP + Instructions` works end-to-end with Claude Desktop.
+- Confirm `API + AI Chat` works end-to-end with a real OpenRouter key.
+- Confirm separate chat/details windows, inactive states, and all
+  export formats with realistic content.
 
 ---
 

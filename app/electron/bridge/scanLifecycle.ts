@@ -43,6 +43,7 @@ import { buildScanPrompt } from "./promptBuilder.js";
 import { getCurrentLocale } from "../locale.js";
 
 import type {
+  BridgeClient,
   CurrentScanState,
   ToolId,
   StartBridgeScanResult,
@@ -72,12 +73,23 @@ import type {
  * MCP access, defeating the architectural contract.
  */
 export const BRIDGE_PROTOCOL_TOKEN = "bridge-v1-2026-04-27";
+const CODEX_WORKFLOW_HANDSHAKE_MARKER = "verified-by-mcp-codex-workflow";
 
 /** Timer durations in milliseconds. */
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 const FIRST_TOOL_TIMEOUT_MS = 30_000;
 const GLOBAL_TIMEOUT_MS = 5 * 60_000;
 const COMPLETION_GRACE_MS = 5_000;
+
+function usesAutomaticTimeouts(bridgeClient: BridgeClient): boolean {
+  return bridgeClient === "claude";
+}
+
+function expectedHandshakeToken(bridgeClient: BridgeClient): string {
+  return bridgeClient === "codex"
+    ? CODEX_WORKFLOW_HANDSHAKE_MARKER
+    : BRIDGE_PROTOCOL_TOKEN;
+}
 
 /**
  * Active timer set for the current scan. Stored at module scope
@@ -123,6 +135,7 @@ function clearAllTimers(): void {
 export async function startScan(
   url: string,
   toolIds: ToolId[],
+  bridgeClient: BridgeClient = "claude",
 ): Promise<StartBridgeScanResult> {
   // Cancel any prior scan (caller should have asked the user).
   if (activeTimers) {
@@ -139,13 +152,14 @@ export async function startScan(
   const state: CurrentScanState = {
     schemaVersion: STATE_FILE_SCHEMA_VERSION,
     scanId,
+    bridgeClient,
     status: "awaiting_handshake",
     url,
     createdAt: now,
     finishedAt: null,
     selectedTools: toolIds,
     handshake: {
-      expectedToken: BRIDGE_PROTOCOL_TOKEN,
+      expectedToken: expectedHandshakeToken(bridgeClient),
       receivedToken: null,
       status: "pending",
       verifiedAt: null,
@@ -157,20 +171,24 @@ export async function startScan(
   await writeState(state);
 
   const locale = await getCurrentLocale();
-  const prompt = buildScanPrompt(url, toolIds, locale);
+  const prompt = buildScanPrompt(url, toolIds, locale, bridgeClient);
 
   // Copy to clipboard. clipboard.writeText is sync and trivially
   // fast — no need to await anything.
   clipboard.writeText(prompt);
 
   // Set up timers.
-  const handshakeTimer = setTimeout(() => {
-    void onHandshakeTimeout(scanId);
-  }, HANDSHAKE_TIMEOUT_MS);
+  const handshakeTimer = usesAutomaticTimeouts(bridgeClient)
+    ? setTimeout(() => {
+        void onHandshakeTimeout(scanId);
+      }, HANDSHAKE_TIMEOUT_MS)
+    : null;
 
-  const globalTimer = setTimeout(() => {
-    void onGlobalTimeout(scanId);
-  }, GLOBAL_TIMEOUT_MS);
+  const globalTimer = usesAutomaticTimeouts(bridgeClient)
+    ? setTimeout(() => {
+        void onGlobalTimeout(scanId);
+      }, GLOBAL_TIMEOUT_MS)
+    : null;
 
   activeTimers = {
     scanId,
@@ -187,7 +205,8 @@ export async function startScan(
   return {
     scanId,
     prompt,
-    expectedToken: BRIDGE_PROTOCOL_TOKEN,
+    expectedToken: state.handshake.expectedToken,
+    bridgeClient,
   };
 }
 
@@ -245,7 +264,7 @@ export async function retryHandshake(): Promise<{
     ...current,
     status: "awaiting_handshake",
     handshake: {
-      expectedToken: BRIDGE_PROTOCOL_TOKEN,
+      expectedToken: expectedHandshakeToken(current.bridgeClient),
       receivedToken: null,
       status: "pending",
       verifiedAt: null,
@@ -259,17 +278,26 @@ export async function retryHandshake(): Promise<{
 
   // Re-copy prompt.
   const locale = await getCurrentLocale();
-  const prompt = buildScanPrompt(reset.url, reset.selectedTools, locale);
+  const prompt = buildScanPrompt(
+    reset.url,
+    reset.selectedTools,
+    locale,
+    reset.bridgeClient,
+  );
   clipboard.writeText(prompt);
 
   // Restart timers (clear any old, set fresh).
   clearAllTimers();
-  const handshakeTimer = setTimeout(() => {
-    void onHandshakeTimeout(reset.scanId);
-  }, HANDSHAKE_TIMEOUT_MS);
-  const globalTimer = setTimeout(() => {
-    void onGlobalTimeout(reset.scanId);
-  }, GLOBAL_TIMEOUT_MS);
+  const handshakeTimer = usesAutomaticTimeouts(reset.bridgeClient)
+    ? setTimeout(() => {
+        void onHandshakeTimeout(reset.scanId);
+      }, HANDSHAKE_TIMEOUT_MS)
+    : null;
+  const globalTimer = usesAutomaticTimeouts(reset.bridgeClient)
+    ? setTimeout(() => {
+        void onGlobalTimeout(reset.scanId);
+      }, GLOBAL_TIMEOUT_MS)
+    : null;
   activeTimers = {
     scanId: reset.scanId,
     handshakeTimer,
@@ -305,7 +333,11 @@ export function observeBridgeState(state: CurrentScanState | null): void {
 
   if (state.status === "in_progress") {
     const hasStartedTools = Object.keys(state.buffer).length > 0;
-    if (!hasStartedTools && !activeTimers.firstToolTimer) {
+    if (
+      usesAutomaticTimeouts(state.bridgeClient) &&
+      !hasStartedTools &&
+      !activeTimers.firstToolTimer
+    ) {
       activeTimers.firstToolTimer = setTimeout(() => {
         void onFirstToolTimeout(state.scanId);
       }, FIRST_TOOL_TIMEOUT_MS);
@@ -365,7 +397,9 @@ async function onHandshakeTimeout(scanId: string): Promise<void> {
     error: {
       code: "handshake_timeout",
       message:
-        "Claude did not call verify_skill_loaded within 10 seconds. Check that Claude Desktop is running, MCP is connected, and ToraSEO Skill is loaded.",
+        state.bridgeClient === "codex"
+          ? "Codex did not call verify_codex_workflow_loaded within 10 seconds. Check that Codex is running, ToraSEO MCP is connected, and Codex Workflow Instructions are loaded."
+          : "Claude did not call verify_skill_loaded within 10 seconds. Check that Claude Desktop is running, MCP is connected, and Claude Bridge Instructions are loaded.",
     },
   });
 

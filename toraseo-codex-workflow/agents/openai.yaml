@@ -1,0 +1,13 @@
+interface:
+  display_name: "ToraSEO Codex Workflow"
+  short_description: "ToraSEO workflow and Codex bridge handshake guidance"
+  default_prompt: "Use $toraseo-codex-workflow to work on the ToraSEO app, MCP, runtime provider flow, SEO audit policy, or Codex bridge handshake."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "toraseo"
+      description: "ToraSEO MCP server for deterministic SEO audit facts"
+
+policy:
+  allow_implicit_invocation: true

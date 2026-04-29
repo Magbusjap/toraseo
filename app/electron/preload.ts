@@ -20,11 +20,13 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import type {
   CheckUpdateResult,
+  BridgeClient,
   CurrentScanState,
   DetectorStatus,
   DownloadProgress,
   DownloadSkillZipResult,
   OpenClaudeResult,
+  OpenCodexResult,
   PickMcpConfigResult,
   ScanComplete,
   StageUpdate,
@@ -38,11 +40,15 @@ import type {
 import type {
   OrchestratorMessageInput,
   OrchestratorMessageResult,
+  ProviderConnectionTestResult,
   ProviderId,
   ProviderInfo,
   RuntimeAuditReport,
+  RuntimeChatWindowSession,
   SetProviderConfigInput,
   SetProviderConfigResult,
+  SetProviderModelProfilesInput,
+  SetProviderModelProfilesResult,
 } from "../src/types/runtime";
 
 // Mirror of IPC_CHANNELS from electron/tools.ts. Kept in sync manually;
@@ -81,6 +87,7 @@ const DETECTOR = {
 // Mirror of LAUNCHER_CHANNELS from electron/launcher.ts.
 const LAUNCHER = {
   openClaude: "toraseo:launcher:open-claude",
+  openCodex: "toraseo:launcher:open-codex",
 } as const;
 
 // Mirror of LOCALE_CHANNELS from electron/locale.ts.
@@ -96,6 +103,7 @@ const BRIDGE = {
   cancelScan: "toraseo:bridge:cancel-scan",
   retryHandshake: "toraseo:bridge:retry-handshake",
   getState: "toraseo:bridge:get-state",
+  copyCodexSetupPrompt: "toraseo:bridge:copy-codex-setup-prompt",
   stateUpdate: "toraseo:bridge:state-update",
 } as const;
 
@@ -105,15 +113,26 @@ const RUNTIME = {
   isEncryptionAvailable: "toraseo:runtime:is-encryption-available",
   listProviders: "toraseo:runtime:list-providers",
   setProviderConfig: "toraseo:runtime:set-provider-config",
+  setProviderModelProfiles: "toraseo:runtime:set-provider-model-profiles",
   deleteProviderConfig: "toraseo:runtime:delete-provider-config",
   sendMessage: "toraseo:runtime:send-message",
   openReportWindow: "toraseo:runtime:open-report-window",
   closeReportWindow: "toraseo:runtime:close-report-window",
+  endReportWindowSession: "toraseo:runtime:end-report-window-session",
   exportReportPdf: "toraseo:runtime:export-report-pdf",
+  exportReportDocument: "toraseo:runtime:export-report-document",
+  exportReportPresentation: "toraseo:runtime:export-report-presentation",
+  testProviderConnection: "toraseo:runtime:test-provider-connection",
+  openChatWindow: "toraseo:runtime:open-chat-window",
+  updateChatWindowSession: "toraseo:runtime:update-chat-window-session",
+  endChatWindowSession: "toraseo:runtime:end-chat-window-session",
+  closeChatWindow: "toraseo:runtime:close-chat-window",
+  getChatWindowSession: "toraseo:runtime:chat-window:get-session",
+  chatWindowSessionUpdate: "toraseo:runtime:chat-window:session-update",
 } as const;
 
 const api: ToraseoApi = {
-  version: "0.0.6",
+  version: "0.0.7",
 
   startScan: (args: StartScanArgs) => {
     return ipcRenderer.invoke(SCAN.startScan, args) as Promise<{
@@ -250,6 +269,9 @@ const api: ToraseoApi = {
     openClaude: () => {
       return ipcRenderer.invoke(LAUNCHER.openClaude) as Promise<OpenClaudeResult>;
     },
+    openCodex: () => {
+      return ipcRenderer.invoke(LAUNCHER.openCodex) as Promise<OpenCodexResult>;
+    },
   },
 
   locale: {
@@ -265,10 +287,15 @@ const api: ToraseoApi = {
   },
 
   bridge: {
-    startScan: (url: string, toolIds: ToolId[]) => {
+    startScan: (
+      url: string,
+      toolIds: ToolId[],
+      bridgeClient?: BridgeClient,
+    ) => {
       return ipcRenderer.invoke(BRIDGE.startScan, {
         url,
         toolIds,
+        bridgeClient,
       }) as Promise<StartBridgeScanResult>;
     },
 
@@ -297,6 +324,13 @@ const api: ToraseoApi = {
         error?: string;
       }>;
     },
+
+    copyCodexSetupPrompt: () => {
+      return ipcRenderer.invoke(BRIDGE.copyCodexSetupPrompt) as Promise<{
+        ok: boolean;
+        prompt: string;
+      }>;
+    },
   },
 
   runtime: {
@@ -321,6 +355,13 @@ const api: ToraseoApi = {
         RUNTIME.setProviderConfig,
         input,
       ) as Promise<SetProviderConfigResult>;
+    },
+
+    setProviderModelProfiles: (input: SetProviderModelProfilesInput) => {
+      return ipcRenderer.invoke(
+        RUNTIME.setProviderModelProfiles,
+        input,
+      ) as Promise<SetProviderModelProfilesResult>;
     },
 
     deleteProviderConfig: (id: ProviderId) => {
@@ -350,11 +391,84 @@ const api: ToraseoApi = {
       ) as Promise<{ ok: boolean }>;
     },
 
+    endReportWindowSession: () => {
+      return ipcRenderer.invoke(
+        RUNTIME.endReportWindowSession,
+      ) as Promise<{ ok: boolean }>;
+    },
+
     exportReportPdf: (report: RuntimeAuditReport) => {
       return ipcRenderer.invoke(
         RUNTIME.exportReportPdf,
         report,
       ) as Promise<{ ok: boolean; filePath?: string; error?: string }>;
+    },
+
+    exportReportDocument: (report: RuntimeAuditReport) => {
+      return ipcRenderer.invoke(
+        RUNTIME.exportReportDocument,
+        report,
+      ) as Promise<{ ok: boolean; filePath?: string; error?: string }>;
+    },
+
+    exportReportPresentation: (report: RuntimeAuditReport) => {
+      return ipcRenderer.invoke(
+        RUNTIME.exportReportPresentation,
+        report,
+      ) as Promise<{ ok: boolean; filePath?: string; error?: string }>;
+    },
+
+    testProviderConnection: (
+      providerId: ProviderId,
+      locale: SupportedLocale,
+      modelOverride?: string,
+    ) => {
+      return ipcRenderer.invoke(
+        RUNTIME.testProviderConnection,
+        providerId,
+        locale,
+        modelOverride,
+      ) as Promise<ProviderConnectionTestResult>;
+    },
+
+    openChatWindow: (session: RuntimeChatWindowSession) => {
+      return ipcRenderer.invoke(
+        RUNTIME.openChatWindow,
+        session,
+      ) as Promise<{ ok: boolean }>;
+    },
+
+    updateChatWindowSession: (session: RuntimeChatWindowSession) => {
+      return ipcRenderer.invoke(
+        RUNTIME.updateChatWindowSession,
+        session,
+      ) as Promise<{ ok: boolean }>;
+    },
+
+    endChatWindowSession: () => {
+      return ipcRenderer.invoke(
+        RUNTIME.endChatWindowSession,
+      ) as Promise<{ ok: boolean }>;
+    },
+
+    closeChatWindow: () => {
+      return ipcRenderer.invoke(
+        RUNTIME.closeChatWindow,
+      ) as Promise<{ ok: boolean }>;
+    },
+
+    getChatWindowSession: () => {
+      return ipcRenderer.invoke(
+        RUNTIME.getChatWindowSession,
+      ) as Promise<RuntimeChatWindowSession>;
+    },
+
+    onChatWindowSessionUpdate: (listener) => {
+      const wrapped = (_event: unknown, session: RuntimeChatWindowSession) =>
+        listener(session);
+      ipcRenderer.on(RUNTIME.chatWindowSessionUpdate, wrapped);
+      return () =>
+        ipcRenderer.removeListener(RUNTIME.chatWindowSessionUpdate, wrapped);
     },
   },
 };

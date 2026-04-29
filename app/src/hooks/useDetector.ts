@@ -4,6 +4,7 @@ import type {
   DetectorStatus,
   DownloadSkillZipResult,
   OpenClaudeResult,
+  OpenCodexResult,
   PickMcpConfigResult,
 } from "../types/ipc";
 
@@ -41,6 +42,7 @@ export interface UseDetectorReturn {
   status: DetectorStatus | null;
   checkNow: () => Promise<DetectorStatus>;
   openClaude: () => Promise<OpenClaudeResult>;
+  openCodex: () => Promise<OpenCodexResult>;
   pickMcpConfig: () => Promise<PickMcpConfigResult>;
   clearManualMcpConfig: () => Promise<{ ok: boolean }>;
   downloadSkillZip: () => Promise<DownloadSkillZipResult>;
@@ -65,6 +67,10 @@ export function useDetector(): UseDetectorReturn {
 
   const openClaude = useCallback(async () => {
     return window.toraseo.launcher.openClaude();
+  }, []);
+
+  const openCodex = useCallback(async () => {
+    return window.toraseo.launcher.openCodex();
   }, []);
 
   const pickMcpConfig = useCallback(async () => {
@@ -95,6 +101,7 @@ export function useDetector(): UseDetectorReturn {
     status,
     checkNow,
     openClaude,
+    openCodex,
     pickMcpConfig,
     clearManualMcpConfig,
     downloadSkillZip,

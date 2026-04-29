@@ -6,6 +6,7 @@ import type {
   AuditExecutionMode,
   OrchestratorMessageInput,
   OrchestratorMessageResult,
+  ProviderModelProfile,
   RuntimeAuditReport,
   RuntimePolicyMode,
   RuntimeScanContext,
@@ -21,6 +22,7 @@ interface ChatPanelProps {
   locale: SupportedLocale;
   executionMode: AuditExecutionMode;
   scanContext: RuntimeScanContext | null;
+  selectedModelProfile: ProviderModelProfile | null;
   bridgeState: CurrentScanState | null;
   bridgePrompt: string | null;
   onReport: (report: RuntimeAuditReport | null) => void;
@@ -32,6 +34,7 @@ export default function ChatPanel({
   locale,
   executionMode,
   scanContext,
+  selectedModelProfile,
   bridgeState,
   bridgePrompt,
   onReport,
@@ -60,8 +63,7 @@ export default function ChatPanel({
             : "Bridge mode is ready. Paste the copied prompt into Claude Desktop to let MCP tools fill the app.",
       },
     ]);
-    onReport(null);
-  }, [executionMode, onReport]);
+  }, [executionMode]);
 
   const helperText = useMemo(() => {
     if (executionMode === "bridge") {
@@ -80,7 +82,7 @@ export default function ChatPanel({
       return "Bridge scan finished. Claude recommendations can continue in the external chat.";
     }
     if (!scanContext || scanContext.completedTools.length === 0) {
-      return "Run a local scan first, then ask the in-app AI to interpret the findings.";
+      return "Run a site scan first, then ask the in-app AI to interpret those findings.";
     }
     return `Scan context ready: ${scanContext.completedTools.length}/${scanContext.selectedTools.length} tools completed.`;
   }, [bridgeState, executionMode, scanContext]);
@@ -92,13 +94,28 @@ export default function ChatPanel({
 
     setHistory((prev) => [...prev, { role: "user", text }]);
     setDraft("");
+
+    if (!scanContext || scanContext.completedTools.length === 0) {
+      setHistory((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text:
+            "Start a site audit in the main ToraSEO window first. I can only answer inside the active analysis context.",
+        },
+      ]);
+      return;
+    }
+
     setBusy(true);
 
     const input: OrchestratorMessageInput = {
       text,
       mode: policyMode,
       executionMode,
+      analysisType: "site",
       providerId: RUNTIME_PROVIDER_ID,
+      modelOverride: selectedModelProfile?.modelId,
       locale,
       scanContext,
     };
@@ -142,7 +159,9 @@ export default function ChatPanel({
       <header className="flex items-center justify-between border-b border-orange-100 px-5 py-3">
         <div>
           <h2 className="text-sm font-semibold text-orange-900">
-            {executionMode === "native" ? "API + AI Chat" : "MCP + Skill Companion"}
+            {executionMode === "native"
+              ? "API + AI Chat"
+              : "MCP + Instructions Companion"}
           </h2>
           <p className="text-xs text-orange-700/70">{helperText}</p>
         </div>
@@ -164,7 +183,9 @@ export default function ChatPanel({
             </div>
           )}
           <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-orange-700">
-            {executionMode === "native" ? "In-app runtime" : "Claude desktop"}
+            {executionMode === "native"
+              ? selectedModelProfile?.displayName ?? "In-app runtime"
+              : "Claude desktop"}
           </span>
         </div>
       </header>
@@ -211,7 +232,7 @@ export default function ChatPanel({
             onChange={(e) => setDraft(e.target.value)}
             placeholder={
               executionMode === "native"
-                ? "Ask the in-app AI to interpret the current scan..."
+                ? "Ask about the current site audit..."
                 : "Bridge mode uses Claude Desktop for the live conversation."
             }
             disabled={busy || executionMode !== "native"}

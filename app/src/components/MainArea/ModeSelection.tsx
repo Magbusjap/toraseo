@@ -1,114 +1,822 @@
-import { Globe, FileText } from "lucide-react";
+import {
+  Bot,
+  CheckCircle2,
+  Copy,
+  FileText,
+  Globe,
+  Info,
+  PlugZap,
+  Settings,
+  Wrench,
+  XCircle,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+import OnboardingView from "../Onboarding/OnboardingView";
 import SleepingMascot from "../Mascot/SleepingMascot";
 import toraLogoWordmark from "@branding/logos/tora-logo-wordmark.svg";
 
+import type {
+  CurrentScanState,
+  DetectorStatus,
+  DownloadSkillZipResult,
+  PickMcpConfigResult,
+} from "../../types/ipc";
+import type {
+  AuditExecutionMode,
+  ProviderModelProfile,
+} from "../../types/runtime";
+
+export type BridgeProgram = "claude" | "codex";
+
 interface ModeSelectionProps {
+  selectedExecutionMode: AuditExecutionMode;
+  confirmedExecutionMode: AuditExecutionMode | null;
+  nativeRuntimeEnabled: boolean;
+  providerConfigured: boolean;
+  providersLoading: boolean;
+  providerModelProfiles: ProviderModelProfile[];
+  selectedModelProfileId: string | null;
+  bridgeProgram: BridgeProgram;
+  codexSetupVerified: boolean;
+  codexHandshakeVerified: boolean;
+  codexBridgeState: CurrentScanState | null;
+  detectorStatus: DetectorStatus | null;
+  onExecutionModeDraftChange: (mode: AuditExecutionMode) => void;
+  onConfirmExecutionMode: () => void;
+  onChangeConfirmedExecutionMode: () => void;
+  onBridgeProgramChange: (program: BridgeProgram) => void;
+  onOpenCodex: () => Promise<{ ok: boolean; error?: string }>;
+  onCopyCodexSetupPrompt: () => Promise<string>;
+  onModelProfileChange: (profileId: string) => void;
+  onOpenProviderSettings: () => void;
+  onOpenClaude: () => Promise<{ ok: boolean; error?: string }>;
+  onPickMcpConfig: () => Promise<PickMcpConfigResult>;
+  onClearManualMcpConfig: () => Promise<{ ok: boolean }>;
+  onDownloadSkillZip: () => Promise<DownloadSkillZipResult>;
+  onOpenSkillReleasesPage: () => Promise<{ ok: boolean }>;
+  onConfirmSkillInstalled: () => Promise<{ ok: boolean }>;
+  onClearSkillConfirmation: () => Promise<{ ok: boolean }>;
   onSelect: (mode: "site" | "content") => void;
 }
 
-/**
- * ModeSelection — main area in the Initial state.
- *
- * Wordmark logo + Idle status + sleeping mascot + heading + two
- * mode cards. The "Article text" card is disabled until v0.2.
- *
- * The header logo is the wordmark-only version
- * (tora-logo-wordmark.svg, no mascot face). The screen already
- * shows a large SleepingMascot below, and a horizontal logo with
- * a second small mascot beside it killed the visual balance — two
- * of the same character in one frame split the user's gaze. The
- * full mascot+wordmark tora-logo-horizontal.svg stays as the
- * canonical logo for README and external contexts where no
- * separate mascot illustration is in view.
- *
- * Layout: justify-start instead of justify-center so the header
- * sits closer to the toolbar instead of glued to the vertical
- * center of the window. pt-8 gives breathing room from the
- * toolbar; gap-7 between blocks is a hair tighter than gap-8 to
- * keep the composition compact.
- */
-export default function ModeSelection({ onSelect }: ModeSelectionProps) {
+export default function ModeSelection({
+  selectedExecutionMode,
+  confirmedExecutionMode,
+  nativeRuntimeEnabled,
+  providerConfigured,
+  providersLoading,
+  providerModelProfiles,
+  selectedModelProfileId,
+  bridgeProgram,
+  codexSetupVerified,
+  codexHandshakeVerified,
+  codexBridgeState,
+  detectorStatus,
+  onExecutionModeDraftChange,
+  onConfirmExecutionMode,
+  onChangeConfirmedExecutionMode,
+  onBridgeProgramChange,
+  onOpenCodex,
+  onCopyCodexSetupPrompt,
+  onModelProfileChange,
+  onOpenProviderSettings,
+  onOpenClaude,
+  onPickMcpConfig,
+  onClearManualMcpConfig,
+  onDownloadSkillZip,
+  onOpenSkillReleasesPage,
+  onConfirmSkillInstalled,
+  onClearSkillConfirmation,
+  onSelect,
+}: ModeSelectionProps) {
   const { t } = useTranslation();
+  const bridgeReady =
+    bridgeProgram === "claude"
+      ? Boolean(detectorStatus?.allGreen)
+      : Boolean(detectorStatus?.codexRunning) && codexSetupVerified;
+  const nativeReady =
+    nativeRuntimeEnabled &&
+    providerConfigured &&
+    providerModelProfiles.some((profile) => profile.id === selectedModelProfileId);
+  const canSelectSite =
+    confirmedExecutionMode === "native"
+      ? nativeReady
+      : confirmedExecutionMode === "bridge"
+        ? bridgeReady
+        : false;
+
   return (
-    <div className="flex h-full flex-col items-center justify-start gap-7 px-8 pt-8 pb-12">
-      {/* Header — wordmark only (no mascot face). The screen already
-          shows a large SleepingMascot below; two of the same character
-          in one frame killed the visual focus. The full mascot+wordmark
-          tora-logo-horizontal.svg stays as-is for README and external
-          contexts where there's no separate mascot nearby. */}
-      <header className="text-center">
+    <div className="flex h-full flex-col items-center justify-start overflow-auto px-8 pb-10 pt-4">
+      <header className="flex flex-col items-center gap-3 text-center">
         <img
           src={toraLogoWordmark}
-          alt={`${t("app.name")} — ${t("app.tagline")}`}
-          className="h-16 w-auto"
+          alt={`${t("app.name")} - ${t("app.tagline")}`}
+          className="h-14 w-auto"
           draggable={false}
         />
+        <div className="flex items-center gap-2 text-sm text-outline-900/70">
+          <span
+            className="h-2.5 w-2.5 rounded-full bg-status-idle"
+            aria-hidden="true"
+          />
+          <span>{t("modeSelection.idle")}</span>
+        </div>
+        <SleepingMascot className="h-28 w-28" />
       </header>
 
-      {/* Status indicator */}
-      <div className="flex items-center gap-2 text-sm text-outline-900/70">
-        <span
-          className="h-2.5 w-2.5 rounded-full bg-status-idle"
-          aria-hidden="true"
+      <section className="mt-4 w-full max-w-4xl">
+        <SectionTitle
+          title={t("modeSelection.execution.title", {
+            defaultValue: "Execution mode",
+          })}
+          action={
+            confirmedExecutionMode ? (
+              <button
+                type="button"
+                onClick={onChangeConfirmedExecutionMode}
+                className="inline-flex items-center gap-1.5 rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-medium text-outline-900 transition hover:bg-orange-50"
+              >
+                <Wrench size={13} />
+                {t("modeSelection.execution.change", {
+                  defaultValue: "Change",
+                })}
+              </button>
+            ) : null
+          }
         />
-        <span>{t("modeSelection.idle")}</span>
-      </div>
 
-      {/* Mascot */}
-      <SleepingMascot className="h-40 w-40" />
+        <div className="grid gap-3 md:grid-cols-2">
+          <ExecutionModeCard
+            active={selectedExecutionMode === "bridge"}
+            confirmed={confirmedExecutionMode === "bridge"}
+            icon={<PlugZap className="h-5 w-5" />}
+            title={t("sidebar.mode.bridge", {
+              defaultValue: "MCP + Instructions",
+            })}
+            body={t("sidebar.mode.bridgeHint", {
+              defaultValue:
+                "Run through Claude Desktop and stream MCP facts back into the app.",
+            })}
+            disabled={Boolean(confirmedExecutionMode)}
+            onClick={() => onExecutionModeDraftChange("bridge")}
+          />
+          <ExecutionModeCard
+            active={selectedExecutionMode === "native"}
+            confirmed={confirmedExecutionMode === "native"}
+            icon={<Bot className="h-5 w-5" />}
+            title={t("sidebar.mode.native", {
+              defaultValue: "API + AI Chat",
+            })}
+            body={t("sidebar.mode.nativeHint", {
+              defaultValue:
+                "Run the scan locally, then interpret it with the in-app AI runtime.",
+            })}
+            disabled={Boolean(confirmedExecutionMode)}
+            onClick={() => onExecutionModeDraftChange("native")}
+          />
+        </div>
 
-      {/* Question */}
-      <p className="font-display text-lg text-outline-900">
-        {t("modeSelection.question")}
-      </p>
+        {!confirmedExecutionMode && (
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={onConfirmExecutionMode}
+              disabled={
+                selectedExecutionMode === "native" && !nativeRuntimeEnabled
+              }
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/20"
+            >
+              <CheckCircle2 size={15} />
+              {t("modeSelection.execution.confirm", {
+                defaultValue: "Confirm mode",
+              })}
+            </button>
+          </div>
+        )}
 
-      {/* Mode cards */}
-      <div className="flex gap-4">
-        <ModeCard
-          icon={<Globe className="h-8 w-8" strokeWidth={1.5} />}
-          title={t("modeSelection.siteByUrl")}
-          subtitle={t("modeSelection.siteSubtitle")}
-          onClick={() => onSelect("site")}
+        {selectedExecutionMode === "bridge" && (
+          <BridgeSetup
+            program={bridgeProgram}
+            codexSetupVerified={codexSetupVerified}
+            codexHandshakeVerified={codexHandshakeVerified}
+            codexBridgeState={codexBridgeState}
+            status={detectorStatus}
+            confirmed={confirmedExecutionMode === "bridge"}
+            onProgramChange={onBridgeProgramChange}
+            onOpenCodex={onOpenCodex}
+            onCopyCodexSetupPrompt={onCopyCodexSetupPrompt}
+            onOpenClaude={onOpenClaude}
+            onPickMcpConfig={onPickMcpConfig}
+            onClearManualMcpConfig={onClearManualMcpConfig}
+            onDownloadSkillZip={onDownloadSkillZip}
+            onOpenSkillReleasesPage={onOpenSkillReleasesPage}
+            onConfirmSkillInstalled={onConfirmSkillInstalled}
+            onClearSkillConfirmation={onClearSkillConfirmation}
+          />
+        )}
+
+        {selectedExecutionMode === "native" && (
+          <NativeSetup
+            enabled={nativeRuntimeEnabled}
+            providerConfigured={providerConfigured}
+            providersLoading={providersLoading}
+            modelProfiles={providerModelProfiles}
+            selectedModelProfileId={selectedModelProfileId}
+            onModelProfileChange={onModelProfileChange}
+            onOpenProviderSettings={onOpenProviderSettings}
+          />
+        )}
+      </section>
+
+      <section className="mt-5 w-full max-w-4xl">
+        <SectionTitle
+          title={t("modeSelection.question")}
         />
-        <ModeCard
-          icon={<FileText className="h-8 w-8" strokeWidth={1.5} />}
-          title={t("modeSelection.articleText")}
-          subtitle={t("modeSelection.articleSubtitle")}
-          disabled
-          onClick={() => onSelect("content")}
-        />
-      </div>
-
-      {/* Connection hint */}
-      <p className="mt-2 text-xs text-outline-900/50">
-        {t("modeSelection.claudeOptional")}
-      </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <AnalysisCard
+            icon={<Globe className="h-7 w-7" strokeWidth={1.5} />}
+            title={t("modeSelection.siteByUrl")}
+            subtitle={t("modeSelection.siteSubtitle")}
+            disabled={!canSelectSite}
+            onClick={() => onSelect("site")}
+          />
+          <AnalysisCard
+            icon={<FileText className="h-7 w-7" strokeWidth={1.5} />}
+            title={t("modeSelection.articleText")}
+            subtitle={t("modeSelection.articleSubtitle")}
+            disabled
+            onClick={() => onSelect("content")}
+          />
+        </div>
+      </section>
     </div>
   );
 }
 
-interface ModeCardProps {
-  icon: React.ReactNode;
+function SectionTitle({
+  title,
+  action,
+}: {
   title: string;
-  subtitle: string;
-  disabled?: boolean;
-  onClick: () => void;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h2 className="font-display text-base font-semibold text-outline-900">
+        {title}
+      </h2>
+      {action}
+    </div>
+  );
 }
 
-function ModeCard({ icon, title, subtitle, disabled, onClick }: ModeCardProps) {
-  const baseClasses =
-    "flex w-44 flex-col items-center gap-3 rounded-xl border bg-white p-6 text-center transition";
-  const stateClasses = disabled
-    ? "cursor-not-allowed border-outline/10 opacity-50"
-    : "cursor-pointer border-outline/15 hover:-translate-y-0.5 hover:border-primary hover:shadow-md";
-
+function ExecutionModeCard({
+  active,
+  confirmed,
+  icon,
+  title,
+  body,
+  disabled,
+  onClick,
+}: {
+  active: boolean;
+  confirmed: boolean;
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`${baseClasses} ${stateClasses}`}
+      className={`min-h-[118px] rounded-lg border bg-white p-4 text-left transition ${
+        active
+          ? "border-primary shadow-sm ring-2 ring-primary/20"
+          : "border-outline/10 hover:border-primary/50"
+      } ${disabled && !active ? "cursor-not-allowed opacity-60" : ""}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2 text-outline-900">
+          <span className={active ? "text-primary" : "text-outline-900/60"}>
+            {icon}
+          </span>
+          <span className="font-display text-base font-semibold">{title}</span>
+        </div>
+        {confirmed && <CheckCircle2 className="h-4 w-4 text-primary" />}
+      </div>
+      <p className="mt-3 text-sm leading-relaxed text-outline-900/65">{body}</p>
+    </button>
+  );
+}
+
+function BridgeSetup({
+  program,
+  codexSetupVerified,
+  codexHandshakeVerified,
+  codexBridgeState,
+  status,
+  confirmed,
+  onProgramChange,
+  onOpenCodex,
+  onCopyCodexSetupPrompt,
+  onOpenClaude,
+  onPickMcpConfig,
+  onClearManualMcpConfig,
+  onDownloadSkillZip,
+  onOpenSkillReleasesPage,
+  onConfirmSkillInstalled,
+  onClearSkillConfirmation,
+}: {
+  program: BridgeProgram;
+  codexSetupVerified: boolean;
+  codexHandshakeVerified: boolean;
+  codexBridgeState: CurrentScanState | null;
+  status: DetectorStatus | null;
+  confirmed: boolean;
+  onProgramChange: (program: BridgeProgram) => void;
+  onOpenCodex: () => Promise<{ ok: boolean; error?: string }>;
+  onCopyCodexSetupPrompt: () => Promise<string>;
+  onOpenClaude: () => Promise<{ ok: boolean; error?: string }>;
+  onPickMcpConfig: () => Promise<PickMcpConfigResult>;
+  onClearManualMcpConfig: () => Promise<{ ok: boolean }>;
+  onDownloadSkillZip: () => Promise<DownloadSkillZipResult>;
+  onOpenSkillReleasesPage: () => Promise<{ ok: boolean }>;
+  onConfirmSkillInstalled: () => Promise<{ ok: boolean }>;
+  onClearSkillConfirmation: () => Promise<{ ok: boolean }>;
+}) {
+  const { t } = useTranslation();
+  const codexVerificationState: "pending" | "waiting" | "verified" | "failed" =
+    codexHandshakeVerified
+      ? "verified"
+      : codexBridgeState?.status === "awaiting_handshake" ||
+          codexBridgeState?.status === "in_progress"
+        ? "waiting"
+        : codexBridgeState?.status === "error"
+          ? "failed"
+          : "pending";
+  const codexMcpState =
+    codexVerificationState === "pending" && codexSetupVerified
+      ? "verified"
+      : codexVerificationState;
+  const codexPathReady = Boolean(status?.codexRunning) && codexSetupVerified;
+
+  return (
+    <div className="mt-4 rounded-lg border border-outline/10 bg-white p-4">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <SegmentButton
+          active={program === "claude"}
+          label="Claude Desktop"
+          disabled={confirmed}
+          onClick={() => onProgramChange("claude")}
+        />
+        <SegmentButton
+          active={program === "codex"}
+          label="Codex"
+          disabled={confirmed}
+          onClick={() => onProgramChange("codex")}
+        />
+      </div>
+
+      {program === "claude" ? (
+        status?.allGreen ? (
+          <StatusCallout
+            tone="ok"
+            title={t("modeSelection.bridge.readyTitle", {
+              defaultValue: "Claude Desktop path is ready",
+            })}
+            body={t("modeSelection.bridge.readyBody", {
+              defaultValue:
+                "Site audits will copy the Bridge prompt and stream MCP facts back into ToraSEO.",
+            })}
+          />
+        ) : (
+          <div className="rounded-lg bg-orange-50/40">
+            <OnboardingView
+              status={status}
+              onOpenClaude={onOpenClaude}
+              onPickMcpConfig={onPickMcpConfig}
+              onClearManualMcpConfig={onClearManualMcpConfig}
+              onDownloadSkillZip={onDownloadSkillZip}
+              onOpenSkillReleasesPage={onOpenSkillReleasesPage}
+              onConfirmSkillInstalled={onConfirmSkillInstalled}
+              onClearSkillConfirmation={onClearSkillConfirmation}
+            />
+          </div>
+        )
+      ) : codexPathReady ? (
+        <StatusCallout
+          tone="ok"
+          title={t("modeSelection.bridge.codexTitle", {
+            defaultValue: "Codex path readiness",
+          })}
+          body={t("modeSelection.bridge.codexBody", {
+            defaultValue:
+              "ToraSEO first confirms that Codex is open. Then you run one short setup check so ToraSEO can prove MCP access and Codex Workflow Instructions in a live Codex session.",
+          })}
+        />
+      ) : (
+        <div className="rounded-lg bg-orange-50/40 p-8">
+          <header className="mx-auto mb-6 max-w-2xl text-center">
+            <h3 className="text-2xl font-semibold text-outline">
+              {t("modeSelection.bridge.codexOnboardingTitle", {
+                defaultValue: "ToraSEO works in tandem with Codex",
+              })}
+            </h3>
+            <p className="mt-2 text-outline/70">
+              {t("modeSelection.bridge.codexOnboardingSubtitle", {
+                defaultValue:
+                  "Three components are required to run. When all three are green, scanning unlocks automatically.",
+              })}
+            </p>
+          </header>
+
+          <div className="mx-auto max-w-2xl space-y-3">
+            <div className="rounded-lg border border-outline/10 bg-white px-4 py-4">
+              <div className="flex items-start gap-3">
+                <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <h4 className="text-sm font-semibold text-outline-900">
+                    {t("modeSelection.bridge.codexSetupTitle", {
+                      defaultValue: "How to connect Codex",
+                    })}
+                  </h4>
+                  <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-relaxed text-outline-900/70">
+                    <li>
+                      {t("modeSelection.bridge.codexSetupStepOne", {
+                        defaultValue:
+                          "Keep ToraSEO open on this screen and make sure Codex is open.",
+                      })}
+                    </li>
+                    <li>
+                      {t("modeSelection.bridge.codexSetupStepTwo", {
+                        defaultValue:
+                          "Install the `toraseo-codex-workflow` package into your Codex local skills folder (`~/.codex/skills` by default) so Codex can load it by name.",
+                      })}
+                    </li>
+                    <li>
+                      {t("modeSelection.bridge.codexSetupStepThree", {
+                        defaultValue:
+                          "Use the button below, paste the prepared text into Codex, and wait for Codex to confirm that MCP and Codex Workflow Instructions are active.",
+                      })}
+                    </li>
+                  </ol>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void onCopyCodexSetupPrompt()}
+                      className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-600"
+                    >
+                      <Copy size={14} />
+                      {t("modeSelection.bridge.copyCodexSetupPrompt", {
+                        defaultValue: "Copy setup prompt",
+                      })}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-outline-900/55">
+                    {t("modeSelection.bridge.codexSetupHint", {
+                      defaultValue:
+                        "This setup check does not start a site scan. It only proves that ToraSEO MCP and Codex Workflow Instructions are really active in the current Codex session.",
+                    })}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2 rounded-lg border border-outline/10 bg-orange-50/30 px-4 py-3">
+              <CodexReadinessRow
+                satisfied={Boolean(status?.codexRunning)}
+                label={t("modeSelection.bridge.codexRunningLabel", {
+                  defaultValue: "Codex is running",
+                })}
+                hint={
+                  status?.codexRunning
+                    ? t("modeSelection.bridge.codexRunningOk", {
+                        defaultValue: "Process found",
+                      })
+                    : t("modeSelection.bridge.codexRunningMissing", {
+                        defaultValue: "Open Codex to continue",
+                      })
+                }
+                action={
+                  !status?.codexRunning
+                    ? {
+                        label: t("modeSelection.bridge.openCodex", {
+                          defaultValue: "Open Codex",
+                        }),
+                        onClick: async () => {
+                          await onOpenCodex();
+                        },
+                      }
+                    : undefined
+                }
+              />
+              <CodexReadinessRow
+                state={codexMcpState}
+                label={t("modeSelection.bridge.codexMcpLabel", {
+                  defaultValue: "ToraSEO MCP is available to Codex",
+                })}
+                hint={
+                  codexVerificationState === "pending" && codexSetupVerified
+                    ? t("modeSelection.bridge.codexMcpSetupVerified", {
+                        defaultValue:
+                          "Verified in a live Codex setup check. The scan handshake will verify it again for the active analysis session.",
+                      })
+                    : codexVerificationState === "verified"
+                      ? t("modeSelection.bridge.codexMcpHint", {
+                          defaultValue:
+                            "Verified when Codex calls verify_codex_workflow_loaded from the ToraSEO MCP server.",
+                        })
+                      : codexVerificationState === "waiting"
+                        ? t("modeSelection.bridge.codexMcpWaiting", {
+                            defaultValue:
+                              "Handshake is in progress. ToraSEO is waiting for Codex to call verify_codex_workflow_loaded.",
+                          })
+                        : codexVerificationState === "failed"
+                          ? t("modeSelection.bridge.codexMcpFailed", {
+                              defaultValue:
+                                "The last Codex handshake did not verify MCP access for this session.",
+                            })
+                          : t("modeSelection.bridge.codexMcpPending", {
+                              defaultValue:
+                                "Not checked yet. This is verified only after a Codex bridge scan starts.",
+                            })
+                }
+              />
+              <CodexReadinessRow
+                state={codexMcpState}
+                label={t("modeSelection.bridge.codexInstructionsLabel", {
+                  defaultValue: "Codex Workflow Instructions are available",
+                })}
+                hint={
+                  codexVerificationState === "pending" && codexSetupVerified
+                    ? t("modeSelection.bridge.codexInstructionsSetupVerified", {
+                        defaultValue:
+                          "Verified in a live Codex setup check. ToraSEO saw the workflow token from the active Codex session.",
+                      })
+                    : codexVerificationState === "verified"
+                      ? t("modeSelection.bridge.codexInstructionsHint", {
+                          defaultValue:
+                            "The handshake token lives only in the Codex Workflow Instructions package and the MCP server.",
+                        })
+                      : codexVerificationState === "waiting"
+                        ? t("modeSelection.bridge.codexInstructionsWaiting", {
+                            defaultValue:
+                              "Handshake is in progress. ToraSEO is waiting for proof that the Codex Workflow Instructions are active.",
+                          })
+                        : codexVerificationState === "failed"
+                          ? t("modeSelection.bridge.codexInstructionsFailed", {
+                              defaultValue:
+                                "The last Codex handshake did not verify the Codex Workflow Instructions for this session.",
+                            })
+                          : t("modeSelection.bridge.codexInstructionsPending", {
+                              defaultValue:
+                                "Not checked yet. This is verified only after a Codex bridge scan starts.",
+                            })
+                }
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NativeSetup({
+  enabled,
+  providerConfigured,
+  providersLoading,
+  modelProfiles,
+  selectedModelProfileId,
+  onModelProfileChange,
+  onOpenProviderSettings,
+}: {
+  enabled: boolean;
+  providerConfigured: boolean;
+  providersLoading: boolean;
+  modelProfiles: ProviderModelProfile[];
+  selectedModelProfileId: string | null;
+  onModelProfileChange: (profileId: string) => void;
+  onOpenProviderSettings: () => void;
+}) {
+  const { t } = useTranslation();
+  const hasModels = modelProfiles.length > 0;
+  const selectedModel =
+    modelProfiles.find((profile) => profile.id === selectedModelProfileId) ??
+    null;
+  const statusText =
+    providerConfigured && selectedModel
+      ? t("modeSelection.native.modelReady", {
+          defaultValue: "Ready with {{model}}.",
+          model: selectedModel.displayName,
+        })
+      : providerConfigured && !hasModels
+        ? t("modeSelection.native.modelMissing", {
+            defaultValue: "Add at least one OpenRouter model in Settings.",
+          })
+        : t("modeSelection.native.providerMissing", {
+            defaultValue: "Add an AI provider before starting this mode.",
+          });
+
+  return (
+    <div className="mt-4 rounded-lg border border-outline/10 bg-white p-4">
+      <StatusCallout
+        tone={
+          !enabled
+            ? "error"
+            : providerConfigured && selectedModel
+              ? "ok"
+              : "warning"
+        }
+        title={
+          !enabled
+            ? t("modeSelection.native.disabledTitle", {
+                defaultValue: "Native runtime is unavailable",
+              })
+            : t("modeSelection.native.title", {
+                defaultValue: "AI provider and model",
+              })
+        }
+        body={providersLoading ? "..." : statusText}
+      />
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onOpenProviderSettings}
+          className="inline-flex items-center gap-2 rounded-md border border-outline/15 bg-white px-3 py-2 text-sm font-medium text-outline-900 transition hover:bg-orange-50"
+        >
+          <Settings size={14} />
+          {t("modeSelection.native.openProviders", {
+            defaultValue: "AI providers",
+          })}
+        </button>
+        {hasModels && (
+          <label className="flex min-w-[260px] items-center gap-2 rounded-md border border-outline/15 bg-white px-3 py-2 text-sm text-outline-900">
+            <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-outline-900/50">
+              {t("modeSelection.native.modelLabel", {
+                defaultValue: "Model",
+              })}
+            </span>
+            <select
+              value={selectedModelProfileId ?? ""}
+              onChange={(event) => onModelProfileChange(event.target.value)}
+              disabled={!enabled || !providerConfigured}
+              className="min-w-0 flex-1 bg-transparent text-sm focus:outline-none disabled:opacity-60"
+            >
+              {modelProfiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CodexReadinessRow({
+  satisfied,
+  state,
+  label,
+  hint,
+  action,
+}: {
+  satisfied?: boolean;
+  state?: "pending" | "waiting" | "verified" | "failed";
+  label: string;
+  hint: string;
+  action?: {
+    label: string;
+    onClick: () => Promise<void> | void;
+  };
+}) {
+  const effectiveState =
+    state ?? (satisfied ? "verified" : "failed");
+  const statusLabel =
+    effectiveState === "verified"
+      ? "Verified"
+      : effectiveState === "waiting"
+        ? "Waiting"
+        : effectiveState === "pending"
+          ? "Not checked"
+          : "Action needed";
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-outline/10 bg-white px-3 py-3">
+      <div className="flex min-w-0 items-center gap-3">
+        {effectiveState === "verified" ? (
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+        ) : effectiveState === "waiting" ? (
+          <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-orange-300 border-t-primary" />
+        ) : effectiveState === "pending" ? (
+          <span className="h-5 w-5 shrink-0 rounded-full border-2 border-outline/20 bg-outline-900/5" />
+        ) : (
+          <XCircle className="h-5 w-5 shrink-0 text-orange-500" />
+        )}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-outline-900">{label}</p>
+            <span className="rounded-full border border-outline/10 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-outline-900/55">
+              {statusLabel}
+            </span>
+          </div>
+          <p className="text-xs leading-relaxed text-outline-900/60">{hint}</p>
+        </div>
+      </div>
+      {action && (
+        <button
+          type="button"
+          onClick={() => void action.onClick()}
+          className="rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-medium text-outline-900 transition hover:bg-orange-50"
+        >
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SegmentButton({
+  active,
+  label,
+  disabled,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+        active
+          ? "bg-primary text-white"
+          : "border border-outline/15 bg-white text-outline-900 hover:bg-orange-50"
+      } ${disabled ? "cursor-not-allowed opacity-70" : ""}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function StatusCallout({
+  tone,
+  title,
+  body,
+}: {
+  tone: "ok" | "warning" | "error" | "neutral";
+  title: string;
+  body: string;
+}) {
+  const toneClass =
+    tone === "ok"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : tone === "warning"
+        ? "border-orange-200 bg-orange-50 text-orange-900"
+        : tone === "error"
+          ? "border-red-200 bg-red-50 text-red-900"
+          : "border-outline/10 bg-orange-50/40 text-outline-900";
+
+  return (
+    <div className={`rounded-lg border px-4 py-3 ${toneClass}`}>
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <p className="mt-1 text-sm leading-relaxed opacity-80">{body}</p>
+    </div>
+  );
+}
+
+function AnalysisCard({
+  icon,
+  title,
+  subtitle,
+  disabled,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-lg border bg-white p-5 text-center transition ${
+        disabled
+          ? "cursor-not-allowed border-outline/10 opacity-50"
+          : "cursor-pointer border-outline/15 hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
+      }`}
       aria-disabled={disabled}
     >
       <span className={disabled ? "text-outline-900/40" : "text-primary"}>

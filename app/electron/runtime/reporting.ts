@@ -1,4 +1,5 @@
 import { BrowserWindow, dialog, screen } from "electron";
+import fs from "node:fs/promises";
 import path from "node:path";
 
 import type { RuntimeAuditReport } from "../../src/types/runtime.js";
@@ -184,6 +185,231 @@ function renderReportHtml(report: RuntimeAuditReport): string {
   </html>`;
 }
 
+function renderEndedHtml(): string {
+  return `<!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>ToraSEO Details</title>
+      <style>
+        :root {
+          color-scheme: light;
+          --bg: #fff7f0;
+          --surface: #ffffff;
+          --border: #efd9ca;
+          --text: #1a0f08;
+          --muted: #70554a;
+        }
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          min-height: 100vh;
+          display: grid;
+          place-items: center;
+          padding: 32px;
+          font-family: Inter, "Segoe UI", system-ui, sans-serif;
+          color: var(--text);
+          background: var(--bg);
+        }
+        main {
+          width: min(560px, 100%);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          background: var(--surface);
+          padding: 28px;
+          text-align: center;
+        }
+        h1 {
+          margin: 0;
+          font-size: 24px;
+        }
+        p {
+          margin: 12px 0 0;
+          color: var(--muted);
+          line-height: 1.6;
+        }
+      </style>
+    </head>
+    <body>
+      <main>
+        <h1>Analysis ended</h1>
+        <p>Start a new analysis in the main ToraSEO window to refresh this details view.</p>
+      </main>
+    </body>
+  </html>`;
+}
+
+function renderReportMarkdown(report: RuntimeAuditReport): string {
+  const facts = report.confirmedFacts
+    .map(
+      (fact) =>
+        [
+          `### ${fact.title}`,
+          "",
+          `Priority: ${priorityLabel(fact.priority)}`,
+          "",
+          fact.detail,
+          "",
+          `Sources: ${fact.sourceToolIds.join(", ")}`,
+        ].join("\n"),
+    )
+    .join("\n\n");
+
+  const hypotheses = report.expertHypotheses.length
+    ? report.expertHypotheses
+        .map(
+          (item) =>
+            [
+              `### ${item.title}`,
+              "",
+              `Priority: ${priorityLabel(item.priority)}`,
+              "",
+              item.detail,
+              "",
+              `Expected impact: ${item.expectedImpact}`,
+              "",
+              `Validation: ${item.validationMethod}`,
+            ].join("\n"),
+        )
+        .join("\n\n")
+    : "No expert hypotheses for this report.";
+
+  return [
+    "# ToraSEO Audit Report",
+    "",
+    report.summary,
+    "",
+    `Provider: ${report.providerId}`,
+    `Model: ${report.model}`,
+    `Mode: ${report.mode}`,
+    `Generated: ${report.generatedAt}`,
+    "",
+    "## Confirmed facts",
+    "",
+    facts,
+    "",
+    "## Expert hypotheses",
+    "",
+    hypotheses,
+    "",
+    "## Recommended next step",
+    "",
+    report.nextStep,
+    "",
+  ].join("\n");
+}
+
+function renderPresentationHtml(report: RuntimeAuditReport): string {
+  const factSlides = report.confirmedFacts
+    .map(
+      (fact) => `
+        <section class="slide">
+          <p class="eyebrow">Confirmed fact</p>
+          <h2>${escapeHtml(fact.title)}</h2>
+          <p>${escapeHtml(fact.detail)}</p>
+          <span class="pill">${priorityLabel(fact.priority)}</span>
+        </section>`,
+    )
+    .join("");
+
+  const hypothesisSlides = report.expertHypotheses
+    .map(
+      (item) => `
+        <section class="slide">
+          <p class="eyebrow">Expert hypothesis</p>
+          <h2>${escapeHtml(item.title)}</h2>
+          <p>${escapeHtml(item.detail)}</p>
+          <p class="meta">Expected impact: ${escapeHtml(item.expectedImpact)}</p>
+          <p class="meta">Validation: ${escapeHtml(item.validationMethod)}</p>
+        </section>`,
+    )
+    .join("");
+
+  return `<!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>ToraSEO Presentation</title>
+      <style>
+        :root {
+          --bg: #fff7f0;
+          --surface: #ffffff;
+          --border: #efd9ca;
+          --text: #1a0f08;
+          --muted: #70554a;
+          --accent: #ff6b35;
+        }
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          padding: 32px;
+          font-family: Inter, "Segoe UI", system-ui, sans-serif;
+          background: var(--bg);
+          color: var(--text);
+        }
+        .deck {
+          display: grid;
+          gap: 24px;
+        }
+        .slide {
+          min-height: 520px;
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          background: var(--surface);
+          padding: 48px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          page-break-after: always;
+        }
+        h1, h2 {
+          margin: 0;
+          max-width: 860px;
+        }
+        h1 { font-size: 48px; line-height: 1.05; }
+        h2 { font-size: 34px; line-height: 1.15; }
+        p {
+          max-width: 860px;
+          margin: 18px 0 0;
+          font-size: 18px;
+          line-height: 1.6;
+        }
+        .eyebrow {
+          margin: 0 0 12px;
+          color: var(--accent);
+          font-size: 13px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: .08em;
+        }
+        .meta { color: var(--muted); font-size: 15px; }
+        .pill {
+          width: fit-content;
+          margin-top: 24px;
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          padding: 8px 12px;
+          color: var(--accent);
+          font-weight: 700;
+        }
+      </style>
+    </head>
+    <body>
+      <main class="deck">
+        <section class="slide">
+          <p class="eyebrow">ToraSEO audit</p>
+          <h1>${escapeHtml(report.summary)}</h1>
+          <p>${escapeHtml(report.nextStep)}</p>
+        </section>
+        ${factSlides}
+        ${hypothesisSlides}
+      </main>
+    </body>
+  </html>`;
+}
+
 async function ensureReportWindow(report: RuntimeAuditReport): Promise<BrowserWindow> {
   const displays = screen.getAllDisplays();
   const externalDisplay = displays.length > 1 ? displays[1] : null;
@@ -233,6 +459,18 @@ export async function closeReportWindow(): Promise<{ ok: boolean }> {
   return { ok: true };
 }
 
+export async function endReportWindowSession(): Promise<{ ok: boolean }> {
+  if (reportWindow && !reportWindow.isDestroyed()) {
+    await reportWindow.loadURL(
+      `data:text/html;charset=UTF-8,${encodeURIComponent(renderEndedHtml())}`,
+    );
+    if (!reportWindow.isVisible()) {
+      reportWindow.show();
+    }
+  }
+  return { ok: true };
+}
+
 export async function exportReportPdf(
   report: RuntimeAuditReport,
 ): Promise<{ ok: boolean; filePath?: string; error?: string }> {
@@ -271,9 +509,7 @@ export async function exportReportPdf(
       pageSize: "A4",
       margins: { top: 20, bottom: 20, left: 16, right: 16 },
     });
-    await import("node:fs/promises").then((fs) =>
-      fs.writeFile(saveResult.filePath!, pdf),
-    );
+    await fs.writeFile(saveResult.filePath, pdf);
     return { ok: true, filePath: saveResult.filePath };
   } catch (error) {
     return {
@@ -285,5 +521,71 @@ export async function exportReportPdf(
     if (!tempWindow.isDestroyed()) {
       tempWindow.close();
     }
+  }
+}
+
+export async function exportReportDocument(
+  report: RuntimeAuditReport,
+): Promise<{ ok: boolean; filePath?: string; error?: string }> {
+  const defaultPath = path.join(
+    process.env.USERPROFILE ?? process.cwd(),
+    "Desktop",
+    `toraseo-report-${Date.now()}.md`,
+  );
+  const saveResult = await dialog.showSaveDialog({
+    title: "Export ToraSEO report as document",
+    defaultPath,
+    filters: [{ name: "Markdown document", extensions: ["md"] }],
+  });
+  if (saveResult.canceled || !saveResult.filePath) {
+    return { ok: false, error: "cancelled" };
+  }
+
+  try {
+    await fs.writeFile(saveResult.filePath, renderReportMarkdown(report), "utf8");
+    return { ok: true, filePath: saveResult.filePath };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to export report document.",
+    };
+  }
+}
+
+export async function exportReportPresentation(
+  report: RuntimeAuditReport,
+): Promise<{ ok: boolean; filePath?: string; error?: string }> {
+  const defaultPath = path.join(
+    process.env.USERPROFILE ?? process.cwd(),
+    "Desktop",
+    `toraseo-presentation-${Date.now()}.html`,
+  );
+  const saveResult = await dialog.showSaveDialog({
+    title: "Export ToraSEO report as presentation",
+    defaultPath,
+    filters: [{ name: "HTML presentation", extensions: ["html"] }],
+  });
+  if (saveResult.canceled || !saveResult.filePath) {
+    return { ok: false, error: "cancelled" };
+  }
+
+  try {
+    await fs.writeFile(
+      saveResult.filePath,
+      renderPresentationHtml(report),
+      "utf8",
+    );
+    return { ok: true, filePath: saveResult.filePath };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to export report presentation.",
+    };
   }
 }

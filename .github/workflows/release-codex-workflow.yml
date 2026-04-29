@@ -1,0 +1,40 @@
+name: Release Codex Workflow Instructions
+
+on:
+  push:
+    tags:
+      - "codex-workflow-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-attach:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v4
+
+      - name: Verify Codex workflow structure
+        run: |
+          test -f toraseo-codex-workflow/SKILL.md || { echo "toraseo-codex-workflow/SKILL.md missing"; exit 1; }
+          grep -q "^name:" toraseo-codex-workflow/SKILL.md || { echo "name: field missing"; exit 1; }
+          grep -q "^description:" toraseo-codex-workflow/SKILL.md || { echo "description: field missing"; exit 1; }
+
+      - name: Compute zip name
+        id: zipname
+        run: |
+          VERSION=${GITHUB_REF_NAME#codex-workflow-}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "filename=toraseo-codex-workflow-$VERSION.zip" >> $GITHUB_OUTPUT
+
+      - name: Build Codex workflow ZIP
+        run: |
+          zip -r ${{ steps.zipname.outputs.filename }} toraseo-codex-workflow
+          ls -la ${{ steps.zipname.outputs.filename }}
+
+      - name: Create GitHub Release and attach ZIP
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.zipname.outputs.filename }}
+          generate_release_notes: true

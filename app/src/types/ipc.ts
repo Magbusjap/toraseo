@@ -171,6 +171,12 @@ export interface UpdaterApi {
 export interface DetectorStatus {
   /** Claude Desktop process is currently running. */
   claudeRunning: boolean;
+  /** Codex desktop process is currently running, when detectable. */
+  codexRunning: boolean;
+  /** Codex setup was verified in a live no-scan session. */
+  codexSetupVerified: boolean;
+  /** Timestamp of the last successful Codex setup verification. */
+  codexSetupVerifiedAt: string | null;
   /** mcpServers.toraseo present in claude_desktop_config.json. */
   mcpRegistered: boolean;
   /** Skill is confirmed installed via filesystem OR manual flag. */
@@ -279,6 +285,10 @@ export interface OpenClaudeResult {
   error?: string;
 }
 
+export type BridgeClient = "claude" | "codex";
+
+export type OpenCodexResult = OpenClaudeResult;
+
 /**
  * Launcher surface inside `window.toraseo.launcher`.
  *
@@ -288,6 +298,7 @@ export interface OpenClaudeResult {
  */
 export interface LauncherApi {
   openClaude(): Promise<OpenClaudeResult>;
+  openCodex(): Promise<OpenCodexResult>;
 }
 
 // =====================================================================
@@ -428,6 +439,7 @@ export interface BridgeScanError {
 export interface CurrentScanState {
   schemaVersion: 1;
   scanId: string;
+  bridgeClient: BridgeClient;
   status: BridgeScanStatus;
   url: string;
   createdAt: string;
@@ -447,6 +459,7 @@ export interface StartBridgeScanResult {
   scanId: string;
   prompt: string;
   expectedToken: string;
+  bridgeClient: BridgeClient;
 }
 
 /**
@@ -477,7 +490,11 @@ export interface BridgeApi {
    * Create a new scan-state file, copy the localized prompt to
    * the clipboard, return diagnostic info to the caller.
    */
-  startScan(url: string, toolIds: ToolId[]): Promise<StartBridgeScanResult>;
+  startScan(
+    url: string,
+    toolIds: ToolId[],
+    bridgeClient?: BridgeClient,
+  ): Promise<StartBridgeScanResult>;
 
   /**
    * Subscribe to state-file changes. Listener called immediately
@@ -500,6 +517,8 @@ export interface BridgeApi {
    * timer restarts.
    */
   retryHandshake(): Promise<{ ok: boolean; error?: string }>;
+
+  copyCodexSetupPrompt(): Promise<{ ok: boolean; prompt: string }>;
 }
 
 // =====================================================================

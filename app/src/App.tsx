@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "./i18n";
 
 import IdleSidebar from "./components/Sidebar/IdleSidebar";
 import ActiveSidebar from "./components/Sidebar/ActiveSidebar";
-import ModeSelection from "./components/MainArea/ModeSelection";
-import { OnboardingView } from "./components/Onboarding";
+import ModeSelection, {
+  type BridgeProgram,
+} from "./components/MainArea/ModeSelection";
 import { SettingsView } from "./components/Settings";
 import { TopToolbar } from "./components/TopToolbar";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { NativeLayout } from "./components/NativeLayout";
+import ChatWindow from "./components/Chat/ChatWindow";
 import { DEFAULT_SELECTED_TOOLS, TOOLS, type ToolId } from "./config/tools";
 import { useScan } from "./hooks/useScan";
 import { useDetector } from "./hooks/useDetector";
@@ -23,12 +25,41 @@ import {
 import type { SupportedLocale } from "./types/ipc";
 import type {
   AuditExecutionMode,
+  ProviderInfo,
   RuntimeAuditReport,
+  RuntimeChatWindowSession,
 } from "./types/runtime";
 
 export type AppMode = "idle" | "site" | "content" | "settings";
 
+const EXECUTION_MODE_STORAGE_KEY = "toraseo.executionMode";
+const OPENROUTER_MODEL_STORAGE_KEY = "toraseo.openrouterModelProfileId";
+
+function readPersistedExecutionMode(): AuditExecutionMode | null {
+  const value = window.localStorage.getItem(EXECUTION_MODE_STORAGE_KEY);
+  return value === "bridge" || value === "native" ? value : null;
+}
+
+function persistExecutionMode(mode: AuditExecutionMode): void {
+  window.localStorage.setItem(EXECUTION_MODE_STORAGE_KEY, mode);
+}
+
+function readSelectedOpenRouterModel(): string | null {
+  return window.localStorage.getItem(OPENROUTER_MODEL_STORAGE_KEY);
+}
+
+function persistSelectedOpenRouterModel(profileId: string): void {
+  window.localStorage.setItem(OPENROUTER_MODEL_STORAGE_KEY, profileId);
+}
+
 export default function App() {
+  if (window.location.hash === "#ai-chat") {
+    return <ChatWindow />;
+  }
+  return <MainApp />;
+}
+
+function MainApp() {
   const { t } = useTranslation();
 
   const [mode, setMode] = useState<AppMode>("idle");
@@ -37,8 +68,19 @@ export default function App() {
     () => new Set(DEFAULT_SELECTED_TOOLS),
   );
   const [preflightError, setPreflightError] = useState<string | null>(null);
-  const [executionMode, setExecutionMode] =
-    useState<AuditExecutionMode>("native");
+  const [executionModeDraft, setExecutionModeDraft] =
+    useState<AuditExecutionMode>(() => readPersistedExecutionMode() ?? "native");
+  const [confirmedExecutionMode, setConfirmedExecutionMode] =
+    useState<AuditExecutionMode | null>(() => readPersistedExecutionMode());
+  const [bridgeProgram, setBridgeProgram] =
+    useState<BridgeProgram>("claude");
+  const [settingsInitialTab, setSettingsInitialTab] =
+    useState<"language" | "providers">("language");
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(true);
+  const [selectedModelProfileId, setSelectedModelProfileId] = useState<
+    string | null
+  >(() => readSelectedOpenRouterModel());
   const [runtimeReport, setRuntimeReport] = useState<RuntimeAuditReport | null>(
     null,
   );
@@ -53,6 +95,7 @@ export default function App() {
     status: detectorStatus,
     checkNow,
     openClaude,
+    openCodex,
     pickMcpConfig,
     clearManualMcpConfig,
     downloadSkillZip,
@@ -62,12 +105,65 @@ export default function App() {
   } = useDetector();
   const { enabled: nativeRuntimeEnabled } = useNativeRuntimeFlag();
   const bridgeStatus = bridge.state?.status;
+  const executionMode = confirmedExecutionMode ?? executionModeDraft;
+  const openRouterProvider = providers.find(
+    (provider) => provider.id === "openrouter",
+  );
+  const providerConfigured = providers.some(
+    (provider) => provider.id === "openrouter" && provider.configured,
+  );
+  const providerModelProfiles = openRouterProvider?.modelProfiles ?? [];
+  const selectedModelProfile =
+    providerModelProfiles.find(
+      (profile) => profile.id === selectedModelProfileId,
+    ) ?? null;
+
+  const refreshProviders = useCallback(async () => {
+    setProvidersLoading(true);
+    try {
+      const list = await window.toraseo.runtime.listProviders();
+      setProviders(list);
+    } finally {
+      setProvidersLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!nativeRuntimeEnabled && executionMode === "native") {
-      setExecutionMode("bridge");
+    if (!nativeRuntimeEnabled && executionModeDraft === "native") {
+      setExecutionModeDraft("bridge");
     }
-  }, [executionMode, nativeRuntimeEnabled]);
+    if (!nativeRuntimeEnabled && confirmedExecutionMode === "native") {
+      setConfirmedExecutionMode("bridge");
+      persistExecutionMode("bridge");
+    }
+  }, [confirmedExecutionMode, executionModeDraft, nativeRuntimeEnabled]);
+
+  useEffect(() => {
+    void refreshProviders();
+  }, [refreshProviders]);
+
+  useEffect(() => {
+    if (providerModelProfiles.length === 0) {
+      if (selectedModelProfileId !== null) {
+        setSelectedModelProfileId(null);
+      }
+      return;
+    }
+    if (
+      selectedModelProfileId &&
+      providerModelProfiles.some((profile) => profile.id === selectedModelProfileId)
+    ) {
+      return;
+    }
+    const fallbackId =
+      openRouterProvider?.defaultModelProfileId ?? providerModelProfiles[0].id;
+    setSelectedModelProfileId(fallbackId);
+    persistSelectedOpenRouterModel(fallbackId);
+  }, [
+    openRouterProvider?.defaultModelProfileId,
+    providerModelProfiles,
+    selectedModelProfileId,
+  ]);
 
   useEffect(() => {
     if (executionMode === "native") {
@@ -82,14 +178,111 @@ export default function App() {
     }
   }, [bridge.cancelScan, bridgeStatus, executionMode]);
 
+  const codexPathReady = Boolean(detectorStatus?.codexRunning);
+  const codexSetupVerified = Boolean(detectorStatus?.codexSetupVerified);
+  const codexHandshakeVerified =
+    bridge.state?.bridgeClient === "codex" &&
+    bridge.state.handshake.status === "verified";
+  const codexBridgeState =
+    bridge.state?.bridgeClient === "codex" ? bridge.state : null;
+
   const isBridgeBlocked =
     executionMode === "bridge" &&
+    bridgeProgram === "claude" &&
     detectorStatus !== null &&
     !detectorStatus.allGreen;
 
-  const handleModeSelect = (selected: "site" | "content") => {
+  useEffect(() => {
+    const codexBridgeBusy =
+      codexBridgeState?.status === "awaiting_handshake" ||
+      codexBridgeState?.status === "in_progress";
+
+    if (!codexBridgeBusy || detectorStatus?.codexRunning !== false) {
+      return;
+    }
+
+    setPreflightError(
+      t("preflight.codexClosedDuringScan", {
+        defaultValue:
+          "Codex closed during the bridge flow. The active Codex scan was cancelled.",
+      }),
+    );
+    void bridge.cancelScan();
+  }, [bridge.cancelScan, codexBridgeState, detectorStatus?.codexRunning, t]);
+
+  const handleModeSelect = async (selected: "site" | "content") => {
     if (selected === "content") {
       return;
+    }
+    if (!confirmedExecutionMode) {
+      setPreflightError(
+        t("preflight.executionModeMissing", {
+          defaultValue: "Confirm an execution mode first.",
+        }),
+      );
+      return;
+    }
+    if (confirmedExecutionMode === "native" && !providerConfigured) {
+      setPreflightError(
+        t("preflight.providerMissing", {
+          defaultValue: "Add an AI provider before using API + AI Chat.",
+        }),
+      );
+      handleOpenProviderSettings();
+      return;
+    }
+    if (confirmedExecutionMode === "native" && !selectedModelProfile) {
+      setPreflightError(
+        t("preflight.modelMissing", {
+          defaultValue: "Choose an OpenRouter model before starting analysis.",
+        }),
+      );
+      return;
+    }
+    if (
+      confirmedExecutionMode === "bridge" &&
+      bridgeProgram === "codex" &&
+      !codexPathReady
+    ) {
+      setPreflightError(
+        t("preflight.codexNeedsConfirmation", {
+          defaultValue:
+            "Open Codex before starting the Codex bridge path.",
+        }),
+      );
+      return;
+    }
+    if (
+      confirmedExecutionMode === "bridge" &&
+      bridgeProgram === "codex" &&
+      !codexSetupVerified
+    ) {
+      setPreflightError(
+        t("preflight.codexSetupMissing", {
+          defaultValue:
+            "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
+        }),
+      );
+      return;
+    }
+    if (
+      confirmedExecutionMode === "bridge" &&
+      bridgeProgram === "claude" &&
+      detectorStatus &&
+      !detectorStatus.allGreen
+    ) {
+      setPreflightError(t("preflight.depsFailed"));
+      return;
+    }
+    if (confirmedExecutionMode === "native") {
+      await window.toraseo.runtime.openChatWindow({
+        status: "active",
+        locale: currentLocale,
+        analysisType: "site",
+        selectedModelProfile,
+        scanContext: nativeScanContext,
+        report: runtimeReport,
+      });
     }
     setMode(selected);
   };
@@ -112,6 +305,10 @@ export default function App() {
     setUrl("");
     setRuntimeReport(null);
     setPreflightError(null);
+    if (executionMode === "native") {
+      void window.toraseo.runtime.endChatWindowSession();
+    }
+    void window.toraseo.runtime.endReportWindowSession();
   };
 
   const handleToggleTool = (toolId: ToolId) => {
@@ -126,6 +323,23 @@ export default function App() {
   const handleStartNativeScan = async () => {
     setPreflightError(null);
     setRuntimeReport(null);
+    if (!providerConfigured) {
+      setPreflightError(
+        t("preflight.providerMissing", {
+          defaultValue: "Add an AI provider before using API + AI Chat.",
+        }),
+      );
+      handleOpenProviderSettings();
+      return;
+    }
+    if (!selectedModelProfile) {
+      setPreflightError(
+        t("preflight.modelMissing", {
+          defaultValue: "Choose an OpenRouter model before starting analysis.",
+        }),
+      );
+      return;
+    }
     const orderedIds = TOOLS.map((item) => item.id).filter((id) =>
       selectedTools.has(id),
     );
@@ -135,6 +349,43 @@ export default function App() {
   const handleRunBridgeScan = async () => {
     setPreflightError(null);
     setRuntimeReport(null);
+    if (bridgeProgram === "codex") {
+      if (!codexPathReady) {
+        setPreflightError(
+          t("preflight.codexNeedsConfirmation", {
+          defaultValue: "Open Codex before starting the Codex bridge path.",
+          }),
+        );
+        return;
+      }
+      if (!codexSetupVerified) {
+        setPreflightError(
+          t("preflight.codexSetupMissing", {
+            defaultValue:
+              "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
+          }),
+        );
+        return;
+      }
+      if (
+        bridge.state?.status === "awaiting_handshake" ||
+        bridge.state?.status === "in_progress"
+      ) {
+        await bridge.cancelScan();
+        return;
+      }
+      if (bridge.state?.status === "error") {
+        await bridge.retryHandshake();
+        return;
+      }
+
+      const orderedIds = TOOLS.map((item) => item.id).filter((id) =>
+        selectedTools.has(id),
+      );
+      await bridge.startScan(url.trim(), orderedIds, "codex");
+      return;
+    }
+
     const fresh = await checkNow();
     if (!fresh.allGreen) {
       setPreflightError(t("preflight.depsFailed"));
@@ -156,11 +407,60 @@ export default function App() {
     const orderedIds = TOOLS.map((item) => item.id).filter((id) =>
       selectedTools.has(id),
     );
-    await bridge.startScan(url.trim(), orderedIds);
+    await bridge.startScan(url.trim(), orderedIds, "claude");
   };
 
-  const handleOpenSettings = () => {
+  const handleOpenSettings = (tab: "language" | "providers" = "language") => {
+    setSettingsInitialTab(tab);
     setMode("settings");
+  };
+
+  const handleOpenProviderSettings = () => {
+    handleOpenSettings("providers");
+  };
+
+  const handleProviderSaved = async () => {
+    await refreshProviders();
+    setExecutionModeDraft("native");
+    setConfirmedExecutionMode("native");
+    persistExecutionMode("native");
+  };
+
+  const handleConfirmExecutionMode = async () => {
+    if (executionModeDraft === "native" && !nativeRuntimeEnabled) {
+      setPreflightError(
+        t("preflight.nativeUnavailable", {
+          defaultValue: "API + AI Chat is unavailable in this build.",
+        }),
+      );
+      return;
+    }
+    if (confirmedExecutionMode === "native" && executionModeDraft === "bridge") {
+      await window.toraseo.runtime.closeChatWindow();
+    }
+    setConfirmedExecutionMode(executionModeDraft);
+    persistExecutionMode(executionModeDraft);
+    setPreflightError(null);
+  };
+
+  const handleChangeConfirmedExecutionMode = () => {
+    setConfirmedExecutionMode(null);
+  };
+
+  const handleExecutionModeDraftChange = (next: AuditExecutionMode) => {
+    setExecutionModeDraft(next);
+  };
+
+  const handleOpenCodex = async () => {
+    const result = await openCodex();
+    void checkNow();
+    return result;
+  };
+
+  const handleModelProfileChange = (profileId: string) => {
+    setSelectedModelProfileId(profileId);
+    persistSelectedOpenRouterModel(profileId);
+    setPreflightError(null);
   };
 
   const handleSaveLocale = async (locale: SupportedLocale): Promise<void> => {
@@ -194,6 +494,39 @@ export default function App() {
     [bridge.stages, bridge.state],
   );
 
+  const chatSession = useMemo<RuntimeChatWindowSession>(
+    () => ({
+      status: "active",
+      locale: currentLocale,
+      analysisType: "site",
+      selectedModelProfile,
+      scanContext: nativeScanContext,
+      report: runtimeReport,
+    }),
+    [currentLocale, nativeScanContext, runtimeReport, selectedModelProfile],
+  );
+
+  useEffect(() => {
+    if (mode !== "site" || executionMode !== "native") return;
+    void window.toraseo.runtime.updateChatWindowSession(chatSession);
+  }, [chatSession, executionMode, mode]);
+
+  useEffect(() => {
+    const unsubscribe = window.toraseo.runtime.onChatWindowSessionUpdate(
+      (session) => {
+        if (session.status === "active" && session.report) {
+          setRuntimeReport((prev) =>
+            prev?.generatedAt === session.report?.generatedAt &&
+            prev?.model === session.report?.model
+              ? prev
+              : session.report,
+          );
+        }
+      },
+    );
+    return unsubscribe;
+  }, []);
+
   const isBusy =
     executionMode === "native"
       ? scanState === "scanning"
@@ -220,12 +553,37 @@ export default function App() {
     url.trim().length > 0 &&
     selectedTools.size > 0 &&
     (executionMode === "native"
-      ? scanState !== "scanning"
-      : !isBridgeBlocked || Boolean(bridge.state));
+      ? scanState !== "scanning" &&
+        providerConfigured &&
+        Boolean(selectedModelProfile)
+      : bridgeProgram === "codex"
+        ? (codexPathReady && codexSetupVerified) || Boolean(bridge.state)
+        : !isBridgeBlocked || Boolean(bridge.state));
 
   const scanButtonTooltip =
-    executionMode === "bridge" && isBridgeBlocked
+    executionMode === "native" && !providerConfigured
+      ? t("preflight.providerMissing", {
+          defaultValue: "Add an AI provider before using API + AI Chat.",
+        })
+      : executionMode === "native" && !selectedModelProfile
+        ? t("preflight.modelMissing", {
+            defaultValue: "Choose an OpenRouter model before starting analysis.",
+          })
+      : executionMode === "bridge" && isBridgeBlocked
       ? t("preflight.depsFailed")
+      : executionMode === "bridge" &&
+          bridgeProgram === "codex" &&
+          !codexPathReady
+        ? t("preflight.codexNeedsConfirmation", {
+            defaultValue: "Open Codex before starting the Codex bridge path.",
+          })
+      : executionMode === "bridge" &&
+          bridgeProgram === "codex" &&
+          !codexSetupVerified
+        ? t("preflight.codexSetupMissing", {
+            defaultValue:
+              "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
+          })
       : undefined;
 
   const sidebar =
@@ -237,8 +595,6 @@ export default function App() {
         onUrlChange={setUrl}
         selectedTools={selectedTools}
         onToggleTool={handleToggleTool}
-        executionMode={executionMode}
-        onExecutionModeChange={setExecutionMode}
         isBusy={Boolean(isBusy)}
         scanButtonLabel={scanButtonLabel}
         scanButtonTooltip={scanButtonTooltip}
@@ -257,9 +613,14 @@ export default function App() {
         <div className="flex flex-1 overflow-hidden">
           <SettingsView
             currentLocale={currentLocale}
-            onReturnHome={() => setMode("idle")}
+            initialTab={settingsInitialTab}
+            onReturnHome={() => {
+              setMode("idle");
+              void refreshProviders();
+            }}
             onSaveLocale={handleSaveLocale}
             nativeRuntimeEnabled={true}
+            onProviderSaved={handleProviderSaved}
           />
         </div>
         <UpdateNotification />
@@ -275,10 +636,27 @@ export default function App() {
 
         <main className="flex-1 overflow-hidden">
           {mode === "idle" ? (
-            <ModeSelection onSelect={handleModeSelect} />
-          ) : executionMode === "bridge" && isBridgeBlocked ? (
-            <OnboardingView
-              status={detectorStatus}
+            <ModeSelection
+              selectedExecutionMode={executionModeDraft}
+              confirmedExecutionMode={confirmedExecutionMode}
+              nativeRuntimeEnabled={nativeRuntimeEnabled}
+              providerConfigured={providerConfigured}
+              providersLoading={providersLoading}
+              providerModelProfiles={providerModelProfiles}
+              selectedModelProfileId={selectedModelProfileId}
+              bridgeProgram={bridgeProgram}
+              codexSetupVerified={codexSetupVerified}
+              codexHandshakeVerified={codexHandshakeVerified}
+              codexBridgeState={codexBridgeState}
+              detectorStatus={detectorStatus}
+              onExecutionModeDraftChange={handleExecutionModeDraftChange}
+              onConfirmExecutionMode={handleConfirmExecutionMode}
+              onChangeConfirmedExecutionMode={handleChangeConfirmedExecutionMode}
+              onBridgeProgramChange={setBridgeProgram}
+              onOpenCodex={handleOpenCodex}
+              onCopyCodexSetupPrompt={bridge.copyCodexSetupPrompt}
+              onModelProfileChange={handleModelProfileChange}
+              onOpenProviderSettings={handleOpenProviderSettings}
               onOpenClaude={openClaude}
               onPickMcpConfig={pickMcpConfig}
               onClearManualMcpConfig={clearManualMcpConfig}
@@ -286,16 +664,15 @@ export default function App() {
               onOpenSkillReleasesPage={openSkillReleasesPage}
               onConfirmSkillInstalled={confirmSkillInstalled}
               onClearSkillConfirmation={clearSkillConfirmation}
+              onSelect={handleModeSelect}
             />
           ) : (
             <NativeLayout
-              locale={currentLocale}
               executionMode={executionMode}
+              nativeScanState={scanState}
               runtimeScanContext={nativeScanContext}
               runtimeReport={runtimeReport}
-              onRuntimeReportChange={setRuntimeReport}
               bridgeState={bridge.state}
-              bridgePrompt={bridge.prompt}
               bridgeFacts={bridgeFacts}
               localSummary={summary}
             />

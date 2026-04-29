@@ -10,6 +10,7 @@ import type { SupportedLocale } from "../../types/ipc";
 interface SettingsViewProps {
   /** The persisted (saved) locale — i18n's current language. */
   currentLocale: SupportedLocale;
+  initialTab?: SettingsTabId;
   /** Notify parent that the user wants to leave Settings. */
   onReturnHome: () => void;
   /**
@@ -23,6 +24,7 @@ interface SettingsViewProps {
    * settings tab — legacy/bridge users don't need it.
    */
   nativeRuntimeEnabled: boolean;
+  onProviderSaved?: () => void | Promise<void>;
 }
 
 /**
@@ -58,11 +60,13 @@ interface SettingsViewProps {
  */
 export default function SettingsView({
   currentLocale,
+  initialTab = "language",
   onReturnHome,
   onSaveLocale,
   nativeRuntimeEnabled,
+  onProviderSaved,
 }: SettingsViewProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTabId>("language");
+  const [activeTab, setActiveTab] = useState<SettingsTabId>(initialTab);
   const [pendingLocale, setPendingLocale] =
     useState<SupportedLocale>(currentLocale);
 
@@ -130,7 +134,7 @@ export default function SettingsView({
           />
         )}
         {activeTab === "providers" && nativeRuntimeEnabled && (
-          <ProvidersTab />
+          <ProvidersTab onProviderSaved={onProviderSaved} />
         )}
       </main>
 

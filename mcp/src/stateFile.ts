@@ -53,6 +53,8 @@ export type HandshakeStatus =
   | "mismatch"
   | "timeout";
 
+export type BridgeClient = "claude" | "codex";
+
 export interface ToolBufferEntry {
   status: "running" | "complete" | "error";
   startedAt: string;
@@ -83,6 +85,7 @@ export interface BridgeScanError {
 export interface CurrentScanState {
   schemaVersion: 1;
   scanId: string;
+  bridgeClient?: BridgeClient;
   status: BridgeScanStatus;
   url: string;
   createdAt: string;
@@ -391,11 +394,17 @@ export async function mutateBuffer(
 export async function applyHandshake(
   receivedToken: string,
   expectedToken: string,
-): Promise<{ result: "verified" | "mismatch" | "no_scan"; state: CurrentScanState | null }> {
+  bridgeClient: BridgeClient = "claude",
+): Promise<{ result: "verified" | "mismatch" | "wrong_client" | "no_scan"; state: CurrentScanState | null }> {
   const state = await readState();
   if (!state) return { result: "no_scan", state: null };
   if (state.status !== "awaiting_handshake") {
     return { result: "no_scan", state };
+  }
+
+  const stateBridgeClient = state.bridgeClient ?? "claude";
+  if (stateBridgeClient !== bridgeClient) {
+    return { result: "wrong_client", state };
   }
 
   const now = new Date().toISOString();
@@ -412,7 +421,7 @@ export async function applyHandshake(
       },
       error: {
         code: "handshake_mismatch",
-        message: `Skill protocol token mismatch. Expected ${expectedToken}, got ${receivedToken}. The user likely has an outdated SKILL.md.`,
+        message: `Bridge instructions token mismatch. Expected ${expectedToken}, got ${receivedToken}. The user likely has an outdated instructions package.`,
       },
     };
     await writeState(next);

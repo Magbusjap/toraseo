@@ -1,7 +1,7 @@
-# Build the ToraSEO skill ZIP locally on Windows.
+# Build the ToraSEO Claude Bridge Instructions ZIP locally on Windows.
 #
 # PowerShell equivalent of build-skill.sh. Same logic, same output:
-# toraseo-skill-<version>.zip in the repo root, containing a
+# toraseo-claude-bridge-instructions-<version>.zip in the repo root, containing a
 # top-level "toraseo/" folder with SKILL.md at its root.
 #
 # IMPORTANT: This script does NOT use Compress-Archive. PowerShell's
@@ -30,8 +30,8 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Split-Path -Parent $ScriptDir
-$SkillDir = Join-Path $RootDir "skill"
-$OutputZip = Join-Path $RootDir "toraseo-skill-$Version.zip"
+$SkillDir = Join-Path $RootDir "claude-bridge-instructions"
+$OutputZip = Join-Path $RootDir "toraseo-claude-bridge-instructions-$Version.zip"
 
 # Sanity: SKILL.md must exist with required frontmatter
 $skillMdPath = Join-Path $SkillDir "SKILL.md"
@@ -76,11 +76,11 @@ try {
     )
 
     try {
-        # Walk skill/ recursively, file by file, skipping empty directories
+        # Walk Claude instructions recursively, file by file, skipping empty directories
         $files = Get-ChildItem -Path $skillRoot -Recurse -File
 
         foreach ($file in $files) {
-            # Compute path relative to skill/ root, then prefix with "toraseo/"
+            # Compute path relative to Claude instructions root, then prefix with "toraseo/"
             # and convert any backslashes to forward slashes for ZIP-spec compliance
             $relativePath = $file.FullName.Substring($skillRoot.Length + 1)
             $entryName = "toraseo/" + ($relativePath -replace '\\', '/')

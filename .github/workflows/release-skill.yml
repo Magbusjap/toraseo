@@ -28,31 +28,31 @@ jobs:
       - name: Check out the tagged commit
         uses: actions/checkout@v4
 
-      - name: Verify skill structure
-        # Sanity check: SKILL.md must exist at skill/ root and have
+      - name: Verify Claude instructions structure
+        # Sanity check: SKILL.md must exist at Claude instructions root and have
         # required frontmatter fields. Catches accidental moves.
         run: |
-          test -f skill/SKILL.md || { echo "skill/SKILL.md missing"; exit 1; }
-          grep -q "^name:" skill/SKILL.md || { echo "name: field missing"; exit 1; }
-          grep -q "^description:" skill/SKILL.md || { echo "description: field missing"; exit 1; }
+          test -f claude-bridge-instructions/SKILL.md || { echo "claude-bridge-instructions/SKILL.md missing"; exit 1; }
+          grep -q "^name:" claude-bridge-instructions/SKILL.md || { echo "name: field missing"; exit 1; }
+          grep -q "^description:" claude-bridge-instructions/SKILL.md || { echo "description: field missing"; exit 1; }
 
       - name: Compute zip name
-        # We want toraseo-skill-v0.1.0.zip even though the git tag is
-        # skill-v0.1.0. Strip the leading "skill-" so the asset name
-        # stays consistent with the v0.1.0-alpha legacy release.
+        # Keep the skill-v* tag namespace, but make the asset name
+        # explicit so users do not confuse the Claude package with the
+        # Codex workflow package.
         id: zipname
         run: |
           SKILL_VERSION=${GITHUB_REF_NAME#skill-}
           echo "version=$SKILL_VERSION" >> $GITHUB_OUTPUT
-          echo "filename=toraseo-skill-$SKILL_VERSION.zip" >> $GITHUB_OUTPUT
+          echo "filename=toraseo-claude-bridge-instructions-$SKILL_VERSION.zip" >> $GITHUB_OUTPUT
 
-      - name: Build skill ZIP
+      - name: Build Claude instructions ZIP
         # Claude Desktop expects the skill folder at the ZIP root.
-        # We stage skill/ contents into a folder named "toraseo/"
+        # We stage claude-bridge-instructions/ contents into a folder named "toraseo/"
         # (matching the name: field in frontmatter), then zip that.
         run: |
           mkdir -p staging/toraseo
-          cp -r skill/. staging/toraseo/
+          cp -r claude-bridge-instructions/. staging/toraseo/
           cd staging
           zip -r ../${{ steps.zipname.outputs.filename }} toraseo
           cd ..
@@ -62,7 +62,7 @@ jobs:
         # softprops/action-gh-release auto-creates a release for the
         # tag if one doesn't exist, or updates the existing one.
         # The release shows up under the skill-v0.1.0 tag, while the
-        # asset is named toraseo-skill-v0.1.0.zip without the prefix.
+        # asset is named toraseo-claude-bridge-instructions-v0.1.0.zip.
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.zipname.outputs.filename }}

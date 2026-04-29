@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Build the ToraSEO skill ZIP locally.
+# Build the ToraSEO Claude Bridge Instructions ZIP locally.
 #
-# Output: toraseo-skill-<version>.zip in the current directory.
+# Output: toraseo-claude-bridge-instructions-<version>.zip in the current directory.
 # The ZIP contains a top-level "toraseo/" folder with SKILL.md
 # at its root — the structure Claude Desktop expects.
 #
 # Use this to test the ZIP locally before pushing a git tag. CI
 # (.github/workflows/release-skill.yml) does the same thing
-# automatically on every "v*" tag.
+# automatically on every `skill-v*` tag.
 #
 # Usage:
 #   ./scripts/build-skill.sh              # uses "dev" as version suffix
@@ -17,9 +17,9 @@ set -euo pipefail
 
 VERSION="${1:-dev}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SKILL_DIR="$ROOT_DIR/skill"
+SKILL_DIR="$ROOT_DIR/claude-bridge-instructions"
 STAGING_DIR="$(mktemp -d)"
-OUTPUT_ZIP="$ROOT_DIR/toraseo-skill-${VERSION}.zip"
+OUTPUT_ZIP="$ROOT_DIR/toraseo-claude-bridge-instructions-${VERSION}.zip"
 
 trap 'rm -rf "$STAGING_DIR"' EXIT
 
@@ -39,7 +39,7 @@ if ! grep -q "^description:" "$SKILL_DIR/SKILL.md"; then
   exit 1
 fi
 
-# Stage skill/ contents under a top-level "toraseo/" folder.
+# Stage Claude instructions contents under a top-level "toraseo/" folder.
 # The folder name must match the "name:" field in frontmatter so
 # Claude Desktop discovers the skill correctly.
 mkdir -p "$STAGING_DIR/toraseo"

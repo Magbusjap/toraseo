@@ -1,7 +1,6 @@
-import { ArrowLeft, Bot, Globe, Play, PlugZap } from "lucide-react";
+import { ArrowLeft, Globe, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { AuditExecutionMode } from "../../types/runtime";
 import { TOOLS, type ToolId, getToolI18nKeyBase } from "../../config/tools";
 
 interface ActiveSidebarProps {
@@ -9,8 +8,6 @@ interface ActiveSidebarProps {
   onUrlChange: (url: string) => void;
   selectedTools: Set<ToolId>;
   onToggleTool: (toolId: ToolId) => void;
-  executionMode: AuditExecutionMode;
-  onExecutionModeChange: (mode: AuditExecutionMode) => void;
   isBusy: boolean;
   scanButtonLabel: string;
   scanButtonTooltip?: string;
@@ -24,8 +21,6 @@ export default function ActiveSidebar({
   onUrlChange,
   selectedTools,
   onToggleTool,
-  executionMode,
-  onExecutionModeChange,
   isBusy,
   scanButtonLabel,
   scanButtonTooltip,
@@ -60,33 +55,6 @@ export default function ActiveSidebar({
       </header>
 
       <div className="flex-1 space-y-6 overflow-y-auto px-4 py-5">
-        <SidebarSection
-          title={t("sidebar.section.mode", { defaultValue: "Execution mode" })}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <ModeButton
-              active={executionMode === "bridge"}
-              label={t("sidebar.mode.bridge", { defaultValue: "MCP + Skill" })}
-              caption={t("sidebar.mode.bridgeHint", {
-                defaultValue:
-                  "Run through Claude Desktop and stream MCP facts back into the app.",
-              })}
-              icon={<PlugZap className="h-4 w-4" />}
-              onClick={() => onExecutionModeChange("bridge")}
-            />
-            <ModeButton
-              active={executionMode === "native"}
-              label={t("sidebar.mode.native", { defaultValue: "API + AI Chat" })}
-              caption={t("sidebar.mode.nativeHint", {
-                defaultValue:
-                  "Run the scan locally, then interpret it with the in-app AI runtime.",
-              })}
-              icon={<Bot className="h-4 w-4" />}
-              onClick={() => onExecutionModeChange("native")}
-            />
-          </div>
-        </SidebarSection>
-
         <SidebarSection title={t("sidebar.section.project")}>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/60">
@@ -172,40 +140,6 @@ function SidebarSection({ title, children }: SidebarSectionProps) {
       </h3>
       {children}
     </section>
-  );
-}
-
-interface ModeButtonProps {
-  active: boolean;
-  label: string;
-  caption: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-}
-
-function ModeButton({
-  active,
-  label,
-  caption,
-  icon,
-  onClick,
-}: ModeButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-lg border px-3 py-3 text-left transition ${
-        active
-          ? "border-primary bg-primary/15 text-white"
-          : "border-white/10 bg-white/5 text-white/75 hover:bg-white/10"
-      }`}
-    >
-      <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className="text-[11px] leading-relaxed text-white/55">{caption}</div>
-    </button>
   );
 }
 

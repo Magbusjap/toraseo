@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1100" width="1000" height="1100" role="img">
   <title>ToraSEO — System Architecture Diagram</title>
-  <desc>Complete system architecture showing Claude Desktop, MCP server, Tauri app, external services, and data flows.</desc>
+  <desc>Complete system architecture showing Claude Desktop, MCP server, Electron app, external services, and data flows.</desc>
 
   <defs>
     <style>
@@ -47,26 +47,26 @@
     <text x="100" y="288" class="box-text">Claude provides recommendations to user</text>
 
     <text x="100" y="318" class="section" style="font-size: 11px">LOADED ASSETS</text>
-    <text x="100" y="338" class="box-tech">• Skill: skill/SKILL.md + checklists</text>
+    <text x="100" y="338" class="box-tech">• Claude package: claude-bridge-instructions/</text>
     <text x="100" y="354" class="box-tech">• MCP connection: mcp/server.js</text>
   </g>
 
   <!-- TORASEO APP BOX -->
   <g>
     <rect x="600" y="150" width="320" height="220" rx="10" fill="#F0FBFA" stroke="#4ECDC4" stroke-width="2"/>
-    <text x="620" y="178" class="box-title">ToraSEO App (Tauri)</text>
-    <text x="620" y="198" class="box-tech">Native window · ~5-10 MB</text>
+    <text x="620" y="178" class="box-title">ToraSEO App (Electron)</text>
+    <text x="620" y="198" class="box-tech">Desktop window · React runtime</text>
 
     <line x1="620" y1="208" x2="900" y2="208" stroke="#CCEEEC" stroke-width="1"/>
 
-    <text x="620" y="228" class="box-text">Display-only dashboard</text>
-    <text x="620" y="248" class="box-text">Real-time status updates</text>
-    <text x="620" y="268" class="box-text">Color-coded indicators</text>
-    <text x="620" y="288" class="box-text">Animated mascot states</text>
+    <text x="620" y="228" class="box-text">Home-screen execution mode</text>
+    <text x="620" y="248" class="box-text">Standalone native AI chat</text>
+    <text x="620" y="268" class="box-text">Structured analysis panel</text>
+    <text x="620" y="288" class="box-text">Exports and details window</text>
 
     <text x="620" y="318" class="section" style="font-size: 11px">TECH STACK</text>
-    <text x="620" y="338" class="box-tech">• Rust + WebView (Tauri 2.x)</text>
-    <text x="620" y="354" class="box-tech">• React 18 + Tailwind + Vite</text>
+    <text x="620" y="338" class="box-tech">• Electron 33 + React 19</text>
+    <text x="620" y="354" class="box-tech">• TypeScript + Tailwind + Vite</text>
   </g>
 
   <!-- BIDIRECTIONAL ARROW BETWEEN CLAUDE & APP -->

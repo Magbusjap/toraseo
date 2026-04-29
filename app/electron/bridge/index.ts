@@ -20,7 +20,7 @@
  * interval) and stops when the app quits.
  */
 
-import { BrowserWindow, ipcMain } from "electron";
+import { BrowserWindow, clipboard, ipcMain } from "electron";
 import log from "electron-log";
 
 import {
@@ -31,8 +31,11 @@ import {
   observeBridgeState,
 } from "./scanLifecycle.js";
 import { watchState } from "./stateFile.js";
+import { buildCodexSetupPrompt } from "./promptBuilder.js";
+import { getCurrentLocale } from "../locale.js";
 
 import type {
+  BridgeClient,
   CurrentScanState,
   ToolId,
   StartBridgeScanResult,
@@ -44,6 +47,7 @@ export const BRIDGE_CHANNELS = {
   cancelScan: "toraseo:bridge:cancel-scan",
   retryHandshake: "toraseo:bridge:retry-handshake",
   getState: "toraseo:bridge:get-state",
+  copyCodexSetupPrompt: "toraseo:bridge:copy-codex-setup-prompt",
   // main → renderer (push)
   stateUpdate: "toraseo:bridge:state-update",
 } as const;
@@ -60,7 +64,7 @@ export function setupBridge(getMainWindow: () => BrowserWindow | null): void {
     BRIDGE_CHANNELS.startScan,
     async (
       _event,
-      args: { url: string; toolIds: ToolId[] },
+      args: { url: string; toolIds: ToolId[]; bridgeClient?: BridgeClient },
     ): Promise<StartBridgeScanResult> => {
       // Validate inputs at the trust boundary. Renderer is sandboxed
       // but a buggy renderer could still pass garbage; we reject
@@ -71,7 +75,14 @@ export function setupBridge(getMainWindow: () => BrowserWindow | null): void {
       if (!Array.isArray(args.toolIds) || args.toolIds.length === 0) {
         throw new Error("Invalid args: 'toolIds' must be a non-empty array");
       }
-      return startScan(args.url.trim(), args.toolIds);
+      if (
+        args.bridgeClient !== undefined &&
+        args.bridgeClient !== "claude" &&
+        args.bridgeClient !== "codex"
+      ) {
+        throw new Error("Invalid args: 'bridgeClient' must be claude or codex");
+      }
+      return startScan(args.url.trim(), args.toolIds, args.bridgeClient);
     },
   );
 
@@ -93,6 +104,16 @@ export function setupBridge(getMainWindow: () => BrowserWindow | null): void {
     BRIDGE_CHANNELS.getState,
     async (): Promise<CurrentScanState | null> => {
       return getCurrentState();
+    },
+  );
+
+  ipcMain.handle(
+    BRIDGE_CHANNELS.copyCodexSetupPrompt,
+    async (): Promise<{ ok: boolean; prompt: string }> => {
+      const locale = await getCurrentLocale();
+      const prompt = buildCodexSetupPrompt(locale);
+      clipboard.writeText(prompt);
+      return { ok: true, prompt };
     },
   );
 

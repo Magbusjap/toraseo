@@ -2,7 +2,8 @@
 
 **Version:** 0.1.0-alpha
 **License:** Apache 2.0
-**Status:** Mode A MVP complete (7 of 7 site-audit tools); Mode B planned for v0.2
+**Status:** App 0.0.7 release candidate: dual-mode desktop runtime
+(`MCP + Instructions` and `API + AI Chat`) is being hardened before tag.
 
 This document describes the technical architecture of ToraSEO. It is intended for users, contributors, and anyone integrating with the project.
 
@@ -27,17 +28,20 @@ This document describes the technical architecture of ToraSEO. It is intended fo
 
 ToraSEO is an open-source SEO toolkit built as a hybrid of:
 
-- **Claude Skill** — instructions and knowledge layer
+- **Claude Bridge Instructions** — instructions and knowledge layer
 - **MCP server** — execution and data layer
-- **Visual application** (Tauri or web-plugin, see roadmap) — presentation layer
+- **Visual application** (Electron + React desktop app) — presentation and native AI runtime layer
 
 This architecture enables three modes of operation:
 
-- **Skill alone:** text-only experience in Claude Desktop
+- **Claude instructions alone:** text-only experience in Claude Desktop
 - **MCP alone:** technical scans without AI commentary
 - **Full stack:** richest experience with AI + visual dashboard
 
-Today (v0.1.0-alpha) the **Skill + MCP** combination is fully functional. The visual application layer is planned for a later milestone.
+Today the **Claude instructions + MCP** line remains supported, and the desktop app
+is being prepared for App 0.0.7 as a dual-mode release. Historical
+sections below still describe earlier milestones; the current release
+rules are tracked in the private System Design.
 
 ---
 
@@ -50,7 +54,7 @@ For a visual overview, see [`architecture-diagram.svg`](architecture-diagram.svg
 │                         User's Computer                         │
 │                                                                 │
 │  ┌──────────────────┐         ┌──────────────────────────────┐  │
-│  │  Claude Desktop  │◄────────┤  ToraSEO Skill (SKILL.md)    │  │
+│  │  Claude Desktop  │◄────────┤  Claude Bridge Instructions  │  │
 │  │                  │  reads  │  — instructions, checklists  │  │
 │  │     (the brain)  │         │  — humanizer patterns (v0.2) │  │
 │  └────────┬─────────┘         │  — multi-engine rules        │  │
@@ -85,7 +89,7 @@ For a visual overview, see [`architecture-diagram.svg`](architecture-diagram.svg
 │                                   │ pushes status (future)      │
 │                                   ▼                             │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │     ToraSEO App (Tauri or web, future milestone)           │ │
+│  │     ToraSEO App (Electron desktop, App 0.0.7)              │ │
 │  │              (the eyes)                                    │ │
 │  │                                                            │ │
 │  │  Native window with React+Tailwind dashboard:              │ │
@@ -130,26 +134,27 @@ For a visual overview, see [`architecture-diagram.svg`](architecture-diagram.svg
 - Handles authentication with external APIs (when used)
 - Will hold shared state between Claude and App once App ships
 
-### Visual App (the eyes) — future
-- Renders visual dashboard
-- Displays statuses, progress, charts, recommendations
-- Has minimal inputs (URL, text, options)
-- Does NOT perform any analysis — only displays results
-- Subscribed to MCP via WebSocket for real-time updates
-- Can trigger MCP-only operations (e.g., scan without involving Claude)
+### Visual App (the eyes)
+- Renders the desktop dashboard
+- Displays statuses, progress, metrics, reports, and recommendations
+- Has minimal inputs (URL, tool selection, provider settings)
+- Supports `MCP + Instructions` and `API + AI Chat` execution paths
+- Keeps provider secrets in the Electron main process
+- Can trigger technical scans without involving Claude in native mode
 
-The choice between a Tauri-native window and a web-plugin presentation is still open — see the roadmap discussion of Tauri-vs-Web for context.
+The app stack is Electron + React + TypeScript. Earlier Tauri notes are
+historical context and are no longer the implementation direction.
 
 ---
 
 ## 4. Architectural Principles
 
-### Principle 1: Skill works without MCP, MCP works without App
+### Principle 1: Claude Instructions work without MCP, MCP works without App
 
 This is critical for flexibility:
-- **Skill alone:** user can work in chat with Claude using only the skill, without launching an app
+- **Claude instructions alone:** user can work in chat with Claude using only the Claude package, without launching an app
 - **MCP alone:** the app (when it ships) can trigger MCP scans without Claude involvement (technical analysis only)
-- **Full stack:** Skill + MCP + App working together for richest experience
+- **Full stack:** Claude instructions + MCP + App working together for richest experience
 
 ### Principle 2: Token efficiency is non-negotiable
 
@@ -228,7 +233,7 @@ This has implications:
 - App must show which chat it's bound to
 - For initial release: support only one active session at a time
 
-### Pattern 1: Claude-driven audit (today, Skill + MCP)
+### Pattern 1: Claude-driven audit (today, Claude instructions + MCP)
 
 This is the only interaction pattern available in v0.1.0-alpha:
 
@@ -296,11 +301,11 @@ toraseo/
 ├── CRAWLING_POLICY.md              # Ethical crawling commitment
 ├── .github/
 │   └── workflows/
-│       └── release-skill.yml       # CI: builds skill ZIP on v* tags
+│       └── release-skill.yml       # CI: builds Claude skill ZIP on skill-v* tags
 ├── .gitignore
 ├── package.json
 │
-├── skill/                          # User adds this to Claude Customize → Skills
+├── claude-bridge-instructions/     # Claude Bridge Instructions release package
 │   ├── README.md                   # User-facing install instructions
 │   ├── SKILL.md                    # Main entry point read by Claude
 │   ├── checklists/
@@ -309,6 +314,12 @@ toraseo/
 │       └── audit-report.md         # Structural template + examples
 │   # Future: checklists/yandex-seo.md, bing-seo.md, ai-search-geo.md
 │   # Future: humanizer/ for Mode B (AI-detection patterns, style rules)
+│
+├── toraseo-codex-workflow/         # Codex Workflow Instructions package
+│   ├── README.md                   # User-facing package notes
+│   ├── SKILL.md                    # Short Codex entry point
+│   ├── agents/openai.yaml          # Codex UI metadata
+│   └── references/                 # Load on demand, not every task
 │
 ├── mcp/                            # User registers in claude_desktop_config.json
 │   ├── README.md
@@ -330,7 +341,7 @@ toraseo/
 │   │   └── websocket/              # Future, App connection
 │   └── tests/                      # Future, Vitest suite
 │
-├── app/                            # Future: visual app (Tauri or web)
+├── app/                            # Electron desktop app
 │
 ├── branding/                       # All visual assets
 │   ├── mascots/
@@ -355,7 +366,7 @@ toraseo/
 
 ## 8. Installation & Distribution
 
-### Today: Skill + MCP
+### Today: Claude instructions + MCP
 
 For v0.1.0-alpha the user installs two pieces:
 
@@ -363,19 +374,19 @@ For v0.1.0-alpha the user installs two pieces:
 - Clone the repo, run `npm install` in `mcp/`, register the binary path in `claude_desktop_config.json`
 - Detailed steps in `mcp/README.md`
 
-#### The Skill
-- Download `toraseo-skill-vX.Y.Z.zip` from the GitHub Releases page
+#### The Claude package
+- Download `toraseo-claude-bridge-instructions-vX.Y.Z.zip` from the GitHub Releases page
 - Upload to Claude Desktop via **Customize → Skills**
-- Detailed steps in `skill/README.md`
+- Detailed steps in `claude-bridge-instructions/README.md`
 
-The skill ZIP is built automatically on every `v*` git tag by `.github/workflows/release-skill.yml` — maintainers only push tags; users only download the asset. To verify the ZIP locally before tagging, maintainers can run `./scripts/build-skill.sh <version>` (bash) or `.\scripts\build-skill.ps1 <version>` (PowerShell on Windows) — both produce the same artifact as CI.
+The Claude ZIP is built automatically on every `skill-v*` git tag by `.github/workflows/release-skill.yml` — maintainers only push tags; users only download the asset. To verify the ZIP locally before tagging, maintainers can run `./scripts/build-skill.sh <version>` (bash) or `.\scripts\build-skill.ps1 <version>` (PowerShell on Windows) — both produce the same artifact as CI.
 
 ### Future: One-command installer
 
 Once the visual App is built, an installer script will:
 - Run **once** during setup
 - Register MCP in `claude_desktop_config.json`
-- Suggest user to add Skill folder via Customize → Skills
+- Suggest user to add the Claude package via Customize → Skills
 - Verify dependencies (Node.js 22+, plus build tools for the App)
 - Build the App for the current OS
 
@@ -387,7 +398,7 @@ When Anthropic stabilizes the DXT format, package everything into a single `.dxt
 
 The system is designed so each component can work without others:
 
-- **Skill alone:** user works in chat with Claude, no app needed (today)
+- **Claude instructions alone:** user works in chat with Claude, no app needed (today)
 - **MCP alone:** app triggers technical scans without Claude (future)
 - **Full stack:** richest experience with AI + visual dashboard (future)
 
@@ -464,4 +475,4 @@ For full brand guidelines, see [`branding/BRAND_BOOK.md`](../branding/BRAND_BOOK
 
 ---
 
-_This document is part of the public ToraSEO documentation. For the user-facing skill installation steps, see [`skill/README.md`](../skill/README.md). For the MCP server installation, see [`mcp/README.md`](../mcp/README.md)._
+_This document is part of the public ToraSEO documentation. For Claude Bridge Instructions installation steps, see [`claude-bridge-instructions/README.md`](../claude-bridge-instructions/README.md). For Codex Workflow Instructions, see [`toraseo-codex-workflow/README.md`](../toraseo-codex-workflow/README.md). For the MCP server installation, see [`mcp/README.md`](../mcp/README.md)._

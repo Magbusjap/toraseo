@@ -19,6 +19,8 @@
  * changes) and the date is informational.
  */
 export const BRIDGE_PROTOCOL_TOKEN = "bridge-v1-2026-04-27";
+export const CODEX_WORKFLOW_PROTOCOL_TOKEN = "codex-workflow-v1-2026-04-29";
+export const CODEX_SETUP_VERIFICATION_FILE = "codex-setup-verification.json";
 
 /**
  * Current state-file schema version. Must match

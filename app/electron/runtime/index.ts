@@ -18,29 +18,46 @@ import log from "electron-log";
 
 import { handleUserMessage } from "./orchestrator.js";
 import {
+  CHAT_WINDOW_CHANNELS,
+  closeChatWindow,
+  endChatWindowSession,
+  getChatWindowSession,
+  openChatWindow,
+  updateChatWindowSession,
+} from "./chatWindow.js";
+import {
   initProviderRegistry,
   listProviders,
 } from "./providers/registry.js";
 import { isNativeRuntimeEnabled } from "./featureFlag.js";
 import {
   closeReportWindow,
+  endReportWindowSession,
+  exportReportDocument,
   exportReportPdf,
+  exportReportPresentation,
   openReportWindow,
 } from "./reporting.js";
+import { testProviderConnection } from "./providerDiagnostics.js";
 import {
   deleteProviderConfig,
   isEncryptionAvailable,
   setProviderConfig,
+  setProviderModelProfiles,
 } from "./providerConfigStore.js";
 
 import type {
   OrchestratorMessageInput,
   OrchestratorMessageResult,
+  ProviderConnectionTestResult,
   ProviderId,
   ProviderInfo,
   RuntimeAuditReport,
+  RuntimeChatWindowSession,
   SetProviderConfigInput,
   SetProviderConfigResult,
+  SetProviderModelProfilesInput,
+  SetProviderModelProfilesResult,
 } from "../../src/types/runtime.js";
 
 export const RUNTIME_CHANNELS = {
@@ -48,11 +65,20 @@ export const RUNTIME_CHANNELS = {
   isEncryptionAvailable: "toraseo:runtime:is-encryption-available",
   listProviders: "toraseo:runtime:list-providers",
   setProviderConfig: "toraseo:runtime:set-provider-config",
+  setProviderModelProfiles: "toraseo:runtime:set-provider-model-profiles",
   deleteProviderConfig: "toraseo:runtime:delete-provider-config",
   sendMessage: "toraseo:runtime:send-message",
   openReportWindow: "toraseo:runtime:open-report-window",
   closeReportWindow: "toraseo:runtime:close-report-window",
+  endReportWindowSession: "toraseo:runtime:end-report-window-session",
   exportReportPdf: "toraseo:runtime:export-report-pdf",
+  exportReportDocument: "toraseo:runtime:export-report-document",
+  exportReportPresentation: "toraseo:runtime:export-report-presentation",
+  testProviderConnection: "toraseo:runtime:test-provider-connection",
+  openChatWindow: "toraseo:runtime:open-chat-window",
+  updateChatWindowSession: "toraseo:runtime:update-chat-window-session",
+  endChatWindowSession: "toraseo:runtime:end-chat-window-session",
+  closeChatWindow: "toraseo:runtime:close-chat-window",
 } as const;
 
 const ALLOWED_PROVIDER_IDS: ReadonlySet<ProviderId> = new Set<ProviderId>([
@@ -120,6 +146,8 @@ export async function setupRuntime(): Promise<void> {
         apiKey: input.apiKey,
         baseUrl: input.baseUrl,
         defaultModel: input.defaultModel,
+        modelProfiles: input.modelProfiles,
+        defaultModelProfileId: input.defaultModelProfileId,
       });
       if (!result.ok) {
         return result;
@@ -135,6 +163,44 @@ export async function setupRuntime(): Promise<void> {
           errorCode: "write_failed",
           errorMessage:
             "Config persisted but registry refresh did not find provider",
+        };
+      }
+      return { ok: true, config: info };
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.setProviderModelProfiles,
+    async (
+      _event,
+      input: SetProviderModelProfilesInput,
+    ): Promise<SetProviderModelProfilesResult> => {
+      if (!input || typeof input !== "object") {
+        return {
+          ok: false,
+          errorCode: "invalid_input",
+          errorMessage: "Expected a model profile config object",
+        };
+      }
+      if (!isValidProviderId(input.id)) {
+        return {
+          ok: false,
+          errorCode: "invalid_input",
+          errorMessage: `Unknown provider id: ${String(input.id)}`,
+        };
+      }
+      const result = await setProviderModelProfiles(input);
+      if (!result.ok) {
+        return result;
+      }
+      await initProviderRegistry();
+      const info = listProviders().find((p) => p.id === input.id) ?? null;
+      if (!info) {
+        return {
+          ok: false,
+          errorCode: "write_failed",
+          errorMessage:
+            "Models persisted but registry refresh did not find provider",
         };
       }
       return { ok: true, config: info };
@@ -192,12 +258,100 @@ export async function setupRuntime(): Promise<void> {
   );
 
   ipcMain.handle(
+    RUNTIME_CHANNELS.endReportWindowSession,
+    async (): Promise<{ ok: boolean }> => {
+      return endReportWindowSession();
+    },
+  );
+
+  ipcMain.handle(
     RUNTIME_CHANNELS.exportReportPdf,
     async (
       _event,
       report: RuntimeAuditReport,
     ): Promise<{ ok: boolean; filePath?: string; error?: string }> => {
       return exportReportPdf(report);
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.exportReportDocument,
+    async (
+      _event,
+      report: RuntimeAuditReport,
+    ): Promise<{ ok: boolean; filePath?: string; error?: string }> => {
+      return exportReportDocument(report);
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.exportReportPresentation,
+    async (
+      _event,
+      report: RuntimeAuditReport,
+    ): Promise<{ ok: boolean; filePath?: string; error?: string }> => {
+      return exportReportPresentation(report);
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.testProviderConnection,
+    async (
+      _event,
+      providerId: ProviderId,
+      locale: "en" | "ru",
+      modelOverride?: string,
+    ): Promise<ProviderConnectionTestResult> => {
+      if (!isValidProviderId(providerId)) {
+        return {
+          ok: false,
+          providerId,
+          errorCode: "invalid_provider",
+          errorMessage: "Unknown provider id.",
+        };
+      }
+      return testProviderConnection(providerId, locale, modelOverride);
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.openChatWindow,
+    async (
+      _event,
+      session: RuntimeChatWindowSession,
+    ): Promise<{ ok: boolean }> => {
+      return openChatWindow(session);
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.updateChatWindowSession,
+    async (
+      _event,
+      session: RuntimeChatWindowSession,
+    ): Promise<{ ok: boolean }> => {
+      return updateChatWindowSession(session);
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.endChatWindowSession,
+    async (): Promise<{ ok: boolean }> => {
+      return endChatWindowSession();
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.closeChatWindow,
+    async (): Promise<{ ok: boolean }> => {
+      return closeChatWindow();
+    },
+  );
+
+  ipcMain.handle(
+    CHAT_WINDOW_CHANNELS.getSession,
+    async (): Promise<RuntimeChatWindowSession> => {
+      return getChatWindowSession();
     },
   );
 

@@ -26,6 +26,7 @@ import type { ToolId } from "../config/tools";
  */
 export type RuntimePolicyMode = "strict_audit" | "audit_plus_ideas";
 export type AuditExecutionMode = "bridge" | "native";
+export type RuntimeAnalysisType = "site";
 
 /**
  * A single rule the policy layer enforces. Keep this minimal in
@@ -100,6 +101,18 @@ export interface ProviderConfig {
 }
 
 /**
+ * User-saved model profile under a configured provider. OpenRouter
+ * usually uses one account API key with many selectable model IDs, so
+ * the app stores model choices separately from the secret provider key.
+ */
+export interface ProviderModelProfile {
+  id: string;
+  displayName: string;
+  modelId: string;
+  usageHint?: string;
+}
+
+/**
  * Lightweight metadata about an installed provider adapter, used
  * by UI screens to render the provider list without exposing the
  * raw config (which contains the API key).
@@ -108,7 +121,10 @@ export interface ProviderInfo {
   id: ProviderId;
   label: string;
   configured: boolean;
+  baseUrl: string | null;
   defaultModel: string | null;
+  defaultModelProfileId: string | null;
+  modelProfiles: ProviderModelProfile[];
   capabilities: ProviderCapabilities;
   /** Last 4 chars of the stored API key, or null when not configured. */
   lastFour: string | null;
@@ -124,6 +140,8 @@ export interface SetProviderConfigInput {
   apiKey: string;
   baseUrl?: string;
   defaultModel?: string;
+  modelProfiles?: ProviderModelProfile[];
+  defaultModelProfileId?: string | null;
 }
 
 /**
@@ -193,6 +211,42 @@ export interface RuntimeAuditReport {
   expertHypotheses: RuntimeExpertHypothesis[];
 }
 
+export interface RuntimeChatWindowSession {
+  status: "active" | "ended";
+  locale: SupportedLocale;
+  analysisType: RuntimeAnalysisType;
+  selectedModelProfile: ProviderModelProfile | null;
+  scanContext: RuntimeScanContext | null;
+  report: RuntimeAuditReport | null;
+  endedReason?: string;
+}
+
+export type ProviderConnectionTestResult =
+  | { ok: true; providerId: ProviderId; model: string }
+  | {
+      ok: false;
+      providerId: ProviderId;
+      errorCode: string;
+      errorMessage: string;
+    };
+
+export interface SetProviderModelProfilesInput {
+  id: ProviderId;
+  modelProfiles: ProviderModelProfile[];
+  defaultModelProfileId: string | null;
+}
+
+export type SetProviderModelProfilesResult =
+  | { ok: true; config: ProviderInfo }
+  | {
+      ok: false;
+      errorCode:
+        | "provider_not_configured"
+        | "invalid_input"
+        | "write_failed";
+      errorMessage: string;
+    };
+
 /**
  * Input the renderer hands to the orchestrator when the user
  * sends a message in the chat panel. Stage 1 keeps this minimal;
@@ -206,8 +260,12 @@ export interface OrchestratorMessageInput {
   mode: RuntimePolicyMode;
   /** Which app execution mode is active. */
   executionMode: AuditExecutionMode;
+  /** Current analysis surface that bounds the assistant's scope. */
+  analysisType: RuntimeAnalysisType;
   /** Provider id to route the request to. */
   providerId: ProviderId;
+  /** Optional model id selected from a saved provider model profile. */
+  modelOverride?: string;
   /** UI locale for response language. */
   locale: SupportedLocale;
   /** Current scan evidence, if any. */
@@ -251,6 +309,11 @@ export interface RuntimeApi {
     input: SetProviderConfigInput,
   ): Promise<SetProviderConfigResult>;
 
+  /** Persist provider model profiles without requiring the API key again. */
+  setProviderModelProfiles(
+    input: SetProviderModelProfilesInput,
+  ): Promise<SetProviderModelProfilesResult>;
+
   /** Remove a provider config, including its encrypted API key. */
   deleteProviderConfig(id: ProviderId): Promise<{ ok: boolean }>;
 
@@ -265,10 +328,56 @@ export interface RuntimeApi {
   /** Close the second-screen details window if one is open. */
   closeReportWindow(): Promise<{ ok: boolean }>;
 
+  /** Mark the second-screen details window as inactive without closing it. */
+  endReportWindowSession(): Promise<{ ok: boolean }>;
+
   /** Export the current report to PDF. */
   exportReportPdf(report: RuntimeAuditReport): Promise<{
     ok: boolean;
     filePath?: string;
     error?: string;
   }>;
+
+  /** Export the current report as a standard Markdown document. */
+  exportReportDocument(report: RuntimeAuditReport): Promise<{
+    ok: boolean;
+    filePath?: string;
+    error?: string;
+  }>;
+
+  /** Export the current report as a lightweight HTML presentation. */
+  exportReportPresentation(report: RuntimeAuditReport): Promise<{
+    ok: boolean;
+    filePath?: string;
+    error?: string;
+  }>;
+
+  /** Probe the selected provider with a minimal scoped audit request. */
+  testProviderConnection(
+    providerId: ProviderId,
+    locale: SupportedLocale,
+    modelOverride?: string,
+  ): Promise<ProviderConnectionTestResult>;
+
+  /** Open or refresh the standalone AI chat window. */
+  openChatWindow(session: RuntimeChatWindowSession): Promise<{ ok: boolean }>;
+
+  /** Push the latest scan context/report into the chat window session. */
+  updateChatWindowSession(
+    session: RuntimeChatWindowSession,
+  ): Promise<{ ok: boolean }>;
+
+  /** Mark the standalone chat window as inactive without closing it. */
+  endChatWindowSession(): Promise<{ ok: boolean }>;
+
+  /** Close the standalone chat window, used when leaving native mode. */
+  closeChatWindow(): Promise<{ ok: boolean }>;
+
+  /** Read the current standalone chat window session snapshot. */
+  getChatWindowSession(): Promise<RuntimeChatWindowSession>;
+
+  /** Subscribe to standalone chat window session changes. */
+  onChatWindowSessionUpdate(
+    listener: (session: RuntimeChatWindowSession) => void,
+  ): () => void;
 }

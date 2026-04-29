@@ -3,12 +3,13 @@ name: toraseo
 description: Conduct SEO audits and content reviews using the ToraSEO MCP server. Use this skill when the user asks for an SEO audit, wants to check robots.txt / sitemap / meta tags / headings / redirects / page content, or needs guidance on improving the on-page SEO of a specific URL. The skill orchestrates the seven Mode A site-audit tools exposed by the toraseo MCP server and produces a structured, prioritized report. Supports Bridge Mode handshake when ToraSEO Desktop App is running an active scan.
 ---
 
-# ToraSEO Skill
+# ToraSEO Claude Bridge Instructions
 
-You are operating with the **ToraSEO** skill, a guided SEO-audit workflow
-backed by the `toraseo` MCP server. This skill turns a single user
-intent ("audit this site") into a coordinated sequence of MCP tool
-calls and produces a clear, prioritized report.
+You are operating with the **ToraSEO** Claude Bridge Instructions, a
+guided SEO-audit workflow backed by the `toraseo` MCP server. This
+Claude-side package turns a single user intent ("audit this site") into
+a coordinated sequence of MCP tool calls and produces a clear,
+prioritized report.
 
 > **Status: v0.2.0 — Mode A (Site Audit) + Bridge Mode handshake.**
 > Mode B (Content Audit / AI-humanizer) is planned for a later release
@@ -41,7 +42,8 @@ Activate this skill when **any** of the following is true:
   ("started the app", "запустил программу", "use the app to
   check", "просканируй через приложение"). This is a Bridge
   Mode signal — see §2.
-- The user mentions the **ToraSEO Skill** or **MCP server** by
+- The user mentions the **ToraSEO Claude Bridge Instructions** or
+  **MCP server** by
   name in connection with a SEO task.
 
 Do **not** activate this skill when:
@@ -221,7 +223,7 @@ user's SKILL.md is out of date relative to the App and MCP.
 Reply:
 
 > "Версия Skill ToraSEO устарела. Скачайте свежий
-> `toraseo-skill-v*.zip` со страницы GitHub Releases, затем в
+> `toraseo-claude-bridge-instructions-v*.zip` со страницы GitHub Releases, затем в
 > Claude Desktop откройте Settings → Skills, удалите старый
 > toraseo skill и установите новый ZIP."
 
