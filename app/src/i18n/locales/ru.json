@@ -35,7 +35,8 @@
       "configPath": "Путь к Claude Desktop config.json"
     },
     "tabs": {
-      "language": "Языковые настройки"
+      "language": "Языковые настройки",
+      "providers": "ИИ-провайдеры"
     },
     "backToHome": "На главную",
     "save": "Сохранить",
@@ -54,6 +55,43 @@
       "body": "Если выйти сейчас, изменения будут потеряны.",
       "discard": "Отменить изменения и вернуться",
       "stay": "Назад"
+    },
+    "providers": {
+      "title": "ИИ-провайдеры",
+      "intro": "Подключите языковую модель, чтобы встроенный чат мог анализировать и обсуждать ваши сканирования. Ключи шифруются операционной системой и никогда не покидают это устройство.",
+      "encryptionUnavailable": "На этом устройстве недоступно безопасное хранилище ОС. Настройте системный keyring (например, gnome-keyring на Linux) перед добавлением API-ключей.",
+      "labels": {
+        "apiKey": "API-ключ",
+        "baseUrl": "Свой endpoint (необязательно)",
+        "defaultModel": "Модель по умолчанию (необязательно)"
+      },
+      "placeholders": {
+        "apiKey": "Вставьте секретный ключ",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "defaultModel": "openrouter/auto"
+      },
+      "status": {
+        "configured": "Подключён",
+        "notConfigured": "Не подключён",
+        "lastFour": "оканчивается на …{{value}}",
+        "savedJustNow": "Сохранено",
+        "deleted": "Удалено"
+      },
+      "actions": {
+        "save": "Сохранить",
+        "delete": "Удалить ключ",
+        "show": "Показать",
+        "hide": "Скрыть"
+      },
+      "openrouter": {
+        "name": "OpenRouter",
+        "blurb": "Один ключ — много моделей: OpenAI, Anthropic, Google, open-source. Рекомендуется по умолчанию."
+      },
+      "errors": {
+        "encryption_unavailable": "Шифрование недоступно: keyring ОС не настроен.",
+        "invalid_input": "Заполните API-ключ.",
+        "write_failed": "Не удалось сохранить ключ. Попробуйте снова."
+      }
     }
   },
   "modeSelection": {

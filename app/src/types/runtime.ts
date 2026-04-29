@@ -13,6 +13,7 @@
  */
 
 import type { SupportedLocale } from "./ipc";
+import type { ToolId } from "../config/tools";
 
 // =====================================================================
 // Policy layer — SKILL rules executed inside the app
@@ -24,6 +25,7 @@ import type { SupportedLocale } from "./ipc";
  * mode also allows expert hypotheses, clearly separated.
  */
 export type RuntimePolicyMode = "strict_audit" | "audit_plus_ideas";
+export type AuditExecutionMode = "bridge" | "native";
 
 /**
  * A single rule the policy layer enforces. Keep this minimal in
@@ -108,11 +110,88 @@ export interface ProviderInfo {
   configured: boolean;
   defaultModel: string | null;
   capabilities: ProviderCapabilities;
+  /** Last 4 chars of the stored API key, or null when not configured. */
+  lastFour: string | null;
 }
+
+/**
+ * Input the renderer passes to runtime.setProviderConfig(). Mirrors
+ * the secure-store contract; the API key is the only secret-bearing
+ * field and never goes back to the renderer once persisted.
+ */
+export interface SetProviderConfigInput {
+  id: ProviderId;
+  apiKey: string;
+  baseUrl?: string;
+  defaultModel?: string;
+}
+
+/**
+ * Result of setProviderConfig(). On success, returns the public
+ * (key-less) view of what was persisted. On failure, includes a
+ * structured error code the UI maps to a localized message.
+ */
+export type SetProviderConfigResult =
+  | { ok: true; config: ProviderInfo }
+  | {
+      ok: false;
+      errorCode:
+        | "encryption_unavailable"
+        | "invalid_input"
+        | "write_failed";
+      errorMessage: string;
+    };
 
 // =====================================================================
 // Orchestrator surface
 // =====================================================================
+
+export interface RuntimeScanFact {
+  toolId: ToolId;
+  title: string;
+  detail: string;
+  severity: "ok" | "warning" | "critical" | "error";
+  source: "local_scan" | "bridge_scan";
+}
+
+export interface RuntimeScanContext {
+  url: string;
+  selectedTools: ToolId[];
+  completedTools: ToolId[];
+  totals: {
+    critical: number;
+    warning: number;
+    info: number;
+    errors: number;
+  };
+  facts: RuntimeScanFact[];
+}
+
+export interface RuntimeConfirmedFact {
+  title: string;
+  detail: string;
+  priority: "high" | "medium" | "low";
+  sourceToolIds: ToolId[];
+}
+
+export interface RuntimeExpertHypothesis {
+  title: string;
+  detail: string;
+  priority: "high" | "medium" | "low";
+  expectedImpact: string;
+  validationMethod: string;
+}
+
+export interface RuntimeAuditReport {
+  mode: RuntimePolicyMode;
+  providerId: ProviderId;
+  model: string;
+  generatedAt: string;
+  summary: string;
+  nextStep: string;
+  confirmedFacts: RuntimeConfirmedFact[];
+  expertHypotheses: RuntimeExpertHypothesis[];
+}
 
 /**
  * Input the renderer hands to the orchestrator when the user
@@ -125,10 +204,14 @@ export interface OrchestratorMessageInput {
   text: string;
   /** Active runtime mode. */
   mode: RuntimePolicyMode;
+  /** Which app execution mode is active. */
+  executionMode: AuditExecutionMode;
   /** Provider id to route the request to. */
   providerId: ProviderId;
   /** UI locale for response language. */
   locale: SupportedLocale;
+  /** Current scan evidence, if any. */
+  scanContext?: RuntimeScanContext | null;
 }
 
 /**
@@ -140,6 +223,8 @@ export interface OrchestratorMessageResult {
   ok: boolean;
   /** Final assistant text (set when ok=true). */
   text?: string;
+  /** Structured report for the analysis panel and exports. */
+  report?: RuntimeAuditReport;
   /** Error code (set when ok=false). */
   errorCode?: string;
   /** Human-readable error message (set when ok=false). */
@@ -148,18 +233,42 @@ export interface OrchestratorMessageResult {
 
 /**
  * Renderer-facing surface exposed under `window.toraseo.runtime`.
- * Stage 1 ships only the placeholders needed to render the new
- * three-column layout and prove the IPC plumbing.
+ * Stage 2 expands provider management into a CRUD-ish surface backed
+ * by encrypted local storage in the main process.
  */
 export interface RuntimeApi {
   /** True if the native runtime feature flag is on for this build. */
   isEnabled(): Promise<boolean>;
 
-  /** List configured providers (without API keys). */
+  /** True if the OS supports encrypted credential storage. */
+  isEncryptionAvailable(): Promise<boolean>;
+
+  /** List installed providers with their configuration state. */
   listProviders(): Promise<ProviderInfo[]>;
 
-  /** Echo a message through the orchestrator (skeleton — no real call yet). */
+  /** Persist a provider's API key + optional overrides. */
+  setProviderConfig(
+    input: SetProviderConfigInput,
+  ): Promise<SetProviderConfigResult>;
+
+  /** Remove a provider config, including its encrypted API key. */
+  deleteProviderConfig(id: ProviderId): Promise<{ ok: boolean }>;
+
+  /** Send a chat message through the orchestrator. */
   sendMessage(
     input: OrchestratorMessageInput,
   ): Promise<OrchestratorMessageResult>;
+
+  /** Open or refresh the second-screen details window. */
+  openReportWindow(report: RuntimeAuditReport): Promise<{ ok: boolean }>;
+
+  /** Close the second-screen details window if one is open. */
+  closeReportWindow(): Promise<{ ok: boolean }>;
+
+  /** Export the current report to PDF. */
+  exportReportPdf(report: RuntimeAuditReport): Promise<{
+    ok: boolean;
+    filePath?: string;
+    error?: string;
+  }>;
 }

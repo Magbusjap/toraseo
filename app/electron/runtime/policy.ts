@@ -43,13 +43,17 @@ const STAGE1_RULES: RuntimePolicyRule[] = [
   },
   {
     id: "format.structured",
-    text: "Respond with a clear structure: confirmed facts first, then optional expert recommendations, then suggested next step.",
+    text: "Respond with structured audit data: confirmed facts first, optional expert hypotheses second, then one concrete next step.",
     modes: ["audit_plus_ideas"],
   },
   {
     id: "format.facts-only",
-    text: "Respond using only facts available in the provided MCP results. Do NOT add speculative recommendations in this mode.",
+    text: "Respond using only confirmed facts from the provided scan evidence. Do NOT add speculative recommendations in this mode.",
     modes: ["strict_audit"],
+  },
+  {
+    id: "analysis.priority",
+    text: "Every fact and hypothesis must include a priority. Hypotheses must also include expected impact and a validation method.",
   },
 ];
 
@@ -71,6 +75,7 @@ function buildSystemPromptHeader(
     `Active mode: ${modeLabel}.`,
     `User locale: ${locale}. Reply in the user's language.`,
     "Stay within the ToraSEO scope at all times.",
+    "Return machine-parseable structured audit content when answering.",
   ].join("\n");
 }
 

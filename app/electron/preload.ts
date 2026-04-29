@@ -38,7 +38,11 @@ import type {
 import type {
   OrchestratorMessageInput,
   OrchestratorMessageResult,
+  ProviderId,
   ProviderInfo,
+  RuntimeAuditReport,
+  SetProviderConfigInput,
+  SetProviderConfigResult,
 } from "../src/types/runtime";
 
 // Mirror of IPC_CHANNELS from electron/tools.ts. Kept in sync manually;
@@ -98,8 +102,14 @@ const BRIDGE = {
 // Mirror of RUNTIME_CHANNELS from electron/runtime/index.ts.
 const RUNTIME = {
   isEnabled: "toraseo:runtime:is-enabled",
+  isEncryptionAvailable: "toraseo:runtime:is-encryption-available",
   listProviders: "toraseo:runtime:list-providers",
+  setProviderConfig: "toraseo:runtime:set-provider-config",
+  deleteProviderConfig: "toraseo:runtime:delete-provider-config",
   sendMessage: "toraseo:runtime:send-message",
+  openReportWindow: "toraseo:runtime:open-report-window",
+  closeReportWindow: "toraseo:runtime:close-report-window",
+  exportReportPdf: "toraseo:runtime:export-report-pdf",
 } as const;
 
 const api: ToraseoApi = {
@@ -294,10 +304,30 @@ const api: ToraseoApi = {
       return ipcRenderer.invoke(RUNTIME.isEnabled) as Promise<boolean>;
     },
 
+    isEncryptionAvailable: () => {
+      return ipcRenderer.invoke(
+        RUNTIME.isEncryptionAvailable,
+      ) as Promise<boolean>;
+    },
+
     listProviders: () => {
       return ipcRenderer.invoke(RUNTIME.listProviders) as Promise<
         ProviderInfo[]
       >;
+    },
+
+    setProviderConfig: (input: SetProviderConfigInput) => {
+      return ipcRenderer.invoke(
+        RUNTIME.setProviderConfig,
+        input,
+      ) as Promise<SetProviderConfigResult>;
+    },
+
+    deleteProviderConfig: (id: ProviderId) => {
+      return ipcRenderer.invoke(
+        RUNTIME.deleteProviderConfig,
+        id,
+      ) as Promise<{ ok: boolean }>;
     },
 
     sendMessage: (input: OrchestratorMessageInput) => {
@@ -305,6 +335,26 @@ const api: ToraseoApi = {
         RUNTIME.sendMessage,
         input,
       ) as Promise<OrchestratorMessageResult>;
+    },
+
+    openReportWindow: (report: RuntimeAuditReport) => {
+      return ipcRenderer.invoke(
+        RUNTIME.openReportWindow,
+        report,
+      ) as Promise<{ ok: boolean }>;
+    },
+
+    closeReportWindow: () => {
+      return ipcRenderer.invoke(
+        RUNTIME.closeReportWindow,
+      ) as Promise<{ ok: boolean }>;
+    },
+
+    exportReportPdf: (report: RuntimeAuditReport) => {
+      return ipcRenderer.invoke(
+        RUNTIME.exportReportPdf,
+        report,
+      ) as Promise<{ ok: boolean; filePath?: string; error?: string }>;
     },
   },
 };

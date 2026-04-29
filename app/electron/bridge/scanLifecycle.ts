@@ -291,6 +291,45 @@ export async function getCurrentState(): Promise<CurrentScanState | null> {
   return readState();
 }
 
+/**
+ * Observe bridge state changes coming from the polling watcher.
+ *
+ * This lets the App react to MCP-driven transitions (handshake
+ * verified, first tool started, terminal states) without forcing
+ * the MCP process to know about App timers directly.
+ */
+export function observeBridgeState(state: CurrentScanState | null): void {
+  if (!state || !activeTimers || state.scanId !== activeTimers.scanId) {
+    return;
+  }
+
+  if (state.status === "in_progress") {
+    const hasStartedTools = Object.keys(state.buffer).length > 0;
+    if (!hasStartedTools && !activeTimers.firstToolTimer) {
+      activeTimers.firstToolTimer = setTimeout(() => {
+        void onFirstToolTimeout(state.scanId);
+      }, FIRST_TOOL_TIMEOUT_MS);
+    }
+    if (hasStartedTools && activeTimers.firstToolTimer) {
+      clearTimeout(activeTimers.firstToolTimer);
+      activeTimers.firstToolTimer = null;
+    }
+    if (activeTimers.handshakeTimer) {
+      clearTimeout(activeTimers.handshakeTimer);
+      activeTimers.handshakeTimer = null;
+    }
+    return;
+  }
+
+  if (
+    state.status === "complete" ||
+    state.status === "cancelled" ||
+    state.status === "error"
+  ) {
+    scheduleCleanup(state.scanId);
+  }
+}
+
 // =====================================================================
 // Internal — timer callbacks
 // =====================================================================

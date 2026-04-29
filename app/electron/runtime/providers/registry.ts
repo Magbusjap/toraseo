@@ -1,52 +1,117 @@
 /**
- * Provider registry — keeps a singleton map of installed adapters
- * and exposes lookup/list helpers for the orchestrator + IPC layer.
+ * Provider registry — singleton map of installed adapters and the
+ * lookup/list helpers the orchestrator + IPC layer use.
  *
- * Stage 1 (skeleton): registry holds in-memory configs only. No
- * persistence yet. Configs come from environment variables for
- * dev convenience (`TORASEO_OPENROUTER_API_KEY`); Stage 2 will
- * replace this with a secure-store backed config manager that
- * survives app restart and never leaks keys to the renderer.
+ * Stage 2 changes:
+ *   - Configs are loaded from the encrypted store (safeStorage) on
+ *     init; the env var path remains as a dev override and is
+ *     applied AFTER the store, so a developer with a key checked in
+ *     to their shell still wins.
+ *   - The registry keeps a snapshot of the public (key-less) info
+ *     for each adapter so listProviders() includes lastFour without
+ *     touching the store on every IPC call.
  */
+
+import log from "electron-log";
 
 import { OpenRouterAdapter } from "./openrouter.js";
 import type { ProviderAdapter } from "./base.js";
+import {
+  getProviderConfigInternal,
+  getProviderConfigPublic,
+  type ProviderConfigPublic,
+} from "../providerConfigStore.js";
 import type {
   ProviderId,
   ProviderInfo,
 } from "../../../src/types/runtime.js";
 
-const adapters = new Map<ProviderId, ProviderAdapter>();
+interface RegistryEntry {
+  adapter: ProviderAdapter;
+  /** Snapshot of last persisted public info (lastFour, defaultModel). */
+  publicInfo: ProviderConfigPublic | null;
+}
+
+const adapters = new Map<ProviderId, RegistryEntry>();
+
+/** Built-in provider definitions: id → label + factory. */
+const BUILTINS: ReadonlyArray<{
+  id: ProviderId;
+  label: string;
+  envKey: string;
+  envBaseUrl: string;
+  envModel: string;
+  build: (config: {
+    id: ProviderId;
+    label: string;
+    apiKey: string;
+    baseUrl?: string;
+    defaultModel?: string;
+  }) => ProviderAdapter;
+}> = [
+  {
+    id: "openrouter",
+    label: "OpenRouter",
+    envKey: "TORASEO_OPENROUTER_API_KEY",
+    envBaseUrl: "TORASEO_OPENROUTER_BASE_URL",
+    envModel: "TORASEO_OPENROUTER_DEFAULT_MODEL",
+    build: (config) => new OpenRouterAdapter(config),
+  },
+];
+
+async function tryRegister(builtin: (typeof BUILTINS)[number]): Promise<void> {
+  const envKey = process.env[builtin.envKey]?.trim();
+
+  // 1) Encrypted store is the baseline source of truth.
+  const stored = await getProviderConfigInternal(builtin.id);
+  if (stored?.apiKey) {
+    try {
+      const adapter = builtin.build({
+        id: builtin.id,
+        label: builtin.label,
+        apiKey: stored.apiKey,
+        baseUrl: stored.baseUrl,
+        defaultModel: stored.defaultModel,
+      });
+      const publicInfo = await getProviderConfigPublic(builtin.id);
+      adapters.set(builtin.id, { adapter, publicInfo });
+      log.info(`[runtime] provider registered from store: ${builtin.id}`);
+    } catch (err) {
+      log.warn(
+        `[runtime] provider ${builtin.id} init from store failed: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  // 2) Env var override for dev workflows. Never written back to disk.
+  if (envKey && envKey.length > 0) {
+    try {
+      const adapter = builtin.build({
+        id: builtin.id,
+        label: builtin.label,
+        apiKey: envKey,
+        baseUrl: process.env[builtin.envBaseUrl] ?? undefined,
+        defaultModel: process.env[builtin.envModel] ?? undefined,
+      });
+      adapters.set(builtin.id, { adapter, publicInfo: null });
+      log.info(`[runtime] provider registered from env: ${builtin.id}`);
+    } catch (err) {
+      log.warn(
+        `[runtime] provider ${builtin.id} init from env failed: ${(err as Error).message}`,
+      );
+    }
+  }
+}
 
 /**
- * Initialise the registry from current environment / future
- * persisted configs. Idempotent — safe to call multiple times.
- *
- * Stage 1: only OpenRouter is auto-registered (and only when an
- * env var is present so non-configured runs don't surface stub
- * adapters in the UI).
+ * Initialise the registry from persisted store + env vars.
+ * Idempotent — clears and rebuilds on every call so the Settings
+ * UI can trigger a refresh after writing/deleting a key.
  */
-export function initProviderRegistry(): void {
+export async function initProviderRegistry(): Promise<void> {
   adapters.clear();
-
-  const openrouterKey = process.env.TORASEO_OPENROUTER_API_KEY;
-  if (openrouterKey && openrouterKey.trim().length > 0) {
-    try {
-      adapters.set(
-        "openrouter",
-        new OpenRouterAdapter({
-          id: "openrouter",
-          label: "OpenRouter",
-          apiKey: openrouterKey.trim(),
-          baseUrl: process.env.TORASEO_OPENROUTER_BASE_URL ?? undefined,
-          defaultModel:
-            process.env.TORASEO_OPENROUTER_DEFAULT_MODEL ?? undefined,
-        }),
-      );
-    } catch {
-      // Bad config — skip registration; UI will see the provider
-      // as not configured and prompt the user to fix it.
-    }
+  for (const builtin of BUILTINS) {
+    await tryRegister(builtin);
   }
 }
 
@@ -55,24 +120,46 @@ export function initProviderRegistry(): void {
  * either catch or first verify availability via listProviders().
  */
 export function getProvider(id: ProviderId): ProviderAdapter {
-  const adapter = adapters.get(id);
-  if (!adapter) {
+  const entry = adapters.get(id);
+  if (!entry) {
     throw new Error(`Provider not registered: ${id}`);
   }
-  return adapter;
+  return entry.adapter;
 }
 
 /**
- * Renderer-safe summary of installed providers. Never includes
- * API keys or other secrets — UI only needs ids, labels, and
- * capability flags.
+ * Renderer-safe summary of installed providers. Includes lastFour
+ * (UI hint) but never the API key itself.
+ *
+ * Note: providers configured purely via env var don't have a store
+ * entry, so their lastFour is null even though configured=true.
  */
 export function listProviders(): ProviderInfo[] {
-  return Array.from(adapters.values()).map((adapter) => ({
-    id: adapter.id,
-    label: adapter.label,
-    configured: adapter.isConfigured(),
-    defaultModel: null,
-    capabilities: adapter.capabilities,
-  }));
+  // Surface every BUILTIN, even if not registered, so the UI can
+  // render an "Add API key" affordance for unconfigured ones.
+  return BUILTINS.map((builtin): ProviderInfo => {
+    const entry = adapters.get(builtin.id);
+    if (!entry) {
+      return {
+        id: builtin.id,
+        label: builtin.label,
+        configured: false,
+        defaultModel: null,
+        lastFour: null,
+        capabilities: {
+          streaming: false,
+          toolCalls: false,
+          structuredOutput: false,
+        },
+      };
+    }
+    return {
+      id: entry.adapter.id,
+      label: entry.adapter.label,
+      configured: entry.adapter.isConfigured(),
+      defaultModel: entry.publicInfo?.defaultModel ?? null,
+      lastFour: entry.publicInfo?.lastFour ?? null,
+      capabilities: entry.adapter.capabilities,
+    };
+  });
 }

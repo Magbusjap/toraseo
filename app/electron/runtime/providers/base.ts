@@ -17,7 +17,9 @@ import type {
   ProviderCapabilities,
   ProviderConfig,
   ProviderId,
+  RuntimeAuditReport,
   RuntimePolicyBundle,
+  RuntimeScanContext,
 } from "../../../src/types/runtime.js";
 
 /**
@@ -30,6 +32,8 @@ export interface ProviderChatRequest {
   policy: RuntimePolicyBundle;
   /** User message text for this turn. */
   userText: string;
+  /** Scan facts the assistant may cite. */
+  scanContext?: RuntimeScanContext | null;
   /** Override default model for this request. */
   modelOverride?: string;
 }
@@ -38,6 +42,10 @@ export interface ProviderChatResponse {
   ok: boolean;
   /** Set when ok=true. */
   text?: string;
+  /** Structured report payload for the analysis panel. */
+  report?: RuntimeAuditReport;
+  /** Resolved model used for the request. */
+  model?: string;
   /** Set when ok=false. */
   errorCode?: string;
   errorMessage?: string;

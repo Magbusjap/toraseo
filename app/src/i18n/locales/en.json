@@ -35,7 +35,8 @@
       "configPath": "Manual path to Claude Desktop config.json"
     },
     "tabs": {
-      "language": "Language settings"
+      "language": "Language settings",
+      "providers": "AI providers"
     },
     "backToHome": "Back to home",
     "save": "Save",
@@ -54,6 +55,43 @@
       "body": "If you go back now, your changes will be lost.",
       "discard": "Discard changes and go back",
       "stay": "Stay"
+    },
+    "providers": {
+      "title": "AI providers",
+      "intro": "Connect a Large Language Model so the in-app chat can analyze and discuss your scans. Keys are encrypted at rest by your operating system and never leave this machine.",
+      "encryptionUnavailable": "OS-level secure storage is unavailable on this machine. Configure a system keyring (e.g. gnome-keyring on Linux) before adding API keys.",
+      "labels": {
+        "apiKey": "API key",
+        "baseUrl": "Custom endpoint URL (optional)",
+        "defaultModel": "Default model (optional)"
+      },
+      "placeholders": {
+        "apiKey": "Paste your secret key here",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "defaultModel": "openrouter/auto"
+      },
+      "status": {
+        "configured": "Configured",
+        "notConfigured": "Not configured",
+        "lastFour": "ends in …{{value}}",
+        "savedJustNow": "Saved",
+        "deleted": "Removed"
+      },
+      "actions": {
+        "save": "Save",
+        "delete": "Remove key",
+        "show": "Show",
+        "hide": "Hide"
+      },
+      "openrouter": {
+        "name": "OpenRouter",
+        "blurb": "Single key, many models — OpenAI, Anthropic, Google, open-source. Recommended default."
+      },
+      "errors": {
+        "encryption_unavailable": "Cannot encrypt: OS keyring is not available.",
+        "invalid_input": "Please fill in the API key.",
+        "write_failed": "Could not save the key. Try again."
+      }
     }
   },
   "modeSelection": {
@@ -68,8 +106,15 @@
   "sidebar": {
     "idleHeading": "Choose a\nmode",
     "section": {
+      "mode": "Execution mode",
       "project": "Project",
       "checks": "Checks"
+    },
+    "mode": {
+      "bridge": "MCP + Skill",
+      "bridgeHint": "Run through Claude Desktop and stream MCP facts back into the app.",
+      "native": "API + AI Chat",
+      "nativeHint": "Run the scan locally, then interpret it with the in-app AI runtime."
     },
     "urlLabel": "Site URL",
     "urlPlaceholder": "example.com",
@@ -78,6 +123,8 @@
     "scan": "Scan",
     "scanning": "Scanning…",
     "scanAgain": "Scan again",
+    "cancel": "Cancel",
+    "retry": "Retry",
     "tooltip": {
       "noUrl": "Enter a site URL",
       "noChecks": "Pick at least one check",

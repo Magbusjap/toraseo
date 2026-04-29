@@ -1,22 +1,14 @@
-/**
- * ChatPanel — central column of the native runtime layout.
- *
- * Stage 1 (skeleton): renders a placeholder visual that proves the
- * IPC pipeline (the input box round-trips through orchestrator and
- * displays the stub response). No streaming, no rich rendering, no
- * history persistence yet — those land in Stage 2/3.
- *
- * Visual style: matches the existing app palette (warm orange,
- * neutral surfaces) so when richer UI comes in Stage 3 it slots
- * in without a redesign pass.
- */
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Bot, Sparkles, ShieldCheck } from "lucide-react";
 
-import { useState, type FormEvent } from "react";
-
+import type { CurrentScanState } from "../../types/ipc";
 import type {
+  AuditExecutionMode,
   OrchestratorMessageInput,
   OrchestratorMessageResult,
+  RuntimeAuditReport,
   RuntimePolicyMode,
+  RuntimeScanContext,
 } from "../../types/runtime";
 import type { SupportedLocale } from "../../types/ipc";
 
@@ -27,25 +19,76 @@ interface ChatTurn {
 
 interface ChatPanelProps {
   locale: SupportedLocale;
+  executionMode: AuditExecutionMode;
+  scanContext: RuntimeScanContext | null;
+  bridgeState: CurrentScanState | null;
+  bridgePrompt: string | null;
+  onReport: (report: RuntimeAuditReport | null) => void;
 }
 
-const STAGE1_PROVIDER_ID = "openrouter" as const;
+const RUNTIME_PROVIDER_ID = "openrouter" as const;
 
-export default function ChatPanel({ locale }: ChatPanelProps) {
+export default function ChatPanel({
+  locale,
+  executionMode,
+  scanContext,
+  bridgeState,
+  bridgePrompt,
+  onReport,
+}: ChatPanelProps) {
   const [history, setHistory] = useState<ChatTurn[]>([
     {
       role: "system",
-      text: "Stage 1 skeleton — orchestrator returns placeholder responses until Stage 2 wires the real provider call.",
+      text:
+        executionMode === "native"
+          ? "Native mode is ready. Run a local scan, then ask for interpretation."
+          : "Bridge mode is ready. Paste the copied prompt into Claude Desktop to let MCP tools fill the app.",
     },
   ]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const [mode] = useState<RuntimePolicyMode>("audit_plus_ideas");
+  const [policyMode, setPolicyMode] =
+    useState<RuntimePolicyMode>("audit_plus_ideas");
+
+  useEffect(() => {
+    setHistory([
+      {
+        role: "system",
+        text:
+          executionMode === "native"
+            ? "Native mode is ready. Run a local scan, then ask for interpretation."
+            : "Bridge mode is ready. Paste the copied prompt into Claude Desktop to let MCP tools fill the app.",
+      },
+    ]);
+    onReport(null);
+  }, [executionMode, onReport]);
+
+  const helperText = useMemo(() => {
+    if (executionMode === "bridge") {
+      if (!bridgeState) {
+        return "Click Scan to copy the Bridge prompt, then send it in Claude Desktop.";
+      }
+      if (bridgeState.status === "awaiting_handshake") {
+        return "Prompt copied. Claude is expected to call the handshake next.";
+      }
+      if (bridgeState.status === "in_progress") {
+        return "Claude is running MCP tools. Results flow into the right panel automatically.";
+      }
+      if (bridgeState.status === "error") {
+        return bridgeState.error?.message ?? "Bridge mode hit an error.";
+      }
+      return "Bridge scan finished. Claude recommendations can continue in the external chat.";
+    }
+    if (!scanContext || scanContext.completedTools.length === 0) {
+      return "Run a local scan first, then ask the in-app AI to interpret the findings.";
+    }
+    return `Scan context ready: ${scanContext.completedTools.length}/${scanContext.selectedTools.length} tools completed.`;
+  }, [bridgeState, executionMode, scanContext]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const text = draft.trim();
-    if (!text || busy) return;
+    if (!text || busy || executionMode !== "native") return;
 
     setHistory((prev) => [...prev, { role: "user", text }]);
     setDraft("");
@@ -53,9 +96,11 @@ export default function ChatPanel({ locale }: ChatPanelProps) {
 
     const input: OrchestratorMessageInput = {
       text,
-      mode,
-      providerId: STAGE1_PROVIDER_ID,
+      mode: policyMode,
+      executionMode,
+      providerId: RUNTIME_PROVIDER_ID,
       locale,
+      scanContext,
     };
 
     let result: OrchestratorMessageResult;
@@ -70,9 +115,17 @@ export default function ChatPanel({ locale }: ChatPanelProps) {
       };
     }
 
-    if (result.ok && result.text) {
-      setHistory((prev) => [...prev, { role: "assistant", text: result.text! }]);
+    if (result.ok && result.report) {
+      onReport(result.report);
+      setHistory((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: `${result.report.summary}\n\nNext step: ${result.report.nextStep}`,
+        },
+      ]);
     } else {
+      onReport(null);
       setHistory((prev) => [
         ...prev,
         {
@@ -89,15 +142,31 @@ export default function ChatPanel({ locale }: ChatPanelProps) {
       <header className="flex items-center justify-between border-b border-orange-100 px-5 py-3">
         <div>
           <h2 className="text-sm font-semibold text-orange-900">
-            ToraSEO AI Chat
+            {executionMode === "native" ? "API + AI Chat" : "MCP + Skill Companion"}
           </h2>
-          <p className="text-xs text-orange-700/70">
-            Native runtime · mode: {mode} · provider: {STAGE1_PROVIDER_ID}
-          </p>
+          <p className="text-xs text-orange-700/70">{helperText}</p>
         </div>
-        <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-orange-700">
-          Stage 1 skeleton
-        </span>
+        <div className="flex items-center gap-2">
+          {executionMode === "native" && (
+            <div className="flex rounded-full border border-orange-200 bg-orange-50 p-1">
+              <PolicyButton
+                active={policyMode === "strict_audit"}
+                icon={<ShieldCheck size={12} />}
+                label="Strict"
+                onClick={() => setPolicyMode("strict_audit")}
+              />
+              <PolicyButton
+                active={policyMode === "audit_plus_ideas"}
+                icon={<Sparkles size={12} />}
+                label="Ideas"
+                onClick={() => setPolicyMode("audit_plus_ideas")}
+              />
+            </div>
+          )}
+          <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-orange-700">
+            {executionMode === "native" ? "In-app runtime" : "Claude desktop"}
+          </span>
+        </div>
       </header>
 
       <ol className="flex-1 space-y-3 overflow-auto px-5 py-4">
@@ -117,6 +186,18 @@ export default function ChatPanel({ locale }: ChatPanelProps) {
             </pre>
           </li>
         ))}
+
+        {executionMode === "bridge" && bridgePrompt && (
+          <li className="rounded-2xl border border-orange-200 bg-orange-50/60 p-4 text-sm text-orange-950">
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-orange-700">
+              <Bot size={14} />
+              Copied prompt
+            </div>
+            <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-orange-900/80">
+              {bridgePrompt}
+            </pre>
+          </li>
+        )}
       </ol>
 
       <form
@@ -128,13 +209,19 @@ export default function ChatPanel({ locale }: ChatPanelProps) {
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Ask the runtime (Stage 1: stub responses)..."
-            disabled={busy}
+            placeholder={
+              executionMode === "native"
+                ? "Ask the in-app AI to interpret the current scan..."
+                : "Bridge mode uses Claude Desktop for the live conversation."
+            }
+            disabled={busy || executionMode !== "native"}
             className="flex-1 rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm text-orange-950 placeholder:text-orange-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:opacity-60"
           />
           <button
             type="submit"
-            disabled={busy || draft.trim().length === 0}
+            disabled={
+              busy || draft.trim().length === 0 || executionMode !== "native"
+            }
             className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-orange-600 disabled:bg-orange-300"
           >
             {busy ? "..." : "Send"}
@@ -142,5 +229,32 @@ export default function ChatPanel({ locale }: ChatPanelProps) {
         </div>
       </form>
     </section>
+  );
+}
+
+function PolicyButton({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition ${
+        active
+          ? "bg-white text-orange-900 shadow-sm"
+          : "text-orange-700/70 hover:text-orange-900"
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }

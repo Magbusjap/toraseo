@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import LanguageTab from "./LanguageTab";
+import ProvidersTab from "./ProvidersTab";
 import SettingsSidebar, { type SettingsTabId } from "./SettingsSidebar";
 import UnsavedChangesModal from "./UnsavedChangesModal";
 
@@ -17,6 +18,11 @@ interface SettingsViewProps {
    * to userData/locale.txt via IPC and updates the parent's state.
    */
   onSaveLocale: (locale: SupportedLocale) => Promise<void>;
+  /**
+   * True when TORASEO_NATIVE_RUNTIME is on. Gates the AI providers
+   * settings tab — legacy/bridge users don't need it.
+   */
+  nativeRuntimeEnabled: boolean;
 }
 
 /**
@@ -54,6 +60,7 @@ export default function SettingsView({
   currentLocale,
   onReturnHome,
   onSaveLocale,
+  nativeRuntimeEnabled,
 }: SettingsViewProps) {
   const [activeTab, setActiveTab] = useState<SettingsTabId>("language");
   const [pendingLocale, setPendingLocale] =
@@ -109,6 +116,7 @@ export default function SettingsView({
           activeTab={activeTab}
           onTabChange={handleTabChange}
           onReturnHome={handleReturnHome}
+          showProvidersTab={nativeRuntimeEnabled}
         />
       </aside>
 
@@ -120,6 +128,9 @@ export default function SettingsView({
             isDirty={isDirty}
             onSave={handleSave}
           />
+        )}
+        {activeTab === "providers" && nativeRuntimeEnabled && (
+          <ProvidersTab />
         )}
       </main>
 

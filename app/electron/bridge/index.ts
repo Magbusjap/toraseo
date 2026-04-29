@@ -28,6 +28,7 @@ import {
   cancelScan,
   retryHandshake,
   getCurrentState,
+  observeBridgeState,
 } from "./scanLifecycle.js";
 import { watchState } from "./stateFile.js";
 
@@ -98,6 +99,7 @@ export function setupBridge(getMainWindow: () => BrowserWindow | null): void {
   // ----- Push channel (state-file polling) -----
 
   watchState((state) => {
+    observeBridgeState(state);
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
       win.webContents.send(BRIDGE_CHANNELS.stateUpdate, state);

@@ -13,7 +13,11 @@
 
 export function isNativeRuntimeEnabled(): boolean {
   const raw = process.env.TORASEO_NATIVE_RUNTIME;
-  if (!raw) return false;
+  if (!raw) return true;
   const normalized = raw.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "on";
+  return !(
+    normalized === "0" ||
+    normalized === "false" ||
+    normalized === "off"
+  );
 }

@@ -1,6 +1,7 @@
-import { ArrowLeft, Play, Globe } from "lucide-react";
+import { ArrowLeft, Bot, Globe, Play, PlugZap } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { ScanState } from "../../hooks/useScan";
+
+import type { AuditExecutionMode } from "../../types/runtime";
 import { TOOLS, type ToolId, getToolI18nKeyBase } from "../../config/tools";
 
 interface ActiveSidebarProps {
@@ -8,62 +9,45 @@ interface ActiveSidebarProps {
   onUrlChange: (url: string) => void;
   selectedTools: Set<ToolId>;
   onToggleTool: (toolId: ToolId) => void;
-  scanState: ScanState;
+  executionMode: AuditExecutionMode;
+  onExecutionModeChange: (mode: AuditExecutionMode) => void;
+  isBusy: boolean;
+  scanButtonLabel: string;
+  scanButtonTooltip?: string;
+  canRun: boolean;
   onReturnHome: () => void;
-  onStartScan: () => void;
+  onRun: () => void;
 }
 
-/**
- * ActiveSidebar — sidebar in Site Audit state.
- *
- * MVP version: return button + URL input + selective tools (7
- * checkboxes with tooltips) + scan trigger button. The "Scan
- * settings" block (timeout, polite mode) and "Connection"
- * (Claude Desktop status) are deferred to later iterations.
- *
- * Visual design: dark outline-colored panel matching IdleSidebar
- * and SettingsSidebar — sidebar background is a brand-defined
- * constant across all states. Content (text, inputs, borders) is
- * adapted to read against the dark surface: white headings,
- * white/70 secondary text, white/10 dividers, semi-transparent
- * white input backgrounds. The primary CTA button keeps the brand
- * orange because it's the strongest contrast point on dark.
- */
 export default function ActiveSidebar({
   url,
   onUrlChange,
   selectedTools,
   onToggleTool,
-  scanState,
+  executionMode,
+  onExecutionModeChange,
+  isBusy,
+  scanButtonLabel,
+  scanButtonTooltip,
+  canRun,
   onReturnHome,
-  onStartScan,
+  onRun,
 }: ActiveSidebarProps) {
   const { t } = useTranslation();
 
-  const isScanning = scanState === "scanning";
-  const isComplete = scanState === "complete";
   const trimmedUrl = url.trim();
   const hasValidUrl = trimmedUrl.length > 0 && isLikelyUrl(trimmedUrl);
   const hasSelectedTools = selectedTools.size > 0;
-  const canScan = hasValidUrl && hasSelectedTools && !isScanning;
-
-  const scanButtonTooltip = !hasValidUrl
+  const computedTooltip = !hasValidUrl
     ? t("sidebar.tooltip.noUrl")
     : !hasSelectedTools
       ? t("sidebar.tooltip.noChecks")
-      : isScanning
+      : isBusy
         ? t("sidebar.tooltip.alreadyScanning")
-        : undefined;
-
-  const scanButtonLabel = isScanning
-    ? t("sidebar.scanning")
-    : isComplete
-      ? t("sidebar.scanAgain")
-      : t("sidebar.scan");
+        : scanButtonTooltip;
 
   return (
     <div className="flex h-full flex-col bg-surface text-white">
-      {/* Header — return button */}
       <header className="border-b border-white/10 px-4 py-3">
         <button
           type="button"
@@ -75,8 +59,34 @@ export default function ActiveSidebar({
         </button>
       </header>
 
-      {/* Body — settings */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
+      <div className="flex-1 space-y-6 overflow-y-auto px-4 py-5">
+        <SidebarSection
+          title={t("sidebar.section.mode", { defaultValue: "Execution mode" })}
+        >
+          <div className="grid grid-cols-2 gap-2">
+            <ModeButton
+              active={executionMode === "bridge"}
+              label={t("sidebar.mode.bridge", { defaultValue: "MCP + Skill" })}
+              caption={t("sidebar.mode.bridgeHint", {
+                defaultValue:
+                  "Run through Claude Desktop and stream MCP facts back into the app.",
+              })}
+              icon={<PlugZap className="h-4 w-4" />}
+              onClick={() => onExecutionModeChange("bridge")}
+            />
+            <ModeButton
+              active={executionMode === "native"}
+              label={t("sidebar.mode.native", { defaultValue: "API + AI Chat" })}
+              caption={t("sidebar.mode.nativeHint", {
+                defaultValue:
+                  "Run the scan locally, then interpret it with the in-app AI runtime.",
+              })}
+              icon={<Bot className="h-4 w-4" />}
+              onClick={() => onExecutionModeChange("native")}
+            />
+          </div>
+        </SidebarSection>
+
         <SidebarSection title={t("sidebar.section.project")}>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/60">
@@ -93,7 +103,7 @@ export default function ActiveSidebar({
                 value={url}
                 onChange={(e) => onUrlChange(e.target.value)}
                 placeholder={t("sidebar.urlPlaceholder")}
-                disabled={isScanning}
+                disabled={isBusy}
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
@@ -119,7 +129,7 @@ export default function ActiveSidebar({
                   label={t(`tools.${keyBase}.label`)}
                   tooltip={t(`tools.${keyBase}.tooltip`)}
                   checked={selectedTools.has(tool.id)}
-                  disabled={isScanning}
+                  disabled={isBusy}
                   onChange={() => onToggleTool(tool.id)}
                 />
               );
@@ -133,13 +143,12 @@ export default function ActiveSidebar({
         </SidebarSection>
       </div>
 
-      {/* Footer — primary CTA */}
       <footer className="border-t border-white/10 p-4">
         <button
           type="button"
-          onClick={onStartScan}
-          disabled={!canScan}
-          title={scanButtonTooltip}
+          onClick={onRun}
+          disabled={!canRun}
+          title={computedTooltip}
           className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"
         >
           <Play className="h-4 w-4 fill-current" strokeWidth={2} />
@@ -159,10 +168,44 @@ function SidebarSection({ title, children }: SidebarSectionProps) {
   return (
     <section>
       <h3 className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-white/50">
-        — {title} —
+        - {title} -
       </h3>
       {children}
     </section>
+  );
+}
+
+interface ModeButtonProps {
+  active: boolean;
+  label: string;
+  caption: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}
+
+function ModeButton({
+  active,
+  label,
+  caption,
+  icon,
+  onClick,
+}: ModeButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border px-3 py-3 text-left transition ${
+        active
+          ? "border-primary bg-primary/15 text-white"
+          : "border-white/10 bg-white/5 text-white/75 hover:bg-white/10"
+      }`}
+    >
+      <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className="text-[11px] leading-relaxed text-white/55">{caption}</div>
+    </button>
   );
 }
 
@@ -188,9 +231,7 @@ function ToolCheckbox({
       <label
         title={tooltip}
         className={`flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-sm transition ${
-          disabled
-            ? "cursor-not-allowed opacity-60"
-            : "hover:bg-white/5"
+          disabled ? "cursor-not-allowed opacity-60" : "hover:bg-white/5"
         }`}
       >
         <input
@@ -207,21 +248,8 @@ function ToolCheckbox({
   );
 }
 
-/**
- * Loose "is this string URL-shaped?" check.
- *
- * Accepts:
- * - example.com
- * - https://example.com
- * - https://example.com/path
- * - sub.example.com
- *
- * Rejects:
- * - bare "test" (no dot, no host parts)
- * - "example" (no dot)
- * - anything containing whitespace
- */
 function isLikelyUrl(value: string): boolean {
-  const pattern = /^(https?:\/\/)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+(\/.*)?$/;
+  const pattern =
+    /^(https?:\/\/)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+(\/.*)?$/;
   return pattern.test(value);
 }

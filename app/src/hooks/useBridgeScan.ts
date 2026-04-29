@@ -1,0 +1,106 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { TOOLS, type ToolId } from "../config/tools";
+import type {
+  CurrentScanState,
+  StartBridgeScanResult,
+  ToolBufferEntry,
+} from "../types/ipc";
+
+export interface BridgeStageState {
+  status: "pending" | "running" | "ok" | "warning" | "critical" | "error";
+  summary?: {
+    critical: number;
+    warning: number;
+    info: number;
+  };
+  errorCode?: string;
+  errorMessage?: string;
+  result?: unknown;
+}
+
+export type BridgeStagesMap = Partial<Record<ToolId, BridgeStageState>>;
+
+interface UseBridgeScanReturn {
+  state: CurrentScanState | null;
+  stages: BridgeStagesMap;
+  prompt: string | null;
+  startScan: (url: string, toolIds: ToolId[]) => Promise<StartBridgeScanResult>;
+  cancelScan: () => Promise<void>;
+  retryHandshake: () => Promise<void>;
+  isAwaitingHandshake: boolean;
+}
+
+function mapBufferEntry(entry?: ToolBufferEntry): BridgeStageState {
+  if (!entry) {
+    return { status: "pending" };
+  }
+  if (entry.status === "running") {
+    return { status: "running" };
+  }
+  if (entry.status === "error") {
+    return {
+      status: "error",
+      errorCode: entry.errorCode,
+      errorMessage: entry.errorMessage,
+    };
+  }
+  return {
+    status: entry.verdict ?? "ok",
+    summary: entry.summary,
+    result: entry.data,
+  };
+}
+
+export function useBridgeScan(): UseBridgeScanReturn {
+  const [state, setState] = useState<CurrentScanState | null>(null);
+  const [prompt, setPrompt] = useState<string | null>(null);
+
+  useEffect(() => {
+    let unsubscribe = () => undefined;
+    void window.toraseo.bridge.getCurrentState().then(setState);
+    unsubscribe = window.toraseo.bridge.onStateUpdate((next) => {
+      setState(next);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const startScan = useCallback(async (url: string, toolIds: ToolId[]) => {
+    const result = await window.toraseo.bridge.startScan(url, toolIds);
+    setPrompt(result.prompt);
+    return result;
+  }, []);
+
+  const cancelScan = useCallback(async () => {
+    await window.toraseo.bridge.cancelScan();
+  }, []);
+
+  const retryHandshake = useCallback(async () => {
+    const result = await window.toraseo.bridge.retryHandshake();
+    if (!result.ok) {
+      throw new Error(result.error ?? "bridge_retry_failed");
+    }
+  }, []);
+
+  const stages = useMemo<BridgeStagesMap>(() => {
+    if (!state) return {};
+    const next: BridgeStagesMap = {};
+    for (const tool of TOOLS) {
+      if (!state.selectedTools.includes(tool.id)) continue;
+      next[tool.id] = mapBufferEntry(state.buffer[tool.id]);
+    }
+    return next;
+  }, [state]);
+
+  return {
+    state,
+    stages,
+    prompt,
+    startScan,
+    cancelScan,
+    retryHandshake,
+    isAwaitingHandshake: state?.status === "awaiting_handshake",
+  };
+}

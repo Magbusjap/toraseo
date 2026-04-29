@@ -44,6 +44,7 @@ export async function handleUserMessage(
   const response = await adapter.sendChat({
     policy,
     userText: input.text,
+    scanContext: input.scanContext,
   });
 
   if (!response.ok) {
@@ -54,10 +55,33 @@ export async function handleUserMessage(
     };
   }
 
-  // Stage 2 will hook output-contract validation here. For Stage
-  // 1, we trust the placeholder response.
+  if (!response.report) {
+    return {
+      ok: false,
+      errorCode: "provider_bad_response",
+      errorMessage: "The AI provider did not return a structured audit report.",
+    };
+  }
+  if (
+    input.mode === "strict_audit" &&
+    response.report.expertHypotheses.length > 0
+  ) {
+    return {
+      ok: false,
+      errorCode: "policy_violation",
+      errorMessage:
+        "Strict audit mode forbids expert hypotheses, but the provider returned them.",
+    };
+  }
+
+  const factsCount = response.report.confirmedFacts.length;
+  const text =
+    response.text ??
+    `${response.report.summary}\n\nConfirmed facts: ${factsCount}.`;
+
   return {
     ok: true,
-    text: response.text,
+    text,
+    report: response.report,
   };
 }

@@ -212,11 +212,15 @@ app.whenReady().then(async () => {
   // See electron/bridge/index.ts for IPC channels and lifecycle.
   setupBridge(() => mainWindow);
 
-  // Native Runtime (v0.0.7 redesign, Stage 1): registers IPC
-  // handlers for the in-app SKILL runtime, provider adapters,
-  // and orchestrator. Disabled by default via feature flag —
-  // turn on with TORASEO_NATIVE_RUNTIME=1. See electron/runtime/.
-  setupRuntime();
+  // Native Runtime (v0.0.7 redesign): registers IPC handlers for
+  // the in-app SKILL runtime, provider adapters, and orchestrator.
+  // Disabled by default via feature flag — turn on with
+  // TORASEO_NATIVE_RUNTIME=1. See electron/runtime/.
+  //
+  // Awaited because Stage 2 reads the encrypted-store-backed provider
+  // registry from disk; the IPC handlers should be registered by the
+  // time the renderer makes its first runtime call.
+  await setupRuntime();
 
   app.on("activate", () => {
     // macOS: re-create the window when the dock icon is clicked

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Globe } from "lucide-react";
+import { ArrowLeft, Globe, Key } from "lucide-react";
 
-export type SettingsTabId = "language";
+export type SettingsTabId = "language" | "providers";
 
 interface SettingsSidebarProps {
   activeTab: SettingsTabId;
@@ -9,6 +9,12 @@ interface SettingsSidebarProps {
   onTabChange: (tab: SettingsTabId) => void;
   /** Return to home (guarded by parent if dirty). */
   onReturnHome: () => void;
+  /**
+   * Whether to render the AI providers tab. Hidden in legacy
+   * (non-native-runtime) builds so users without the Native
+   * Runtime feature flag don't see a tab they cannot use.
+   */
+  showProvidersTab: boolean;
 }
 
 /**
@@ -34,6 +40,7 @@ export default function SettingsSidebar({
   activeTab,
   onTabChange,
   onReturnHome,
+  showProvidersTab,
 }: SettingsSidebarProps) {
   const { t } = useTranslation();
 
@@ -64,6 +71,16 @@ export default function SettingsSidebar({
               onClick={() => onTabChange("language")}
             />
           </li>
+          {showProvidersTab && (
+            <li>
+              <TabButton
+                icon={<Key size={14} />}
+                label={t("settings.tabs.providers")}
+                active={activeTab === "providers"}
+                onClick={() => onTabChange("providers")}
+              />
+            </li>
+          )}
         </ul>
       </nav>
     </div>
