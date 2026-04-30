@@ -197,7 +197,9 @@ ToraSEO спроектирован так, чтобы каждый слой ос
 - [Architecture overview](docs/ARCHITECTURE.md)
 - [Release notes for App 0.0.8](docs/RELEASE_NOTES_0.0.8.md)
 - [Release template](docs/RELEASE_TEMPLATE.md)
-- [Release draft for App 0.0.8](docs/RELEASE_DRAFT_0.0.8.md)
+- [AI model compatibility notes](docs/MODEL_COMPATIBILITY.md)
+- [English release draft for App 0.0.8](docs/releases/0.0.8.en.md)
+- [Русский release draft для App 0.0.8](docs/releases/0.0.8.ru.md)
 - [Crawling policy](CRAWLING_POLICY.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
@@ -221,7 +223,7 @@ ToraSEO спроектирован так, чтобы каждый слой ос
 - прямые ссылки на installer, docs и instruction packages
 - компактный status callout, если это release candidate с особыми ожиданиями
 
-Так релизы остаются читаемыми и инженерными, без превращения в marketing pages. Рабочий шаблон лежит в [`docs/RELEASE_TEMPLATE.md`](docs/RELEASE_TEMPLATE.md), а первый конкретный draft для будущего выпуска хранится в [`docs/RELEASE_DRAFT_0.0.8.md`](docs/RELEASE_DRAFT_0.0.8.md).
+Так релизы остаются читаемыми и инженерными, без превращения в marketing pages. На GitHub Releases лучше держать один основной English body, а переводы складывать в [`docs/releases/`](docs/releases/). Рабочий шаблон лежит в [`docs/RELEASE_TEMPLATE.md`](docs/RELEASE_TEMPLATE.md), а первые конкретные drafts для будущего выпуска хранятся в [`docs/releases/0.0.8.en.md`](docs/releases/0.0.8.en.md) и [`docs/releases/0.0.8.ru.md`](docs/releases/0.0.8.ru.md).
 
 ## Как помочь проекту
 

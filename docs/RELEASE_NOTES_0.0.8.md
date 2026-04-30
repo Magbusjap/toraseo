@@ -2,8 +2,9 @@
 
 This document is the repo-side release notes reference for the `0.0.8`
 line. The future GitHub Releases body can be based on
-[`RELEASE_DRAFT_0.0.8.md`](RELEASE_DRAFT_0.0.8.md) when the release is
-actually published.
+[`releases/0.0.8.en.md`](releases/0.0.8.en.md) for the GitHub release
+page, with [`releases/0.0.8.ru.md`](releases/0.0.8.ru.md) kept as the
+repo-side Russian translation.
 
 App 0.0.8 focuses on release consolidation, Codex bridge reliability,
 and the first serious polish pass for the native AI chat experience.
@@ -31,6 +32,9 @@ product split between `MCP + Instructions` and `API + AI Chat`.
 - `toraseo-codex-workflow-*.zip`
 
 This is the intended public release shape for `0.0.8+`.
+The instruction/skill package ZIPs are part of the same app release
+asset list and should not be published as separate public release
+pages for this line.
 
 ## Installation / upgrade notes
 
@@ -86,7 +90,8 @@ This is the intended public release shape for `0.0.8+`.
 - Verify a real Codex bridge scan populates `Overview` and
   `Confirmed facts` from structured bridge data.
 - Verify a real native `API + AI Chat` scan auto-starts
-  interpretation and respects the selected locale.
+  interpretation, respects the selected locale, and produces a useful
+  follow-up answer rather than a terse one-line reply.
 - Verify GitHub Actions attaches the app installer, Claude ZIP, and
   Codex ZIP to one `v0.0.8` release.
 - Confirm packaging/build works on Node.js 22 in a normal release
