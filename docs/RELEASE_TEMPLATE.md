@@ -13,6 +13,18 @@ Use this structure for public GitHub releases starting with the unified app-led 
 - direct links when useful: installer, docs, instructions packages
 - release-candidate callout if the version is intentionally not final
 
+## Language variants
+
+GitHub Releases expose one Markdown release body. The recommended
+project convention is:
+
+- Keep the public GitHub release body in English
+- Store translated release texts in `docs/releases/`
+- Use filenames like `X.Y.Z.en.md`, `X.Y.Z.ru.md`, `X.Y.Z.ja.md`
+
+This keeps the release page readable while making it easy to expand
+language coverage over time.
+
 ## Highlights
 
 - 2-5 bullets covering the highest-value changes
@@ -26,6 +38,8 @@ Use this structure for public GitHub releases starting with the unified app-led 
 - `toraseo-codex-workflow-*.zip`
 
 If a release intentionally omits one of these assets, say so explicitly.
+The instruction/skill packages should be listed with the app installer
+assets on the same release page, not as separate public release pages.
 
 Recommended order:
 
@@ -80,4 +94,5 @@ Group changes by subsystem when possible:
 ## Working examples
 
 - [`docs/RELEASE_NOTES_0.0.8.md`](RELEASE_NOTES_0.0.8.md) - structured release notes for the `0.0.8` line
-- [`docs/RELEASE_DRAFT_0.0.8.md`](RELEASE_DRAFT_0.0.8.md) - ready-to-use GitHub release body draft for the future `0.0.8` publish step
+- [`docs/releases/0.0.8.en.md`](releases/0.0.8.en.md) - primary English GitHub release body draft
+- [`docs/releases/0.0.8.ru.md`](releases/0.0.8.ru.md) - Russian release text stored alongside the English version

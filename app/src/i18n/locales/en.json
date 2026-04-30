@@ -110,7 +110,7 @@
         "editModel": "Edit model",
         "removeModel": "Remove model",
         "makeDefault": "Set default",
-        "testModel": "Test default model"
+        "testThisModel": "Test"
       },
       "openrouter": {
         "name": "OpenRouter",
@@ -123,7 +123,9 @@
         "modelIdHelp": "Use the model ID from the OpenRouter model page, not the page link. Example: {{example}}",
         "modelIdUrlError": "Paste the model ID, not the OpenRouter page URL. Example: {{example}}",
         "modelIdKeyError": "Paste the OpenRouter model ID here, not your API key. Example: {{example}}",
-        "testHelp": "Testing is optional and only runs from Settings. It becomes available after the OpenRouter key and at least one model profile are present.",
+        "testHelp": "Testing is optional and runs a small request against the exact model you choose. It can spend provider tokens on paid models.",
+        "testOkStructured": "Model responds with structured audit output.",
+        "testOkPlain": "Model responds, but structured audit output was not confirmed.",
         "default": "Default"
       },
       "errors": {
@@ -399,13 +401,15 @@
     "loading": "Loading...",
     "endedTitle": "Session ended",
     "endedBody": "Start a new API + AI Chat analysis in the main ToraSEO window to continue.",
-    "nativeReady": "Native mode is ready. Run a local scan, then ask for interpretation.",
+    "nativeReady": "Native mode is ready. You can ask how the audit works now, then run a scan for site-specific recommendations.",
     "bridgeReady": "Bridge mode is ready. Paste the copied prompt into Claude Desktop to let MCP tools fill the app.",
     "bridgeTitle": "MCP + Instructions Companion",
     "inAppRuntime": "In-app runtime",
     "copiedPrompt": "Copied prompt",
+    "copyAnswer": "Copy answer",
+    "copied": "Copied",
     "send": "Send",
-    "noScanContext": "Start a site audit in the main ToraSEO window first. I can only answer inside the active analysis context.",
+    "noScanContext": "I can explain the ToraSEO workflow now. For site- or article-specific analysis, start the matching analysis from the main ToraSEO window first.",
     "providerError": "[error: {{code}}] {{message}}",
     "autoInterpretationStarted": "Scan finished. Preparing recommendations...",
     "autoInterpretationPrompt": "Interpret the completed site audit and give prioritized recommendations.",
@@ -419,12 +423,49 @@
       "bridgeRunning": "Claude is running MCP tools. Results flow into the right panel automatically.",
       "bridgeError": "Bridge mode hit an error.",
       "bridgeComplete": "Bridge scan finished. Claude recommendations can continue in the external chat.",
-      "nativeNoScan": "Run a site scan first, then ask the in-app AI to interpret those findings.",
+      "nativeNoScan": "You can ask how the analysis works now. Run a scan when you want site-specific recommendations.",
       "nativeReady": "Scan context ready: {{completed}}/{{total}} tools completed."
     },
     "inputPlaceholder": {
       "native": "Ask about the current site audit...",
+      "nativeNoScan": "Ask how the audit works...",
       "bridge": "Bridge mode uses Claude Desktop for the live conversation."
+    }
+  },
+  "analysisPanel": {
+    "title": "Analysis Results",
+    "subtitle": "Facts, hypotheses, priority, export",
+    "overview": "Overview",
+    "confirmedFacts": "Confirmed facts",
+    "expertHypotheses": "Expert hypotheses",
+    "validationMethod": "Validation method",
+    "sources": "Sources",
+    "emptyOverview": "Run a scan to populate the analysis panel.",
+    "noFacts": "No confirmed facts yet.",
+    "noHypotheses": "No hypotheses are available for the current report.",
+    "noReport": "No report has been generated yet.",
+    "mode": {
+      "native": "Native mode",
+      "bridge": "Bridge mode"
+    },
+    "metrics": {
+      "critical": "Critical",
+      "warning": "Warning",
+      "warnings": "Warnings",
+      "info": "Info",
+      "errors": "Errors"
+    },
+    "priority": {
+      "high": "high",
+      "medium": "medium",
+      "low": "low"
+    },
+    "actions": {
+      "details": "Details",
+      "closeDetails": "Close details",
+      "exportPdf": "Export PDF",
+      "document": "Document",
+      "presentation": "Presentation"
     }
   },
   "common": {

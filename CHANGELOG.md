@@ -43,38 +43,19 @@ Current active app release candidate:
 - `Copy setup prompt` now has persistent in-app guidance for the Codex
   handoff.
 
-Roadmap after v0.0.6:
+Current roadmap note:
 
-- **v0.0.7 — NSIS multi-language installer.** Build the installer
-  with `multiLanguageInstaller: true` so the setup wizard appears
-  in English or Russian based on the user's Windows system locale.
-  Persist the installer's choice to a registry value the app reads
-  on first launch as the default UI language, before the
-  `userData/locale.txt` written from Settings takes precedence.
-  Doesn't change the runtime i18n stack from v0.0.6 — just adds a
-  pre-app touchpoint so the very first impression matches the
-  user's environment.
-
-- **v0.0.8 — Skill runtime handshake.** Token-matching protocol
-  between MCP server and SKILL.md so the app can verify at runtime
-  that Skill is actually loaded into Claude's context (not just
-  installed-on-disk). MCP exposes `register_session(token)`; the
-  same token lives in SKILL.md as a first-call instruction; MCP
-  writes a fresh timestamp to `userData/skill-active-session.json`
-  on every valid call; the detector treats records < 60 seconds
-  old as "runtime verified". This adds a third status tier for the
-  Skill row: `not installed` → `installed but unverified` →
-  `runtime verified`. Requires coordinated release of three
-  artifacts (MCP, Skill, App) with versioned protocol token.
-
-- **v0.0.9 — First `skill-v*` release.** Bootstraps the skill
-  release track that v0.0.4's download-ZIP button reads from. Until
-  the first `skill-v*` tag exists, the button correctly reports
-  "Skill release not found on GitHub" and falls back to opening
-  the releases page.
-
-After that, the **skill track v0.2.0** — Mode B content audit
-(humanizer, readability, style match, AI-detection score).
+- App `0.0.7` is the released dual-mode baseline.
+- App `0.0.8` is the active release candidate for unified public
+  release packaging, Codex bridge reliability, and native chat polish.
+- Earlier internal notes that described `0.0.8` as only a skill
+  runtime-handshake release are now superseded by the app-led release
+  line. Claude Bridge Instructions and Codex Workflow Instructions
+  remain independently buildable packages, but they are distributed as
+  assets on the same app release entry.
+- Future skill/instruction-package work should stay aligned with the
+  app release asset list instead of creating separate public release
+  pages by default.
 
 ---
 

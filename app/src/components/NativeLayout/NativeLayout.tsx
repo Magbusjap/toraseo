@@ -168,10 +168,34 @@ function AuditStatusHero({
 
           {totals && (
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-outline-900/60">
-              <Metric label="Critical" value={totals.critical} tone="red" />
-              <Metric label="Warnings" value={totals.warning} tone="orange" />
-              <Metric label="Info" value={totals.info} tone="muted" />
-              <Metric label="Errors" value={totals.errors} tone="red" />
+              <Metric
+                label={t("analysisPanel.metrics.critical", {
+                  defaultValue: "Critical",
+                })}
+                value={totals.critical}
+                tone="red"
+              />
+              <Metric
+                label={t("analysisPanel.metrics.warnings", {
+                  defaultValue: "Warnings",
+                })}
+                value={totals.warning}
+                tone="orange"
+              />
+              <Metric
+                label={t("analysisPanel.metrics.info", {
+                  defaultValue: "Info",
+                })}
+                value={totals.info}
+                tone="muted"
+              />
+              <Metric
+                label={t("analysisPanel.metrics.errors", {
+                  defaultValue: "Errors",
+                })}
+                value={totals.errors}
+                tone="red"
+              />
             </div>
           )}
         </div>

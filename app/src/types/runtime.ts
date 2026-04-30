@@ -211,6 +211,13 @@ export interface RuntimeAuditReport {
   expertHypotheses: RuntimeExpertHypothesis[];
 }
 
+export interface ProviderUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  cost?: number;
+}
+
 export interface RuntimeChatWindowSession {
   status: "active" | "ended";
   locale: SupportedLocale;
@@ -222,7 +229,14 @@ export interface RuntimeChatWindowSession {
 }
 
 export type ProviderConnectionTestResult =
-  | { ok: true; providerId: ProviderId; model: string }
+  | {
+      ok: true;
+      providerId: ProviderId;
+      model: string;
+      structuredReport: boolean;
+      usage?: ProviderUsage;
+      warningMessage?: string;
+    }
   | {
       ok: false;
       providerId: ProviderId;

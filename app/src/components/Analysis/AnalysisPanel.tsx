@@ -7,8 +7,10 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { CurrentScanState, ScanComplete } from "../../types/ipc";
+import type { SupportedLocale } from "../../types/ipc";
 import type {
   AuditExecutionMode,
   RuntimeAuditReport,
@@ -36,6 +38,7 @@ function priorityClass(priority: "high" | "medium" | "low"): string {
 function summarizeFacts(
   executionMode: AuditExecutionMode,
   facts: RuntimeScanFact[],
+  locale: SupportedLocale,
 ): string {
   const totals = facts.reduce(
     (acc, fact) => {
@@ -49,6 +52,14 @@ function summarizeFacts(
   );
   const sourceTools = new Set(facts.map((fact) => fact.toolId)).size;
 
+  if (locale === "ru") {
+    const modeLabel =
+      executionMode === "bridge"
+        ? "Bridge-результаты получены в приложении"
+        : "Результаты сканирования готовы";
+    return `${modeLabel}: ${facts.length} подтверждённых фактов из ${sourceTools} инструментов. Критично: ${totals.critical}, предупреждения: ${totals.warning}, информация: ${totals.info}, ошибки: ${totals.errors}.`;
+  }
+
   if (executionMode === "bridge") {
     return `Bridge results received in the app: ${facts.length} confirmed facts from ${sourceTools} tool(s). Critical: ${totals.critical}, warning: ${totals.warning}, info: ${totals.info}, errors: ${totals.errors}.`;
   }
@@ -61,6 +72,7 @@ function buildFallbackReport(
   report: RuntimeAuditReport | null,
   scanContext: RuntimeScanContext | null,
   bridgeFacts: RuntimeScanFact[],
+  locale: SupportedLocale,
 ): RuntimeAuditReport | null {
   if (report) return report;
 
@@ -85,11 +97,15 @@ function buildFallbackReport(
     providerId: executionMode === "native" ? "openrouter" : "openrouter",
     model: executionMode === "native" ? "pending-ai-chat" : "bridge-facts-only",
     generatedAt: new Date().toISOString(),
-    summary: summarizeFacts(executionMode, factsSource),
+    summary: summarizeFacts(executionMode, factsSource, locale),
     nextStep:
-      executionMode === "native"
-        ? "Ask for a priority-ordered interpretation once the current scan is complete."
-        : "Finish the conversation in Claude Desktop, then export the report if you need a static artifact.",
+      locale === "ru"
+        ? executionMode === "native"
+          ? "Попросите приоритетную интерпретацию после завершения текущего сканирования."
+          : "Завершите обсуждение в Claude Desktop, затем экспортируйте отчёт, если нужен статический артефакт."
+        : executionMode === "native"
+          ? "Ask for a priority-ordered interpretation once the current scan is complete."
+          : "Finish the conversation in Claude Desktop, then export the report if you need a static artifact.",
     confirmedFacts,
     expertHypotheses: [],
   };
@@ -103,6 +119,8 @@ export default function AnalysisPanel({
   scanContext,
   localSummary,
 }: AnalysisPanelProps) {
+  const { t, i18n } = useTranslation();
+  const locale: SupportedLocale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const [secondScreenOpen, setSecondScreenOpen] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
 
@@ -113,8 +131,9 @@ export default function AnalysisPanel({
         runtimeReport,
         scanContext,
         bridgeFacts,
+        locale,
       ),
-    [bridgeFacts, executionMode, runtimeReport, scanContext],
+    [bridgeFacts, executionMode, locale, runtimeReport, scanContext],
   );
 
   const totals = executionMode === "native"
@@ -183,38 +202,68 @@ export default function AnalysisPanel({
       <header className="flex items-center justify-between border-b border-orange-100 bg-white px-5 py-3">
         <div>
           <h2 className="text-sm font-semibold text-orange-900">
-            Analysis Results
+            {t("analysisPanel.title", { defaultValue: "Analysis Results" })}
           </h2>
           <p className="text-xs text-orange-700/70">
-            Facts, hypotheses, priority, export
+            {t("analysisPanel.subtitle", {
+              defaultValue: "Facts, hypotheses, priority, export",
+            })}
           </p>
         </div>
         <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-orange-700">
-          {executionMode === "native" ? "Native mode" : "Bridge mode"}
+          {executionMode === "native"
+            ? t("analysisPanel.mode.native", { defaultValue: "Native mode" })
+            : t("analysisPanel.mode.bridge", { defaultValue: "Bridge mode" })}
         </span>
       </header>
 
       <div className="flex-1 space-y-4 overflow-auto px-5 py-4">
         <div className="grid grid-cols-2 gap-3">
-          <MetricCard label="Critical" value={totals.critical} accent="text-red-600" />
-          <MetricCard label="Warning" value={totals.warning} accent="text-orange-700" />
-          <MetricCard label="Info" value={totals.info} accent="text-emerald-600" />
-          <MetricCard label="Errors" value={totals.errors} accent="text-outline-900/70" />
+          <MetricCard
+            label={t("analysisPanel.metrics.critical", {
+              defaultValue: "Critical",
+            })}
+            value={totals.critical}
+            accent="text-red-600"
+          />
+          <MetricCard
+            label={t("analysisPanel.metrics.warning", {
+              defaultValue: "Warning",
+            })}
+            value={totals.warning}
+            accent="text-orange-700"
+          />
+          <MetricCard
+            label={t("analysisPanel.metrics.info", { defaultValue: "Info" })}
+            value={totals.info}
+            accent="text-emerald-600"
+          />
+          <MetricCard
+            label={t("analysisPanel.metrics.errors", {
+              defaultValue: "Errors",
+            })}
+            value={totals.errors}
+            accent="text-outline-900/70"
+          />
         </div>
 
         <div className="rounded-xl border border-orange-200 bg-white p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-orange-700">
-            Overview
+            {t("analysisPanel.overview", { defaultValue: "Overview" })}
           </h3>
           <p className="mt-2 text-sm leading-relaxed text-orange-950/80">
             {effectiveReport?.summary ??
               (bridgeState?.error?.message ??
-                "Run a scan to populate the analysis panel.")}
+                t("analysisPanel.emptyOverview", {
+                  defaultValue: "Run a scan to populate the analysis panel.",
+                }))}
           </p>
         </div>
 
         <SectionCard
-          title="Confirmed facts"
+          title={t("analysisPanel.confirmedFacts", {
+            defaultValue: "Confirmed facts",
+          })}
           icon={<ShieldCheck className="h-4 w-4" />}
         >
           {effectiveReport?.confirmedFacts.length ? (
@@ -229,46 +278,68 @@ export default function AnalysisPanel({
                       {fact.title}
                     </h4>
                     <span className={`text-xs font-semibold uppercase ${priorityClass(fact.priority)}`}>
-                      {fact.priority}
+                      {t(`analysisPanel.priority.${fact.priority}`, {
+                        defaultValue: fact.priority,
+                      })}
                     </span>
                   </div>
                   <p className="text-sm leading-relaxed text-orange-950/80">
                     {fact.detail}
                   </p>
                   <p className="mt-2 text-[11px] uppercase tracking-wide text-orange-700/70">
-                    Sources: {fact.sourceToolIds.join(", ")}
+                    {t("analysisPanel.sources", { defaultValue: "Sources" })}:{" "}
+                    {fact.sourceToolIds.join(", ")}
                   </p>
                 </article>
               ))}
             </div>
           ) : (
-            <EmptyMessage text="No confirmed facts yet." />
+            <EmptyMessage
+              text={t("analysisPanel.noFacts", {
+                defaultValue: "No confirmed facts yet.",
+              })}
+            />
           )}
         </SectionCard>
 
         <SectionCard
-          title="Expert hypotheses"
+          title={t("analysisPanel.expertHypotheses", {
+            defaultValue: "Expert hypotheses",
+          })}
           icon={<Sparkles className="h-4 w-4" />}
         >
           {effectiveReport?.expertHypotheses.length ? (
             <div className="space-y-3">
               {effectiveReport.expertHypotheses.map((item, index) => (
-                <HypothesisCard key={`${item.title}-${index}`} item={item} />
+                <HypothesisCard
+                  key={`${item.title}-${index}`}
+                  item={item}
+                  locale={locale}
+                />
               ))}
             </div>
           ) : (
-            <EmptyMessage text="No hypotheses are available for the current report." />
+            <EmptyMessage
+              text={t("analysisPanel.noHypotheses", {
+                defaultValue:
+                  "No hypotheses are available for the current report.",
+              })}
+            />
           )}
         </SectionCard>
 
         <div className="rounded-xl border border-orange-200 bg-white p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-orange-700">
-            Validation method
+            {t("analysisPanel.validationMethod", {
+              defaultValue: "Validation method",
+            })}
           </h3>
           <p className="mt-2 text-sm leading-relaxed text-orange-950/80">
             {effectiveReport?.expertHypotheses[0]?.validationMethod ??
               effectiveReport?.nextStep ??
-              "No report has been generated yet."}
+              t("analysisPanel.noReport", {
+                defaultValue: "No report has been generated yet.",
+              })}
           </p>
         </div>
       </div>
@@ -282,7 +353,15 @@ export default function AnalysisPanel({
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-200 bg-white px-4 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-50 disabled:opacity-50"
           >
             <ExternalLink size={14} />
-            <span>{secondScreenOpen ? "Close details" : "Подробнее"}</span>
+            <span>
+              {secondScreenOpen
+                ? t("analysisPanel.actions.closeDetails", {
+                    defaultValue: "Close details",
+                  })
+                : t("analysisPanel.actions.details", {
+                    defaultValue: "Details",
+                  })}
+            </span>
           </button>
           <button
             type="button"
@@ -291,7 +370,11 @@ export default function AnalysisPanel({
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600 disabled:bg-orange-300"
           >
             <FileDown size={14} />
-            <span>Export PDF</span>
+            <span>
+              {t("analysisPanel.actions.exportPdf", {
+                defaultValue: "Export PDF",
+              })}
+            </span>
           </button>
           {executionMode === "native" && (
             <>
@@ -302,7 +385,11 @@ export default function AnalysisPanel({
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-200 bg-white px-4 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-50 disabled:opacity-50"
               >
                 <FileText size={14} />
-                <span>Document</span>
+                <span>
+                  {t("analysisPanel.actions.document", {
+                    defaultValue: "Document",
+                  })}
+                </span>
               </button>
               <button
                 type="button"
@@ -311,7 +398,11 @@ export default function AnalysisPanel({
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-200 bg-white px-4 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-50 disabled:opacity-50"
               >
                 <Presentation size={14} />
-                <span>Presentation</span>
+                <span>
+                  {t("analysisPanel.actions.presentation", {
+                    defaultValue: "Presentation",
+                  })}
+                </span>
               </button>
             </>
           )}
@@ -363,21 +454,37 @@ function SectionCard({
   );
 }
 
-function HypothesisCard({ item }: { item: RuntimeExpertHypothesis }) {
+function HypothesisCard({
+  item,
+  locale,
+}: {
+  item: RuntimeExpertHypothesis;
+  locale: SupportedLocale;
+}) {
+  const expectedImpactLabel =
+    locale === "ru" ? "Ожидаемый эффект" : "Expected impact";
+  const validationLabel = locale === "ru" ? "Проверка" : "Validation";
+
   return (
     <article className="rounded-lg border border-orange-100 bg-orange-50/30 p-3">
       <div className="mb-1 flex items-start justify-between gap-3">
         <h4 className="text-sm font-medium text-orange-950">{item.title}</h4>
         <span className={`text-xs font-semibold uppercase ${priorityClass(item.priority)}`}>
-          {item.priority}
+          {locale === "ru"
+            ? item.priority === "high"
+              ? "высокий"
+              : item.priority === "medium"
+                ? "средний"
+                : "низкий"
+            : item.priority}
         </span>
       </div>
       <p className="text-sm leading-relaxed text-orange-950/80">{item.detail}</p>
       <p className="mt-2 text-xs text-orange-800">
-        <strong>Expected impact:</strong> {item.expectedImpact}
+        <strong>{expectedImpactLabel}:</strong> {item.expectedImpact}
       </p>
       <p className="mt-1 text-xs text-orange-800">
-        <strong>Validation:</strong> {item.validationMethod}
+        <strong>{validationLabel}:</strong> {item.validationMethod}
       </p>
     </article>
   );

@@ -197,7 +197,9 @@ For the deeper design rationale, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.
 - [Architecture overview](docs/ARCHITECTURE.md)
 - [Release notes for App 0.0.8](docs/RELEASE_NOTES_0.0.8.md)
 - [Release template](docs/RELEASE_TEMPLATE.md)
-- [Release draft for App 0.0.8](docs/RELEASE_DRAFT_0.0.8.md)
+- [AI model compatibility notes](docs/MODEL_COMPATIBILITY.md)
+- [English release draft for App 0.0.8](docs/releases/0.0.8.en.md)
+- [Russian release draft for App 0.0.8](docs/releases/0.0.8.ru.md)
 - [Crawling policy](CRAWLING_POLICY.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
@@ -221,7 +223,7 @@ Optional but recommended for public-facing releases:
 - direct links to installer, docs, and instruction packages
 - a compact status callout when a release candidate has specific expectations
 
-This keeps public releases readable without turning them into marketing pages. The working template lives in [`docs/RELEASE_TEMPLATE.md`](docs/RELEASE_TEMPLATE.md), and the first concrete draft is tracked in [`docs/RELEASE_DRAFT_0.0.8.md`](docs/RELEASE_DRAFT_0.0.8.md).
+This keeps public releases readable without turning them into marketing pages. The GitHub release page should keep one primary English body, while translated release texts live in [`docs/releases/`](docs/releases/). The working template lives in [`docs/RELEASE_TEMPLATE.md`](docs/RELEASE_TEMPLATE.md), and the first concrete drafts are tracked in [`docs/releases/0.0.8.en.md`](docs/releases/0.0.8.en.md) and [`docs/releases/0.0.8.ru.md`](docs/releases/0.0.8.ru.md).
 
 ## Contributing
 

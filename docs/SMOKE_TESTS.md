@@ -65,30 +65,55 @@ Pass criteria:
    `Settings -> AI providers`.
 3. Add an OpenRouter API key.
 4. Confirm the key is masked after saving.
-5. Add at least two OpenRouter model profiles and mark one as default.
-6. Run `Test default model` from Settings only, using a disposable key
-   when possible.
-7. Return to the home screen and confirm `API + AI Chat` is
+5. Leave the custom API endpoint empty unless testing a real proxy.
+6. Add at least two OpenRouter model profiles and mark one as default.
+7. Run the per-model test under each saved model profile, using a
+   disposable key when possible.
+8. Confirm the UI distinguishes a full structured-audit response from
+   a plain model response.
+9. Confirm provider-reported usage/cost appears when OpenRouter returns
+   it.
+10. Return to the home screen and confirm `API + AI Chat` is
    highlighted as the active execution mode.
-8. Confirm the home screen shows a model selector and does not show a
+11. Confirm the home screen shows a model selector and does not show a
    required `Check AI connection` button.
-9. Switch the selected model and confirm `Site by URL` remains
+12. Switch the selected model and confirm `Site by URL` remains
    available.
-10. Select `Site by URL`.
-11. Confirm the standalone AI chat window opens automatically.
-12. Enter a test URL in the main window.
-13. Select at least one safe tool.
-14. Run the scan.
-15. Ask the AI chat for a concise audit interpretation.
-16. Switch policy to `strict_audit` and ask for recommendations.
-17. Switch policy to `audit_plus_ideas` and ask for improvement ideas.
+13. Switch the UI language to Russian and restart the app.
+14. Confirm `API + AI Chat` remains the active execution mode.
+15. Select `Site by URL`.
+16. Confirm the standalone AI chat window opens automatically.
+17. Enter a test URL in the main window.
+18. Select at least one safe tool.
+19. Run the scan.
+20. Confirm the AI chat automatically starts post-scan
+    interpretation after the scan completes.
+21. Confirm the interpretation is in Russian when the selected locale
+    is `ru`.
+22. Ask a follow-up question that requires explanation, for example:
+    "Раскрой подробнее, что исправить первым и почему".
+23. Switch policy to `strict_audit` and ask for recommendations.
+24. Switch policy to `audit_plus_ideas` and ask for improvement ideas.
+25. Click `Back to home` and confirm the standalone AI chat window
+    switches to a session-ended state instead of staying active.
 
 Pass criteria:
 
 - Native mode works with Claude Desktop closed.
-- The provider call succeeds from Settings diagnostics.
+- Each saved model can be tested independently from Settings.
+- Settings explain that per-model tests can spend tokens on paid
+  models.
+- Settings show usage/cost for a test when the provider reports it.
 - The selected model is used by the analysis chat.
 - The chat runs in its own window, not inside the main workspace.
+- Returning home ends the chat session even if the chat window remains
+  open.
+- Post-scan interpretation starts automatically after a completed
+  native scan.
+- With `locale=ru`, the first interpretation and follow-up answers are
+  in Russian.
+- Follow-up answers are useful and grounded in scan facts, not a dry
+  one-line reply.
 - `strict_audit` contains no expert hypotheses.
 - `audit_plus_ideas` labels hypotheses explicitly.
 - Confirmed facts and expert hypotheses are rendered separately.
@@ -166,13 +191,16 @@ Pass criteria:
 3. Confirm the separate report window opens.
 4. Close the report window.
 5. Confirm the right analysis panel still works as fallback.
-6. Click `Back to home` while the report window is open.
-7. Confirm the report window stays open and shows an analysis-ended
+6. Start or keep a chat window open as well, so the app has main,
+   details, and chat windows at the same time.
+7. Click `Back to home` while the report and chat windows are open.
+8. Confirm the report window stays open and shows an analysis-ended
    state.
-8. Start a fresh native analysis and export PDF.
-9. Export the standard document.
-10. Export the presentation.
-11. Open the PDF and inspect at least the first, middle, and last page.
+9. Confirm the chat window stays open and shows a session-ended state.
+10. Start a fresh native analysis and export PDF.
+11. Export the standard document.
+12. Export the presentation.
+13. Open the PDF and inspect at least the first, middle, and last page.
 
 Pass criteria:
 
@@ -183,7 +211,30 @@ Pass criteria:
 - Document and presentation exports use the same structured report
   content as the PDF.
 
-## Test 5: Regression pass
+## Test 5: Release packaging
+
+1. Confirm the release tag will be a plain app tag such as `v0.0.8`,
+   not a package-specific tag.
+2. Confirm `.github/workflows/release-app.yml` uses Node.js 22.
+3. Confirm the workflow builds the app and attaches:
+   - desktop installer assets
+   - `toraseo-claude-bridge-instructions-v0.0.8.zip`
+   - `toraseo-codex-workflow-v0.0.8.zip`
+4. Confirm `release-skill.yml` and `release-codex-workflow.yml` are
+   manual artifact workflows and do not create public releases.
+5. After the GitHub Actions run, open the release page and confirm all
+   expected assets are visible under one `v0.0.8` release.
+
+Pass criteria:
+
+- Users see one release page for app, Claude Bridge Instructions, and
+  Codex Workflow Instructions.
+- The instruction/skill ZIPs are present on the same release page as
+  the app installer assets.
+- No separate public release entry is created for the Claude or Codex
+  instruction packages.
+
+## Test 6: Regression pass
 
 1. Change UI language and restart the app.
 2. Check for updates from the toolbar.
@@ -192,6 +243,9 @@ Pass criteria:
 5. Run a scan with no selected tools and confirm validation blocks it.
 6. Remove provider config and confirm native chat shows a clear setup
    error instead of crashing.
+7. Return to the home screen from each mode and confirm the selected
+   execution mode, provider/model state, and inactive external windows
+   behave consistently with the `0.0.7` baseline.
 
 Pass criteria:
 

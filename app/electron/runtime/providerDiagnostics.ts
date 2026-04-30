@@ -56,7 +56,7 @@ export async function testProviderConnection(
     modelOverride,
   });
 
-  if (!response.ok || !response.report) {
+  if (!response.ok) {
     return {
       ok: false,
       providerId,
@@ -66,9 +66,26 @@ export async function testProviderConnection(
     };
   }
 
+  const model = response.model ?? response.report?.model ?? modelOverride ?? "";
+  if (!response.report) {
+    return {
+      ok: true,
+      providerId,
+      model,
+      structuredReport: false,
+      usage: response.usage,
+      warningMessage:
+        locale === "ru"
+          ? "Модель отвечает, но не вернула структурированный audit-отчет."
+          : "The model responded, but it did not return a structured audit report.",
+    };
+  }
+
   return {
     ok: true,
     providerId,
-    model: response.model ?? response.report.model,
+    model,
+    structuredReport: true,
+    usage: response.usage,
   };
 }

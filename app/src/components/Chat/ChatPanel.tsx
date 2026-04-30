@@ -7,7 +7,7 @@ import {
   type FormEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Bot, Sparkles, ShieldCheck } from "lucide-react";
+import { Bot, Check, Copy, Sparkles, ShieldCheck } from "lucide-react";
 
 import type { CurrentScanState } from "../../types/ipc";
 import type {
@@ -57,11 +57,6 @@ function scanContextKey(scanContext: RuntimeScanContext | null): string | null {
     scanContext.url,
     scanContext.selectedTools.join(","),
     scanContext.completedTools.join(","),
-    scanContext.totals.critical,
-    scanContext.totals.warning,
-    scanContext.totals.info,
-    scanContext.totals.errors,
-    scanContext.facts.length,
   ].join("|");
 }
 
@@ -164,9 +159,11 @@ export default function ChatPanel({
   ]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [copiedTurnIndex, setCopiedTurnIndex] = useState<number | null>(null);
   const [policyMode, setPolicyMode] =
     useState<RuntimePolicyMode>("audit_plus_ideas");
   const autoInterpretationKey = useRef<string | null>(null);
+  const copyResetTimer = useRef<number | null>(null);
 
   useEffect(() => {
     setHistory([
@@ -185,6 +182,14 @@ export default function ChatPanel({
       },
     ]);
   }, [executionMode, t]);
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimer.current) {
+        window.clearTimeout(copyResetTimer.current);
+      }
+    };
+  }, []);
 
   const helperText = useMemo(() => {
     if (executionMode === "bridge") {
@@ -222,7 +227,7 @@ export default function ChatPanel({
     if (!isScanContextReady(scanContext)) {
       return t("chat.helper.nativeNoScan", {
         defaultValue:
-          "Run a site scan first, then ask the in-app AI to interpret those findings.",
+          "You can ask how the analysis works now. Run a scan when you want site-specific recommendations.",
       });
     }
     return t("chat.helper.nativeReady", {
@@ -238,19 +243,6 @@ export default function ChatPanel({
       if (busy || executionMode !== "native") return;
       if (visibleUserTurn) {
         setHistory((prev) => [...prev, { role: "user", text }]);
-      }
-      if (!isScanContextReady(scanContext)) {
-        setHistory((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: t("chat.noScanContext", {
-              defaultValue:
-                "Start a site audit in the main ToraSEO window first. I can only answer inside the active analysis context.",
-            }),
-          },
-        ]);
-        return;
       }
 
       setBusy(true);
@@ -277,13 +269,21 @@ export default function ChatPanel({
         };
       }
 
-      if (result.ok && result.report) {
-        onReport(result.report);
+      if (result.ok) {
+        if (result.report) {
+          onReport(result.report);
+        }
         setHistory((prev) => [
           ...prev,
           {
             role: "assistant",
-            text: renderReportText(result.report!, locale),
+            text: result.report
+              ? renderReportText(result.report, locale)
+              : result.text?.trim() ||
+                t("chat.emptyProviderResponse", {
+                  defaultValue:
+                    "The provider returned an empty response for this audit.",
+                }),
           },
         ]);
       } else {
@@ -315,9 +315,14 @@ export default function ChatPanel({
   );
 
   useEffect(() => {
-    if (executionMode !== "native" || busy || !isScanContextComplete(scanContext)) {
+    if (executionMode !== "native") {
       return;
     }
+    if (!isScanContextComplete(scanContext)) {
+      autoInterpretationKey.current = null;
+      return;
+    }
+    if (busy) return;
     const key = scanContextKey(scanContext);
     if (!key || autoInterpretationKey.current === key) return;
     autoInterpretationKey.current = key;
@@ -345,22 +350,23 @@ export default function ChatPanel({
     if (!text || busy || executionMode !== "native") return;
 
     setDraft("");
-    if (!isScanContextReady(scanContext)) {
-      setHistory((prev) => [
-        ...prev,
-        { role: "user", text },
-        {
-          role: "assistant",
-          text: t("chat.noScanContext", {
-            defaultValue:
-              "Start a site audit in the main ToraSEO window first. I can only answer inside the active analysis context.",
-          }),
-        },
-      ]);
-      return;
-    }
-
     await sendToRuntime(text, true);
+  };
+
+  const handleCopyTurn = async (index: number, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedTurnIndex(index);
+      if (copyResetTimer.current) {
+        window.clearTimeout(copyResetTimer.current);
+      }
+      copyResetTimer.current = window.setTimeout(() => {
+        setCopiedTurnIndex(null);
+        copyResetTimer.current = null;
+      }, 2000);
+    } catch {
+      setCopiedTurnIndex(null);
+    }
   };
 
   return (
@@ -376,7 +382,7 @@ export default function ChatPanel({
           </h2>
           <p className="text-xs text-orange-700/70">{helperText}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           {executionMode === "native" && (
             <div className="flex rounded-full border border-orange-200 bg-orange-50 p-1">
               <PolicyButton
@@ -393,7 +399,15 @@ export default function ChatPanel({
               />
             </div>
           )}
-          <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-orange-700">
+          <span
+            className="max-w-[140px] truncate rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-orange-700 sm:max-w-[190px]"
+            title={
+              executionMode === "native"
+                ? selectedModelProfile?.displayName ??
+                  t("chat.inAppRuntime", { defaultValue: "In-app runtime" })
+                : "Claude Desktop"
+            }
+          >
             {executionMode === "native"
               ? selectedModelProfile?.displayName ??
                 t("chat.inAppRuntime", { defaultValue: "In-app runtime" })
@@ -410,13 +424,33 @@ export default function ChatPanel({
               turn.role === "user"
                 ? "ml-auto max-w-[80%] rounded-2xl rounded-br-sm bg-orange-500 px-4 py-2 text-sm text-white shadow-sm"
                 : turn.role === "assistant"
-                  ? "mr-auto max-w-[80%] rounded-2xl rounded-bl-sm bg-orange-50 px-4 py-2 text-sm text-orange-950 shadow-sm"
+                  ? "group relative mr-auto max-w-[80%] rounded-2xl rounded-bl-sm bg-orange-50 px-4 py-2 pr-10 text-sm text-orange-950 shadow-sm"
                   : "mx-auto max-w-[90%] rounded-md border border-dashed border-orange-200 bg-white px-3 py-1.5 text-center text-xs text-orange-600"
             }
           >
             <pre className="whitespace-pre-wrap font-sans leading-relaxed">
               {turn.text}
             </pre>
+            {turn.role === "assistant" && (
+              <button
+                type="button"
+                onClick={() => void handleCopyTurn(idx, turn.text)}
+                className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-md text-orange-700/70 opacity-0 transition hover:bg-white hover:text-orange-900 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-orange-300 group-hover:opacity-100"
+                aria-label={t("chat.copyAnswer", {
+                  defaultValue: "Copy answer",
+                })}
+                title={t("chat.copyAnswer", {
+                  defaultValue: "Copy answer",
+                })}
+              >
+                {copiedTurnIndex === idx ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+            )}
+            {copiedTurnIndex === idx && (
+              <span className="absolute right-2 top-10 rounded-md bg-orange-900 px-2 py-1 text-[11px] font-medium text-white shadow-sm">
+                {t("chat.copied", { defaultValue: "Copied" })}
+              </span>
+            )}
           </li>
         ))}
 
@@ -444,16 +478,20 @@ export default function ChatPanel({
             onChange={(e) => setDraft(e.target.value)}
             placeholder={
               executionMode === "native"
-                ? t("chat.inputPlaceholder.native", {
-                    defaultValue: "Ask about the current site audit...",
-                  })
+                ? isScanContextReady(scanContext)
+                  ? t("chat.inputPlaceholder.native", {
+                      defaultValue: "Ask about the current site audit...",
+                    })
+                  : t("chat.inputPlaceholder.nativeNoScan", {
+                      defaultValue: "Ask how the audit works...",
+                    })
                 : t("chat.inputPlaceholder.bridge", {
                     defaultValue:
                       "Bridge mode uses Claude Desktop for the live conversation.",
                   })
             }
             disabled={
-              busy || executionMode !== "native" || !isScanContextReady(scanContext)
+              busy || executionMode !== "native"
             }
             className="flex-1 rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm text-orange-950 placeholder:text-orange-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:opacity-60"
           />

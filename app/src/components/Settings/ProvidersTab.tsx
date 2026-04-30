@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  AlertTriangle,
   Check,
   Eye,
   EyeOff,
@@ -16,6 +17,7 @@ import type {
   ProviderId,
   ProviderInfo,
   ProviderModelProfile,
+  ProviderUsage,
   SetProviderConfigResult,
   SetProviderModelProfilesResult,
 } from "../../types/runtime";
@@ -30,6 +32,11 @@ interface DraftModelProfile {
   modelId: string;
   usageHint: string;
 }
+
+type ModelTestStatus =
+  | { kind: "ok"; message: string; usage?: ProviderUsage }
+  | { kind: "warning"; message: string; usage?: ProviderUsage }
+  | { kind: "error"; message: string };
 
 const EMPTY_DRAFT: DraftModelProfile = {
   displayName: "",
@@ -162,13 +169,15 @@ function ProviderCard({
   const [savingKey, setSavingKey] = useState(false);
   const [savingModels, setSavingModels] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [flash, setFlash] = useState<null | "saved" | "deleted" | "tested">(
+  const [testingModelProfileId, setTestingModelProfileId] = useState<string | null>(
     null,
   );
+  const [modelTestStatus, setModelTestStatus] = useState<
+    Record<string, ModelTestStatus>
+  >({});
+  const [flash, setFlash] = useState<null | "saved" | "deleted">(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [testError, setTestError] = useState<string | null>(null);
   const [modelDraftError, setModelDraftError] = useState<string | null>(null);
   const [modelProfiles, setModelProfiles] = useState<ProviderModelProfile[]>(
     info.modelProfiles,
@@ -188,15 +197,10 @@ function ProviderCard({
     setReveal(false);
   }, [info]);
 
-  const selectedDefault =
-    modelProfiles.find((profile) => profile.id === defaultModelProfileId) ??
-    modelProfiles[0] ??
-    null;
-
   const labelKey = blurbKeyFor(info.id);
   const locale: SupportedLocale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
 
-  const flashFor = (kind: "saved" | "deleted" | "tested") => {
+  const flashFor = (kind: "saved" | "deleted") => {
     setFlash(kind);
     setTimeout(() => setFlash(null), 2000);
   };
@@ -360,6 +364,11 @@ function ProviderCard({
       setDefaultModelProfileId(nextProfile.id);
     }
     setModelDraftError(null);
+    setModelTestStatus((prev) => {
+      const next = { ...prev };
+      delete next[nextProfile.id];
+      return next;
+    });
     resetDraft();
   };
 
@@ -380,25 +389,60 @@ function ProviderCard({
       }
       return next;
     });
+    setModelTestStatus((prev) => {
+      const next = { ...prev };
+      delete next[profileId];
+      return next;
+    });
   };
 
-  const handleTestConnection = async () => {
-    if (!info.configured || !selectedDefault || testing) return;
-    setTesting(true);
-    setTestError(null);
+  const handleTestModel = async (profile: ProviderModelProfile) => {
+    if (!info.configured || testingModelProfileId) return;
+    setTestingModelProfileId(profile.id);
+    setModelTestStatus((prev) => {
+      const next = { ...prev };
+      delete next[profile.id];
+      return next;
+    });
     try {
       const result = await window.toraseo.runtime.testProviderConnection(
         info.id,
         locale,
-        selectedDefault.modelId,
+        profile.modelId,
       );
       if (result.ok) {
-        flashFor("tested");
+        setModelTestStatus((prev) => ({
+          ...prev,
+          [profile.id]: result.structuredReport
+            ? {
+                kind: "ok",
+                message: t("settings.providers.models.testOkStructured", {
+                  defaultValue: "Model responds with structured audit output.",
+                }),
+                usage: result.usage,
+              }
+            : {
+                kind: "warning",
+                message:
+                  result.warningMessage ??
+                  t("settings.providers.models.testOkPlain", {
+                    defaultValue:
+                      "Model responds, but structured audit output was not confirmed.",
+                  }),
+                usage: result.usage,
+              },
+        }));
       } else {
-        setTestError(result.errorMessage);
+        setModelTestStatus((prev) => ({
+          ...prev,
+          [profile.id]: {
+            kind: "error",
+            message: result.errorMessage,
+          },
+        }));
       }
     } finally {
-      setTesting(false);
+      setTestingModelProfileId(null);
     }
   };
 
@@ -548,7 +592,7 @@ function ProviderCard({
       </div>
 
       <div className="mt-5 border-t border-outline/10 pt-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3">
           <div>
             <h3 className="text-sm font-semibold text-outline-900">
               {t("settings.providers.models.title", {
@@ -562,25 +606,11 @@ function ProviderCard({
               })}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleTestConnection}
-            disabled={!info.configured || !selectedDefault || testing}
-            className="inline-flex items-center gap-1.5 rounded-md border border-outline/15 bg-white px-3 py-2 text-xs font-medium text-outline-900 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <RefreshCw
-              size={13}
-              className={testing ? "animate-spin" : undefined}
-            />
-            {t("settings.providers.actions.testModel", {
-              defaultValue: "Test default model",
-            })}
-          </button>
         </div>
         <p className="mb-3 text-xs leading-relaxed text-outline-900/50">
           {t("settings.providers.models.testHelp", {
             defaultValue:
-              "Testing is optional and only runs from Settings. It becomes available after the OpenRouter key and at least one model profile are present.",
+              "Testing is optional and runs a small request against the exact model you choose. It can spend provider tokens on paid models.",
           })}
         </p>
 
@@ -589,62 +619,85 @@ function ProviderCard({
             {modelProfiles.map((profile) => (
               <div
                 key={profile.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-outline/10 px-3 py-2"
+                className="rounded-md border border-outline/10 px-3 py-2"
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-medium text-outline-900">
-                      {profile.displayName}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-medium text-outline-900">
+                        {profile.displayName}
+                      </p>
+                      {profile.id === defaultModelProfileId && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-700">
+                          <Star size={10} />
+                          {t("settings.providers.models.default", {
+                            defaultValue: "Default",
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <p className="truncate font-mono text-xs text-outline-900/55">
+                      {profile.modelId}
                     </p>
-                    {profile.id === defaultModelProfileId && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-700">
-                        <Star size={10} />
-                        {t("settings.providers.models.default", {
-                          defaultValue: "Default",
-                        })}
-                      </span>
+                    {profile.usageHint && (
+                      <p className="mt-0.5 text-xs text-outline-900/50">
+                        {profile.usageHint}
+                      </p>
                     )}
                   </div>
-                  <p className="truncate font-mono text-xs text-outline-900/55">
-                    {profile.modelId}
-                  </p>
-                  {profile.usageHint && (
-                    <p className="mt-0.5 text-xs text-outline-900/50">
-                      {profile.usageHint}
-                    </p>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleTestModel(profile)}
+                      disabled={!info.configured || Boolean(testingModelProfileId)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-outline/15 bg-white px-2 py-1 text-xs text-outline-900 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <RefreshCw
+                        size={13}
+                        className={
+                          testingModelProfileId === profile.id
+                            ? "animate-spin"
+                            : undefined
+                        }
+                      />
+                      {t("settings.providers.actions.testThisModel", {
+                        defaultValue: "Test",
+                      })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDefaultModelProfileId(profile.id)}
+                      className="rounded-md border border-outline/15 bg-white px-2 py-1 text-xs text-outline-900 transition hover:bg-orange-50"
+                    >
+                      {t("settings.providers.actions.makeDefault", {
+                        defaultValue: "Set default",
+                      })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleEditModel(profile)}
+                      className="rounded-md border border-outline/15 bg-white p-1.5 text-outline-900 transition hover:bg-orange-50"
+                      aria-label={t("settings.providers.actions.editModel", {
+                        defaultValue: "Edit model",
+                      })}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveModel(profile.id)}
+                      className="rounded-md border border-outline/15 bg-white p-1.5 text-outline-900 transition hover:bg-orange-50"
+                      aria-label={t("settings.providers.actions.removeModel", {
+                        defaultValue: "Remove model",
+                      })}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setDefaultModelProfileId(profile.id)}
-                    className="rounded-md border border-outline/15 bg-white px-2 py-1 text-xs text-outline-900 transition hover:bg-orange-50"
-                  >
-                    {t("settings.providers.actions.makeDefault", {
-                      defaultValue: "Set default",
-                    })}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleEditModel(profile)}
-                    className="rounded-md border border-outline/15 bg-white p-1.5 text-outline-900 transition hover:bg-orange-50"
-                    aria-label={t("settings.providers.actions.editModel", {
-                      defaultValue: "Edit model",
-                    })}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveModel(profile.id)}
-                    className="rounded-md border border-outline/15 bg-white p-1.5 text-outline-900 transition hover:bg-orange-50"
-                    aria-label={t("settings.providers.actions.removeModel", {
-                      defaultValue: "Remove model",
-                    })}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                {modelTestStatus[profile.id] && (
+                  <ModelTestStatusLine status={modelTestStatus[profile.id]} />
+                )}
               </div>
             ))}
           </div>
@@ -773,23 +826,10 @@ function ProviderCard({
           {modelDraftError}
         </p>
       )}
-      {testError && (
-        <p role="alert" className="mt-3 text-xs text-red-600">
-          {testError}
-        </p>
-      )}
-
       <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
         {flash === "saved" && (
           <StatusFlash icon={<Check size={14} />}>
             {t("settings.providers.status.savedJustNow")}
-          </StatusFlash>
-        )}
-        {flash === "tested" && (
-          <StatusFlash icon={<Check size={14} />}>
-            {t("settings.providers.status.tested", {
-              defaultValue: "Connection works",
-            })}
           </StatusFlash>
         )}
         {flash === "deleted" && (
@@ -841,6 +881,48 @@ function ProviderCard({
       </div>
     </div>
   );
+}
+
+function ModelTestStatusLine({ status }: { status: ModelTestStatus }) {
+  const icon =
+    status.kind === "ok" ? (
+      <Check size={13} />
+    ) : (
+      <AlertTriangle size={13} />
+    );
+  const color =
+    status.kind === "ok"
+      ? "text-green-600"
+      : status.kind === "warning"
+        ? "text-amber-700"
+        : "text-red-600";
+
+  return (
+    <p
+      className={`mt-2 flex items-start gap-1.5 text-xs ${color}`}
+      role={status.kind === "error" ? "alert" : "status"}
+      aria-live="polite"
+    >
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <span>{status.message}</span>
+      {"usage" in status && status.usage && (
+        <span className="font-mono text-outline-900/55">
+          {formatUsage(status.usage)}
+        </span>
+      )}
+    </p>
+  );
+}
+
+function formatUsage(usage: ProviderUsage): string {
+  const parts: string[] = [];
+  if (typeof usage.totalTokens === "number") {
+    parts.push(`${usage.totalTokens} tokens`);
+  }
+  if (typeof usage.cost === "number") {
+    parts.push(`cost ${usage.cost.toFixed(6)}`);
+  }
+  return parts.length > 0 ? `(${parts.join(", ")})` : "";
 }
 
 function Field({

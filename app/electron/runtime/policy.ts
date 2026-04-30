@@ -84,7 +84,7 @@ function buildSystemPromptHeader(
       ? "Critical language requirement: every user-facing string in the final answer and JSON fields must be in Russian. Keep only product names, tool IDs, URLs, and technical constants in English."
       : "Critical language requirement: every user-facing string in the final answer and JSON fields must be in English. Keep product names, tool IDs, URLs, and technical constants unchanged.",
     "Stay within the ToraSEO scope at all times.",
-    "Return machine-parseable structured audit content when answering.",
+    "Return machine-parseable structured audit content when scan evidence is available. Before scan evidence exists, answer as a scoped ToraSEO guide in plain text.",
   ].join("\n");
 }
 
