@@ -586,6 +586,11 @@ function MainApp() {
   }, [chatSession, executionMode, mode]);
 
   useEffect(() => {
+    if (mode === "site" && executionMode === "native") return;
+    void window.toraseo.runtime.endChatWindowSession();
+  }, [executionMode, mode]);
+
+  useEffect(() => {
     const unsubscribe = window.toraseo.runtime.onChatWindowSessionUpdate(
       (session) => {
         if (session.status === "active" && session.report) {
@@ -693,6 +698,7 @@ function MainApp() {
             onReturnHome={() => {
               setMode("idle");
               void refreshProviders();
+              void window.toraseo.runtime.endChatWindowSession();
             }}
             onSaveLocale={handleSaveLocale}
             nativeRuntimeEnabled={true}

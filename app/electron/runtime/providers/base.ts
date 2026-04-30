@@ -16,6 +16,7 @@
 import type {
   ProviderCapabilities,
   ProviderConfig,
+  ProviderUsage,
   ProviderId,
   RuntimeAnalysisType,
   RuntimeAuditReport,
@@ -49,6 +50,8 @@ export interface ProviderChatResponse {
   report?: RuntimeAuditReport;
   /** Resolved model used for the request. */
   model?: string;
+  /** Provider-reported token/cost usage, when available. */
+  usage?: ProviderUsage;
   /** Set when ok=false. */
   errorCode?: string;
   errorMessage?: string;

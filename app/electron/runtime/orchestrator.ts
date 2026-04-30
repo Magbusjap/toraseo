@@ -58,6 +58,13 @@ export async function handleUserMessage(
   }
 
   if (!response.report) {
+    const text = response.text?.trim();
+    if (text) {
+      return {
+        ok: true,
+        text,
+      };
+    }
     return {
       ok: false,
       errorCode: "provider_bad_response",

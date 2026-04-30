@@ -276,6 +276,19 @@ function validateOptionalUrl(value?: string): boolean {
   }
 }
 
+function validateOpenRouterBaseUrl(value?: string): boolean {
+  if (!value) return true;
+  try {
+    const parsed = new URL(value);
+    const isOpenRouterHost =
+      parsed.hostname === "openrouter.ai" ||
+      parsed.hostname.endsWith(".openrouter.ai");
+    return !isOpenRouterHost || parsed.pathname.startsWith("/api/");
+  } catch {
+    return false;
+  }
+}
+
 function looksLikeUrl(value: string): boolean {
   return /^https?:\/\//i.test(value.trim());
 }
@@ -355,6 +368,14 @@ export async function setProviderConfig(input: {
       ok: false,
       errorCode: "invalid_input",
       errorMessage: "Custom endpoint URL must be a valid http(s) URL",
+    };
+  }
+  if (input.id === "openrouter" && !validateOpenRouterBaseUrl(baseUrl)) {
+    return {
+      ok: false,
+      errorCode: "invalid_input",
+      errorMessage:
+        "OpenRouter custom endpoint must be an API base URL such as https://openrouter.ai/api/v1, not a model page URL.",
     };
   }
   if (defaultModel && defaultModel.length > 160) {
