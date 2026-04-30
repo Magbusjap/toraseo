@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Clipboard, X } from "lucide-react";
 import i18n from "./i18n";
 
 import IdleSidebar from "./components/Sidebar/IdleSidebar";
@@ -84,6 +85,15 @@ function MainApp() {
   const [runtimeReport, setRuntimeReport] = useState<RuntimeAuditReport | null>(
     null,
   );
+  const [codexPromptHelperVisible, setCodexPromptHelperVisible] =
+    useState(false);
+  const [codexPromptHelperScanId, setCodexPromptHelperScanId] = useState<
+    string | null
+  >(null);
+  const [promptCopyToastVisible, setPromptCopyToastVisible] = useState(false);
+  const promptCopyToastTimer = useRef<
+    ReturnType<typeof window.setTimeout> | null
+  >(null);
 
   const [currentLocale, setCurrentLocale] = useState<SupportedLocale>(
     () => (i18n.resolvedLanguage as SupportedLocale) ?? "en",
@@ -210,6 +220,39 @@ function MainApp() {
     void bridge.cancelScan();
   }, [bridge.cancelScan, codexBridgeState, detectorStatus?.codexRunning, t]);
 
+  useEffect(() => {
+    if (!codexPromptHelperVisible) return;
+    if (bridge.state?.bridgeClient !== "codex") return;
+    if (
+      codexPromptHelperScanId !== null &&
+      bridge.state.scanId !== codexPromptHelperScanId
+    ) {
+      return;
+    }
+    if (
+      codexPromptHelperScanId === null &&
+      bridge.state.status !== "awaiting_handshake" &&
+      bridge.state.status !== "in_progress"
+    ) {
+      return;
+    }
+    const hasIncomingScanData = Object.values(bridge.state.buffer).some(
+      (entry) => entry !== undefined,
+    );
+    if (hasIncomingScanData) {
+      setCodexPromptHelperVisible(false);
+      setCodexPromptHelperScanId(null);
+    }
+  }, [bridge.state, codexPromptHelperScanId, codexPromptHelperVisible]);
+
+  useEffect(() => {
+    return () => {
+      if (promptCopyToastTimer.current) {
+        window.clearTimeout(promptCopyToastTimer.current);
+      }
+    };
+  }, []);
+
   const handleModeSelect = async (selected: "site" | "content") => {
     if (selected === "content") {
       return;
@@ -299,6 +342,8 @@ function MainApp() {
       if (!confirmed) return;
       if (executionMode === "bridge") {
         void bridge.cancelScan();
+        setCodexPromptHelperVisible(false);
+        setCodexPromptHelperScanId(null);
       }
     }
     setMode("idle");
@@ -346,6 +391,22 @@ function MainApp() {
     await startScan(url.trim(), orderedIds);
   };
 
+  const showCodexPromptHelper = (scanId: string | null = null) => {
+    setCodexPromptHelperVisible(true);
+    setCodexPromptHelperScanId(scanId);
+  };
+
+  const showPromptCopiedToast = () => {
+    setPromptCopyToastVisible(true);
+    if (promptCopyToastTimer.current) {
+      window.clearTimeout(promptCopyToastTimer.current);
+    }
+    promptCopyToastTimer.current = window.setTimeout(() => {
+      setPromptCopyToastVisible(false);
+      promptCopyToastTimer.current = null;
+    }, 1800);
+  };
+
   const handleRunBridgeScan = async () => {
     setPreflightError(null);
     setRuntimeReport(null);
@@ -353,7 +414,7 @@ function MainApp() {
       if (!codexPathReady) {
         setPreflightError(
           t("preflight.codexNeedsConfirmation", {
-          defaultValue: "Open Codex before starting the Codex bridge path.",
+            defaultValue: "Open Codex before starting the Codex bridge path.",
           }),
         );
         return;
@@ -372,17 +433,23 @@ function MainApp() {
         bridge.state?.status === "in_progress"
       ) {
         await bridge.cancelScan();
+        setCodexPromptHelperVisible(false);
+        setCodexPromptHelperScanId(null);
         return;
       }
       if (bridge.state?.status === "error") {
         await bridge.retryHandshake();
+        showCodexPromptHelper(bridge.state.scanId);
+        showPromptCopiedToast();
         return;
       }
 
       const orderedIds = TOOLS.map((item) => item.id).filter((id) =>
         selectedTools.has(id),
       );
-      await bridge.startScan(url.trim(), orderedIds, "codex");
+      const result = await bridge.startScan(url.trim(), orderedIds, "codex");
+      showCodexPromptHelper(result.scanId);
+      showPromptCopiedToast();
       return;
     }
 
@@ -455,6 +522,13 @@ function MainApp() {
     const result = await openCodex();
     void checkNow();
     return result;
+  };
+
+  const handleCopyCodexSetupPrompt = async () => {
+    const prompt = await bridge.copyCodexSetupPrompt();
+    showCodexPromptHelper();
+    showPromptCopiedToast();
+    return prompt;
   };
 
   const handleModelProfileChange = (profileId: string) => {
@@ -557,8 +631,10 @@ function MainApp() {
         providerConfigured &&
         Boolean(selectedModelProfile)
       : bridgeProgram === "codex"
-        ? (codexPathReady && codexSetupVerified) || Boolean(bridge.state)
-        : !isBridgeBlocked || Boolean(bridge.state));
+        ? (codexPathReady && codexSetupVerified) ||
+          Boolean(bridge.state && bridge.state.status !== "complete")
+        : !isBridgeBlocked ||
+          Boolean(bridge.state && bridge.state.status !== "complete"));
 
   const scanButtonTooltip =
     executionMode === "native" && !providerConfigured
@@ -654,7 +730,7 @@ function MainApp() {
               onChangeConfirmedExecutionMode={handleChangeConfirmedExecutionMode}
               onBridgeProgramChange={setBridgeProgram}
               onOpenCodex={handleOpenCodex}
-              onCopyCodexSetupPrompt={bridge.copyCodexSetupPrompt}
+              onCopyCodexSetupPrompt={handleCopyCodexSetupPrompt}
               onModelProfileChange={handleModelProfileChange}
               onOpenProviderSettings={handleOpenProviderSettings}
               onOpenClaude={openClaude}
@@ -683,10 +759,65 @@ function MainApp() {
               {preflightError}
             </div>
           )}
+          {promptCopyToastVisible && (
+            <div className="fixed left-1/2 top-16 z-50 -translate-x-1/2 rounded-lg border border-primary/20 bg-white px-4 py-2 text-sm font-semibold text-outline-900 shadow-lg">
+              {t("modeSelection.bridge.codexPromptCopiedToast", {
+                defaultValue: "Prompt copied",
+              })}
+            </div>
+          )}
+          {codexPromptHelperVisible &&
+            executionModeDraft === "bridge" &&
+            bridgeProgram === "codex" && (
+              <CodexPromptHelper
+                onDismiss={() => {
+                  setCodexPromptHelperVisible(false);
+                  setCodexPromptHelperScanId(null);
+                }}
+              />
+            )}
         </main>
       </div>
 
       <UpdateNotification />
+    </div>
+  );
+}
+
+function CodexPromptHelper({ onDismiss }: { onDismiss: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="pointer-events-none fixed bottom-6 left-[276px] z-40 w-[420px] max-w-[calc(100vw-300px)]">
+      <div className="pointer-events-auto rounded-lg border border-primary/30 bg-white px-4 py-3 shadow-xl">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 rounded-md bg-primary/10 p-2 text-primary">
+            <Clipboard size={16} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-sm font-semibold text-outline-900">
+                {t("modeSelection.bridge.codexPromptHelperTitle", {
+                  defaultValue: "Codex prompt copied",
+                })}
+              </h3>
+              <button
+                type="button"
+                onClick={onDismiss}
+                aria-label={t("common.close")}
+                className="rounded-md p-1 text-outline-900/45 transition hover:bg-orange-50 hover:text-outline-900"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <p className="mt-1 text-sm leading-relaxed text-outline-900/70">
+              {t("modeSelection.bridge.codexPromptHelperBody", {
+                defaultValue:
+                  "Switch to Codex chat, paste the prompt, and press Enter. If Codex asks for ToraSEO MCP permission, tick the chat/session approval checkbox and click Allow.",
+              })}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

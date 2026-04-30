@@ -162,6 +162,9 @@
       "codexSetupStepThree": "Use the button below, paste the prepared text into Codex, and wait for Codex to confirm that MCP and Codex Workflow Instructions are active.",
       "copyCodexSetupPrompt": "Copy setup prompt",
       "codexSetupHint": "This setup check does not start a site scan. It only proves that ToraSEO MCP and Codex Workflow Instructions are really active in the current Codex session.",
+      "codexPromptHelperTitle": "Codex prompt copied",
+      "codexPromptHelperBody": "Switch to Codex chat, paste the prompt, and press Enter. If Codex asks for ToraSEO MCP permission, tick the chat/session approval checkbox and click Allow.",
+      "codexPromptCopiedToast": "Prompt copied",
       "codexChecklistTitle": "What the handshake verifies",
       "codexChecklistBody": "After Scan starts, Codex must call verify_codex_workflow_loaded. That proves both ToraSEO MCP access and Codex Workflow Instructions for this session.",
       "codexConfirm": "Start Codex handshake",
@@ -390,6 +393,39 @@
     "claudeConfigTitle": "Choose claude_desktop_config.json",
     "jsonConfig": "JSON config",
     "allFiles": "All files"
+  },
+  "chat": {
+    "loadErrorTitle": "AI chat did not load",
+    "loading": "Loading...",
+    "endedTitle": "Session ended",
+    "endedBody": "Start a new API + AI Chat analysis in the main ToraSEO window to continue.",
+    "nativeReady": "Native mode is ready. Run a local scan, then ask for interpretation.",
+    "bridgeReady": "Bridge mode is ready. Paste the copied prompt into Claude Desktop to let MCP tools fill the app.",
+    "bridgeTitle": "MCP + Instructions Companion",
+    "inAppRuntime": "In-app runtime",
+    "copiedPrompt": "Copied prompt",
+    "send": "Send",
+    "noScanContext": "Start a site audit in the main ToraSEO window first. I can only answer inside the active analysis context.",
+    "providerError": "[error: {{code}}] {{message}}",
+    "autoInterpretationStarted": "Scan finished. Preparing recommendations...",
+    "autoInterpretationPrompt": "Interpret the completed site audit and give prioritized recommendations.",
+    "policy": {
+      "strict": "Strict",
+      "ideas": "Ideas"
+    },
+    "helper": {
+      "bridgeNoScan": "Click Scan to copy the Bridge prompt, then send it in Claude Desktop.",
+      "bridgeAwaiting": "Prompt copied. Claude is expected to call the handshake next.",
+      "bridgeRunning": "Claude is running MCP tools. Results flow into the right panel automatically.",
+      "bridgeError": "Bridge mode hit an error.",
+      "bridgeComplete": "Bridge scan finished. Claude recommendations can continue in the external chat.",
+      "nativeNoScan": "Run a site scan first, then ask the in-app AI to interpret those findings.",
+      "nativeReady": "Scan context ready: {{completed}}/{{total}} tools completed."
+    },
+    "inputPlaceholder": {
+      "native": "Ask about the current site audit...",
+      "bridge": "Bridge mode uses Claude Desktop for the live conversation."
+    }
   },
   "common": {
     "close": "Close",

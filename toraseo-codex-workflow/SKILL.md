@@ -27,8 +27,8 @@ knowledge base. Load the reference files only when the task needs them.
 
 ## Required Bridge Behavior
 
-When the pasted prompt starts with `/toraseo codex-bridge-mode`, your
-first action is:
+When the pasted prompt says `Use $toraseo-codex-workflow` and contains
+`/toraseo codex-bridge-mode`, your first action is:
 
 ```text
 verify_codex_workflow_loaded(token="codex-workflow-v1-2026-04-29")
@@ -36,6 +36,12 @@ verify_codex_workflow_loaded(token="codex-workflow-v1-2026-04-29")
 
 Do not read the token from chat, do not ask the user for it, and do
 not start analyzer tools before that handshake succeeds.
+
+If Codex asks the user to approve ToraSEO MCP tools, prefer the
+one-time chat/session approval option when the platform offers it. Tell
+the user to tick the chat/session approval checkbox and click Allow. Do
+not ask the user to approve each analyzer tool one by one unless Codex
+itself provides no broader approval path.
 
 ## Working Rules
 

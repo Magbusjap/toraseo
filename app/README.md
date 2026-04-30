@@ -4,8 +4,9 @@ Visual desktop application for ToraSEO. Electron + React + TypeScript.
 
 ## Status
 
-**App 0.0.7 release candidate - in progress.** The desktop app now
-supports two explicit audit paths:
+**App 0.0.8 release candidate - in progress.** The desktop app now
+supports two explicit audit paths and is hardening the Codex bridge
+result-delivery and unified release flow:
 
 - `MCP + Instructions` for external-agent bridge workflows
 - `API + AI Chat` for the native in-app runtime

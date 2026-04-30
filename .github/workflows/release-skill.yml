@@ -1,71 +1,54 @@
-name: Release skill ZIP
+name: Package Claude Bridge Instructions
 
-# Triggers on `skill-v*` tags only (e.g. skill-v0.1.0, skill-v0.2.0-alpha).
+# Manual packaging workflow for the Claude Bridge Instructions ZIP.
 #
-# Why a namespace tag and not plain v*: the desktop app uses plain
-# `v*` tags (release-app.yml). If both workflows triggered on the
-# same tag, electron-builder and softprops would race to create the
-# same release. Keeping skill releases under `skill-v*` cleanly
-# separates the two release tracks.
-#
-# Legacy note: the v0.1.0-alpha release was published under the old
-# (plain `v*`) scheme, before the namespace split. It stays as-is for
-# users who already downloaded that ZIP. Future skill releases use
-# `skill-v*`.
+# Public release attachment moved to release-app.yml in App 0.0.8 so
+# users see one unified GitHub release asset list. This workflow remains
+# available when maintainers need a standalone package artifact for QA,
+# support, or pre-release validation.
 on:
-  push:
-    tags:
-      - "skill-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version suffix for the ZIP filename"
+        required: false
+        default: "dev"
 
-# Permission to create releases and attach assets.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-and-attach:
+  package:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the tagged commit
+      - name: Check out the commit
         uses: actions/checkout@v4
 
       - name: Verify Claude instructions structure
-        # Sanity check: SKILL.md must exist at Claude instructions root and have
-        # required frontmatter fields. Catches accidental moves.
         run: |
           test -f claude-bridge-instructions/SKILL.md || { echo "claude-bridge-instructions/SKILL.md missing"; exit 1; }
           grep -q "^name:" claude-bridge-instructions/SKILL.md || { echo "name: field missing"; exit 1; }
           grep -q "^description:" claude-bridge-instructions/SKILL.md || { echo "description: field missing"; exit 1; }
 
       - name: Compute zip name
-        # Keep the skill-v* tag namespace, but make the asset name
-        # explicit so users do not confuse the Claude package with the
-        # Codex workflow package.
         id: zipname
         run: |
-          SKILL_VERSION=${GITHUB_REF_NAME#skill-}
-          echo "version=$SKILL_VERSION" >> $GITHUB_OUTPUT
-          echo "filename=toraseo-claude-bridge-instructions-$SKILL_VERSION.zip" >> $GITHUB_OUTPUT
+          VERSION="${{ inputs.version }}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "filename=toraseo-claude-bridge-instructions-$VERSION.zip" >> "$GITHUB_OUTPUT"
 
       - name: Build Claude instructions ZIP
-        # Claude Desktop expects the skill folder at the ZIP root.
-        # We stage claude-bridge-instructions/ contents into a folder named "toraseo/"
-        # (matching the name: field in frontmatter), then zip that.
         run: |
           mkdir -p staging/toraseo
           cp -r claude-bridge-instructions/. staging/toraseo/
           cd staging
           zip -r ../${{ steps.zipname.outputs.filename }} toraseo
           cd ..
-          ls -la ${{ steps.zipname.outputs.filename }}
+          unzip -l ${{ steps.zipname.outputs.filename }}
 
-      - name: Create GitHub Release and attach ZIP
-        # softprops/action-gh-release auto-creates a release for the
-        # tag if one doesn't exist, or updates the existing one.
-        # The release shows up under the skill-v0.1.0 tag, while the
-        # asset is named toraseo-claude-bridge-instructions-v0.1.0.zip.
-        uses: softprops/action-gh-release@v2
+      - name: Upload standalone package artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: ${{ steps.zipname.outputs.filename }}
-          # Generate release notes from commits since the previous tag.
-          # Maintainers can edit them manually after the release is up.
-          generate_release_notes: true
+          name: ${{ steps.zipname.outputs.filename }}
+          path: ${{ steps.zipname.outputs.filename }}
+          if-no-files-found: error

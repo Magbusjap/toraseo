@@ -2,7 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/Magbusjap/toraseo/main/branding/logos/tora-logo-horizontal.svg" alt="ToraSEO" width="480">
 
-**Open-source SEO toolkit built as a Claude Skill + MCP server**
+**Open-source SEO toolkit built as a desktop app + MCP server + AI instructions**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Release: v0.1.0-alpha](https://img.shields.io/badge/Release-v0.1.0--alpha-FF6B35.svg)](https://github.com/Magbusjap/toraseo/releases)
@@ -13,10 +13,9 @@
 ---
 
 > [!NOTE]
-> **v0.1.0-alpha is the first installable release.** Mode A (Site Audit)
-> is complete with seven working tools. Mode B (Content Audit /
-> AI-humanizer) is planned for v0.2. Public visual dashboard is a
-> later milestone.
+> **App 0.0.8 is the current release candidate.** Mode A (Site Audit)
+> is complete with seven working tools, and the desktop app supports
+> both `MCP + Instructions` and `API + AI Chat` paths.
 
 ## What is ToraSEO?
 
@@ -30,13 +29,14 @@ a full technical audit: robots.txt, sitemap, meta tags, headings,
 redirects, content quality, and reachability — then returns a clean
 priority-ordered report with concrete fix instructions.
 
-It is built as two independent components that work together:
+It is built as independent components that work together:
 
 | Component | What it is | v0.1.0-alpha |
 |---|---|:---:|
-| **Skill** | Markdown instructions, checklists, report templates that teach Claude how to use the MCP tools | ✅ |
+| **Claude Bridge Instructions** | Markdown instructions, checklists, report templates that teach Claude how to use the MCP tools | ✅ |
+| **Codex Workflow Instructions** | Codex-side workflow package for ToraSEO repository and bridge tasks | ✅ |
 | **MCP server** | Node.js server that performs the actual HTTP requests, parsing, and analysis | ✅ |
-| **Visual dashboard** | Native UI for status, progress, and reports | 📋 future |
+| **Desktop app** | Native UI for status, progress, reports, and the native AI runtime | ✅ |
 
 ## Quick start
 
@@ -74,9 +74,9 @@ Restart Claude Desktop. The seven tools (`scan_site_minimal`,
 `analyze_sitemap`, `check_redirects`, `analyze_content`) should
 now appear in the tools list.
 
-### 2. Install the Skill
+### 2. Install the Claude Bridge Instructions
 
-Download the latest `toraseo-skill-v*.zip` from the
+Download the latest `toraseo-claude-bridge-instructions-v*.zip` from the
 [Releases page](https://github.com/Magbusjap/toraseo/releases),
 then in Claude Desktop:
 
@@ -85,12 +85,12 @@ then in Claude Desktop:
 2. Go to **Customize → Skills**, click **+ → Create skill**.
 3. Upload the ZIP. Toggle the skill to **ON**.
 
-> ⚠️ Use the `toraseo-skill-*.zip` asset, **not** the auto-generated
+> ⚠️ Use the `toraseo-claude-bridge-instructions-*.zip` asset, **not** the auto-generated
 > "Source code (zip)" — the source archive contains the whole repo
 > and won't install as a skill.
 
 For the full installation walkthrough (including Claude Code), see
-[`skill/README.md`](skill/README.md).
+[`claude-bridge-instructions/README.md`](claude-bridge-instructions/README.md).
 
 ### 3. Try it
 
@@ -118,7 +118,7 @@ Mode A — **Site Audit**. Given a URL, ToraSEO checks:
 
 Each tool returns severity-tagged findings. The skill aggregates
 them into a single human-readable audit report against the
-[Google Search Essentials checklist](skill/checklists/google-basics.md).
+[Google Search Essentials checklist](claude-bridge-instructions/checklists/google-basics.md).
 
 ## What's NOT in v0.1.0-alpha (honest list)
 
@@ -134,8 +134,8 @@ These are **deliberately deferred**, not bugs:
 - **Multi-page crawling**. ToraSEO audits one URL per call by design.
   Site-wide scans require an explicit orchestrator that's not yet
   built.
-- **Visual dashboard**. The architecture is designed for it but the
-  UI itself is a later milestone.
+- **Site-wide visual crawling**. The desktop app exists, but multi-page
+  crawling is still intentionally deferred.
 - **Core Web Vitals / PageSpeed**. Use Google PageSpeed Insights for
   performance numbers — ToraSEO is for on-page signals.
 - **Backlinks / keyword research / rank tracking**. Out of scope.
@@ -153,8 +153,7 @@ ToraSEO is designed so each component is independently useful:
   Claude reads instructions, calls MCP tools, produces a report
 - **MCP alone** — technical scans without AI commentary; useful for
   scripted audits and CI checks
-- **Full stack** (future) — richest experience with AI + visual
-  dashboard
+- **Full stack** — richest experience with AI + visual dashboard
 
 Three architectural principles drive the design:
 
@@ -181,9 +180,10 @@ Full policy: [`CRAWLING_POLICY.md`](CRAWLING_POLICY.md).
 ## Documentation
 
 - [Architecture overview](docs/ARCHITECTURE.md) — three-component design
-- [Skill README](skill/README.md) — installation walkthrough
+- [Claude Bridge Instructions README](claude-bridge-instructions/README.md) — installation walkthrough
+- [Codex Workflow Instructions README](toraseo-codex-workflow/README.md) — Codex package setup
 - [MCP server README](mcp/README.md) — server setup details
-- [Google Search Basics checklist](skill/checklists/google-basics.md) — what gets audited
+- [Google Search Basics checklist](claude-bridge-instructions/checklists/google-basics.md) — what gets audited
 - [Security policy](SECURITY.md)
 - [Crawling policy](CRAWLING_POLICY.md)
 - [Changelog](CHANGELOG.md)

@@ -13,8 +13,8 @@ session:
 
 ## Required first call
 
-When the prompt starts with `/toraseo codex-bridge-mode`, the first MCP
-call must be:
+When the prompt says `Use $toraseo-codex-workflow` and contains
+`/toraseo codex-bridge-mode`, the first MCP call must be:
 
 ```text
 verify_codex_workflow_loaded(token="codex-workflow-v1-2026-04-29")
@@ -34,3 +34,17 @@ unlock the full path. The readiness contract is:
 
 If the handshake fails, the UI must stay honest and avoid fake green
 states.
+
+## Tool permissions
+
+Codex may ask the user to approve MCP tool calls. The preferred UX is a
+one-time chat/session approval for the ToraSEO MCP server when the
+platform offers that choice. When the approval dialog appears, guide
+the user to tick the chat/session approval checkbox and click Allow.
+Repeated per-tool approvals are a fallback only when Codex does not
+expose a broader approval option.
+
+Do not describe per-tool approval as the intended long-term product
+flow. Future ToraSEO scans may use many more tools, so the bridge
+workflow should always guide the user toward the least repetitive
+available approval scope.

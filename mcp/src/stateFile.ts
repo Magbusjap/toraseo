@@ -421,7 +421,10 @@ export async function applyHandshake(
       },
       error: {
         code: "handshake_mismatch",
-        message: `Bridge instructions token mismatch. Expected ${expectedToken}, got ${receivedToken}. The user likely has an outdated instructions package.`,
+        message:
+          "Bridge instructions token mismatch. The user likely has an " +
+          "outdated instructions package. For security, token values are " +
+          "not included in this error.",
       },
     };
     await writeState(next);

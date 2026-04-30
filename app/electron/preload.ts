@@ -132,7 +132,7 @@ const RUNTIME = {
 } as const;
 
 const api: ToraseoApi = {
-  version: "0.0.7",
+  version: "0.0.8",
 
   startScan: (args: StartScanArgs) => {
     return ipcRenderer.invoke(SCAN.startScan, args) as Promise<{

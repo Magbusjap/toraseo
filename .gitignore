@@ -88,6 +88,8 @@ out/
 # They should never be committed — the canonical distribution channel
 # is GitHub Releases (see .github/workflows/release-skill.yml).
 toraseo-skill-*.zip
+/toraseo-claude-bridge-instructions-*.zip
+/toraseo-codex-workflow-*.zip
 /toraseo.zip
 
 # ============================================

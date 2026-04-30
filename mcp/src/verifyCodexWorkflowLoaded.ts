@@ -40,11 +40,10 @@ export async function verifyCodexWorkflowLoadedHandler({
       return jsonError({
         ok: false,
         error: "token_mismatch",
-        expected: CODEX_WORKFLOW_PROTOCOL_TOKEN,
-        received: token,
         message:
           "The Codex Workflow Instructions token does not match. The user " +
-          "needs the current ToraSEO Codex Workflow Instructions package.",
+          "needs the current ToraSEO Codex Workflow Instructions package. " +
+          "For security, the expected token is not returned by MCP.",
       });
     }
 
@@ -153,11 +152,10 @@ export async function verifyCodexWorkflowLoadedHandler({
     return jsonError({
       ok: false,
       error: "token_mismatch",
-      expected: CODEX_WORKFLOW_PROTOCOL_TOKEN,
-      received: token,
       message:
         "The Codex Workflow Instructions token does not match. The user " +
-        "needs the current ToraSEO Codex Workflow Instructions package.",
+        "needs the current ToraSEO Codex Workflow Instructions package. " +
+        "For security, the expected token is not returned by MCP.",
     });
   }
 

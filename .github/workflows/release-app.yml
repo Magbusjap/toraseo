@@ -1,7 +1,17 @@
 name: Release Desktop App
 
-# Builds and publishes the ToraSEO desktop app to GitHub Releases
-# when a clean version tag is pushed (e.g. v0.0.3, v0.1.0, v1.0.0).
+# Builds and publishes the ToraSEO desktop app to GitHub Releases when a
+# clean version tag is pushed (e.g. v0.0.8, v0.1.0, v1.0.0).
+#
+# Starting with App 0.0.8, this workflow owns the public release asset
+# list for the whole desktop distribution:
+#   - app installer / updater assets from electron-builder
+#   - Claude Bridge Instructions ZIP
+#   - Codex Workflow Instructions ZIP
+#
+# The instruction packages remain buildable as standalone components via
+# scripts/ and their manual packaging workflows, but public users should
+# see one GitHub release entry for a given app version.
 #
 # IMPORTANT: tag pattern is plain `v*` (no suffix). This matches what
 # electron-builder + electron-updater expect — the tool reads
@@ -9,9 +19,6 @@ name: Release Desktop App
 # tag `v{version}`. If we tagged `v0.0.3-app`, electron-builder would
 # silently create a *parallel* release `v0.0.3` and our tag-triggered
 # workflow would produce an empty orphan release.
-#
-# The Skill workflow (release-skill.yml) uses `skill-v*` namespace
-# specifically to avoid collision with this one.
 #
 # electron-builder reads "publish.provider: github" from
 # app/package.json build config and uploads the .exe / .dmg /
@@ -22,7 +29,7 @@ on:
   push:
     tags:
       - "v*"
-      - "!skill-v*" # belongs to release-skill.yml, not us
+      - "!skill-v*" # historical package tag namespace, not an app release
 
 permissions:
   contents: write
@@ -61,6 +68,16 @@ jobs:
       - name: Build core
         run: npm run build --workspace=@toraseo/core
 
+      - name: Build instruction package ZIPs
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          ./scripts/build-skill.ps1 $env:GITHUB_REF_NAME
+          ./scripts/build-codex-workflow.ps1 $env:GITHUB_REF_NAME
+          Get-ChildItem "toraseo-claude-bridge-instructions-$env:GITHUB_REF_NAME.zip", "toraseo-codex-workflow-$env:GITHUB_REF_NAME.zip" |
+            Format-Table Name, Length
+
       - name: Build app and publish to GitHub Releases
         # GH_TOKEN is the auto-injected token; electron-builder uses
         # it via "publish: github" in app/package.json to create or
@@ -68,3 +85,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run release --workspace=@toraseo/app
+
+      - name: Attach instruction ZIPs to the app release
+        if: matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          fail_on_unmatched_files: true
+          files: |
+            toraseo-claude-bridge-instructions-${{ github.ref_name }}.zip
+            toraseo-codex-workflow-${{ github.ref_name }}.zip

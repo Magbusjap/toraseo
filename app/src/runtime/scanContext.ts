@@ -7,16 +7,102 @@ import type {
   RuntimeScanFact,
 } from "../types/runtime";
 
+interface BridgeIssue {
+  severity: "critical" | "warning" | "info";
+  code: string;
+  message: string;
+}
+
+const TOOL_LABELS: Record<ToolId, string> = {
+  check_robots_txt: "Robots.txt",
+  analyze_sitemap: "Sitemap",
+  analyze_meta: "Meta tags",
+  analyze_headings: "Headings",
+  check_redirects: "Redirects",
+  analyze_content: "Content",
+  scan_site_minimal: "Minimal scan",
+};
+
 function priorityFromStatus(
   status: "ok" | "warning" | "critical" | "error",
 ): RuntimeScanFact["severity"] {
   return status;
 }
 
-function detailFromLocalStage(
-  toolId: ToolId,
-  stage: NonNullable<StagesMap[ToolId]>,
-): string {
+function priorityFromIssueSeverity(
+  severity: BridgeIssue["severity"],
+): RuntimeScanFact["severity"] {
+  if (severity === "critical" || severity === "warning") {
+    return severity;
+  }
+  return "ok";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function getStringField(
+  record: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = record[key];
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function getNumberField(
+  record: Record<string, unknown>,
+  key: string,
+): number | null {
+  const value = record[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function extractIssues(data: unknown): BridgeIssue[] {
+  const record = asRecord(data);
+  if (!record) return [];
+
+  const source = Array.isArray(record.issues)
+    ? record.issues
+    : Array.isArray(record.verdicts)
+      ? record.verdicts
+      : [];
+
+  return source.flatMap((item) => {
+    const issue = asRecord(item);
+    if (!issue) return [];
+    const severity = issue.severity;
+    if (
+      severity !== "critical" &&
+      severity !== "warning" &&
+      severity !== "info"
+    ) {
+      return [];
+    }
+
+    const code = getStringField(issue, "code") ?? severity;
+    const message =
+      getStringField(issue, "message") ??
+      `The ${code} finding was reported by a ToraSEO bridge tool.`;
+
+    return [{ severity, code, message }];
+  });
+}
+
+function formatIssueCode(code: string): string {
+  return code
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function detailFromLocalStage(stage: NonNullable<StagesMap[ToolId]>): string {
   if (stage.status === "error") {
     return stage.errorMessage ?? stage.errorCode ?? "The scan stage failed.";
   }
@@ -27,7 +113,6 @@ function detailFromLocalStage(
 }
 
 function detailFromBridgeStage(
-  toolId: ToolId,
   stage: NonNullable<BridgeStagesMap[ToolId]>,
 ): string {
   if (stage.status === "error") {
@@ -37,6 +122,149 @@ function detailFromBridgeStage(
     return "Completed successfully.";
   }
   return `Critical: ${stage.summary.critical}, warning: ${stage.summary.warning}, info: ${stage.summary.info}.`;
+}
+
+function detailFromBridgeData(
+  toolId: ToolId,
+  data: unknown,
+  stage?: NonNullable<BridgeStagesMap[ToolId]>,
+): string {
+  const record = asRecord(data);
+  if (!record) {
+    return stage
+      ? detailFromBridgeStage(stage)
+      : "Tool completed and returned data.";
+  }
+
+  if (toolId === "scan_site_minimal") {
+    const status = getNumberField(record, "status");
+    const finalUrl = getStringField(record, "url");
+    const title = getStringField(record, "title");
+    const h1 = getStringField(record, "h1");
+    const responseTime = getNumberField(record, "response_time_ms");
+    return [
+      status !== null ? `HTTP ${status}` : null,
+      finalUrl ? `final URL: ${finalUrl}` : null,
+      title ? `title: ${title}` : "title missing",
+      h1 ? `H1: ${h1}` : "H1 missing",
+      responseTime !== null ? `${responseTime} ms` : null,
+    ]
+      .filter(Boolean)
+      .join("; ");
+  }
+
+  if (toolId === "check_robots_txt") {
+    const allowed = record.allowed;
+    const reason = getStringField(record, "reason");
+    const robotsUrl = getStringField(record, "robots_txt_url");
+    const crawlDelay = getNumberField(record, "crawl_delay_seconds");
+    return [
+      typeof allowed === "boolean"
+        ? allowed
+          ? "Crawling is allowed"
+          : "Crawling is disallowed"
+        : "Robots policy checked",
+      reason ? `reason: ${reason}` : null,
+      robotsUrl ? `robots.txt: ${robotsUrl}` : null,
+      crawlDelay !== null ? `crawl-delay: ${crawlDelay}s` : null,
+    ]
+      .filter(Boolean)
+      .join("; ");
+  }
+
+  if (toolId === "analyze_meta") {
+    const status = getNumberField(record, "status");
+    const basic = asRecord(record.basic);
+    const title = asRecord(basic?.title);
+    const description = asRecord(basic?.description);
+    const openGraph = asRecord(record.open_graph);
+    const ogCompleteness = getNumberField(openGraph ?? {}, "completeness");
+    return [
+      status !== null ? `HTTP ${status}` : null,
+      title
+        ? `title length: ${getNumberField(title, "length_chars") ?? "unknown"}`
+        : "title missing",
+      description
+        ? `description length: ${
+            getNumberField(description, "length_chars") ?? "unknown"
+          }`
+        : "description missing",
+      ogCompleteness !== null
+        ? `Open Graph completeness: ${ogCompleteness}/5`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("; ");
+  }
+
+  if (toolId === "analyze_headings") {
+    const summary = asRecord(record.summary);
+    return [
+      `headings: ${getNumberField(summary ?? {}, "total") ?? "unknown"}`,
+      `H1 count: ${getNumberField(summary ?? {}, "h1_count") ?? "unknown"}`,
+      `level skips: ${
+        getNumberField(summary ?? {}, "skip_count") ?? "unknown"
+      }`,
+    ].join("; ");
+  }
+
+  if (toolId === "analyze_sitemap") {
+    const summary = asRecord(record.summary);
+    const kind = getStringField(record, "kind");
+    const sitemapUrl = getStringField(record, "sitemap_url");
+    const discoveredVia = getStringField(record, "discovered_via");
+    return [
+      kind ? `kind: ${kind}` : null,
+      discoveredVia ? `discovered via: ${discoveredVia}` : null,
+      sitemapUrl ? `sitemap: ${sitemapUrl}` : "sitemap not found",
+      `entries: ${
+        getNumberField(summary ?? {}, "total_entries") ?? "unknown"
+      }`,
+    ]
+      .filter(Boolean)
+      .join("; ");
+  }
+
+  if (toolId === "check_redirects") {
+    return [
+      `final status: ${
+        getNumberField(record, "final_status") ?? "unknown"
+      }`,
+      `hops: ${getNumberField(record, "total_hops") ?? "unknown"}`,
+      getStringField(record, "final_url")
+        ? `final URL: ${getStringField(record, "final_url")}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("; ");
+  }
+
+  if (toolId === "analyze_content") {
+    const summary = asRecord(record.summary);
+    const links = asRecord(record.links);
+    const images = asRecord(record.images);
+    const ratio = getNumberField(summary ?? {}, "text_to_code_ratio");
+    return [
+      `words: ${getNumberField(summary ?? {}, "word_count") ?? "unknown"}`,
+      `paragraphs: ${
+        getNumberField(summary ?? {}, "paragraph_count") ?? "unknown"
+      }`,
+      ratio !== null ? `text/code ratio: ${(ratio * 100).toFixed(1)}%` : null,
+      `links: ${
+        (getNumberField(links ?? {}, "internal") ?? 0) +
+        (getNumberField(links ?? {}, "external") ?? 0)
+      }`,
+      `images without alt: ${
+        getNumberField(images ?? {}, "without_alt") ?? "unknown"
+      }`,
+    ]
+      .filter(Boolean)
+      .join("; ");
+  }
+
+  return stage
+    ? detailFromBridgeStage(stage)
+    : "Tool completed and returned data.";
 }
 
 export function buildNativeScanContext(
@@ -65,7 +293,7 @@ export function buildNativeScanContext(
       facts.push({
         toolId,
         title: getToolI18nKeyBase(toolId),
-        detail: detailFromLocalStage(toolId, stage),
+        detail: detailFromLocalStage(stage),
         severity: priorityFromStatus(stage.status),
         source: "local_scan",
       });
@@ -93,7 +321,39 @@ export function buildBridgeScanFacts(
   if (!state) return [];
   const facts: RuntimeScanFact[] = [];
   for (const toolId of state.selectedTools) {
+    const entry = state.buffer[toolId];
     const stage = stages[toolId];
+
+    if (entry?.status === "complete") {
+      const issues = extractIssues(entry.data);
+      if (issues.length > 0) {
+        for (const issue of issues) {
+          facts.push({
+            toolId,
+            title: `${TOOL_LABELS[toolId]}: ${formatIssueCode(issue.code)}`,
+            detail: issue.message,
+            severity: priorityFromIssueSeverity(issue.severity),
+            source: "bridge_scan",
+          });
+        }
+        continue;
+      }
+
+      facts.push({
+        toolId,
+        title: `${TOOL_LABELS[toolId]} completed`,
+        detail: detailFromBridgeData(toolId, entry.data, stage),
+        severity:
+          stage?.status === "warning" ||
+          stage?.status === "critical" ||
+          stage?.status === "error"
+            ? priorityFromStatus(stage.status)
+            : "ok",
+        source: "bridge_scan",
+      });
+      continue;
+    }
+
     if (
       !stage ||
       (stage.status !== "ok" &&
@@ -106,7 +366,7 @@ export function buildBridgeScanFacts(
     facts.push({
       toolId,
       title: getToolI18nKeyBase(toolId),
-      detail: detailFromBridgeStage(toolId, stage),
+      detail: detailFromBridgeStage(stage),
       severity: priorityFromStatus(stage.status),
       source: "bridge_scan",
     });

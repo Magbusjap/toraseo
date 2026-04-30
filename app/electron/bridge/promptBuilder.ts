@@ -90,7 +90,9 @@ Results will be displayed in the ToraSEO Desktop App.
 After all tools complete, provide recommendations in chat based on the data.`;
 
 const CODEX_TEMPLATE_EN = (url: string, tools: string): string =>
-  `/toraseo codex-bridge-mode
+  `Use $toraseo-codex-workflow for this task.
+
+/toraseo codex-bridge-mode
 
 The ToraSEO Desktop App is running and waiting for a Codex bridge scan of ${url}.
 
@@ -98,19 +100,24 @@ First call verify_codex_workflow_loaded from the ToraSEO MCP server.
 Then use the tools: ${tools}.
 
 Do not start analyzer tools until the Codex Workflow Instructions handshake succeeds.
+If Codex asks for ToraSEO MCP tool permission, tick the chat/session approval checkbox and click Allow when that option is available.
 Results will be displayed in the ToraSEO Desktop App.
 After all tools complete, provide recommendations in chat based on the data.`;
 
 const CODEX_TEMPLATE_RU = (url: string, tools: string): string =>
-  `/toraseo codex-bridge-mode
+  `Используй $toraseo-codex-workflow для этой задачи.
 
-ToraSEO Desktop App is running and waiting for a Codex bridge scan of ${url}.
+/toraseo codex-bridge-mode
 
-First call verify_codex_workflow_loaded from the ToraSEO MCP server.
-Then use the tools: ${tools}.
+Приложение ToraSEO Desktop App запущено и ожидает сканирование через Codex для ${url}.
 
-Do not start analyzer tools until the Codex Workflow Instructions handshake succeeds.
-Results will be displayed in the ToraSEO Desktop App.`;
+Сначала вызови verify_codex_workflow_loaded из ToraSEO MCP-сервера.
+Затем используй инструменты: ${tools}.
+
+Не запускай инструменты анализа, пока handshake с Codex Workflow Instructions не завершится успешно.
+Если Codex запросит доступ к инструментам ToraSEO MCP, поставь галочку разрешения для текущего чата или сессии и нажми «Разрешить», если такой вариант доступен.
+Результаты будут отображены в приложении ToraSEO Desktop App.
+После завершения всех инструментов дай рекомендации в чате на основе данных.`;
 
 const CODEX_SETUP_TEMPLATE_EN = (): string =>
   `Use $toraseo-codex-workflow for this task.
@@ -119,6 +126,7 @@ The ToraSEO Desktop App is already running in MCP + Instructions -> Codex mode.
 
 This is a setup check, not a site scan.
 First call verify_codex_workflow_loaded from the ToraSEO MCP server.
+If Codex asks for ToraSEO MCP tool permission, tick the chat/session approval checkbox and click Allow when that option is available.
 
 If setup is correct, tell me in one short answer that:
 1. ToraSEO MCP is reachable from Codex.
@@ -126,17 +134,18 @@ If setup is correct, tell me in one short answer that:
 3. I can return to ToraSEO and continue.`;
 
 const CODEX_SETUP_TEMPLATE_RU = (): string =>
-  `Use $toraseo-codex-workflow for this task.
+  `Используй $toraseo-codex-workflow для этой задачи.
 
-The ToraSEO Desktop App is already running in MCP + Instructions -> Codex mode.
+Приложение ToraSEO Desktop App уже запущено в режиме MCP + Instructions -> Codex.
 
-This is a setup check, not a site scan.
-First call verify_codex_workflow_loaded from the ToraSEO MCP server.
+Это setup-проверка, а не сканирование сайта.
+Сначала вызови verify_codex_workflow_loaded из ToraSEO MCP-сервера.
+Если Codex запросит доступ к инструментам ToraSEO MCP, поставь галочку разрешения для текущего чата или сессии и нажми «Разрешить», если такой вариант доступен.
 
-If setup is correct, answer briefly that:
-1. ToraSEO MCP is reachable from Codex.
-2. Codex Workflow Instructions are active in this session.
-3. I can return to ToraSEO and continue.`;
+Если всё настроено правильно, коротко ответь, что:
+1. ToraSEO MCP доступен из Codex.
+2. Codex Workflow Instructions активны в этой сессии.
+3. Я могу вернуться в ToraSEO и продолжить.`;
 
 /**
  * Build the full prompt for clipboard.

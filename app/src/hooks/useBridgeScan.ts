@@ -22,6 +22,13 @@ export interface BridgeStageState {
 
 export type BridgeStagesMap = Partial<Record<ToolId, BridgeStageState>>;
 
+function shouldRetainStateAfterCleanup(
+  previous: CurrentScanState | null,
+  next: CurrentScanState | null,
+): boolean {
+  return next === null && previous?.status === "complete";
+}
+
 interface UseBridgeScanReturn {
   state: CurrentScanState | null;
   stages: BridgeStagesMap;
@@ -66,7 +73,9 @@ export function useBridgeScan(): UseBridgeScanReturn {
     let unsubscribe = () => undefined;
     void window.toraseo.bridge.getCurrentState().then(setState);
     unsubscribe = window.toraseo.bridge.onStateUpdate((next) => {
-      setState(next);
+      setState((previous) =>
+        shouldRetainStateAfterCleanup(previous, next) ? previous : next,
+      );
     });
     return () => {
       unsubscribe();

@@ -64,3 +64,9 @@ If Codex can call `verify_codex_workflow_loaded`, ToraSEO will know that:
 
 This setup check does not start a site scan. It only verifies the
 Codex-side connection before the first analysis.
+
+When Codex asks for ToraSEO MCP permission, choose the one-time
+chat/session approval option if it is available. In the current Codex
+permission dialog this usually means ticking the chat/session checkbox
+and then clicking Allow. Per-tool approval is only a platform fallback,
+not the intended ToraSEO workflow.

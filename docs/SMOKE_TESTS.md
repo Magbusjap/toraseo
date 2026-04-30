@@ -1,6 +1,6 @@
-# ToraSEO 0.0.7 Smoke Tests
+# ToraSEO 0.0.8 Smoke Tests
 
-Use this checklist before tagging `v0.0.7`.
+Use this checklist before tagging `v0.0.8`.
 
 ## Safety rules
 
@@ -47,7 +47,7 @@ Expected result:
 ## Test 1: App starts
 
 1. Launch the app.
-2. Confirm the top toolbar shows version `0.0.7`.
+2. Confirm the top toolbar shows version `0.0.8`.
 3. Open Settings.
 4. Confirm the Language tab still works.
 5. Confirm the Providers tab is visible.
@@ -133,11 +133,20 @@ Pass criteria:
 6. Confirm `Site by URL` unlocks after Codex is running.
 7. Enter a test URL, select safe tools, and start the scan.
 8. Paste the copied prompt into Codex.
-9. Confirm Codex calls `verify_codex_workflow_loaded` before any
+9. Confirm the copied-prompt helper stays visible until dismissed or
+   until real Codex scan data reaches the app.
+10. Confirm the pasted scan prompt starts by asking Codex to use
+   `$toraseo-codex-workflow`.
+11. Confirm Codex calls `verify_codex_workflow_loaded` before any
    analyzer tool.
-10. Confirm `ToraSEO MCP is available to Codex` and
+12. If Codex asks for ToraSEO MCP permissions, tick the chat/session
+   approval checkbox and click Allow when that option is available.
+13. Confirm `ToraSEO MCP is available to Codex` and
    `Codex Workflow Instructions are available` turn green only after
    that handshake succeeds.
+14. Confirm every selected tool writes data into the app and that
+   `Overview` / `Confirmed facts` render content from tool results,
+   not just a Codex chat claim.
 
 Pass criteria:
 
@@ -147,6 +156,8 @@ Pass criteria:
   Bridge Instructions ZIP.
 - If the Codex Workflow Instructions token is missing or outdated, the
   app remains in handshake/error state and analyzer tools do not run.
+- A successful Codex chat message is not enough; the app must actually
+  show bridge facts after the scan completes.
 
 ## Test 4: Details window and PDF
 
@@ -191,7 +202,7 @@ Pass criteria:
 
 ## Release decision
 
-Do not tag `v0.0.7` until:
+Do not tag `v0.0.8` until:
 
 - all pass criteria above are met, or
 - every failure is documented with a reproduction step and a fix plan.

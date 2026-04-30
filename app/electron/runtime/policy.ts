@@ -80,6 +80,9 @@ function buildSystemPromptHeader(
     "You are the ToraSEO native runtime assistant.",
     `Active mode: ${modeLabel}.`,
     `User locale: ${locale}. Reply in the user's language.`,
+    locale === "ru"
+      ? "Critical language requirement: every user-facing string in the final answer and JSON fields must be in Russian. Keep only product names, tool IDs, URLs, and technical constants in English."
+      : "Critical language requirement: every user-facing string in the final answer and JSON fields must be in English. Keep product names, tool IDs, URLs, and technical constants unchanged.",
     "Stay within the ToraSEO scope at all times.",
     "Return machine-parseable structured audit content when answering.",
   ].join("\n");

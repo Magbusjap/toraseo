@@ -56,6 +56,7 @@ interface CoreVerdict {
  */
 interface CoreResult {
   verdicts?: CoreVerdict[];
+  issues?: CoreVerdict[];
 }
 
 /**
@@ -64,7 +65,10 @@ interface CoreResult {
  */
 function summarizeVerdicts(result: unknown): SeverityCounts {
   const counts: SeverityCounts = { critical: 0, warning: 0, info: 0 };
-  const verdicts = (result as CoreResult)?.verdicts;
+  const coreResult = result as CoreResult;
+  const verdicts = Array.isArray(coreResult.verdicts)
+    ? coreResult.verdicts
+    : coreResult.issues;
   if (!Array.isArray(verdicts)) return counts;
 
   for (const v of verdicts) {

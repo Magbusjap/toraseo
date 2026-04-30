@@ -11,27 +11,22 @@ between minor versions until the v1.0 milestone.
 
 ---
 
-## Two release tracks
+## Release distribution
 
-ToraSEO ships in two independently-versioned tracks:
+Starting with App `0.0.8`, the desktop app release is the canonical
+public release entry:
 
-- **App** — the Electron desktop application. Tags: `v0.0.2`,
-  `v0.0.3`, ... `v1.0.0`. Built and published by
-  `.github/workflows/release-app.yml` via electron-builder.
-- **Skill** — the Claude Skill ZIP (and its companion MCP server).
-  Tags: `skill-v0.2.0`, `skill-v0.3.0`, ... `skill-v1.0.0`. Built
-  and published by `.github/workflows/release-skill.yml`.
+- **App tags:** `v0.0.8`, `v0.0.9`, ... `v1.0.0`.
+- **Release assets:** desktop installer/updater assets, Claude Bridge
+  Instructions ZIP, and Codex Workflow Instructions ZIP attached to
+  the same GitHub release.
+- **Standalone packaging:** the Claude and Codex instruction packages
+  remain buildable through scripts and manual packaging workflows, but
+  they no longer create separate public release-note blocks by default.
 
-Both tracks live in the same repo and share the `core/` library, but
-they ship to users separately and evolve at different rates. App
-development usually moves faster (UI, UX, packaging, auto-update);
-Skill stays stable until a new analysis mode or significant accuracy
-improvement justifies a bump.
-
-Legacy note: the very first release `v0.1.0-alpha` (skill+MCP) was
-published before this naming convention was introduced. It stays as-is
-for users who already downloaded that ZIP; future skill releases use
-the `skill-v*` namespace.
+Legacy note: older releases used separate instruction-package release
+entries. Those remain as historical downloads, but new app releases
+should present one unified asset list.
 
 ---
 
@@ -39,13 +34,14 @@ the `skill-v*` namespace.
 
 Current active app release candidate:
 
-- **App 0.0.7 - dual-mode desktop runtime.** This is now the
-  release being hardened. It supersedes the older Bridge-only and
-  NSIS-only planning notes below.
-- `API + AI Chat` now uses saved OpenRouter model profiles instead of
-  a mandatory home-screen connection check.
-- `MCP + Instructions` now distinguishes Claude Bridge Instructions from the
-  new Codex Workflow Instructions package.
+- **App 0.0.8 - unified release + Codex bridge reliability.**
+- The app release workflow now attaches app assets, Claude Bridge
+  Instructions ZIP, and Codex Workflow Instructions ZIP to the same
+  GitHub release entry.
+- Codex bridge results are rendered from app-side bridge data, not
+  trusted from Codex chat text alone.
+- `Copy setup prompt` now has persistent in-app guidance for the Codex
+  handoff.
 
 Roadmap after v0.0.6:
 
@@ -82,7 +78,32 @@ After that, the **skill track v0.2.0** — Mode B content audit
 
 ---
 
-## [App 0.0.7] - Unreleased
+## [App 0.0.8] - Unreleased
+
+### Added
+
+- Unified app release workflow that attaches the app installer assets,
+  Claude Bridge Instructions ZIP, and Codex Workflow Instructions ZIP
+  to one `v0.0.8` GitHub release entry.
+- Manual packaging workflows for standalone Claude and Codex ZIP
+  artifacts without creating separate public releases.
+- Persistent Codex copied-prompt helper that stays visible until the
+  user dismisses it or real Codex scan data reaches the app.
+- Codex workflow guidance for one-time chat/session MCP approvals when
+  available.
+
+### Fixed
+
+- Bridge result rendering now consumes `buffer[toolId].data` and turns
+  core analyzer `issues[]` into visible `Confirmed facts`.
+- Bridge severity summaries now recognize the core `issues[]` contract
+  in addition to the older `verdicts[]` name.
+- Completed bridge results remain visible after the temporary scan state
+  file is cleaned up.
+
+---
+
+## [App 0.0.7] - 2026-04-30
 
 Dual-mode desktop runtime. This release reshapes the app from a
 Claude-dependent Bridge workflow into a product with two explicit
@@ -836,7 +857,9 @@ These are **deliberately out of scope for v0.1.0-alpha**, not bugs:
 - **OS tested:** Windows, Linux. macOS expected to work but
   not verified
 
-[Unreleased]: https://github.com/Magbusjap/toraseo/compare/v0.0.5...HEAD
+[Unreleased]: https://github.com/Magbusjap/toraseo/compare/v0.0.7...HEAD
+[App 0.0.8]: https://github.com/Magbusjap/toraseo/compare/v0.0.7...v0.0.8
+[App 0.0.7]: https://github.com/Magbusjap/toraseo/compare/v0.0.5...v0.0.7
 [App 0.0.5]: https://github.com/Magbusjap/toraseo/compare/v0.0.4...v0.0.5
 [App 0.0.4]: https://github.com/Magbusjap/toraseo/compare/v0.0.3...v0.0.4
 [App 0.0.3]: https://github.com/Magbusjap/toraseo/compare/v0.0.2...v0.0.3

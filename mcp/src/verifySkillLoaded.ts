@@ -179,15 +179,14 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
             {
               ok: false,
               error: "token_mismatch",
-              expected: BRIDGE_PROTOCOL_TOKEN,
-              received: token,
               message:
                 "The Claude Bridge Instructions token does not match. The user has " +
                 "an outdated SKILL.md file. They need to update the " +
                 "ToraSEO Claude Bridge Instructions: download the latest skill ZIP from " +
                 "GitHub Releases, then in Claude Desktop go to " +
                 "Settings в†’ Skills, delete the existing toraseo instructions, " +
-                "and install the new ZIP.",
+                "and install the new ZIP. For security, the expected token " +
+                "is not returned by MCP.",
             },
             null,
             2,

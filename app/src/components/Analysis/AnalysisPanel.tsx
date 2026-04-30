@@ -33,6 +33,29 @@ function priorityClass(priority: "high" | "medium" | "low"): string {
   return "text-orange-700";
 }
 
+function summarizeFacts(
+  executionMode: AuditExecutionMode,
+  facts: RuntimeScanFact[],
+): string {
+  const totals = facts.reduce(
+    (acc, fact) => {
+      if (fact.severity === "critical") acc.critical += 1;
+      else if (fact.severity === "warning") acc.warning += 1;
+      else if (fact.severity === "error") acc.errors += 1;
+      else acc.info += 1;
+      return acc;
+    },
+    { critical: 0, warning: 0, info: 0, errors: 0 },
+  );
+  const sourceTools = new Set(facts.map((fact) => fact.toolId)).size;
+
+  if (executionMode === "bridge") {
+    return `Bridge results received in the app: ${facts.length} confirmed facts from ${sourceTools} tool(s). Critical: ${totals.critical}, warning: ${totals.warning}, info: ${totals.info}, errors: ${totals.errors}.`;
+  }
+
+  return `Scan results are ready: ${facts.length} confirmed facts from ${sourceTools} tool(s). Critical: ${totals.critical}, warning: ${totals.warning}, info: ${totals.info}, errors: ${totals.errors}.`;
+}
+
 function buildFallbackReport(
   executionMode: AuditExecutionMode,
   report: RuntimeAuditReport | null,
@@ -62,10 +85,7 @@ function buildFallbackReport(
     providerId: executionMode === "native" ? "openrouter" : "openrouter",
     model: executionMode === "native" ? "pending-ai-chat" : "bridge-facts-only",
     generatedAt: new Date().toISOString(),
-    summary:
-      executionMode === "native"
-        ? "Scan results are ready. Ask the in-app AI to interpret them, or export the factual report now."
-        : "Bridge scan facts are available in the app. Claude recommendations continue in the external chat.",
+    summary: summarizeFacts(executionMode, factsSource),
     nextStep:
       executionMode === "native"
         ? "Ask for a priority-ordered interpretation once the current scan is complete."

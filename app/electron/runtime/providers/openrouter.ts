@@ -43,8 +43,20 @@ function buildSchema(mode: RuntimeAuditReport["mode"]): object {
     additionalProperties: false,
     required: ["summary", "nextStep", "confirmedFacts", "expertHypotheses"],
     properties: {
-      summary: { type: "string", minLength: 1, maxLength: 1200 },
-      nextStep: { type: "string", minLength: 1, maxLength: 300 },
+      summary: {
+        type: "string",
+        minLength: 40,
+        maxLength: 1600,
+        description:
+          "A concise but useful audit summary in the user's interface language.",
+      },
+      nextStep: {
+        type: "string",
+        minLength: 30,
+        maxLength: 500,
+        description:
+          "The single most important next action, written in the user's interface language.",
+      },
       confirmedFacts: {
         type: "array",
         minItems: 1,
@@ -54,8 +66,19 @@ function buildSchema(mode: RuntimeAuditReport["mode"]): object {
           additionalProperties: false,
           required: ["title", "detail", "priority", "sourceToolIds"],
           properties: {
-            title: { type: "string", minLength: 1, maxLength: 200 },
-            detail: { type: "string", minLength: 1, maxLength: 500 },
+            title: {
+              type: "string",
+              minLength: 1,
+              maxLength: 200,
+              description: "Finding title in the user's interface language.",
+            },
+            detail: {
+              type: "string",
+              minLength: 20,
+              maxLength: 700,
+              description:
+                "Evidence-backed explanation in the user's interface language.",
+            },
             priority: { type: "string", enum: ["high", "medium", "low"] },
             sourceToolIds: {
               type: "array",
@@ -82,10 +105,10 @@ function buildSchema(mode: RuntimeAuditReport["mode"]): object {
           ],
           properties: {
             title: { type: "string", minLength: 1, maxLength: 200 },
-            detail: { type: "string", minLength: 1, maxLength: 500 },
+            detail: { type: "string", minLength: 20, maxLength: 700 },
             priority: { type: "string", enum: ["high", "medium", "low"] },
-            expectedImpact: { type: "string", minLength: 1, maxLength: 300 },
-            validationMethod: { type: "string", minLength: 1, maxLength: 300 },
+            expectedImpact: { type: "string", minLength: 20, maxLength: 400 },
+            validationMethod: { type: "string", minLength: 20, maxLength: 400 },
           },
         },
       },
@@ -218,10 +241,16 @@ export class OpenRouterAdapter implements ProviderAdapter {
     const factsSection = request.scanContext
       ? JSON.stringify(request.scanContext, null, 2)
       : "No structured scan context is available yet.";
+    const languageInstruction =
+      request.policy.locale === "ru"
+        ? "Write every user-facing JSON string value in Russian. Keep only product names, URLs, tool IDs, and fixed SEO terms such as Open Graph in English when that is the normal term."
+        : "Write every user-facing JSON string value in English.";
 
     return [
       "Produce a ToraSEO audit response using the required JSON schema only.",
       "Do not wrap the JSON in markdown fences.",
+      languageInstruction,
+      "Make the answer substantial: include concrete evidence from the scan, prioritized recommendations, and one practical next step.",
       "",
       "User request:",
       request.userText,

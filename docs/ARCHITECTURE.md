@@ -2,8 +2,9 @@
 
 **Version:** 0.1.0-alpha
 **License:** Apache 2.0
-**Status:** App 0.0.7 release candidate: dual-mode desktop runtime
-(`MCP + Instructions` and `API + AI Chat`) is being hardened before tag.
+**Status:** App 0.0.8 release candidate: dual-mode desktop runtime
+(`MCP + Instructions` and `API + AI Chat`) with Codex bridge reliability
+and unified release assets under hardening.
 
 This document describes the technical architecture of ToraSEO. It is intended for users, contributors, and anyone integrating with the project.
 
@@ -39,7 +40,7 @@ This architecture enables three modes of operation:
 - **Full stack:** richest experience with AI + visual dashboard
 
 Today the **Claude instructions + MCP** line remains supported, and the desktop app
-is being prepared for App 0.0.7 as a dual-mode release. Historical
+is being prepared for App 0.0.8 as a dual-mode release. Historical
 sections below still describe earlier milestones; the current release
 rules are tracked in the private System Design.
 
@@ -89,7 +90,7 @@ For a visual overview, see [`architecture-diagram.svg`](architecture-diagram.svg
 │                                   │ pushes status (future)      │
 │                                   ▼                             │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │     ToraSEO App (Electron desktop, App 0.0.7)              │ │
+│  │     ToraSEO App (Electron desktop, App 0.0.8)              │ │
 │  │              (the eyes)                                    │ │
 │  │                                                            │ │
 │  │  Native window with React+Tailwind dashboard:              │ │
@@ -301,7 +302,9 @@ toraseo/
 ├── CRAWLING_POLICY.md              # Ethical crawling commitment
 ├── .github/
 │   └── workflows/
-│       └── release-skill.yml       # CI: builds Claude skill ZIP on skill-v* tags
+│       ├── release-app.yml         # Publishes app + instruction ZIP assets
+│       ├── release-skill.yml       # Manual Claude ZIP package artifact
+│       └── release-codex-workflow.yml # Manual Codex ZIP package artifact
 ├── .gitignore
 ├── package.json
 │
@@ -357,8 +360,10 @@ toraseo/
 │   # Future: INSTALLATION.md, TROUBLESHOOTING.md
 │
 └── scripts/                        # Build helpers
-    ├── build-skill.sh              # Build skill ZIP locally (bash; Linux/macOS/Git Bash)
-    └── build-skill.ps1             # Same script for Windows PowerShell
+    ├── build-skill.sh              # Build Claude ZIP locally (bash/Git Bash)
+    ├── build-skill.ps1             # Same script for Windows PowerShell
+    ├── build-codex-workflow.sh     # Build Codex ZIP locally
+    └── build-codex-workflow.ps1    # Same script for Windows PowerShell
     # Future: install.sh, install.bat for one-command setup
 ```
 
@@ -366,9 +371,19 @@ toraseo/
 
 ## 8. Installation & Distribution
 
-### Today: Claude instructions + MCP
+### Current release distribution
 
-For v0.1.0-alpha the user installs two pieces:
+Starting with App 0.0.8, users download one app release entry from
+GitHub Releases. That release contains:
+
+- the desktop app installer/updater assets
+- `toraseo-claude-bridge-instructions-vX.Y.Z.zip`
+- `toraseo-codex-workflow-vX.Y.Z.zip`
+
+The instruction ZIPs remain independently buildable for QA and support,
+but public release assets are grouped under the app tag.
+
+### Claude instructions + MCP
 
 #### The MCP Server
 - Clone the repo, run `npm install` in `mcp/`, register the binary path in `claude_desktop_config.json`
@@ -379,7 +394,16 @@ For v0.1.0-alpha the user installs two pieces:
 - Upload to Claude Desktop via **Customize → Skills**
 - Detailed steps in `claude-bridge-instructions/README.md`
 
-The Claude ZIP is built automatically on every `skill-v*` git tag by `.github/workflows/release-skill.yml` — maintainers only push tags; users only download the asset. To verify the ZIP locally before tagging, maintainers can run `./scripts/build-skill.sh <version>` (bash) or `.\scripts\build-skill.ps1 <version>` (PowerShell on Windows) — both produce the same artifact as CI.
+To verify the ZIP locally before tagging, maintainers can run
+`./scripts/build-skill.sh <version>` (bash) or
+`.\scripts\build-skill.ps1 <version>` (PowerShell on Windows).
+
+#### The Codex package
+
+- Download `toraseo-codex-workflow-vX.Y.Z.zip` from the same app release
+  entry.
+- Install it into the Codex local skills directory.
+- Detailed steps live in `toraseo-codex-workflow/README.md`.
 
 ### Future: One-command installer
 

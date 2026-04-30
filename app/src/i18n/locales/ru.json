@@ -5,7 +5,10 @@
     "altMascotIdle": "Маскот ToraSEO в режиме ожидания",
     "altMascotFocused": "Маскот ToraSEO сосредоточен на анализе",
     "altMascotHappy": "Маскот ToraSEO — анализ завершён",
-    "altMascotSleeping": "Спящий маскот ToraSEO"
+    "altMascotSleeping": "Спящий маскот ToraSEO",
+    "altMascotNeutral": "Маскот ToraSEO изучает предупреждения",
+    "altMascotSurprised": "Маскот ToraSEO удивлён найденными проблемами",
+    "altMascotChampion": "Маскот ToraSEO в режиме победы"
   },
   "toolbar": {
     "about": "О ToraSEO",
@@ -30,9 +33,9 @@
     "comingSoon": "В разработке — здесь появятся:",
     "comingSoonItems": {
       "language": "Переключение языка интерфейса (EN / RU)",
-      "persistence": "Сохранение выбранных tools между запусками",
+      "persistence": "Сохранение выбранных инструментов между запусками",
       "darkMode": "Тёмная тема",
-      "configPath": "Путь к Claude Desktop config.json"
+      "configPath": "Путь к файлу конфигурации Claude Desktop"
     },
     "tabs": {
       "language": "Языковые настройки",
@@ -59,55 +62,152 @@
     "providers": {
       "title": "ИИ-провайдеры",
       "intro": "Подключите языковую модель, чтобы встроенный чат мог анализировать и обсуждать ваши сканирования. Ключи шифруются операционной системой и никогда не покидают это устройство.",
-      "encryptionUnavailable": "На этом устройстве недоступно безопасное хранилище ОС. Настройте системный keyring (например, gnome-keyring на Linux) перед добавлением API-ключей.",
+      "encryptionUnavailable": "На этом устройстве недоступно безопасное хранилище ОС. Настройте системный keyring, например gnome-keyring на Linux, перед добавлением API-ключей.",
       "labels": {
         "apiKey": "API-ключ",
-        "baseUrl": "Свой endpoint (необязательно)",
-        "defaultModel": "Модель по умолчанию (необязательно)"
+        "baseUrl": "Свой адрес API (необязательно)",
+        "defaultModel": "Модель по умолчанию (необязательно)",
+        "modelName": "Отображаемое имя",
+        "modelId": "ID модели",
+        "usageHint": "Подсказка по использованию"
       },
       "placeholders": {
         "apiKey": "Вставьте секретный ключ",
+        "apiKeySaved": "Сохранённый ключ скрыт",
         "baseUrl": "https://openrouter.ai/api/v1",
-        "defaultModel": "openrouter/auto"
+        "defaultModel": "openrouter/auto",
+        "modelName": "GPT-5.5",
+        "modelId": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "usageHint": "Глубокий аудит"
+      },
+      "hints": {
+        "apiKey": "Используйте ключ OpenRouter из своего аккаунта OpenRouter. Обычно он начинается с `sk-or-`.",
+        "apiKeySaved": "Сохранённые ключи показываются в маскированном виде. ToraSEO не может вернуть сохранённый секрет обратно в это поле.",
+        "baseUrl": "Оставьте пустым, чтобы использовать стандартный адрес API OpenRouter: {{url}}",
+        "modelId": "Вставьте точный ID модели OpenRouter, указанный под названием модели."
       },
       "status": {
         "configured": "Подключён",
         "notConfigured": "Не подключён",
         "lastFour": "оканчивается на …{{value}}",
         "savedJustNow": "Сохранено",
-        "deleted": "Удалено"
+        "deleted": "Удалено",
+        "tested": "Подключение работает"
       },
       "actions": {
         "save": "Сохранить",
+        "saveKey": "Сохранить ключ",
+        "saveModels": "Сохранить модели",
         "delete": "Удалить ключ",
         "show": "Показать",
-        "hide": "Скрыть"
+        "hide": "Скрыть",
+        "replaceKey": "Заменить ключ",
+        "replaceStoredKey": "Заменить ключ",
+        "cancelKeyEdit": "Отмена",
+        "saveProvider": "Сохранить настройки",
+        "addModel": "Добавить",
+        "updateModel": "Обновить",
+        "editModel": "Изменить модель",
+        "removeModel": "Удалить модель",
+        "makeDefault": "Сделать по умолчанию",
+        "testModel": "Проверить модель по умолчанию"
       },
       "openrouter": {
         "name": "OpenRouter",
         "blurb": "Один ключ — много моделей: OpenAI, Anthropic, Google, open-source. Рекомендуется по умолчанию."
       },
+      "models": {
+        "title": "Модели OpenRouter",
+        "body": "Используйте один ключ OpenRouter, а затем сохраните в ToraSEO те модели, которые хотите использовать.",
+        "empty": "Добавьте хотя бы одну модель OpenRouter, прежде чем запускать API + AI Chat.",
+        "modelIdHelp": "Используйте ID модели со страницы модели OpenRouter, а не ссылку на страницу. Пример: {{example}}",
+        "modelIdUrlError": "Вставьте ID модели, а не URL страницы OpenRouter. Пример: {{example}}",
+        "modelIdKeyError": "Вставьте сюда ID модели OpenRouter, а не API-ключ. Пример: {{example}}",
+        "testHelp": "Проверка необязательна и запускается только из Settings. Она становится доступна после сохранения ключа OpenRouter и хотя бы одного профиля модели.",
+        "default": "По умолчанию"
+      },
       "errors": {
+        "api_key_url": "В это поле нужно вставить API-ключ OpenRouter, а не URL страницы модели.",
+        "api_key_format": "Ключи OpenRouter обычно начинаются с `sk-or-`. Вставьте ключ из OpenRouter -> Keys, а не ID модели.",
         "encryption_unavailable": "Шифрование недоступно: keyring ОС не настроен.",
         "invalid_input": "Заполните API-ключ.",
+        "provider_not_configured": "Сначала сохраните ключ OpenRouter, а потом модели.",
         "write_failed": "Не удалось сохранить ключ. Попробуйте снова."
       }
     }
   },
   "modeSelection": {
-    "idle": "Idle",
+    "idle": "Ожидание",
     "question": "Что вы хотите проверить?",
     "siteByUrl": "Сайт по URL",
     "articleText": "Текст статьи",
-    "siteSubtitle": "Site Audit",
-    "articleSubtitle": "v0.2 — coming soon",
-    "claudeOptional": "Подключение к Claude Desktop опционально"
+    "siteSubtitle": "Аудит сайта",
+    "articleSubtitle": "v0.2 — скоро",
+    "claudeOptional": "Подключение к Claude Desktop опционально",
+    "execution": {
+      "title": "Режим выполнения",
+      "change": "Изменить",
+      "confirm": "Подтвердить режим"
+    },
+    "bridge": {
+      "readyTitle": "Путь через Claude Desktop готов",
+      "readyBody": "Аудит сайта будет копировать bridge-промпт и возвращать MCP-факты обратно в ToraSEO.",
+      "codexTitle": "Готовность пути через Codex",
+      "codexBody": "Сначала ToraSEO подтверждает, что Codex открыт. Затем вы запускаете короткую проверку настройки, чтобы ToraSEO убедился в доступности MCP и Codex Workflow Instructions в живой сессии Codex.",
+      "codexOnboardingTitle": "ToraSEO работает в связке с Codex",
+      "codexOnboardingSubtitle": "Для запуска нужны три компонента. Когда все три зелёные, сканирование разблокируется автоматически.",
+      "codexSetupTitle": "Как подключить Codex",
+      "codexSetupStepOne": "Оставьте ToraSEO открытым на этом экране и убедитесь, что Codex запущен.",
+      "codexSetupStepTwo": "Установите пакет `toraseo-codex-workflow` в локальную папку skills Codex (`~/.codex/skills` по умолчанию), чтобы Codex мог загрузить его по имени.",
+      "codexSetupStepThree": "Используйте кнопку ниже, вставьте подготовленный текст в Codex и дождитесь подтверждения, что MCP и Codex Workflow Instructions активны.",
+      "copyCodexSetupPrompt": "Скопировать промпт для настройки",
+      "codexSetupHint": "Эта проверка настройки не запускает сканирование сайта. Она только подтверждает, что ToraSEO MCP и Codex Workflow Instructions действительно активны в текущей сессии Codex.",
+      "codexPromptHelperTitle": "Промпт для Codex скопирован",
+      "codexPromptHelperBody": "Переключитесь в чат Codex, вставьте промпт и нажмите Enter. Если Codex запросит доступ к ToraSEO MCP, поставьте галочку разрешения для текущего чата/сессии и нажмите «Разрешить».",
+      "codexPromptCopiedToast": "ПРОМПТ скопирован",
+      "codexChecklistTitle": "Что проверяет handshake-проверка",
+      "codexChecklistBody": "После нажатия Scan Codex должен вызвать `verify_codex_workflow_loaded`. Это доказывает и доступ к ToraSEO MCP, и наличие Codex Workflow Instructions в этой сессии.",
+      "codexConfirm": "Запустить проверку Codex",
+      "codexConfirmed": "Проверка Codex подтверждена",
+      "codexReset": "Сбросить проверку",
+      "codexRunningLabel": "Codex запущен",
+      "codexRunningOk": "Процесс найден",
+      "codexRunningMissing": "Откройте Codex, чтобы продолжить",
+      "openCodex": "Открыть Codex",
+      "codexMcpLabel": "ToraSEO MCP доступен для Codex",
+      "codexMcpSetupVerified": "Проверено в живой сессии настройки Codex. Scan handshake подтвердит это ещё раз для текущего анализа.",
+      "codexMcpHint": "Подтверждается, когда Codex вызывает `verify_codex_workflow_loaded` из ToraSEO MCP-сервера.",
+      "codexInstructionsLabel": "Codex Workflow Instructions доступны",
+      "codexInstructionsSetupVerified": "Проверено в живой сессии настройки Codex. ToraSEO увидел токен workflow из активной сессии Codex.",
+      "codexInstructionsHint": "Токен handshake хранится только в пакете Codex Workflow Instructions и в MCP-сервере.",
+      "confirm": "Подтвердить",
+      "resetConfirmation": "Сбросить"
+    },
+    "native": {
+      "checking": "Проверяю...",
+      "connectionOk": "Подключено: {{model}}",
+      "providerSaved": "Настройки провайдера сохранены.",
+      "providerMissing": "Добавьте ИИ-провайдера перед запуском этого режима.",
+      "modelMissing": "Добавьте хотя бы одну модель OpenRouter в настройках.",
+      "modelReady": "Готово с моделью {{model}}.",
+      "modelLabel": "Модель",
+      "disabledTitle": "Нативный модуль выполнения недоступен",
+      "title": "ИИ-провайдер и модель",
+      "openProviders": "ИИ-провайдеры"
+    }
   },
   "sidebar": {
     "idleHeading": "Выберите режим\nработы",
     "section": {
+      "mode": "Режим выполнения",
       "project": "Проект",
       "checks": "Проверки"
+    },
+    "mode": {
+      "bridge": "MCP + Instructions",
+      "bridgeHint": "Запуск через Claude Desktop или Codex с возвратом MCP-фактов обратно в приложение.",
+      "native": "API + AI Chat",
+      "nativeHint": "Сканирование выполняется локально, затем результаты интерпретируются встроенным ИИ-модулем."
     },
     "urlLabel": "URL сайта",
     "urlPlaceholder": "example.com",
@@ -116,6 +216,8 @@
     "scan": "Сканировать",
     "scanning": "Сканирование…",
     "scanAgain": "Сканировать заново",
+    "cancel": "Отменить",
+    "retry": "Повторить",
     "tooltip": {
       "noUrl": "Введите URL сайта",
       "noChecks": "Выберите хотя бы одну проверку",
@@ -137,15 +239,15 @@
       "pending": "Ожидание",
       "running": "Анализ…",
       "ok": "ОК",
-      "warning": "Warning",
-      "critical": "Critical",
+      "warning": "Предупреждение",
+      "critical": "Критично",
       "error": "Ошибка"
     },
     "issues": {
       "clean": "без замечаний",
-      "criticalTitle": "Critical",
-      "warningTitle": "Warnings",
-      "infoTitle": "Info"
+      "criticalTitle": "Критичные проблемы",
+      "warningTitle": "Предупреждения",
+      "infoTitle": "Информация"
     },
     "status": {
       "ready": "Готов",
@@ -218,9 +320,9 @@
       "infoNoToraseoYet": "Файл выбран, но запись mcpServers.toraseo пока не найдена. Установщик ToraSEO добавит её при следующей установке."
     },
     "skill": {
-      "label": "Claude Bridge Instructions are installed",
+      "label": "Claude Bridge Instructions установлены",
       "hintMissing": "Скачайте ZIP с GitHub и установите через Claude Desktop: Settings → Skills → Install ZIP. После установки нажмите «Я установил Claude Bridge Instructions».",
-      "hintFilesystem": "File found in Claude local skills folder",
+      "hintFilesystem": "Файл найден в локальной папке skills Claude",
       "hintManual": "Установка подтверждена пользователем",
       "downloadButton": "Скачать ZIP с GitHub",
       "downloading": "Скачиваю с GitHub…",
@@ -232,13 +334,28 @@
       "errorWriteFailed": "Не удалось записать файл.",
       "errorNoZip": "Релиз {{tag}} не содержит ZIP-файла.",
       "infoDownloaded": "ZIP скачан ({{tag}}). Папка с файлом открыта — перетащите его в Claude Desktop: Settings → Skills → Install from ZIP. После установки вернитесь сюда и нажмите «Я установил Claude Bridge Instructions».",
-      "confirmDialog": "Confirm that the ToraSEO Claude Bridge Instructions are installed in Claude Desktop via Settings → Skills?\n\nWithout those instructions loaded into Claude's context, the analysis will be incomplete — it will ignore CRAWLING_POLICY, verdict mapping, and the CGS scoring formula.",
-      "tooltipFilesystem": "Claude Bridge Instructions are detected via the filesystem — no confirmation needed",
+      "confirmDialog": "Подтвердите, что ToraSEO Claude Bridge Instructions установлены в Claude Desktop через Settings → Skills.\n\nБез этих инструкций в контексте Claude анализ будет неполным: он проигнорирует CRAWLING_POLICY, сопоставление verdict'ов и формулу CGS.",
+      "tooltipFilesystem": "Claude Bridge Instructions обнаружены через файловую систему — подтверждение не требуется",
       "tooltipManual": "Ручное подтверждение уже активно — сбросьте его ниже, если хотите переподтвердить"
     }
   },
   "preflight": {
-    "depsFailed": "Проверка зависимостей не пройдена. Откройте Claude Desktop, убедитесь что MCP подключён и Claude Bridge Instructions установлены."
+    "depsFailed": "Проверка зависимостей не пройдена. Откройте Claude Desktop, убедитесь что MCP подключён и Claude Bridge Instructions установлены.",
+    "executionModeMissing": "Сначала подтвердите режим выполнения.",
+    "providerMissing": "Добавьте ИИ-провайдера перед использованием API + AI Chat.",
+    "modelMissing": "Выберите модель OpenRouter перед началом анализа.",
+    "nativeUnavailable": "API + AI Chat недоступен в этой сборке.",
+    "codexNeedsConfirmation": "Откройте Codex перед запуском пути через Codex bridge.",
+    "codexSetupMissing": "Сначала запустите проверку настройки Codex, чтобы ToraSEO подтвердил MCP и Codex Workflow Instructions."
+  },
+  "analysisHero": {
+    "nativeMode": "API + AI Chat",
+    "bridgeMode": "MCP + Instructions",
+    "ready": "Готов к сканированию",
+    "scanning": "Анализ в процессе",
+    "issues": "Найдены проблемы",
+    "warnings": "Есть предупреждения",
+    "topReady": "Результат готов к выходу в топ"
   },
   "updater": {
     "available": {
@@ -276,6 +393,39 @@
     "claudeConfigTitle": "Выберите claude_desktop_config.json",
     "jsonConfig": "JSON config",
     "allFiles": "Все файлы"
+  },
+  "chat": {
+    "loadErrorTitle": "AI Chat не загрузился",
+    "loading": "Загрузка...",
+    "endedTitle": "Сессия завершена",
+    "endedBody": "Запустите новый анализ в режиме API + AI Chat в главном окне ToraSEO, чтобы продолжить.",
+    "nativeReady": "Нативный режим готов. Запустите локальное сканирование, затем запросите интерпретацию.",
+    "bridgeReady": "Bridge mode готов. Вставьте скопированный промпт в Claude Desktop, чтобы MCP-инструменты заполнили приложение.",
+    "bridgeTitle": "Помощник MCP + Instructions",
+    "inAppRuntime": "Встроенный ИИ-модуль",
+    "copiedPrompt": "Скопированный промпт",
+    "send": "Отправить",
+    "noScanContext": "Сначала запустите аудит сайта в главном окне ToraSEO. Я отвечаю только внутри активного контекста анализа.",
+    "providerError": "[ошибка: {{code}}] {{message}}",
+    "autoInterpretationStarted": "Сканирование завершено. Готовлю рекомендации...",
+    "autoInterpretationPrompt": "Интерпретируй завершённый аудит сайта и дай приоритетные рекомендации.",
+    "policy": {
+      "strict": "Строго",
+      "ideas": "Идеи"
+    },
+    "helper": {
+      "bridgeNoScan": "Нажмите Scan, чтобы скопировать bridge-промпт, затем отправьте его в Claude Desktop.",
+      "bridgeAwaiting": "Промпт скопирован. Теперь Claude должен вызвать handshake.",
+      "bridgeRunning": "Claude запускает MCP-инструменты. Результаты автоматически появляются в панели справа.",
+      "bridgeError": "В Bridge mode возникла ошибка.",
+      "bridgeComplete": "Bridge-сканирование завершено. Рекомендации Claude могут продолжиться во внешнем чате.",
+      "nativeNoScan": "Сначала запустите сканирование сайта, затем попросите встроенный ИИ интерпретировать результаты.",
+      "nativeReady": "Контекст сканирования готов: {{completed}}/{{total}} инструментов завершено."
+    },
+    "inputPlaceholder": {
+      "native": "Спросите о текущем аудите сайта...",
+      "bridge": "В Bridge mode живой диалог идёт через Claude Desktop."
+    }
   },
   "common": {
     "close": "Закрыть",
