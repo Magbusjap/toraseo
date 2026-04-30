@@ -539,7 +539,8 @@ ToraSEO **does not**:
 - Look at search-console data, GA, or any private analytics.
 
 When the user asks for any of the above, say so plainly and point
-to the appropriate tool (PageSpeed, Search Console, Ahrefs, etc.).
+to the appropriate external category of tool (performance tools,
+search-console products, backlink providers, etc.).
 Be a good citizen — do not pretend ToraSEO covers ground it does
 not.
 

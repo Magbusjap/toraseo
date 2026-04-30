@@ -402,7 +402,7 @@ ToraSEO MVP:
 
 - **Schema.org / JSON-LD structured data** — deferred to post-MVP.
 - **Core Web Vitals (LCP, INP, CLS)** — needs PageSpeed Insights API.
-- **Backlink profile** — needs third-party data (Ahrefs, Majestic).
+- **Backlink profile** — needs third-party backlink data providers.
 - **Search Console signals** — private to site owner.
 - **Yandex- and Bing-specific tags** — coming as opt-in checklists.
 - **AI-search citation readiness** — coming as opt-in checklist.

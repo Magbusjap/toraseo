@@ -137,7 +137,7 @@
   <g>
     <rect x="80" y="870" width="200" height="80" rx="8" fill="#FFFFFF" stroke="#666" stroke-width="1"/>
     <text x="180" y="895" class="box-title" text-anchor="middle" style="font-size: 13px">Target Websites</text>
-    <text x="180" y="915" class="box-text" text-anchor="middle">User's sites + competitors</text>
+    <text x="180" y="915" class="box-text" text-anchor="middle">User-provided public websites</text>
     <text x="180" y="932" class="box-tech" text-anchor="middle">robots.txt · sitemap.xml · HTML</text>
   </g>
 

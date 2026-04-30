@@ -438,7 +438,7 @@ The system is designed so each component can work without others:
 4. **Page limit:** max 50 pages per analysis
 5. **Three-tier scanning** (planned):
    - **Tier 1 (Owner mode):** verified-owner sites — aggressive scanning OK
-   - **Tier 2 (Polite mode):** public/competitor sites — minimal, respectful
+   - **Tier 2 (Polite mode):** public sites — minimal, respectful
    - **Tier 3 (API-only mode):** sites with strong protection — only public APIs
 
 ### What We Don't Do
