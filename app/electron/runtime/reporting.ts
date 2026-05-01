@@ -185,6 +185,75 @@ function renderReportHtml(report: RuntimeAuditReport): string {
   </html>`;
 }
 
+function renderProcessingHtml(): string {
+  return `<!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>ToraSEO Processing</title>
+      <style>
+        :root {
+          color-scheme: light;
+          --bg: #fff7f0;
+          --surface: #ffffff;
+          --border: #efd9ca;
+          --text: #1a0f08;
+          --muted: #70554a;
+          --accent: #ff6b35;
+        }
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          min-height: 100vh;
+          display: grid;
+          place-items: center;
+          padding: 32px;
+          font-family: Inter, "Segoe UI", system-ui, sans-serif;
+          color: var(--text);
+          background: var(--bg);
+        }
+        .panel {
+          width: min(720px, 100%);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          background: var(--surface);
+          padding: 32px;
+          box-shadow: 0 18px 60px rgba(83, 45, 23, 0.12);
+        }
+        .pulse {
+          height: 8px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: #f3dfd2;
+        }
+        .pulse::before {
+          content: "";
+          display: block;
+          height: 100%;
+          width: 38%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, transparent, var(--accent), transparent);
+          animation: move 1.65s ease-in-out infinite;
+        }
+        h1 { margin: 18px 0 8px; font-size: 28px; }
+        p { margin: 0; color: var(--muted); line-height: 1.6; }
+        @keyframes move {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(270%); }
+        }
+      </style>
+    </head>
+    <body>
+      <main class="panel">
+        <div class="pulse" aria-hidden="true"></div>
+        <h1>Processing the new analysis</h1>
+        <p>The previous report is hidden while ToraSEO prepares the refreshed result.</p>
+      </main>
+    </body>
+  </html>`;
+}
+
 function renderEndedHtml(): string {
   return `<!doctype html>
   <html lang="en">
@@ -455,6 +524,18 @@ export async function closeReportWindow(): Promise<{ ok: boolean }> {
   if (reportWindow && !reportWindow.isDestroyed()) {
     reportWindow.close();
     reportWindow = null;
+  }
+  return { ok: true };
+}
+
+export async function showReportWindowProcessing(): Promise<{ ok: boolean }> {
+  if (reportWindow && !reportWindow.isDestroyed()) {
+    await reportWindow.loadURL(
+      `data:text/html;charset=UTF-8,${encodeURIComponent(renderProcessingHtml())}`,
+    );
+    if (!reportWindow.isVisible()) {
+      reportWindow.show();
+    }
   }
   return { ok: true };
 }

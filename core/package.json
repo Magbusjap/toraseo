@@ -57,6 +57,10 @@
       "types": "./dist/tools/site/analyze-content.d.ts",
       "default": "./dist/tools/site/analyze-content.js"
     },
+    "./tools/site/detect-stack": {
+      "types": "./dist/tools/site/detect-stack.d.ts",
+      "default": "./dist/tools/site/detect-stack.js"
+    },
     "./constants": {
       "types": "./dist/constants.d.ts",
       "default": "./dist/constants.js"

@@ -1,4 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
@@ -25,6 +32,14 @@ import type { SupportedLocale } from "../../types/ipc";
 
 interface ProvidersTabProps {
   onProviderSaved?: () => void | Promise<void>;
+  resetToken?: number;
+  onSaveStateChange?: (state: ProviderSettingsSaveState) => void;
+}
+
+export interface ProviderSettingsSaveState {
+  dirty: boolean;
+  saving: boolean;
+  save: () => Promise<void>;
 }
 
 interface DraftModelProfile {
@@ -87,11 +102,18 @@ function extractOpenRouterModelId(value: string): string | null {
   }
 }
 
-export default function ProvidersTab({ onProviderSaved }: ProvidersTabProps) {
+export default function ProvidersTab({
+  onProviderSaved,
+  resetToken = 0,
+  onSaveStateChange,
+}: ProvidersTabProps) {
   const { t } = useTranslation();
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [encryptionAvailable, setEncryptionAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [saveStates, setSaveStates] = useState<
+    Record<string, ProviderSettingsSaveState>
+  >({});
 
   const refresh = async () => {
     const [list, hasEncryption] = await Promise.all([
@@ -106,6 +128,32 @@ export default function ProvidersTab({ onProviderSaved }: ProvidersTabProps) {
   useEffect(() => {
     void refresh();
   }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [resetToken]);
+
+  const providerSaveStates = useMemo(() => Object.values(saveStates), [saveStates]);
+  const dirtyStates = useMemo(
+    () => providerSaveStates.filter((state) => state.dirty),
+    [providerSaveStates],
+  );
+  const saving = providerSaveStates.some((state) => state.saving);
+  const dirty = dirtyStates.length > 0;
+
+  const saveDirtyProviders = useCallback(async () => {
+    for (const state of dirtyStates) {
+      await state.save();
+    }
+  }, [dirtyStates]);
+
+  useEffect(() => {
+    onSaveStateChange?.({
+      dirty,
+      saving,
+      save: saveDirtyProviders,
+    });
+  }, [dirty, saving, onSaveStateChange, saveStates]);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -142,6 +190,9 @@ export default function ProvidersTab({ onProviderSaved }: ProvidersTabProps) {
               encryptionAvailable={encryptionAvailable}
               onChanged={refresh}
               onProviderSaved={onProviderSaved}
+              onSaveStateChange={(state) =>
+                setSaveStates((prev) => ({ ...prev, [info.id]: state }))
+              }
             />
           ))}
         </div>
@@ -155,11 +206,13 @@ function ProviderCard({
   encryptionAvailable,
   onChanged,
   onProviderSaved,
+  onSaveStateChange,
 }: {
   info: ProviderInfo;
   encryptionAvailable: boolean;
   onChanged: () => Promise<void>;
   onProviderSaved?: () => void | Promise<void>;
+  onSaveStateChange: (state: ProviderSettingsSaveState) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [apiKey, setApiKey] = useState("");
@@ -187,6 +240,7 @@ function ProviderCard({
   >(info.defaultModelProfileId);
   const [draft, setDraft] = useState<DraftModelProfile>(EMPTY_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const saveRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     setBaseUrl(info.baseUrl ?? "");
@@ -293,6 +347,55 @@ function ProviderCard({
       setSavingModels(false);
     }
   };
+
+  const modelProfilesDirty =
+    JSON.stringify(modelProfiles) !== JSON.stringify(info.modelProfiles) ||
+    defaultModelProfileId !== info.defaultModelProfileId;
+  const configDirty =
+    apiKey.trim().length > 0 || baseUrl.trim() !== (info.baseUrl ?? "");
+  const isDirty = configDirty || modelProfilesDirty;
+
+  const handleSaveAll = useCallback(async () => {
+    if (savingKey || savingModels || !isDirty) return;
+    if (!info.configured && apiKey.trim().length === 0) {
+      setErrorCode("api_key_required");
+      setErrorMessage(
+        t("settings.providers.errors.api_key_required", {
+          defaultValue: "Add the API key before saving provider settings.",
+        }),
+      );
+      return;
+    }
+
+    if (configDirty) {
+      await handleSaveKey();
+      return;
+    }
+
+    if (modelProfilesDirty) {
+      await handleSaveModels();
+    }
+  }, [
+    apiKey,
+    configDirty,
+    handleSaveKey,
+    handleSaveModels,
+    info.configured,
+    isDirty,
+    modelProfilesDirty,
+    savingKey,
+    savingModels,
+    t,
+  ]);
+  saveRef.current = handleSaveAll;
+
+  useEffect(() => {
+    onSaveStateChange({
+      dirty: isDirty,
+      saving: savingKey || savingModels,
+      save: () => saveRef.current(),
+    });
+  }, [isDirty, savingKey, savingModels]);
 
   const handleDelete = async () => {
     if (deleting) return;
@@ -446,15 +549,6 @@ function ProviderCard({
     }
   };
 
-  const saveKeyDisabled =
-    !encryptionAvailable ||
-    savingKey ||
-    (!info.configured && apiKey.trim().length === 0) ||
-    (info.configured &&
-      apiKey.trim().length === 0 &&
-      baseUrl.trim() === (info.baseUrl ?? ""));
-  const saveModelsDisabled =
-    savingModels || !info.configured || modelProfiles.length === 0;
   const deleteDisabled = deleting || !info.configured;
   const editingApiKey = !info.configured || replacingKey;
   const displayedApiKey = editingApiKey
@@ -845,38 +939,6 @@ function ProviderCard({
         >
           <Trash2 size={14} />
           {t("settings.providers.actions.delete")}
-        </button>
-        <button
-          type="button"
-          onClick={handleSaveModels}
-          disabled={saveModelsDisabled}
-          className="rounded-md border border-primary px-4 py-2 text-sm font-medium text-primary transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:border-outline/20 disabled:text-outline-900/30"
-        >
-          {savingModels
-            ? "..."
-            : t("settings.providers.actions.saveModels", {
-                defaultValue: "Save models",
-              })}
-        </button>
-        <button
-          type="button"
-          onClick={handleSaveKey}
-          disabled={saveKeyDisabled}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/20"
-        >
-          {savingKey
-            ? "..."
-            : info.configured
-              ? apiKey.trim()
-                ? t("settings.providers.actions.replaceKey", {
-                    defaultValue: "Replace key",
-                  })
-                : t("settings.providers.actions.saveProvider", {
-                    defaultValue: "Save settings",
-                  })
-              : t("settings.providers.actions.saveKey", {
-                  defaultValue: "Save key",
-                })}
         </button>
       </div>
     </div>

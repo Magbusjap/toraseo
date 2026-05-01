@@ -1,84 +1,75 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Check } from "lucide-react";
 
+import GeneralTab from "./GeneralTab";
 import LanguageTab from "./LanguageTab";
-import ProvidersTab from "./ProvidersTab";
+import ProvidersTab, { type ProviderSettingsSaveState } from "./ProvidersTab";
 import SettingsSidebar, { type SettingsTabId } from "./SettingsSidebar";
 import UnsavedChangesModal from "./UnsavedChangesModal";
 
 import type { SupportedLocale } from "../../types/ipc";
 
 interface SettingsViewProps {
-  /** The persisted (saved) locale — i18n's current language. */
   currentLocale: SupportedLocale;
   initialTab?: SettingsTabId;
-  /** Notify parent that the user wants to leave Settings. */
+  returnHomeShortcutsEnabled: boolean;
+  onReturnHomeShortcutsChange: (enabled: boolean) => void;
   onReturnHome: () => void;
-  /**
-   * Persist a new locale and switch i18n.
-   * Parent owns the "current locale" state; this callback writes
-   * to userData/locale.txt via IPC and updates the parent's state.
-   */
   onSaveLocale: (locale: SupportedLocale) => Promise<void>;
-  /**
-   * True when TORASEO_NATIVE_RUNTIME is on. Gates the AI providers
-   * settings tab — legacy/bridge users don't need it.
-   */
   nativeRuntimeEnabled: boolean;
   onProviderSaved?: () => void | Promise<void>;
 }
 
-/**
- * Settings view orchestrator.
- *
- * Owns:
- *   - Active tab state (only "language" exists in v0.0.6, but the
- *     shape is forward-compatible for more tabs)
- *   - Pending locale value while the user is editing
- *   - Dirty-state guard: when the user tries to leave (back to home,
- *     switch tabs) with unsaved changes, an UnsavedChangesModal
- *     intercepts and offers Discard / Stay
- *
- * The whole Settings UI renders as `aside (sidebar) + main (tab
- * content)` inside the parent layout. App.tsx wraps this in the
- * same outer toolbar/flex layout used by every other mode.
- *
- * Save flow:
- *   1. User picks a new locale in the dropdown → pendingLocale
- *      diverges from currentLocale → isDirty = true → Save button
- *      enables.
- *   2. User clicks Save → onSaveLocale runs (IPC + i18n.changeLanguage
- *      via the parent) → parent updates currentLocale → pendingLocale
- *      catches up via the synchronization in handlePendingChange.
- *   3. UI flashes "Saved" for 2 seconds (handled inside LanguageTab).
- *
- * Discard flow:
- *   1. User changes the dropdown but doesn't save.
- *   2. User clicks "Back to home" or another tab.
- *   3. We compute isDirty → show UnsavedChangesModal → user picks
- *      Discard → reset pendingLocale to currentLocale → execute the
- *      pending navigation.
- */
 export default function SettingsView({
   currentLocale,
-  initialTab = "language",
+  initialTab = "general",
+  returnHomeShortcutsEnabled,
+  onReturnHomeShortcutsChange,
   onReturnHome,
   onSaveLocale,
   nativeRuntimeEnabled,
   onProviderSaved,
 }: SettingsViewProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTabId>(initialTab);
   const [pendingLocale, setPendingLocale] =
     useState<SupportedLocale>(currentLocale);
-
-  // The pending navigation parked by the dirty-state guard. When the
-  // user clicks "Back to home" or a different tab while dirty, we
-  // store the action they wanted to perform and only execute it if
-  // they confirm "Discard" in the modal.
+  const [pendingReturnHomeShortcuts, setPendingReturnHomeShortcuts] = useState(
+    returnHomeShortcutsEnabled,
+  );
   const [pendingNav, setPendingNav] = useState<null | (() => void)>(null);
+  const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const [providerSaveState, setProviderSaveState] =
+    useState<ProviderSettingsSaveState>({
+      dirty: false,
+      saving: false,
+      save: async () => {},
+    });
+  const [providersResetToken, setProvidersResetToken] = useState(0);
 
-  const isDirty = pendingLocale !== currentLocale;
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
-  // Try to navigate; if dirty, intercept with the modal.
+  useEffect(() => {
+    setPendingLocale(currentLocale);
+  }, [currentLocale]);
+
+  useEffect(() => {
+    setPendingReturnHomeShortcuts(returnHomeShortcutsEnabled);
+  }, [returnHomeShortcutsEnabled]);
+
+  const isGeneralDirty =
+    pendingReturnHomeShortcuts !== returnHomeShortcutsEnabled;
+  const isLanguageDirty = pendingLocale !== currentLocale;
+  const isDirty = isGeneralDirty || isLanguageDirty || providerSaveState.dirty;
+
+  useEffect(() => {
+    if (isDirty && justSaved) setJustSaved(false);
+  }, [isDirty, justSaved]);
+
   const guardedNavigate = (action: () => void) => {
     if (isDirty) {
       setPendingNav(() => action);
@@ -95,15 +86,36 @@ export default function SettingsView({
   };
 
   const handleSave = async () => {
-    await onSaveLocale(pendingLocale);
-    // Parent updates currentLocale → on next render isDirty becomes
-    // false. We don't need to touch pendingLocale: it already equals
-    // the new currentLocale.
+    if (saving || !isDirty) return;
+    setSaving(true);
+    try {
+      if (providerSaveState.dirty) {
+        await providerSaveState.save();
+      }
+      if (isGeneralDirty) {
+        onReturnHomeShortcutsChange(pendingReturnHomeShortcuts);
+      }
+      if (isLanguageDirty) {
+        await onSaveLocale(pendingLocale);
+      }
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDiscard = () => {
-    // Reset the form, then run the parked navigation.
     setPendingLocale(currentLocale);
+    setPendingReturnHomeShortcuts(returnHomeShortcutsEnabled);
+    if (providerSaveState.dirty) {
+      setProvidersResetToken((value) => value + 1);
+      setProviderSaveState({
+        dirty: false,
+        saving: false,
+        save: async () => {},
+      });
+    }
     const next = pendingNav;
     setPendingNav(null);
     if (next) next();
@@ -114,7 +126,7 @@ export default function SettingsView({
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full w-full min-w-0 flex-1">
       <aside className="relative w-[260px] shrink-0">
         <SettingsSidebar
           activeTab={activeTab}
@@ -124,17 +136,60 @@ export default function SettingsView({
         />
       </aside>
 
-      <main className="flex-1 overflow-auto px-8 py-8">
+      <main className="min-w-0 flex-1 overflow-auto px-8 py-8">
+        {activeTab === "general" && (
+          <>
+            <GeneralTab
+              returnHomeShortcutsEnabled={pendingReturnHomeShortcuts}
+              onReturnHomeShortcutsChange={setPendingReturnHomeShortcuts}
+              disabled={saving}
+            />
+            <SaveCascade
+              maxWidthClassName="max-w-3xl"
+              justSaved={justSaved}
+              saving={saving}
+              disabled={!isGeneralDirty}
+              onSave={handleSave}
+              saveLabel={t("settings.save")}
+              savedLabel={t("settings.saved")}
+            />
+          </>
+        )}
         {activeTab === "language" && (
-          <LanguageTab
-            pendingLocale={pendingLocale}
-            onPendingChange={setPendingLocale}
-            isDirty={isDirty}
-            onSave={handleSave}
-          />
+          <>
+            <LanguageTab
+              pendingLocale={pendingLocale}
+              onPendingChange={setPendingLocale}
+              disabled={saving}
+            />
+            <SaveCascade
+              maxWidthClassName="max-w-xl"
+              justSaved={justSaved}
+              saving={saving}
+              disabled={!isLanguageDirty}
+              onSave={handleSave}
+              saveLabel={t("settings.save")}
+              savedLabel={t("settings.saved")}
+            />
+          </>
         )}
         {activeTab === "providers" && nativeRuntimeEnabled && (
-          <ProvidersTab onProviderSaved={onProviderSaved} />
+          <>
+            <ProvidersTab
+              resetToken={providersResetToken}
+              onProviderSaved={onProviderSaved}
+              onSaveStateChange={setProviderSaveState}
+            />
+            <SaveCascade
+              maxWidthClassName="max-w-3xl"
+              justSaved={justSaved}
+              saving={saving || providerSaveState.saving}
+              disabled={!providerSaveState.dirty}
+              onSave={handleSave}
+              saveLabel={t("settings.save")}
+              savedLabel={t("settings.saved")}
+            />
+          </>
         )}
       </main>
 
@@ -144,6 +199,47 @@ export default function SettingsView({
           onStay={handleStay}
         />
       )}
+    </div>
+  );
+}
+
+function SaveCascade({
+  maxWidthClassName,
+  justSaved,
+  saving,
+  disabled,
+  onSave,
+  saveLabel,
+  savedLabel,
+}: {
+  maxWidthClassName: string;
+  justSaved: boolean;
+  saving: boolean;
+  disabled: boolean;
+  onSave: () => void;
+  saveLabel: string;
+  savedLabel: string;
+}) {
+  return (
+    <div className={`mx-auto mt-4 flex ${maxWidthClassName} items-center justify-end gap-3`}>
+      {justSaved && (
+        <span
+          className="flex items-center gap-1 text-xs text-green-600"
+          role="status"
+          aria-live="polite"
+        >
+          <Check size={14} />
+          {savedLabel}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={disabled || saving}
+        className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/20"
+      >
+        {saving ? "..." : saveLabel}
+      </button>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Globe, Key } from "lucide-react";
+import { ArrowLeft, Globe, Key, SlidersHorizontal } from "lucide-react";
 
-export type SettingsTabId = "language" | "providers";
+export type SettingsTabId = "general" | "language" | "providers";
 
 interface SettingsSidebarProps {
   activeTab: SettingsTabId;
@@ -63,6 +63,14 @@ export default function SettingsSidebar({
           — {t("sidebar.settingsTabs")} —
         </h3>
         <ul className="space-y-1">
+          <li>
+            <TabButton
+              icon={<SlidersHorizontal size={14} />}
+              label={t("settings.tabs.general")}
+              active={activeTab === "general"}
+              onClick={() => onTabChange("general")}
+            />
+          </li>
           <li>
             <TabButton
               icon={<Globe size={14} />}

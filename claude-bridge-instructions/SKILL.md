@@ -1,6 +1,6 @@
 ---
 name: toraseo
-description: Conduct SEO audits and content reviews using the ToraSEO MCP server. Use this skill when the user asks for an SEO audit, wants to check robots.txt / sitemap / meta tags / headings / redirects / page content, or needs guidance on improving the on-page SEO of a specific URL. The skill orchestrates the seven Mode A site-audit tools exposed by the toraseo MCP server and produces a structured, prioritized report. Supports Bridge Mode handshake when ToraSEO Desktop App is running an active scan.
+description: Conduct SEO audits and content reviews using the ToraSEO MCP server. Use this skill when the user asks for an SEO audit, wants to check robots.txt / sitemap / meta tags / headings / redirects / page content / public stack signals, or needs guidance on improving the on-page SEO of a specific URL. The skill orchestrates the Mode A site-audit tools exposed by the toraseo MCP server and produces a structured, prioritized report. Supports Bridge Mode handshake when ToraSEO Desktop App is running an active scan.
 ---
 
 # ToraSEO Claude Bridge Instructions
@@ -11,9 +11,26 @@ Claude-side package turns a single user intent ("audit this site") into
 a coordinated sequence of MCP tool calls and produces a clear,
 prioritized report.
 
-> **Status: v0.2.0 — Mode A (Site Audit) + Bridge Mode handshake.**
-> Mode B (Content Audit / AI-humanizer) is planned for a later release
-> and is not available yet.
+> **Status: Mode A (Site Audit) + Bridge Mode handshake.**
+> The first `0.0.9` expansion adds analysis-type groundwork and public
+> stack detection. Content / article analysis is planned but not yet
+> available as MCP tools.
+
+When the user is working inside a ToraSEO text/content analysis flow,
+keep the conversation anchored to that task. If they ask for broad or
+unrelated research, redirect gently: offer to collect material for the
+article or prepare a draft/recommendation set instead of drifting into a
+general-purpose chat. If ToraSEO Desktop App or MCP is unavailable,
+produce the best possible chat-only answer and make that limitation
+clear.
+
+When you propose to rewrite or substantially rework an article, ask
+immediately whether the user wants ToraSEO to mark recommended image
+positions for better SEO. If the user agrees, or already asked for image
+placement guidance, insert the exact ToraSEO media placeholder lines
+inside the rewritten article at the intended positions; do not invent
+alternate labels. For Russian article drafts, use:
+`------------------------- место для изображения --------------------------`.
 
 ---
 
@@ -248,7 +265,7 @@ in a different way:
   cannot proceed past §2.1 if the Skill is missing — there is no
   instruction telling you to call `verify_skill_loaded`.)
 - **MCP server** — if you have `verify_skill_loaded` and the
-  seven analyzer tools in your tool inventory, the MCP server is
+  analyzer tools in your tool inventory, the MCP server is
   connected. If those tools are missing entirely, tell the user:
   *"MCP-сервер ToraSEO не подключён. Проверьте подключение в
   настройках Claude Desktop (Settings → Connectors → toraseo)."*
@@ -286,7 +303,7 @@ to feel seamless when everything works.
 
 ## 3. Architectural contract
 
-The toraseo MCP server exposes **seven Mode A analyzer tools**
+The toraseo MCP server exposes **Mode A analyzer tools**
 plus the Bridge Mode handshake tool described in §2:
 
 | Tool                  | Purpose                                       |
@@ -299,14 +316,21 @@ plus the Bridge Mode handshake tool described in §2:
 | `analyze_sitemap`     | Sitemap discovery and structural analysis    |
 | `check_redirects`     | HTTP redirect chain, loops, downgrades       |
 | `analyze_content`     | Word counts, text-to-code ratio, link / image inventory |
+| `detect_stack`        | Public CMS / builder / framework / analytics / CDN / server signals |
 
 Every analyzer tool returns a JSON object with an `issues[]` array
 of severity-tagged verdicts (`critical` / `warning` / `info`),
 plus structured raw data.
 
-**Each analyzer tool is idempotent and safe.** All seven honor
-robots.txt, respect a 2-second per-host rate limit, and never
-write or POST. You can call them in any order without side
+**Each analyzer tool is idempotent and safe.** Analyzer tools never
+write or POST, and network tools respect a 2-second per-host rate
+limit. Tools that fetch page/site HTML honor robots.txt. The
+`check_robots_txt` tool is the exception document fetch: it reads
+robots.txt to determine crawl permissions, so robots.txt is not gated
+by itself. `analyze_sitemap` may read the sitemap file discovered from
+robots.txt or standard sitemap discovery without applying a second
+robots-gate to the sitemap file itself; it still respects rate limits
+and network safety. You can call tools in any order without side
 effects.
 
 In **Bridge Mode**, all analyzer tools also write their results
@@ -339,7 +363,7 @@ this step — the user already chose "Site by URL" in the app.
 
 #### Step 2 — Reachability gate
 
-Before running the seven analyzers, do a **single fast check**
+Before running the analyzers, do a **single fast check**
 with `scan_site_minimal`. This confirms the site is reachable,
 not blocking ToraSEO via robots.txt, and serving HTML (not a
 binary or 404).
@@ -363,9 +387,9 @@ use **that** (after redirects) as the input for all subsequent
 tools. This avoids running every tool through the same redirect
 chain.
 
-#### Step 3 — The seven checks
+#### Step 3 — The site checks
 
-Call the remaining six tools. They are independent — order does
+Call the remaining tools. They are independent — order does
 not affect results — but a sensible reading order for the user is:
 
 1. `check_robots_txt` — can search engines reach this at all?
@@ -374,6 +398,7 @@ not affect results — but a sensible reading order for the user is:
 4. `analyze_headings` — is the page structure semantic?
 5. `analyze_sitemap` — does the site help engines discover URLs?
 6. `analyze_content` — is there enough substance to rank?
+7. `detect_stack` — which public platform signals should shape recommendations?
 
 You may call them sequentially (clearer logs) or in parallel
 (faster). Both are valid. Sequential is the default — it gives the
@@ -386,7 +411,7 @@ to the user.
 
 #### Step 4 — Synthesize the report
 
-Aggregate all `issues[]` arrays from the seven tools. Group by
+Aggregate all `issues[]` arrays from the selected tools. Group by
 severity, **not by source tool** — the user does not care which
 analyzer produced which finding; they care what to fix first.
 
@@ -454,7 +479,7 @@ Do **not** use selectors for:
 
 ## 5. Token budget — what NOT to dump in chat
 
-The seven tools return structured JSON. Some fields are large:
+The tools return structured JSON. Some fields are large:
 
 - `analyze_sitemap` may include up to 20 URL entries.
 - `analyze_content` includes a `summary` block with raw counts.

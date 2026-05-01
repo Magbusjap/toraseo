@@ -23,7 +23,7 @@ ToraSEO - это open-source SEO workspace для структурированн
 Проект специально разделен на независимые компоненты: app, MCP server и instruction packages можно использовать вместе или по отдельности, в зависимости от сценария.
 
 > [!NOTE]
-> **App 0.0.8 сейчас является активным release candidate.** App release теперь считается основной публичной release entry и должен включать сразу три группы assets: desktop installer assets, `Claude Bridge Instructions` ZIP и `Codex Workflow Instructions` ZIP.
+> **App 0.0.9 сейчас является активным release candidate.** App release по-прежнему считается основной публичной release entry и должен включать сразу три группы assets: desktop installer assets, `Claude Bridge Instructions` ZIP и `Codex Workflow Instructions` ZIP.
 
 > [!TIP]
 > **ToraSEO поддерживает и Claude, и Codex workflows.** Для Claude используется `claude-bridge-instructions`, для Codex - `toraseo-codex-workflow`, а для встроенного сценария можно идти через `API + AI Chat` прямо внутри desktop app.

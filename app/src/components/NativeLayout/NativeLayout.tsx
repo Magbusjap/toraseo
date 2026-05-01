@@ -1,4 +1,5 @@
 import { AnalysisPanel } from "../Analysis";
+import { Globe, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { CurrentScanState, ScanComplete } from "../../types/ipc";
@@ -35,10 +36,43 @@ export default function NativeLayout({
   bridgeFacts,
   localSummary,
 }: NativeLayoutProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex h-full min-w-[720px] flex-1 overflow-hidden">
       <div className="flex min-w-0 flex-1 justify-center overflow-auto bg-orange-50/20">
         <div className="flex w-full max-w-4xl flex-col gap-4 p-4">
+          <header className="flex flex-wrap items-start justify-between gap-5 border-b border-outline/10 pb-6">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className="rounded-lg bg-primary/10 p-3 text-primary">
+                <Globe size={24} strokeWidth={1.8} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
+                  {t("plannedAnalysis.version", {
+                    defaultValue: "0.0.9 setup",
+                  })}
+                </p>
+                <h1 className="mt-1 font-display text-2xl font-semibold text-outline-900">
+                  {t("modeSelection.analysisTypes.siteByUrl.title", {
+                    defaultValue: "Site by URL",
+                  })}
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-outline-900/65">
+                  {t("modeSelection.analysisTypes.siteByUrl.subtitle", {
+                    defaultValue: "Classic audit",
+                  })}
+                </p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-orange-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-outline-900/55">
+              <SlidersHorizontal size={14} />
+              {t("plannedAnalysis.status", {
+                defaultValue: "Formula draft",
+              })}
+            </span>
+          </header>
+
           <AuditStatusHero
             executionMode={executionMode}
             nativeScanState={nativeScanState}
@@ -49,6 +83,7 @@ export default function NativeLayout({
           />
           <AnalysisPanel
             executionMode={executionMode}
+            nativeScanState={nativeScanState}
             runtimeReport={runtimeReport}
             bridgeState={bridgeState}
             bridgeFacts={bridgeFacts}
@@ -97,7 +132,41 @@ function AuditStatusHero({
   const totals =
     executionMode === "native"
       ? localSummary?.totals ?? scanContext?.totals
-      : totalsFromBridgeFacts(bridgeFacts);
+      : bridgeFacts.length > 0
+        ? totalsFromBridgeFacts(bridgeFacts)
+        : undefined;
+  const visibleMetrics = totals
+    ? [
+        {
+          label: t("analysisPanel.metrics.critical", {
+            defaultValue: "Critical",
+          }),
+          value: totals.critical,
+          tone: "red" as const,
+        },
+        {
+          label: t("analysisPanel.metrics.warnings", {
+            defaultValue: "Warnings",
+          }),
+          value: totals.warning,
+          tone: "orange" as const,
+        },
+        {
+          label: t("analysisPanel.metrics.info", {
+            defaultValue: "Info",
+          }),
+          value: totals.info,
+          tone: "muted" as const,
+        },
+        {
+          label: t("analysisPanel.metrics.errors", {
+            defaultValue: "Errors",
+          }),
+          value: totals.errors,
+          tone: "red" as const,
+        },
+      ].filter((metric) => metric.value > 0)
+    : [];
   const progress =
     selectedTotal > 0
       ? Math.min(100, Math.round((completedTotal / selectedTotal) * 100))
@@ -146,7 +215,7 @@ function AuditStatusHero({
                 {statusLabel}
               </h1>
             </div>
-            <span className="font-mono text-xs text-outline-900/55">
+            <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
               {completedTotal} / {selectedTotal}
             </span>
           </div>
@@ -166,36 +235,16 @@ function AuditStatusHero({
             />
           </div>
 
-          {totals && (
+          {visibleMetrics.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-outline-900/60">
-              <Metric
-                label={t("analysisPanel.metrics.critical", {
-                  defaultValue: "Critical",
-                })}
-                value={totals.critical}
-                tone="red"
-              />
-              <Metric
-                label={t("analysisPanel.metrics.warnings", {
-                  defaultValue: "Warnings",
-                })}
-                value={totals.warning}
-                tone="orange"
-              />
-              <Metric
-                label={t("analysisPanel.metrics.info", {
-                  defaultValue: "Info",
-                })}
-                value={totals.info}
-                tone="muted"
-              />
-              <Metric
-                label={t("analysisPanel.metrics.errors", {
-                  defaultValue: "Errors",
-                })}
-                value={totals.errors}
-                tone="red"
-              />
+              {visibleMetrics.map((metric) => (
+                <Metric
+                  key={metric.label}
+                  label={metric.label}
+                  value={metric.value}
+                  tone={metric.tone}
+                />
+              ))}
             </div>
           )}
         </div>

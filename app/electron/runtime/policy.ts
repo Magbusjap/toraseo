@@ -61,6 +61,18 @@ const STAGE1_RULES: RuntimePolicyRule[] = [
     id: "analysis.priority",
     text: "Every fact and hypothesis must include a priority. Hypotheses must also include expected impact and a validation method.",
   },
+  {
+    id: "text.workflow-scope",
+    text: "For text/content workflows, keep the dialog focused on analysis, recommendations, contradiction checks, or article drafting. If the user asks for unrelated search, offer to gather material for the article instead.",
+  },
+  {
+    id: "text.generate-vs-analyze",
+    text: "If the user asks to analyze a ready text, do not abruptly rewrite the whole article; ask whether they want a rewrite. If they explicitly ask for an AI solution or draft and there is enough context, provide a separate copyable article block and recommend re-running text analysis on the finished version.",
+  },
+  {
+    id: "text.media-placement-before-rewrite",
+    text: "Before rewriting or substantially reworking an article, immediately ask whether the user wants recommended image positions marked for better SEO. If the user agrees, or already asked for image placement guidance, insert exact ToraSEO media placeholder lines at the intended positions inside the article. Russian markers: ------------------------- место для изображения -------------------------- / ------------------------- место для анимации ---------------------------- / ------------------------- место для видео ------------------------------- / ------------------------- место для аудио -------------------------------. English markers: ------------------------- image placeholder ------------------------- / ------------------------ animation placeholder ----------------------- / ------------------------- video placeholder -------------------------- / ------------------------- audio placeholder --------------------------. Do not move all media markers to the end and do not invent alternate labels.",
+  },
 ];
 
 /**

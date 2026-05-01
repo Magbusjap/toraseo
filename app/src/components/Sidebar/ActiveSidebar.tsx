@@ -2,12 +2,14 @@ import { ArrowLeft, Globe, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { TOOLS, type ToolId, getToolI18nKeyBase } from "../../config/tools";
+import ToolChecklist from "./ToolChecklist";
 
 interface ActiveSidebarProps {
   url: string;
   onUrlChange: (url: string) => void;
   selectedTools: Set<ToolId>;
   onToggleTool: (toolId: ToolId) => void;
+  onToggleAllTools: () => void;
   isBusy: boolean;
   scanButtonLabel: string;
   scanButtonTooltip?: string;
@@ -21,6 +23,7 @@ export default function ActiveSidebar({
   onUrlChange,
   selectedTools,
   onToggleTool,
+  onToggleAllTools,
   isBusy,
   scanButtonLabel,
   scanButtonTooltip,
@@ -33,6 +36,14 @@ export default function ActiveSidebar({
   const trimmedUrl = url.trim();
   const hasValidUrl = trimmedUrl.length > 0 && isLikelyUrl(trimmedUrl);
   const hasSelectedTools = selectedTools.size > 0;
+  const toolItems = TOOLS.map((tool) => {
+    const keyBase = getToolI18nKeyBase(tool.id);
+    return {
+      id: tool.id,
+      label: t(`tools.${keyBase}.label`),
+      tooltip: t(`tools.${keyBase}.tooltip`),
+    };
+  });
   const computedTooltip = !hasValidUrl
     ? t("sidebar.tooltip.noUrl")
     : !hasSelectedTools
@@ -43,18 +54,35 @@ export default function ActiveSidebar({
 
   return (
     <div className="flex h-full flex-col bg-surface text-white">
-      <header className="border-b border-white/10 px-4 py-3">
+      <div className="toraseo-sidebar-scrollbar flex-1 space-y-6 overflow-y-auto px-5 py-6">
         <button
           type="button"
           onClick={onReturnHome}
-          className="flex items-center gap-2 text-sm text-white/70 transition hover:text-primary"
+          className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium text-white/80 transition hover:border-primary/70 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={2} />
           <span>{t("sidebar.backToHomeTitle")}</span>
         </button>
-      </header>
 
-      <div className="flex-1 space-y-6 overflow-y-auto px-4 py-5">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/45">
+            {t("plannedAnalysis.sidebar.version", {
+              defaultValue: "0.0.9 setup",
+            })}
+          </p>
+          <h2 className="mt-2 font-display text-xl font-semibold leading-snug">
+            {t("modeSelection.analysisTypes.siteByUrl.title", {
+              defaultValue: "Site by URL",
+            })}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-white/65">
+            {t("plannedAnalysis.sidebar.body", {
+              defaultValue:
+                "Input and analysis boundaries are prepared here. Full execution will connect after the formula and tool contract is wired.",
+            })}
+          </p>
+        </div>
+
         <SidebarSection title={t("sidebar.section.project")}>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/60">
@@ -87,31 +115,17 @@ export default function ActiveSidebar({
         </SidebarSection>
 
         <SidebarSection title={t("sidebar.section.checks")}>
-          <ul className="space-y-1.5">
-            {TOOLS.map((tool) => {
-              const keyBase = getToolI18nKeyBase(tool.id);
-              return (
-                <ToolCheckbox
-                  key={tool.id}
-                  id={tool.id}
-                  label={t(`tools.${keyBase}.label`)}
-                  tooltip={t(`tools.${keyBase}.tooltip`)}
-                  checked={selectedTools.has(tool.id)}
-                  disabled={isBusy}
-                  onChange={() => onToggleTool(tool.id)}
-                />
-              );
-            })}
-          </ul>
-          {!hasSelectedTools && (
-            <p className="mt-2 text-xs text-status-issues">
-              {t("sidebar.noChecks")}
-            </p>
-          )}
+          <ToolChecklist
+            tools={toolItems}
+            selectedTools={selectedTools}
+            disabled={isBusy}
+            onToggleTool={onToggleTool}
+            onToggleAllTools={onToggleAllTools}
+          />
         </SidebarSection>
       </div>
 
-      <footer className="border-t border-white/10 p-4">
+      <footer className="border-t border-white/10 p-5">
         <button
           type="button"
           onClick={onRun}
@@ -140,45 +154,6 @@ function SidebarSection({ title, children }: SidebarSectionProps) {
       </h3>
       {children}
     </section>
-  );
-}
-
-interface ToolCheckboxProps {
-  id: ToolId;
-  label: string;
-  tooltip: string;
-  checked: boolean;
-  disabled: boolean;
-  onChange: () => void;
-}
-
-function ToolCheckbox({
-  id,
-  label,
-  tooltip,
-  checked,
-  disabled,
-  onChange,
-}: ToolCheckboxProps) {
-  return (
-    <li>
-      <label
-        title={tooltip}
-        className={`flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-sm transition ${
-          disabled ? "cursor-not-allowed opacity-60" : "hover:bg-white/5"
-        }`}
-      >
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={onChange}
-          disabled={disabled}
-          className="h-4 w-4 cursor-pointer rounded border-white/30 bg-white/5 text-primary accent-primary focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed"
-          data-tool-id={id}
-        />
-        <span className="select-none text-white/90">{label}</span>
-      </label>
-    </li>
   );
 }
 

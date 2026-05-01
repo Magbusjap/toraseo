@@ -37,6 +37,7 @@ import {
   exportReportPdf,
   exportReportPresentation,
   openReportWindow,
+  showReportWindowProcessing,
 } from "./reporting.js";
 import { testProviderConnection } from "./providerDiagnostics.js";
 import {
@@ -70,6 +71,7 @@ export const RUNTIME_CHANNELS = {
   sendMessage: "toraseo:runtime:send-message",
   openReportWindow: "toraseo:runtime:open-report-window",
   closeReportWindow: "toraseo:runtime:close-report-window",
+  showReportWindowProcessing: "toraseo:runtime:show-report-window-processing",
   endReportWindowSession: "toraseo:runtime:end-report-window-session",
   exportReportPdf: "toraseo:runtime:export-report-pdf",
   exportReportDocument: "toraseo:runtime:export-report-document",
@@ -254,6 +256,13 @@ export async function setupRuntime(): Promise<void> {
     RUNTIME_CHANNELS.closeReportWindow,
     async (): Promise<{ ok: boolean }> => {
       return closeReportWindow();
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.showReportWindowProcessing,
+    async (): Promise<{ ok: boolean }> => {
+      return showReportWindowProcessing();
     },
   );
 

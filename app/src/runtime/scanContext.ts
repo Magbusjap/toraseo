@@ -21,6 +21,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   check_redirects: "Redirects",
   analyze_content: "Content",
   scan_site_minimal: "Minimal scan",
+  detect_stack: "Stack detection",
 };
 
 function priorityFromStatus(
@@ -102,9 +103,15 @@ function formatIssueCode(code: string): string {
     .join(" ");
 }
 
-function detailFromLocalStage(stage: NonNullable<StagesMap[ToolId]>): string {
+function detailFromLocalStage(
+  toolId: ToolId,
+  stage: NonNullable<StagesMap[ToolId]>,
+): string {
   if (stage.status === "error") {
     return stage.errorMessage ?? stage.errorCode ?? "The scan stage failed.";
+  }
+  if (stage.result !== undefined) {
+    return detailFromBridgeData(toolId, stage.result);
   }
   if (!stage.summary) {
     return "Completed successfully.";
@@ -262,6 +269,36 @@ function detailFromBridgeData(
       .join("; ");
   }
 
+  if (toolId === "detect_stack") {
+    const detections = Array.isArray(record.detections)
+      ? record.detections
+      : [];
+    const headers = asRecord(record.headers);
+    const names = detections
+      .flatMap((item) => {
+        const detection = asRecord(item);
+        const name = detection ? getStringField(detection, "name") : null;
+        const confidence = detection
+          ? getStringField(detection, "confidence")
+          : null;
+        return name ? [`${name}${confidence ? ` (${confidence})` : ""}`] : [];
+      })
+      .slice(0, 8);
+    return [
+      names.length > 0
+        ? `detected: ${names.join(", ")}`
+        : "no reliable stack markers detected",
+      getStringField(headers ?? {}, "server")
+        ? `server: ${getStringField(headers ?? {}, "server")}`
+        : null,
+      getStringField(headers ?? {}, "powered_by")
+        ? `powered by: ${getStringField(headers ?? {}, "powered_by")}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("; ");
+  }
+
   return stage
     ? detailFromBridgeStage(stage)
     : "Tool completed and returned data.";
@@ -293,7 +330,7 @@ export function buildNativeScanContext(
       facts.push({
         toolId,
         title: getToolI18nKeyBase(toolId),
-        detail: detailFromLocalStage(stage),
+        detail: detailFromLocalStage(toolId, stage),
         severity: priorityFromStatus(stage.status),
         source: "local_scan",
       });

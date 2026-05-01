@@ -23,7 +23,7 @@ ToraSEO is an open-source SEO workspace for structured site audits. It combines 
 The project is intentionally split into independent components: you can use the app, the MCP server, or the instruction packages together or separately, depending on your workflow.
 
 > [!NOTE]
-> **App 0.0.8 is the current release candidate.** The app release is now the canonical public release entry and carries three asset groups together: desktop installer assets, Claude Bridge Instructions ZIP, and Codex Workflow Instructions ZIP.
+> **App 0.0.9 is the current release candidate.** The app release remains the canonical public release entry and carries three asset groups together: desktop installer assets, Claude Bridge Instructions ZIP, and Codex Workflow Instructions ZIP.
 
 > [!TIP]
 > **ToraSEO supports both Claude and Codex workflows.** Use `claude-bridge-instructions` for Claude setup, `toraseo-codex-workflow` for Codex setup, or run `API + AI Chat` directly inside the desktop app.

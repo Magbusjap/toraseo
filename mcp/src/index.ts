@@ -21,15 +21,15 @@
  *   Mode A — Site Audit:    scan_site_minimal, check_robots_txt,
  *                            analyze_meta, analyze_headings,
  *                            analyze_sitemap, check_redirects,
- *                            analyze_content
+ *                            analyze_content, detect_stack
  *   Mode B — Content Audit: (none yet)
  *
  *   Plus the v0.0.7+ Bridge Mode handshake tool:
  *     verify_skill_loaded — required first call when an active
  *     ToraSEO scan is waiting; never called in standalone use.
  *
- * Mode A MVP is complete (7 of 7 standard checks per
- * product-modes.md). Schema.org analysis is intentionally deferred
+ * Mode A baseline is complete and now includes the first expansion
+ * tool (`detect_stack`). Schema.org analysis is intentionally deferred
  * to post-MVP (see day-9 wiki for rationale).
  */
 
@@ -58,6 +58,9 @@ import {
   analyzeContent,
   analyzeContentInputSchema,
   AnalyzeContentError,
+  detectStack,
+  detectStackInputSchema,
+  DetectStackError,
 } from "@toraseo/core";
 
 import { bridgeWrap } from "./bridgeWrapper.js";
@@ -260,6 +263,24 @@ server.registerTool(
     inputSchema: analyzeContentInputSchema,
   },
   bridgeWrap("analyze_content", analyzeContent, AnalyzeContentError),
+);
+
+server.registerTool(
+  "detect_stack",
+  {
+    title: "Detect Public Technology Stack",
+    description:
+      "Detects public technology-stack signals from one HTML page and " +
+      "response headers: likely CMS, builder, ecommerce platform, " +
+      "framework, SEO plugins, analytics, tag managers, CDN, server, " +
+      "and language/runtime hints. Returns evidence-backed detections " +
+      "with confidence levels and severity-tagged informational issues. " +
+      "This tool does not scan admin paths, ports, private endpoints, or " +
+      "claim vulnerabilities. Use it to make recommendations more " +
+      "platform-aware after the classic site audit tools run.",
+    inputSchema: detectStackInputSchema,
+  },
+  bridgeWrap("detect_stack", detectStack, DetectStackError),
 );
 
 // --- Transport & startup --------------------------------------------------

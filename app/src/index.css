@@ -2,6 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .toraseo-sidebar-scrollbar {
+    scrollbar-color: rgba(255, 111, 57, 0.75) rgba(255, 255, 255, 0.08);
+    scrollbar-width: thin;
+  }
+
+  .toraseo-sidebar-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .toraseo-sidebar-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .toraseo-sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 111, 57, 0.7);
+    border: 2px solid rgba(58, 40, 32, 1);
+    border-radius: 999px;
+  }
+
+  .toraseo-sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 111, 57, 0.95);
+  }
+
+  .toraseo-dark-select option {
+    background: #ffffff;
+    color: #1a0f08;
+  }
+
+  .toraseo-shake {
+    animation: toraseo-shake 0.36s ease-in-out;
+  }
+
+  @keyframes toraseo-shake {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    22% {
+      transform: translateX(-4px);
+    }
+    44% {
+      transform: translateX(4px);
+    }
+    66% {
+      transform: translateX(-3px);
+    }
+    88% {
+      transform: translateX(3px);
+    }
+  }
+}
+
 @layer base {
   html,
   body,
