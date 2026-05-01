@@ -1,7 +1,16 @@
 import { AnalysisPanel } from "../Analysis";
-import { Globe, SlidersHorizontal } from "lucide-react";
+import {
+  Activity,
+  CheckCircle2,
+  Gauge,
+  Globe,
+  ListChecks,
+  ShieldAlert,
+  SlidersHorizontal,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { getToolI18nKeyBase, type ToolId } from "../../config/tools";
 import type { CurrentScanState, ScanComplete } from "../../types/ipc";
 import type { ScanState } from "../../hooks/useScan";
 import type {
@@ -81,6 +90,14 @@ export default function NativeLayout({
             bridgeFacts={bridgeFacts}
             localSummary={localSummary}
           />
+          <SiteDashboardBoard
+            executionMode={executionMode}
+            nativeScanState={nativeScanState}
+            scanContext={runtimeScanContext}
+            bridgeState={bridgeState}
+            bridgeFacts={bridgeFacts}
+            localSummary={localSummary}
+          />
           <AnalysisPanel
             executionMode={executionMode}
             nativeScanState={nativeScanState}
@@ -119,7 +136,7 @@ function AuditStatusHero({
   const completedTotal =
     executionMode === "native"
       ? scanContext?.completedTools.length ?? 0
-      : bridgeFacts.length;
+      : countBridgeCompletedTools(bridgeState);
   const running =
     executionMode === "native"
       ? nativeScanState === "scanning"
@@ -132,9 +149,7 @@ function AuditStatusHero({
   const totals =
     executionMode === "native"
       ? localSummary?.totals ?? scanContext?.totals
-      : bridgeFacts.length > 0
-        ? totalsFromBridgeFacts(bridgeFacts)
-        : undefined;
+      : totalsFromBridgeState(bridgeState, bridgeFacts);
   const visibleMetrics = totals
     ? [
         {
@@ -253,6 +268,387 @@ function AuditStatusHero({
   );
 }
 
+function SiteDashboardBoard({
+  executionMode,
+  nativeScanState,
+  scanContext,
+  bridgeState,
+  bridgeFacts,
+  localSummary,
+}: {
+  executionMode: AuditExecutionMode;
+  nativeScanState: ScanState;
+  scanContext: RuntimeScanContext | null;
+  bridgeState: CurrentScanState | null;
+  bridgeFacts: RuntimeScanFact[];
+  localSummary: ScanComplete | null;
+}) {
+  const { t } = useTranslation();
+  const selectedTools =
+    executionMode === "native"
+      ? scanContext?.selectedTools ?? []
+      : bridgeState?.selectedTools ?? [];
+  const completedTools =
+    executionMode === "native"
+      ? scanContext?.completedTools ?? []
+      : getBridgeCompletedTools(bridgeState);
+  const totals =
+    executionMode === "native"
+      ? localSummary?.totals ?? scanContext?.totals
+      : totalsFromBridgeState(bridgeState, bridgeFacts);
+  const facts =
+    executionMode === "native" ? scanContext?.facts ?? [] : bridgeFacts;
+  const hasRun =
+    executionMode === "native"
+      ? nativeScanState !== "idle"
+      : Boolean(bridgeState);
+  const complete =
+    executionMode === "native"
+      ? nativeScanState === "complete"
+      : bridgeState?.status === "complete";
+  const findingsTotal = totals
+    ? totals.critical + totals.warning + totals.info + totals.errors
+    : 0;
+  const cleanTools = countCleanTools(selectedTools, completedTools, facts);
+  const healthScore =
+    complete && totals
+      ? calculateAuditHealthScore(totals, selectedTools.length)
+      : null;
+  const healthMeta = getHealthMeta(healthScore, t);
+  const coverage =
+    selectedTools.length > 0
+      ? Math.round((completedTools.length / selectedTools.length) * 100)
+      : 0;
+  const categories = buildToolCategories(
+    selectedTools,
+    completedTools,
+    facts,
+    t,
+  );
+  const topSignals = [...facts]
+    .sort((a, b) => severityWeight(b.severity) - severityWeight(a.severity))
+    .slice(0, 4);
+
+  return (
+    <section className="grid gap-4">
+      <div className="grid gap-3 lg:grid-cols-4">
+        <DashboardMetricCard
+          icon={<Gauge size={17} />}
+          label={t("siteDashboard.health", {
+            defaultValue: "Audit health",
+          })}
+          value={healthScore === null ? "--" : `${healthScore}%`}
+          detail={healthMeta.label}
+          tone={healthMeta.tone}
+        />
+        <DashboardMetricCard
+          icon={<Activity size={17} />}
+          label={t("siteDashboard.coverage", {
+            defaultValue: "Evidence coverage",
+          })}
+          value={hasRun ? `${coverage}%` : "--"}
+          detail={t("siteDashboard.coverageDetail", {
+            completed: completedTools.length,
+            total: selectedTools.length,
+            defaultValue: `${completedTools.length}/${selectedTools.length} tools`,
+          })}
+          tone={coverage >= 100 ? "green" : hasRun ? "orange" : "muted"}
+        />
+        <DashboardMetricCard
+          icon={<CheckCircle2 size={17} />}
+          label={t("siteDashboard.cleanTools", {
+            defaultValue: "Clean tools",
+          })}
+          value={hasRun ? String(cleanTools) : "--"}
+          detail={t("siteDashboard.cleanToolsDetail", {
+            defaultValue: "completed without blocking issues",
+          })}
+          tone={cleanTools > 0 ? "green" : "muted"}
+        />
+        <DashboardMetricCard
+          icon={<ShieldAlert size={17} />}
+          label={t("siteDashboard.findings", {
+            defaultValue: "Findings",
+          })}
+          value={hasRun ? String(findingsTotal) : "--"}
+          detail={t("siteDashboard.findingsDetail", {
+            defaultValue: "critical, warnings, info, errors",
+          })}
+          tone={findingsTotal > 0 ? "orange" : hasRun ? "green" : "muted"}
+        />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-lg border border-orange-100 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-outline-900">
+                {t("siteDashboard.issueDistribution", {
+                  defaultValue: "Issue distribution",
+                })}
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
+                {t("siteDashboard.healthNote", {
+                  defaultValue:
+                    "This is a technical audit health view, not a popularity or traffic score.",
+                })}
+              </p>
+            </div>
+            <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-outline-900/60">
+              {complete
+                ? t("siteDashboard.complete", { defaultValue: "Complete" })
+                : hasRun
+                  ? t("siteDashboard.inProgress", {
+                      defaultValue: "In progress",
+                    })
+                  : t("siteDashboard.waiting", {
+                      defaultValue: "Waiting",
+                    })}
+            </span>
+          </div>
+          <IssueDistributionBar totals={totals} />
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+            <DistributionLegend
+              label={t("analysisPanel.metrics.critical", {
+                defaultValue: "Critical",
+              })}
+              value={totals?.critical ?? 0}
+              className="bg-red-500"
+            />
+            <DistributionLegend
+              label={t("analysisPanel.metrics.warnings", {
+                defaultValue: "Warnings",
+              })}
+              value={totals?.warning ?? 0}
+              className="bg-orange-500"
+            />
+            <DistributionLegend
+              label={t("analysisPanel.metrics.info", {
+                defaultValue: "Info",
+              })}
+              value={totals?.info ?? 0}
+              className="bg-blue-400"
+            />
+            <DistributionLegend
+              label={t("analysisPanel.metrics.errors", {
+                defaultValue: "Errors",
+              })}
+              value={totals?.errors ?? 0}
+              className="bg-outline-900"
+            />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-orange-100 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <ListChecks size={16} className="text-primary" />
+            <h2 className="text-sm font-semibold text-outline-900">
+              {t("siteDashboard.toolGroups", {
+                defaultValue: "Audit groups",
+              })}
+            </h2>
+          </div>
+          <div className="space-y-2">
+            {categories.map((category) => (
+              <ToolCategoryRow key={category.id} category={category} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-orange-100 bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-semibold text-outline-900">
+          {t("siteDashboard.topSignals", {
+            defaultValue: "Top signals",
+          })}
+        </h2>
+        {topSignals.length > 0 ? (
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {topSignals.map((fact, index) => (
+              <SignalCard key={`${fact.toolId}-${fact.title}-${index}`} fact={fact} />
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-outline-900/55">
+            {hasRun
+              ? t("siteDashboard.noSignalsYet", {
+                  defaultValue:
+                    "Signals will appear here as tools return structured facts.",
+                })
+              : t("siteDashboard.startPrompt", {
+                  defaultValue:
+                    "Run the default audit preset to fill this board with site facts, metrics, and next actions.",
+                })}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function DashboardMetricCard({
+  icon,
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  detail: string;
+  tone: "green" | "orange" | "red" | "muted";
+}) {
+  const toneClass =
+    tone === "green"
+      ? "text-emerald-600"
+      : tone === "orange"
+        ? "text-orange-600"
+        : tone === "red"
+          ? "text-red-600"
+          : "text-outline-900/55";
+  return (
+    <div className="rounded-lg border border-orange-100 bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <span className="rounded-md bg-orange-50 p-2 text-primary">
+          {icon}
+        </span>
+        <span className={`font-mono text-2xl font-semibold ${toneClass}`}>
+          {value}
+        </span>
+      </div>
+      <h2 className="mt-3 text-sm font-semibold text-outline-900">{label}</h2>
+      <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
+        {detail}
+      </p>
+    </div>
+  );
+}
+
+function IssueDistributionBar({
+  totals,
+}: {
+  totals:
+    | {
+        critical: number;
+        warning: number;
+        info: number;
+        errors: number;
+      }
+    | undefined;
+}) {
+  const critical = totals?.critical ?? 0;
+  const warning = totals?.warning ?? 0;
+  const info = totals?.info ?? 0;
+  const errors = totals?.errors ?? 0;
+  const total = critical + warning + info + errors;
+  if (total === 0) {
+    return (
+      <div className="h-4 overflow-hidden rounded-full bg-emerald-100">
+        <div className="h-full w-full rounded-full bg-emerald-500 transition-all duration-700" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-4 overflow-hidden rounded-full bg-outline-900/10">
+      <BarSegment value={critical} total={total} className="bg-red-500" />
+      <BarSegment value={warning} total={total} className="bg-orange-500" />
+      <BarSegment value={info} total={total} className="bg-blue-400" />
+      <BarSegment value={errors} total={total} className="bg-outline-900" />
+    </div>
+  );
+}
+
+function BarSegment({
+  value,
+  total,
+  className,
+}: {
+  value: number;
+  total: number;
+  className: string;
+}) {
+  if (value <= 0) return null;
+  return (
+    <div
+      className={`h-full transition-all duration-700 ${className}`}
+      style={{ width: `${(value / total) * 100}%` }}
+    />
+  );
+}
+
+function DistributionLegend({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: number;
+  className: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-md bg-orange-50/60 px-2 py-1.5 text-outline-900/65">
+      <span className={`h-2.5 w-2.5 rounded-full ${className}`} />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="font-mono font-semibold text-outline-900">{value}</span>
+    </div>
+  );
+}
+
+interface ToolCategory {
+  id: string;
+  label: string;
+  completed: number;
+  total: number;
+  severity: RuntimeScanFact["severity"] | "pending";
+}
+
+function ToolCategoryRow({ category }: { category: ToolCategory }) {
+  const progress =
+    category.total > 0
+      ? Math.round((category.completed / category.total) * 100)
+      : 0;
+  const meta = getCategoryMeta(category.severity, progress);
+  return (
+    <div className="rounded-md border border-orange-100 bg-orange-50/30 px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-medium text-outline-900">
+          {category.label}
+        </span>
+        <span className={`text-xs font-semibold ${meta.textClass}`}>
+          {category.completed}/{category.total}
+        </span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-outline-900/10">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${meta.barClass}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SignalCard({ fact }: { fact: RuntimeScanFact }) {
+  const meta = getSeverityMeta(fact.severity);
+  return (
+    <article className="rounded-md border border-orange-100 bg-orange-50/30 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="min-w-0 text-sm font-medium text-outline-900">
+          {formatFactTitle(fact)}
+        </h3>
+        <span className={`text-xs font-semibold uppercase ${meta.className}`}>
+          {meta.label}
+        </span>
+      </div>
+      <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-outline-900/65">
+        {fact.detail}
+      </p>
+    </article>
+  );
+}
+
 function Metric({
   label,
   value,
@@ -287,6 +683,234 @@ function totalsFromBridgeFacts(facts: RuntimeScanFact[]) {
     },
     { critical: 0, warning: 0, info: 0, errors: 0 },
   );
+}
+
+function getBridgeCompletedTools(state: CurrentScanState | null): ToolId[] {
+  if (!state) return [];
+  return state.selectedTools.filter((toolId) => {
+    const entry = state.buffer[toolId];
+    return entry?.status === "complete" || entry?.status === "error";
+  });
+}
+
+function countBridgeCompletedTools(state: CurrentScanState | null): number {
+  return getBridgeCompletedTools(state).length;
+}
+
+function totalsFromBridgeState(
+  state: CurrentScanState | null,
+  facts: RuntimeScanFact[],
+):
+  | {
+      critical: number;
+      warning: number;
+      info: number;
+      errors: number;
+    }
+  | undefined {
+  if (!state) return facts.length > 0 ? totalsFromBridgeFacts(facts) : undefined;
+
+  const totals = { critical: 0, warning: 0, info: 0, errors: 0 };
+  let hasAnyCompleted = false;
+  for (const toolId of state.selectedTools) {
+    const entry = state.buffer[toolId];
+    if (!entry) continue;
+    if (entry.status === "error") {
+      totals.errors += 1;
+      hasAnyCompleted = true;
+      continue;
+    }
+    if (entry.status !== "complete") continue;
+    hasAnyCompleted = true;
+    totals.critical += entry.summary?.critical ?? 0;
+    totals.warning += entry.summary?.warning ?? 0;
+    totals.info += entry.summary?.info ?? 0;
+  }
+
+  return hasAnyCompleted ? totals : undefined;
+}
+
+function calculateAuditHealthScore(
+  totals: {
+    critical: number;
+    warning: number;
+    info: number;
+    errors: number;
+  },
+  selectedToolsCount: number,
+): number {
+  const toolFloor = Math.max(1, selectedToolsCount);
+  const penalty =
+    totals.errors * 18 +
+    totals.critical * 14 +
+    totals.warning * 6 +
+    totals.info * 1;
+  const normalizedPenalty = Math.round(penalty / Math.sqrt(toolFloor));
+  return Math.max(0, Math.min(100, 100 - normalizedPenalty));
+}
+
+function getHealthMeta(
+  score: number | null,
+  t: ReturnType<typeof useTranslation>["t"],
+): { label: string; tone: "green" | "orange" | "red" | "muted" } {
+  if (score === null) {
+    return {
+      label: t("siteDashboard.notScored", { defaultValue: "not scored yet" }),
+      tone: "muted",
+    };
+  }
+  if (score >= 90) {
+    return {
+      label: t("siteDashboard.healthExcellent", {
+        defaultValue: "technical baseline looks clean",
+      }),
+      tone: "green",
+    };
+  }
+  if (score >= 70) {
+    return {
+      label: t("siteDashboard.healthGood", {
+        defaultValue: "usable with fixes",
+      }),
+      tone: "green",
+    };
+  }
+  if (score >= 45) {
+    return {
+      label: t("siteDashboard.healthNeedsWork", {
+        defaultValue: "needs focused repair",
+      }),
+      tone: "orange",
+    };
+  }
+  return {
+    label: t("siteDashboard.healthPoor", {
+      defaultValue: "blocking issues likely",
+    }),
+    tone: "red",
+  };
+}
+
+function buildToolCategories(
+  selectedTools: ToolId[],
+  completedTools: ToolId[],
+  facts: RuntimeScanFact[],
+  t: ReturnType<typeof useTranslation>["t"],
+): ToolCategory[] {
+  const groups: Array<{ id: string; label: string; tools: ToolId[] }> = [
+    {
+      id: "crawl",
+      label: t("siteDashboard.groups.crawl", {
+        defaultValue: "Crawl and index access",
+      }),
+      tools: ["check_robots_txt", "analyze_sitemap", "check_redirects"],
+    },
+    {
+      id: "page",
+      label: t("siteDashboard.groups.page", {
+        defaultValue: "Page and content surface",
+      }),
+      tools: ["analyze_meta", "analyze_headings", "analyze_content"],
+    },
+    {
+      id: "technical",
+      label: t("siteDashboard.groups.technical", {
+        defaultValue: "Technical signals",
+      }),
+      tools: ["scan_site_minimal", "detect_stack"],
+    },
+  ];
+
+  return groups.map((group) => {
+    const selected = group.tools.filter((toolId) =>
+      selectedTools.includes(toolId),
+    );
+    const completed = selected.filter((toolId) =>
+      completedTools.includes(toolId),
+    );
+    const severity = worstSeverityForTools(selected, facts);
+    return {
+      id: group.id,
+      label: group.label,
+      completed: completed.length,
+      total: selected.length,
+      severity: completed.length === 0 ? "pending" : severity,
+    };
+  });
+}
+
+function worstSeverityForTools(
+  tools: ToolId[],
+  facts: RuntimeScanFact[],
+): RuntimeScanFact["severity"] {
+  return facts
+    .filter((fact) => tools.includes(fact.toolId))
+    .reduce<RuntimeScanFact["severity"]>(
+      (worst, fact) =>
+        severityWeight(fact.severity) > severityWeight(worst)
+          ? fact.severity
+          : worst,
+      "ok",
+    );
+}
+
+function countCleanTools(
+  selectedTools: ToolId[],
+  completedTools: ToolId[],
+  facts: RuntimeScanFact[],
+): number {
+  return completedTools.filter((toolId) => {
+    if (!selectedTools.includes(toolId)) return false;
+    return !facts.some(
+      (fact) =>
+        fact.toolId === toolId &&
+        (fact.severity === "critical" ||
+          fact.severity === "warning" ||
+          fact.severity === "error"),
+    );
+  }).length;
+}
+
+function severityWeight(severity: RuntimeScanFact["severity"]): number {
+  if (severity === "error") return 4;
+  if (severity === "critical") return 3;
+  if (severity === "warning") return 2;
+  return 1;
+}
+
+function getCategoryMeta(
+  severity: RuntimeScanFact["severity"] | "pending",
+  progress: number,
+) {
+  if (severity === "error" || severity === "critical") {
+    return { textClass: "text-red-600", barClass: "bg-red-500" };
+  }
+  if (severity === "warning") {
+    return { textClass: "text-orange-600", barClass: "bg-orange-500" };
+  }
+  if (progress >= 100) {
+    return { textClass: "text-emerald-600", barClass: "bg-emerald-500" };
+  }
+  return { textClass: "text-outline-900/55", barClass: "bg-primary" };
+}
+
+function getSeverityMeta(severity: RuntimeScanFact["severity"]) {
+  if (severity === "error") {
+    return { label: "error", className: "text-red-700" };
+  }
+  if (severity === "critical") {
+    return { label: "critical", className: "text-red-600" };
+  }
+  if (severity === "warning") {
+    return { label: "warning", className: "text-orange-600" };
+  }
+  return { label: "ok", className: "text-emerald-600" };
+}
+
+function formatFactTitle(fact: RuntimeScanFact): string {
+  const keyBase = getToolI18nKeyBase(fact.toolId);
+  if (fact.title === keyBase) return keyBase;
+  return fact.title;
 }
 
 function pickMascot({

@@ -575,7 +575,9 @@
     "modelMissing": "Choose an OpenRouter model before starting analysis.",
     "nativeUnavailable": "API + AI Chat is unavailable in this build.",
     "codexNeedsConfirmation": "Open Codex before starting the Codex bridge path.",
-    "codexSetupMissing": "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions."
+    "codexSetupMissing": "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
+    "codexClosed": "Codex is closed. Open Codex to continue.",
+    "codexClosedDuringScan": "Codex closed during the bridge flow. The active Codex scan was cancelled."
   },
   "analysisHero": {
     "nativeMode": "API + AI Chat",
@@ -657,6 +659,34 @@
       "native": "Ask about the current site audit...",
       "nativeNoScan": "Ask how the audit works...",
       "bridge": "Bridge mode uses Claude Desktop for the live conversation."
+    }
+  },
+  "siteDashboard": {
+    "health": "Audit health",
+    "coverage": "Evidence coverage",
+    "coverageDetail": "{{completed}}/{{total}} tools",
+    "cleanTools": "Clean tools",
+    "cleanToolsDetail": "completed without blocking issues",
+    "findings": "Findings",
+    "findingsDetail": "critical, warnings, info, errors",
+    "issueDistribution": "Issue distribution",
+    "healthNote": "This is a technical audit health view, not a popularity or traffic score.",
+    "complete": "Complete",
+    "inProgress": "In progress",
+    "waiting": "Waiting",
+    "toolGroups": "Audit groups",
+    "topSignals": "Top signals",
+    "noSignalsYet": "Signals will appear here as tools return structured facts.",
+    "startPrompt": "Run the default audit preset to fill this board with site facts, metrics, and next actions.",
+    "notScored": "not scored yet",
+    "healthExcellent": "technical baseline looks clean",
+    "healthGood": "usable with fixes",
+    "healthNeedsWork": "needs focused repair",
+    "healthPoor": "blocking issues likely",
+    "groups": {
+      "crawl": "Crawl and index access",
+      "page": "Page and content surface",
+      "technical": "Technical signals"
     }
   },
   "analysisPanel": {

@@ -168,6 +168,7 @@ function MainApp() {
   const promptCopyToastTimer = useRef<
     ReturnType<typeof window.setTimeout> | null
   >(null);
+  const lastCodexRunningRef = useRef<boolean | null>(null);
   const backShortcutTimerRef = useRef(0);
 
   const [currentLocale, setCurrentLocale] = useState<SupportedLocale>(
@@ -304,6 +305,39 @@ function MainApp() {
   }, [bridge.cancelScan, codexBridgeState, detectorStatus?.codexRunning, t]);
 
   useEffect(() => {
+    if (detectorStatus === null) return;
+
+    const previous = lastCodexRunningRef.current;
+    lastCodexRunningRef.current = detectorStatus.codexRunning;
+
+    const codexBridgeBusy =
+      codexBridgeState?.status === "awaiting_handshake" ||
+      codexBridgeState?.status === "in_progress";
+
+    if (
+      previous === true &&
+      detectorStatus.codexRunning === false &&
+      executionMode === "bridge" &&
+      bridgeProgram === "codex" &&
+      !codexBridgeBusy
+    ) {
+      setPreflightError(
+        t("preflight.codexClosed", {
+          defaultValue: "Codex is closed. Open Codex to continue.",
+        }),
+      );
+      setCodexPromptHelperVisible(false);
+      setCodexPromptHelperScanId(null);
+    }
+  }, [
+    bridgeProgram,
+    codexBridgeState?.status,
+    detectorStatus,
+    executionMode,
+    t,
+  ]);
+
+  useEffect(() => {
     if (!codexPromptHelperVisible) return;
     if (bridge.state?.bridgeClient !== "codex") return;
     if (
@@ -368,31 +402,26 @@ function MainApp() {
       );
       return;
     }
-    if (
-      confirmedExecutionMode === "bridge" &&
-      bridgeProgram === "codex" &&
-      !codexPathReady
-    ) {
-      setPreflightError(
-        t("preflight.codexNeedsConfirmation", {
-          defaultValue:
-            "Open Codex before starting the Codex bridge path.",
-        }),
-      );
-      return;
-    }
-    if (
-      confirmedExecutionMode === "bridge" &&
-      bridgeProgram === "codex" &&
-      !codexSetupVerified
-    ) {
-      setPreflightError(
-        t("preflight.codexSetupMissing", {
-          defaultValue:
-            "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
-        }),
-      );
-      return;
+    if (confirmedExecutionMode === "bridge" && bridgeProgram === "codex") {
+      const fresh = await checkNow();
+      if (!fresh.codexRunning) {
+        setPreflightError(
+          t("preflight.codexNeedsConfirmation", {
+            defaultValue:
+              "Open Codex before starting the Codex bridge path.",
+          }),
+        );
+        return;
+      }
+      if (!fresh.codexSetupVerified) {
+        setPreflightError(
+          t("preflight.codexSetupMissing", {
+            defaultValue:
+              "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
+          }),
+        );
+        return;
+      }
     }
     if (
       confirmedExecutionMode === "bridge" &&
@@ -554,9 +583,9 @@ function MainApp() {
   const handleRunBridgeScan = async () => {
     setPreflightError(null);
     setRuntimeReport(null);
-    void window.toraseo.runtime.showReportWindowProcessing();
     if (bridgeProgram === "codex") {
-      if (!codexPathReady) {
+      const fresh = await checkNow();
+      if (!fresh.codexRunning) {
         setPreflightError(
           t("preflight.codexNeedsConfirmation", {
             defaultValue: "Open Codex before starting the Codex bridge path.",
@@ -564,7 +593,7 @@ function MainApp() {
         );
         return;
       }
-      if (!codexSetupVerified) {
+      if (!fresh.codexSetupVerified) {
         setPreflightError(
           t("preflight.codexSetupMissing", {
             defaultValue:
@@ -583,6 +612,7 @@ function MainApp() {
         return;
       }
       if (bridge.state?.status === "error") {
+        void window.toraseo.runtime.showReportWindowProcessing();
         await bridge.retryHandshake();
         showCodexPromptHelper(bridge.state.scanId);
         showPromptCopiedToast();
@@ -592,6 +622,7 @@ function MainApp() {
       const orderedIds = TOOLS.map((item) => item.id).filter((id) =>
         selectedTools.has(id),
       );
+      void window.toraseo.runtime.showReportWindowProcessing();
       const result = await bridge.startScan(url.trim(), orderedIds, "codex");
       showCodexPromptHelper(result.scanId);
       showPromptCopiedToast();
@@ -612,6 +643,7 @@ function MainApp() {
       return;
     }
     if (bridge.state?.status === "error") {
+      void window.toraseo.runtime.showReportWindowProcessing();
       await bridge.retryHandshake();
       return;
     }
@@ -619,6 +651,7 @@ function MainApp() {
     const orderedIds = TOOLS.map((item) => item.id).filter((id) =>
       selectedTools.has(id),
     );
+    void window.toraseo.runtime.showReportWindowProcessing();
     await bridge.startScan(url.trim(), orderedIds, "claude");
   };
 

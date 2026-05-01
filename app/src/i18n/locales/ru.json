@@ -575,7 +575,9 @@
     "modelMissing": "Выберите модель OpenRouter перед началом анализа.",
     "nativeUnavailable": "API + AI Chat недоступен в этой сборке.",
     "codexNeedsConfirmation": "Откройте Codex перед запуском пути через Codex bridge.",
-    "codexSetupMissing": "Сначала запустите проверку настройки Codex, чтобы ToraSEO подтвердил MCP и Codex Workflow Instructions."
+    "codexSetupMissing": "Сначала запустите проверку настройки Codex, чтобы ToraSEO подтвердил MCP и Codex Workflow Instructions.",
+    "codexClosed": "Codex закрыт. Откройте Codex, чтобы продолжить.",
+    "codexClosedDuringScan": "Codex закрылся во время bridge-потока. Активное сканирование через Codex отменено."
   },
   "analysisHero": {
     "nativeMode": "API + AI Chat",
@@ -657,6 +659,34 @@
       "native": "Спросите о текущем аудите сайта...",
       "nativeNoScan": "Спросите, как работает аудит...",
       "bridge": "В Bridge mode живой диалог идёт через Claude Desktop."
+    }
+  },
+  "siteDashboard": {
+    "health": "Здоровье аудита",
+    "coverage": "Покрытие фактов",
+    "coverageDetail": "{{completed}}/{{total}} инструментов",
+    "cleanTools": "Чистые проверки",
+    "cleanToolsDetail": "завершены без блокирующих проблем",
+    "findings": "Сигналы",
+    "findingsDetail": "критично, предупреждения, инфо, ошибки",
+    "issueDistribution": "Распределение проблем",
+    "healthNote": "Это техническая оценка аудита, а не показатель популярности или трафика.",
+    "complete": "Готово",
+    "inProgress": "В процессе",
+    "waiting": "Ожидание",
+    "toolGroups": "Группы аудита",
+    "topSignals": "Главные сигналы",
+    "noSignalsYet": "Сигналы появятся здесь, когда инструменты вернут структурированные факты.",
+    "startPrompt": "Запустите стандартный набор проверок, чтобы заполнить доску фактами, метриками и следующими действиями.",
+    "notScored": "оценки пока нет",
+    "healthExcellent": "техническая база выглядит чистой",
+    "healthGood": "можно использовать после правок",
+    "healthNeedsWork": "нужен сфокусированный ремонт",
+    "healthPoor": "вероятны блокирующие проблемы",
+    "groups": {
+      "crawl": "Доступ для обхода и индексации",
+      "page": "Страница и контент",
+      "technical": "Технические сигналы"
     }
   },
   "analysisPanel": {

@@ -110,6 +110,7 @@ api-keys.json
 *.log
 logs/
 *.log.*
+.commit-msg.txt
 
 # ============================================
 # Cache directories
