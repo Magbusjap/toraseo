@@ -5,12 +5,15 @@ import DependencyCheck from "./DependencyCheck";
 import type {
   DetectorStatus,
   DownloadSkillZipResult,
+  OpenClaudeResult,
+  PickAppPathResult,
   PickMcpConfigResult,
 } from "../../types/ipc";
 
 interface OnboardingViewProps {
   status: DetectorStatus | null;
-  onOpenClaude: () => Promise<{ ok: boolean; error?: string }>;
+  onOpenClaude: () => Promise<OpenClaudeResult>;
+  onPickClaudePath: () => Promise<PickAppPathResult>;
   onPickMcpConfig: () => Promise<PickMcpConfigResult>;
   onClearManualMcpConfig: () => Promise<{ ok: boolean }>;
   onDownloadSkillZip: () => Promise<DownloadSkillZipResult>;
@@ -40,6 +43,7 @@ interface OnboardingViewProps {
 export default function OnboardingView({
   status,
   onOpenClaude,
+  onPickClaudePath,
   onPickMcpConfig,
   onClearManualMcpConfig,
   onDownloadSkillZip,
@@ -71,6 +75,16 @@ export default function OnboardingView({
     try {
       const result = await onOpenClaude();
       if (!result.ok) {
+        if (result.needsManualPath) {
+          const picked = await onPickClaudePath();
+          if (!picked.ok) {
+            if (picked.reason === "cancelled") return;
+            setOpenError(picked.error ?? t("onboarding.claude.openFailedFallback"));
+            return;
+          }
+          const retry = await onOpenClaude();
+          if (retry.ok) return;
+        }
         setOpenError(
           result.error ?? t("onboarding.claude.openFailedFallback"),
         );
@@ -166,7 +180,11 @@ export default function OnboardingView({
       <div className="flex flex-col gap-3">
         {/* Row 1 — Claude Desktop process */}
         <DependencyCheck
-          label={t("onboarding.claude.label")}
+          label={
+            status.claudeRunning
+              ? t("onboarding.claude.labelRunning")
+              : t("onboarding.claude.labelMissing")
+          }
           hint={
             status.claudeRunning
               ? t("onboarding.claude.hintRunning")
@@ -174,11 +192,22 @@ export default function OnboardingView({
           }
           satisfied={status.claudeRunning}
           action={{
-            label: t("onboarding.claude.openButton"),
+            label: status.claudeAppPath
+              ? t("onboarding.claude.openButton")
+              : t("onboarding.claude.addPathButton"),
             onClick: handleOpenClaude,
             busy: openingClaude,
           }}
         />
+        {!status.claudeRunning && !status.claudeAppPath && (
+          <p className="pl-11 text-xs leading-relaxed text-red-700">
+            {t("onboarding.appPathMissing", {
+              appName: "Claude Desktop",
+              defaultValue:
+                "ToraSEO could not find the path to {{appName}}. Use the button above to add it manually.",
+            })}
+          </p>
+        )}
 
         {/* Row 2 — MCP registration with manual picker fallback */}
         <div className="flex flex-col gap-2">

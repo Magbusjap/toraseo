@@ -199,6 +199,10 @@ export interface DetectorStatus {
    * and revert to auto if needed.
    */
   manualMcpPath: string | null;
+  /** Claude Desktop path found automatically or selected manually. */
+  claudeAppPath: string | null;
+  /** Codex path found automatically or selected manually. */
+  codexAppPath: string | null;
 }
 
 /**
@@ -281,7 +285,16 @@ export interface OpenClaudeResult {
   ok: boolean;
   /** Which path was used (for debugging in DevTools). */
   launchedFrom?: string;
+  /** True when ToraSEO needs the user to choose an executable manually. */
+  needsManualPath?: boolean;
   /** Set when ok = false. */
+  error?: string;
+}
+
+export interface PickAppPathResult {
+  ok: boolean;
+  path?: string;
+  reason?: "cancelled";
   error?: string;
 }
 
@@ -299,6 +312,8 @@ export type OpenCodexResult = OpenClaudeResult;
 export interface LauncherApi {
   openClaude(): Promise<OpenClaudeResult>;
   openCodex(): Promise<OpenCodexResult>;
+  pickClaudePath(): Promise<PickAppPathResult>;
+  pickCodexPath(): Promise<PickAppPathResult>;
 }
 
 // =====================================================================
@@ -436,17 +451,40 @@ export interface BridgeScanError {
  * MCP and App both check the version on read — mismatch is fatal
  * (signals coordinated-release went wrong).
  */
+export type BridgeAnalysisType = "site_by_url" | "article_text";
+export type BridgeRunAction = "scan" | "solution";
+
+export interface BridgeAnalysisInput {
+  action?: BridgeRunAction;
+  topic?: string;
+  text?: string;
+  selectedAnalysisTools?: string[];
+}
+
+export interface BridgeWorkspace {
+  workspaceDir: string;
+  inputFile: string;
+  metaFile: string;
+  resultsDir: string;
+  createdAt: string;
+  expiresAt: string;
+  ttlDays: number;
+}
+
 export interface CurrentScanState {
   schemaVersion: 1;
   scanId: string;
   bridgeClient: BridgeClient;
+  analysisType?: BridgeAnalysisType;
+  input?: BridgeAnalysisInput;
+  workspace?: BridgeWorkspace;
   status: BridgeScanStatus;
   url: string;
   createdAt: string;
   finishedAt: string | null;
-  selectedTools: ToolId[];
+  selectedTools: string[];
   handshake: BridgeHandshake;
-  buffer: Partial<Record<ToolId, ToolBufferEntry>>;
+  buffer: Record<string, ToolBufferEntry>;
   error: BridgeScanError | null;
 }
 
@@ -492,8 +530,9 @@ export interface BridgeApi {
    */
   startScan(
     url: string,
-    toolIds: ToolId[],
+    toolIds: string[],
     bridgeClient?: BridgeClient,
+    input?: BridgeAnalysisInput,
   ): Promise<StartBridgeScanResult>;
 
   /**
@@ -519,6 +558,9 @@ export interface BridgeApi {
   retryHandshake(): Promise<{ ok: boolean; error?: string }>;
 
   copyCodexSetupPrompt(): Promise<{ ok: boolean; prompt: string }>;
+  copyBridgeSetupPrompt(
+    bridgeClient: BridgeClient,
+  ): Promise<{ ok: boolean; prompt: string }>;
 }
 
 // =====================================================================

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import ChatPanel from "./ChatPanel";
+import { WindowSizeOverlay } from "../ViewportSizeOverlay";
 
 import type {
   RuntimeAuditReport,
@@ -60,6 +61,7 @@ export default function ChatWindow() {
   if (loadError) {
     return (
       <main className="grid h-screen place-items-center bg-orange-50/30 p-8">
+        <WindowSizeOverlay toolbarOffset={0} />
         <section className="w-full max-w-md rounded-xl border border-red-200 bg-white p-7 text-center shadow-sm">
           <h1 className="text-xl font-semibold text-red-800">
             {t("chat.loadErrorTitle", { defaultValue: "AI chat did not load" })}
@@ -75,6 +77,7 @@ export default function ChatWindow() {
   if (!session) {
     return (
       <main className="grid h-full place-items-center bg-orange-50/30 p-8">
+        <WindowSizeOverlay toolbarOffset={0} />
         <p className="text-sm text-orange-900/70">
           {t("chat.loading", { defaultValue: "Loading..." })}
         </p>
@@ -85,6 +88,7 @@ export default function ChatWindow() {
   if (session.status === "ended") {
     return (
       <main className="grid h-full place-items-center bg-orange-50/30 p-8">
+        <WindowSizeOverlay toolbarOffset={0} />
         <section className="w-full max-w-md rounded-xl border border-orange-200 bg-white p-7 text-center shadow-sm">
           <h1 className="text-xl font-semibold text-orange-950">
             {t("chat.endedTitle", { defaultValue: "Session ended" })}
@@ -102,6 +106,7 @@ export default function ChatWindow() {
 
   return (
     <main className="h-screen min-h-screen bg-white">
+      <WindowSizeOverlay toolbarOffset={0} />
       <ChatPanel
         locale={session.locale}
         executionMode="native"

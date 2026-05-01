@@ -66,6 +66,7 @@ import os from "node:os";
 import { promisify } from "node:util";
 import psList from "ps-list";
 import log from "electron-log";
+import { resolveLaunchPath } from "./launchPaths.js";
 
 const execFile = promisify(execFileCallback);
 const CODEX_SETUP_VERIFICATION_FILE = "codex-setup-verification.json";
@@ -119,6 +120,10 @@ export interface DetectorStatus {
    * fallback.
    */
   manualMcpPath: string | null;
+  /** Claude Desktop path found automatically or selected manually. */
+  claudeAppPath: string | null;
+  /** Codex path found automatically or selected manually. */
+  codexAppPath: string | null;
 }
 
 export interface PickMcpConfigResult {
@@ -257,6 +262,10 @@ async function readCodexSetupVerification(): Promise<{
  * "anthropic-claude-cli".
  */
 async function checkClaudeProcess(): Promise<boolean> {
+  if (process.platform === "win32") {
+    return checkClaudeDesktopWindowOnWindows();
+  }
+
   try {
     const processes = await psList();
     return processes.some((p) => {
@@ -272,6 +281,33 @@ async function checkClaudeProcess(): Promise<boolean> {
   }
 }
 
+async function checkClaudeDesktopWindowOnWindows(): Promise<boolean> {
+  const script = [
+    "$ErrorActionPreference = 'SilentlyContinue'",
+    "$hits = Get-Process Claude,claude | Where-Object {",
+    "  $_.MainWindowHandle -ne 0 -and",
+    "  -not [string]::IsNullOrWhiteSpace($_.Path) -and",
+    "  $_.Path -notlike '*\\.vscode\\extensions*' -and",
+    "  $_.Path -notlike '*\\.codex\\.sandbox-bin*'",
+    "}",
+    "if ($hits) { 'true' } else { 'false' }",
+  ].join("\n");
+
+  try {
+    const { stdout } = await execFile(
+      "powershell.exe",
+      ["-NoProfile", "-Command", script],
+      { windowsHide: true, encoding: "utf8" },
+    );
+    return stdout.trim().toLowerCase() === "true";
+  } catch (err) {
+    log.warn(
+      `[detector] Windows Claude window probe failed: ${(err as Error).message}`,
+    );
+    return false;
+  }
+}
+
 async function checkCodexProcess(): Promise<boolean> {
   if (process.platform === "win32") {
     return checkCodexDesktopWindowOnWindows();
@@ -281,11 +317,15 @@ async function checkCodexProcess(): Promise<boolean> {
     const processes = await psList();
     return processes.some((p) => {
       const name = p.name.toLowerCase();
+      const command = p.cmd?.toLowerCase() ?? "";
       return (
-        name === "codex" ||
-        name === "codex.exe" ||
-        name === "openai codex" ||
-        name === "openai codex.exe"
+        (name === "codex" ||
+          name === "codex.exe" ||
+          name === "openai codex" ||
+          name === "openai codex.exe" ||
+          command.includes("openai.codex_")) &&
+        !command.includes(".vscode\\extensions") &&
+        !command.includes(".codex\\.sandbox-bin")
       );
     });
   } catch (err) {
@@ -298,10 +338,20 @@ async function checkCodexDesktopWindowOnWindows(): Promise<boolean> {
   const script = [
     "$ErrorActionPreference = 'SilentlyContinue'",
     "$hits = Get-Process Codex,codex | Where-Object {",
-    "  -not [string]::IsNullOrWhiteSpace($_.Path) -and",
-    "  $_.Path -like '*\\WindowsApps\\OpenAI.Codex_*' -and",
-    "  $_.Path -notlike '*\\.vscode\\extensions*' -and",
-    "  $_.Path -notlike '*\\.codex\\.sandbox-bin*'",
+    "  $p = [string]$_.Path",
+    "  $_.MainWindowHandle -ne 0 -and",
+    "  (",
+    "    $_.ProcessName -ceq 'Codex' -or",
+    "    (",
+    "      -not [string]::IsNullOrWhiteSpace($p) -and",
+    "      (",
+    "        $p -like '*\\WindowsApps\\OpenAI.Codex_*' -or",
+    "        $p -like '*\\AppData\\Local\\OpenAI\\Codex*'",
+    "      )",
+    "    )",
+    "  ) -and",
+    "  $p -notlike '*\\.vscode\\extensions*' -and",
+    "  $p -notlike '*\\.codex\\.sandbox-bin*'",
     "}",
     "if ($hits) { 'true' } else { 'false' }",
   ].join("\n");
@@ -469,6 +519,8 @@ export async function checkAll(): Promise<DetectorStatus> {
     mcpRegistered,
     skill,
     manualMcpPath,
+    claudeAppPath,
+    codexAppPath,
   ] =
     await Promise.all([
       checkClaudeProcess(),
@@ -477,6 +529,8 @@ export async function checkAll(): Promise<DetectorStatus> {
       checkMcpRegistered(),
       checkSkillInstalled(),
       readManualMcpPath(),
+      resolveLaunchPath("claude"),
+      resolveLaunchPath("codex"),
     ]);
 
   return {
@@ -490,6 +544,8 @@ export async function checkAll(): Promise<DetectorStatus> {
     allGreen: claudeRunning && mcpRegistered && skill.installed,
     checkedAt: new Date().toISOString(),
     manualMcpPath,
+    claudeAppPath,
+    codexAppPath,
   };
 }
 

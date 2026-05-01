@@ -103,7 +103,9 @@ function createWindow(): void {
   // electron-vite injects ELECTRON_RENDERER_URL in dev mode.
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
-    mainWindow.webContents.openDevTools({ mode: "detach" });
+    if (process.env.TORASEO_OPEN_DEVTOOLS === "1") {
+      mainWindow.webContents.openDevTools({ mode: "detach" });
+    }
   } else {
     // Production: the renderer is built into out/renderer/index.html
     // and loaded via file:// — no HTTP server, no VPN interference.
@@ -198,7 +200,7 @@ app.whenReady().then(async () => {
   // Claude Desktop launcher: invoked by the "Open Claude Desktop"
   // button on the onboarding screen. See electron/launcher.ts for
   // platform-specific path discovery.
-  setupLauncher();
+  setupLauncher(() => mainWindow);
 
   // UI locale persistence: read/write userData/locale.txt and
   // expose app.getLocale() to the renderer for OS-derived defaults.

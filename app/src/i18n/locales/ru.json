@@ -197,10 +197,10 @@
       "confirmFirstBody": "Тип анализа будет доступен после выбора пути запуска и его подтверждения."
     },
     "bridge": {
-      "readyTitle": "Путь через Claude Desktop готов",
-      "readyBody": "Аудит сайта будет копировать bridge-промпт и возвращать MCP-факты обратно в ToraSEO.",
-      "codexTitle": "Готовность пути через Codex",
-      "codexBody": "Сначала ToraSEO подтверждает, что Codex открыт. Затем вы запускаете короткую проверку настройки, чтобы ToraSEO убедился в доступности MCP и Codex Workflow Instructions в живой сессии Codex.",
+      "readyTitle": "Ваш Claude Desktop к анализу готов",
+      "readyBody": "ToraSEO может передать Claude Desktop проверочный или рабочий промпт и получить MCP-результаты обратно в приложение.",
+      "codexTitle": "Ваш Codex к анализу готов",
+      "codexBody": "ToraSEO может передать Codex проверочный или рабочий промпт и получить MCP-результаты обратно в приложение.",
       "codexOnboardingTitle": "ToraSEO работает в связке с Codex",
       "codexOnboardingSubtitle": "Для запуска нужны три компонента. Когда все три зелёные, сканирование разблокируется автоматически.",
       "codexSetupTitle": "Как подключить Codex",
@@ -228,7 +228,14 @@
       "codexInstructionsSetupVerified": "Проверено в живой сессии настройки Codex. ToraSEO увидел токен workflow из активной сессии Codex.",
       "codexInstructionsHint": "Токен handshake хранится только в пакете Codex Workflow Instructions и в MCP-сервере.",
       "confirm": "Подтвердить",
-      "resetConfirmation": "Сбросить"
+      "resetConfirmation": "Сбросить",
+      "appPathMissing": "Приложение ToraSEO не смогло найти путь к {{appName}}.",
+      "addCodexPath": "Добавить путь вручную",
+      "codexRunningMissingLabel": "Codex не запущен",
+      "verifyClaudePromptButton": "Проверить работу с Claude Desktop через ПРОМПТ",
+      "verifyCodexPromptButton": "Проверить работу с Codex через ПРОМПТ",
+      "setupPromptNoticeTitle": "Промпт проверки скопирован",
+      "setupPromptNoticeBody": "Откройте новую сессию в {{appName}}, вставьте промпт и нажмите Enter. Так можно проверить, видит ли {{appName}} ToraSEO SKILL и MCP."
     },
     "native": {
       "checking": "Проверяю...",
@@ -333,6 +340,9 @@
       "articleRoleCompetitor": "Статья-конкурент",
       "aiDraftAction": "Предложить решение",
       "scanReadyTextAction": "Сканировать текст",
+      "scanCancelled": "Анализ отменён.",
+      "aiDraftPromptCopied": "Промпт скопирован. Вставьте его в чат {{appName}}, чтобы ИИ продолжил работу по этому анализу.",
+      "scanPromptCopied": "Промпт скопирован. Вставьте его в чат {{appName}}, чтобы ИИ продолжил работу по этому анализу.",
       "aiDraftNeedMore": "Напишите ещё немного: минимум два небольших абзаца, чтобы ИИ мог предложить осмысленное решение.",
       "aiDraftPrepared": "Ввод уже похож на основу для решения. Полный запуск этой команды подключится вместе с анализом текста.",
       "targetQuery": "Целевой запрос",
@@ -530,11 +540,13 @@
       "opening": "Открываю…"
     },
     "claude": {
-      "label": "Claude Desktop запущен",
       "hintRunning": "Процесс найден",
       "hintMissing": "Откройте Claude Desktop, чтобы продолжить",
       "openButton": "Открыть Claude Desktop",
-      "openFailedFallback": "Не удалось открыть Claude Desktop. Запустите его вручную."
+      "openFailedFallback": "Не удалось открыть Claude Desktop. Запустите его вручную.",
+      "labelRunning": "Claude Desktop запущен",
+      "labelMissing": "Claude Desktop не запущен",
+      "addPathButton": "Добавить путь вручную"
     },
     "mcp": {
       "label": "MCP-сервер ToraSEO подключён",
@@ -566,7 +578,8 @@
       "confirmDialog": "Подтвердите, что ToraSEO Claude Bridge Instructions установлены в Claude Desktop через Settings → Skills.\n\nБез этих инструкций в контексте Claude анализ будет неполным: он проигнорирует CRAWLING_POLICY, сопоставление verdict'ов и формулу CGS.",
       "tooltipFilesystem": "Claude Bridge Instructions обнаружены через файловую систему — подтверждение не требуется",
       "tooltipManual": "Ручное подтверждение уже активно — сбросьте его ниже, если хотите переподтвердить"
-    }
+    },
+    "appPathMissing": "Приложение ToraSEO не смогло найти путь к {{appName}}."
   },
   "preflight": {
     "depsFailed": "Проверка зависимостей не пройдена. Откройте Claude Desktop, убедитесь что MCP подключён и Claude Bridge Instructions установлены.",
@@ -574,6 +587,8 @@
     "providerMissing": "Добавьте ИИ-провайдера перед использованием API + AI Chat.",
     "modelMissing": "Выберите модель OpenRouter перед началом анализа.",
     "nativeUnavailable": "API + AI Chat недоступен в этой сборке.",
+    "articleTextBridgeRequired": "Анализ текста через Codex или Claude Desktop требует режима MCP + Instructions.",
+    "codexClosedTitle": "Codex недоступен",
     "codexNeedsConfirmation": "Откройте Codex перед запуском пути через Codex bridge.",
     "codexSetupMissing": "Сначала запустите проверку настройки Codex, чтобы ToraSEO подтвердил MCP и Codex Workflow Instructions.",
     "codexClosed": "Codex закрыт. Откройте Codex, чтобы продолжить.",

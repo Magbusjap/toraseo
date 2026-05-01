@@ -21,6 +21,49 @@ function priorityLabel(value: "high" | "medium" | "low"): string {
   return "Medium";
 }
 
+function viewportSizeOverlayStyle(): string {
+  return `
+        #toraseo-viewport-size {
+          position: fixed;
+          top: 15px;
+          right: 20px;
+          z-index: 9999;
+          pointer-events: none;
+          color: rgba(26, 15, 8, 0.55);
+          font: 700 12px ui-monospace, SFMono-Regular, Consolas, monospace;
+          opacity: 0;
+          transform: translateY(-4px);
+          transition: opacity 140ms ease, transform 140ms ease;
+          white-space: nowrap;
+        }
+        #toraseo-viewport-size.visible {
+          opacity: 1;
+          transform: translateY(0);
+        }`;
+}
+
+function viewportSizeOverlayMarkup(): string {
+  return `
+      <div id="toraseo-viewport-size" aria-hidden="true"></div>
+      <script>
+        (() => {
+          const el = document.getElementById("toraseo-viewport-size");
+          if (!el) return;
+          let timer = null;
+          const show = () => {
+            el.textContent = window.innerWidth + "px x " + window.innerHeight + "px";
+            el.classList.add("visible");
+            if (timer) window.clearTimeout(timer);
+            timer = window.setTimeout(() => {
+              el.classList.remove("visible");
+              timer = null;
+            }, 1600);
+          };
+          window.addEventListener("resize", show);
+        })();
+      </script>`;
+}
+
 function renderReportHtml(report: RuntimeAuditReport): string {
   const facts = report.confirmedFacts
     .map(
@@ -151,6 +194,7 @@ function renderReportHtml(report: RuntimeAuditReport): string {
           body { padding: 0; background: white; }
           .hero, .section, .card { break-inside: avoid; }
         }
+        ${viewportSizeOverlayStyle()}
       </style>
     </head>
     <body>
@@ -181,6 +225,7 @@ function renderReportHtml(report: RuntimeAuditReport): string {
           <p>${escapeHtml(report.nextStep)}</p>
         </section>
       </div>
+      ${viewportSizeOverlayMarkup()}
     </body>
   </html>`;
 }
@@ -242,6 +287,7 @@ function renderProcessingHtml(): string {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(270%); }
         }
+        ${viewportSizeOverlayStyle()}
       </style>
     </head>
     <body>
@@ -250,6 +296,7 @@ function renderProcessingHtml(): string {
         <h1>Processing the new analysis</h1>
         <p>The previous report is hidden while ToraSEO prepares the refreshed result.</p>
       </main>
+      ${viewportSizeOverlayMarkup()}
     </body>
   </html>`;
 }
@@ -298,6 +345,7 @@ function renderEndedHtml(): string {
           color: var(--muted);
           line-height: 1.6;
         }
+        ${viewportSizeOverlayStyle()}
       </style>
     </head>
     <body>
@@ -305,6 +353,7 @@ function renderEndedHtml(): string {
         <h1>Analysis ended</h1>
         <p>Start a new analysis in the main ToraSEO window to refresh this details view.</p>
       </main>
+      ${viewportSizeOverlayMarkup()}
     </body>
   </html>`;
 }

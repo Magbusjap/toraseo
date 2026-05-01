@@ -63,6 +63,18 @@ If Codex can call `verify_codex_workflow_loaded`, ToraSEO will know that:
 - the ToraSEO MCP server is reachable from Codex
 - the Codex Workflow Instructions are active in that live Codex session
 
+The same rule applies if the user types a manual question in Codex, for
+example asking whether Codex can see ToraSEO, ToraSEO MCP, the ToraSEO
+SKILL, or has access to the bridge. Codex should call
+`verify_codex_workflow_loaded` and answer from that live result instead
+of guessing.
+
+If the check returns `token_mismatch`, do not copy protocol tokens into
+chat. That means Codex loaded an older/different package, or did not
+load this package. Replace the local `toraseo-codex-workflow` folder
+with the current one, restart Codex, open a new session, and repeat the
+setup check.
+
 This setup check does not start a site scan. It only verifies the
 Codex-side connection before the first analysis.
 

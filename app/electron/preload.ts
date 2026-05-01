@@ -20,6 +20,7 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import type {
   CheckUpdateResult,
+  BridgeAnalysisInput,
   BridgeClient,
   CurrentScanState,
   DetectorStatus,
@@ -27,6 +28,7 @@ import type {
   DownloadSkillZipResult,
   OpenClaudeResult,
   OpenCodexResult,
+  PickAppPathResult,
   PickMcpConfigResult,
   ScanComplete,
   StageUpdate,
@@ -88,6 +90,8 @@ const DETECTOR = {
 const LAUNCHER = {
   openClaude: "toraseo:launcher:open-claude",
   openCodex: "toraseo:launcher:open-codex",
+  pickClaudePath: "toraseo:launcher:pick-claude-path",
+  pickCodexPath: "toraseo:launcher:pick-codex-path",
 } as const;
 
 // Mirror of LOCALE_CHANNELS from electron/locale.ts.
@@ -104,6 +108,7 @@ const BRIDGE = {
   retryHandshake: "toraseo:bridge:retry-handshake",
   getState: "toraseo:bridge:get-state",
   copyCodexSetupPrompt: "toraseo:bridge:copy-codex-setup-prompt",
+  copyBridgeSetupPrompt: "toraseo:bridge:copy-bridge-setup-prompt",
   stateUpdate: "toraseo:bridge:state-update",
 } as const;
 
@@ -273,6 +278,16 @@ const api: ToraseoApi = {
     openCodex: () => {
       return ipcRenderer.invoke(LAUNCHER.openCodex) as Promise<OpenCodexResult>;
     },
+    pickClaudePath: () => {
+      return ipcRenderer.invoke(
+        LAUNCHER.pickClaudePath,
+      ) as Promise<PickAppPathResult>;
+    },
+    pickCodexPath: () => {
+      return ipcRenderer.invoke(
+        LAUNCHER.pickCodexPath,
+      ) as Promise<PickAppPathResult>;
+    },
   },
 
   locale: {
@@ -290,13 +305,15 @@ const api: ToraseoApi = {
   bridge: {
     startScan: (
       url: string,
-      toolIds: ToolId[],
+      toolIds: string[],
       bridgeClient?: BridgeClient,
+      input?: BridgeAnalysisInput,
     ) => {
       return ipcRenderer.invoke(BRIDGE.startScan, {
         url,
         toolIds,
         bridgeClient,
+        input,
       }) as Promise<StartBridgeScanResult>;
     },
 
@@ -328,6 +345,16 @@ const api: ToraseoApi = {
 
     copyCodexSetupPrompt: () => {
       return ipcRenderer.invoke(BRIDGE.copyCodexSetupPrompt) as Promise<{
+        ok: boolean;
+        prompt: string;
+      }>;
+    },
+
+    copyBridgeSetupPrompt: (bridgeClient: BridgeClient) => {
+      return ipcRenderer.invoke(
+        BRIDGE.copyBridgeSetupPrompt,
+        bridgeClient,
+      ) as Promise<{
         ok: boolean;
         prompt: string;
       }>;

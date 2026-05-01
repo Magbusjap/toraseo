@@ -11,15 +11,27 @@ import { probeAppAlive } from "./aliveFile.js";
 import { CODEX_WORKFLOW_PROTOCOL_TOKEN } from "./constants.js";
 import { writeCodexSetupVerification } from "./codexSetupVerification.js";
 import { applyHandshake, readState } from "./stateFile.js";
+import { readActiveInputMarkdown } from "./workspace.js";
 
 export const verifyCodexWorkflowLoadedInputSchema = {
   token: z
     .string()
     .describe(
       "The Codex Workflow Instructions protocol token. Must match exactly. " +
-        "Format: codex-workflow-vN-YYYY-MM-DD",
+        "Format: codex-workflow-vN-YYYY-MM-DD. If the tool returns " +
+        "token_mismatch, do not ask the user to reveal or paste a token; " +
+        "tell them to update or reinstall the ToraSEO Codex Workflow " +
+        "Instructions package and restart Codex.",
     ),
 };
+
+const TOKEN_MISMATCH_MESSAGE =
+  "The Codex Workflow Instructions token does not match. Do not ask the " +
+  "user to reveal, copy, or paste the expected token. This means the " +
+  "current Codex session is using an outdated or different ToraSEO Codex " +
+  "Workflow Instructions package, or the package was not loaded. Ask the " +
+  "user to update or reinstall `toraseo-codex-workflow`, restart Codex, " +
+  "start a new Codex session, and run the setup check again.";
 
 export async function verifyCodexWorkflowLoadedHandler({
   token,
@@ -40,10 +52,9 @@ export async function verifyCodexWorkflowLoadedHandler({
       return jsonError({
         ok: false,
         error: "token_mismatch",
-        message:
-          "The Codex Workflow Instructions token does not match. The user " +
-          "needs the current ToraSEO Codex Workflow Instructions package. " +
-          "For security, the expected token is not returned by MCP.",
+        doNotAskUserForToken: true,
+        nextStep: "update_or_reinstall_codex_workflow_instructions",
+        message: TOKEN_MISMATCH_MESSAGE,
       });
     }
 
@@ -152,12 +163,13 @@ export async function verifyCodexWorkflowLoadedHandler({
     return jsonError({
       ok: false,
       error: "token_mismatch",
-      message:
-        "The Codex Workflow Instructions token does not match. The user " +
-        "needs the current ToraSEO Codex Workflow Instructions package. " +
-        "For security, the expected token is not returned by MCP.",
+      doNotAskUserForToken: true,
+      nextStep: "update_or_reinstall_codex_workflow_instructions",
+      message: TOKEN_MISMATCH_MESSAGE,
     });
   }
+
+  const workspaceText = await readActiveInputMarkdown(state);
 
   return {
     content: [
@@ -168,10 +180,34 @@ export async function verifyCodexWorkflowLoadedHandler({
             ok: true,
             scanId: state!.scanId,
             url: state!.url,
+            analysisType: state!.analysisType ?? "site_by_url",
+            input: state!.input
+              ? {
+                  action: state!.input.action,
+                  topic: state!.input.topic,
+                  hasText: Boolean(
+                    workspaceText?.trim() || state!.input.text?.trim(),
+                  ),
+                  textLength:
+                    workspaceText?.length ?? state!.input.text?.length ?? 0,
+                  selectedAnalysisTools: state!.input.selectedAnalysisTools,
+                }
+              : undefined,
+            workspace: state!.workspace
+              ? {
+                  inputFile: state!.workspace.inputFile,
+                  metaFile: state!.workspace.metaFile,
+                  resultsDir: state!.workspace.resultsDir,
+                  expiresAt: state!.workspace.expiresAt,
+                }
+              : undefined,
             selectedTools: state!.selectedTools,
             message:
               "Codex workflow handshake verified. Now call each tool in " +
-              "selectedTools. Results will be displayed in the ToraSEO app.",
+              "selectedTools. If analysisType is article_text, do not ask " +
+              "the user to paste the article into chat; the selected MCP " +
+              "tools read input.md from the temporary ToraSEO workspace. Results will be displayed " +
+              "in the ToraSEO app.",
           },
           null,
           2,

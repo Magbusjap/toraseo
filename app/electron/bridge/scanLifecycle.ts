@@ -40,12 +40,13 @@ import {
   STATE_FILE_SCHEMA_VERSION,
 } from "./stateFile.js";
 import { buildScanPrompt } from "./promptBuilder.js";
+import { createBridgeWorkspace } from "./workspace.js";
 import { getCurrentLocale } from "../locale.js";
 
 import type {
   BridgeClient,
+  BridgeAnalysisInput,
   CurrentScanState,
-  ToolId,
   StartBridgeScanResult,
 } from "../../src/types/ipc.js";
 
@@ -81,8 +82,11 @@ const FIRST_TOOL_TIMEOUT_MS = 30_000;
 const GLOBAL_TIMEOUT_MS = 5 * 60_000;
 const COMPLETION_GRACE_MS = 5_000;
 
-function usesAutomaticTimeouts(bridgeClient: BridgeClient): boolean {
-  return bridgeClient === "claude";
+function usesAutomaticTimeouts(
+  bridgeClient: BridgeClient,
+  analysisType?: CurrentScanState["analysisType"],
+): boolean {
+  return bridgeClient === "claude" && analysisType !== "article_text";
 }
 
 function expectedHandshakeToken(bridgeClient: BridgeClient): string {
@@ -134,8 +138,9 @@ function clearAllTimers(): void {
  */
 export async function startScan(
   url: string,
-  toolIds: ToolId[],
+  toolIds: string[],
   bridgeClient: BridgeClient = "claude",
+  input?: BridgeAnalysisInput,
 ): Promise<StartBridgeScanResult> {
   // Cancel any prior scan (caller should have asked the user).
   if (activeTimers) {
@@ -148,11 +153,29 @@ export async function startScan(
 
   const scanId = randomUUID();
   const now = new Date().toISOString();
+  const analysisType = input?.text ? "article_text" : "site_by_url";
+  const workspace = await createBridgeWorkspace({
+    scanId,
+    bridgeClient,
+    analysisType,
+    url,
+    selectedTools: toolIds,
+    input,
+    createdAt: now,
+  });
 
   const state: CurrentScanState = {
     schemaVersion: STATE_FILE_SCHEMA_VERSION,
     scanId,
     bridgeClient,
+    analysisType,
+    input: input
+      ? {
+          ...input,
+          text: undefined,
+        }
+      : undefined,
+    workspace,
     status: "awaiting_handshake",
     url,
     createdAt: now,
@@ -171,20 +194,20 @@ export async function startScan(
   await writeState(state);
 
   const locale = await getCurrentLocale();
-  const prompt = buildScanPrompt(url, toolIds, locale, bridgeClient);
+  const prompt = buildScanPrompt(url, toolIds, locale, bridgeClient, state);
 
   // Copy to clipboard. clipboard.writeText is sync and trivially
   // fast — no need to await anything.
   clipboard.writeText(prompt);
 
   // Set up timers.
-  const handshakeTimer = usesAutomaticTimeouts(bridgeClient)
+  const handshakeTimer = usesAutomaticTimeouts(bridgeClient, state.analysisType)
     ? setTimeout(() => {
         void onHandshakeTimeout(scanId);
       }, HANDSHAKE_TIMEOUT_MS)
     : null;
 
-  const globalTimer = usesAutomaticTimeouts(bridgeClient)
+  const globalTimer = usesAutomaticTimeouts(bridgeClient, state.analysisType)
     ? setTimeout(() => {
         void onGlobalTimeout(scanId);
       }, GLOBAL_TIMEOUT_MS)
@@ -283,17 +306,18 @@ export async function retryHandshake(): Promise<{
     reset.selectedTools,
     locale,
     reset.bridgeClient,
+    reset,
   );
   clipboard.writeText(prompt);
 
   // Restart timers (clear any old, set fresh).
   clearAllTimers();
-  const handshakeTimer = usesAutomaticTimeouts(reset.bridgeClient)
+  const handshakeTimer = usesAutomaticTimeouts(reset.bridgeClient, reset.analysisType)
     ? setTimeout(() => {
         void onHandshakeTimeout(reset.scanId);
       }, HANDSHAKE_TIMEOUT_MS)
     : null;
-  const globalTimer = usesAutomaticTimeouts(reset.bridgeClient)
+  const globalTimer = usesAutomaticTimeouts(reset.bridgeClient, reset.analysisType)
     ? setTimeout(() => {
         void onGlobalTimeout(reset.scanId);
       }, GLOBAL_TIMEOUT_MS)
@@ -334,7 +358,7 @@ export function observeBridgeState(state: CurrentScanState | null): void {
   if (state.status === "in_progress") {
     const hasStartedTools = Object.keys(state.buffer).length > 0;
     if (
-      usesAutomaticTimeouts(state.bridgeClient) &&
+      usesAutomaticTimeouts(state.bridgeClient, state.analysisType) &&
       !hasStartedTools &&
       !activeTimers.firstToolTimer
     ) {

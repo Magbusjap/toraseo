@@ -11,7 +11,7 @@ First-wave analysis types for `0.0.9`:
 |---|---|---|
 | `site_by_url` | Site by URL | implemented baseline |
 | `page_by_url` | Page/article by URL | approved, planned |
-| `article_text` | Pasted article text | approved, planned |
+| `article_text` | Pasted article text | bridge MVP implemented |
 | `article_compare` | Compare 2 article inputs | approved, planned |
 | `site_compare` | Compare up to 3 site URLs | approved, planned |
 | `site_design_by_url` | Design and broader content by URL | approved, planned |
@@ -53,7 +53,11 @@ Current planning direction:
   content, and stack detection; add text extraction, platform detection,
   text style, and language/audience fit.
 - `article_text`: focus on text platform, structure, style, tone,
-  language/audience fit, media placeholders, and naturalness.
+  language/audience fit, media placeholders, and naturalness. In Bridge
+  Mode the app stores the temporary article text in workspace `input.md`;
+  Codex/Claude should use MCP tools to read that file and write
+  structured results back to the app instead of asking the user to paste
+  the article into chat.
 - `article_compare`: compare structure, style, platform fit, strengths
   and weaknesses, language/audience fit, and media placement.
 - `site_compare`: compare positioning, content depth, technical basics,

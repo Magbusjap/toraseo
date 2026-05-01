@@ -13,117 +13,98 @@
  * Claude Desktop вручную."
  */
 
-import { ipcMain, shell } from "electron";
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import os from "node:os";
-import { spawn } from "node:child_process";
+import { BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { spawn, spawnSync } from "node:child_process";
 import log from "electron-log";
+import {
+  writeManualAppPath,
+  type LaunchAppId,
+} from "./appPathStore.js";
+import { resolveLaunchPath } from "./launchPaths.js";
 
 export const LAUNCHER_CHANNELS = {
   openClaude: "toraseo:launcher:open-claude",
   openCodex: "toraseo:launcher:open-codex",
+  pickClaudePath: "toraseo:launcher:pick-claude-path",
+  pickCodexPath: "toraseo:launcher:pick-codex-path",
 } as const;
 
 export interface OpenClaudeResult {
   ok: boolean;
   /** Which path was used, if any (for debugging). */
   launchedFrom?: string;
+  /** True when ToraSEO could not find an executable path automatically. */
+  needsManualPath?: boolean;
   /** Set when ok = false. */
   error?: string;
 }
 
 export type OpenCodexResult = OpenClaudeResult;
 
-/**
- * Likely install locations for Claude Desktop on Windows.
- *
- * Anthropic publishes installers that put Claude into either the
- * per-user Programs folder (default for non-admin installs) or
- * Program Files (admin install). We check both.
- */
-function windowsCandidates(): string[] {
-  const localAppData =
-    process.env.LOCALAPPDATA ??
-    path.join(os.homedir(), "AppData", "Local");
-  const programFiles =
-    process.env["PROGRAMFILES"] ?? "C:\\Program Files";
-  const programFilesX86 =
-    process.env["PROGRAMFILES(X86)"] ?? "C:\\Program Files (x86)";
-
-  return [
-    path.join(localAppData, "Programs", "claude", "Claude.exe"),
-    path.join(localAppData, "Programs", "Claude", "Claude.exe"),
-    path.join(programFiles, "Claude", "Claude.exe"),
-    path.join(programFilesX86, "Claude", "Claude.exe"),
-  ];
+export interface PickAppPathResult {
+  ok: boolean;
+  path?: string;
+  reason?: "cancelled";
+  error?: string;
 }
 
-function windowsCodexCandidates(): string[] {
-  const localAppData =
-    process.env.LOCALAPPDATA ??
-    path.join(os.homedir(), "AppData", "Local");
-  const programFiles =
-    process.env["PROGRAMFILES"] ?? "C:\\Program Files";
-  const programFilesX86 =
-    process.env["PROGRAMFILES(X86)"] ?? "C:\\Program Files (x86)";
-
-  return [
-    path.join(localAppData, "Programs", "Codex", "Codex.exe"),
-    path.join(localAppData, "Programs", "OpenAI Codex", "Codex.exe"),
-    path.join(programFiles, "Codex", "Codex.exe"),
-    path.join(programFiles, "OpenAI Codex", "Codex.exe"),
-    path.join(programFilesX86, "Codex", "Codex.exe"),
-    path.join(programFilesX86, "OpenAI Codex", "Codex.exe"),
-  ];
-}
-
-function macCandidates(): string[] {
-  const home = os.homedir();
-  return [
-    "/Applications/Claude.app",
-    path.join(home, "Applications", "Claude.app"),
-  ];
-}
-
-function macCodexCandidates(): string[] {
-  const home = os.homedir();
-  return [
-    "/Applications/Codex.app",
-    "/Applications/OpenAI Codex.app",
-    path.join(home, "Applications", "Codex.app"),
-    path.join(home, "Applications", "OpenAI Codex.app"),
-  ];
-}
-
-function linuxCandidates(): string[] {
-  const home = os.homedir();
-  return [
-    "/usr/bin/claude",
-    "/usr/local/bin/claude",
-    path.join(home, ".local", "bin", "claude"),
-  ];
-}
-
-function linuxCodexCandidates(): string[] {
-  const home = os.homedir();
-  return [
-    "/usr/bin/codex",
-    "/usr/local/bin/codex",
-    path.join(home, ".local", "bin", "codex"),
-  ];
-}
-
-async function firstExisting(paths: string[]): Promise<string | null> {
-  for (const p of paths) {
-    try {
-      await fs.access(p, fs.constants.R_OK);
-      return p;
-    } catch {
-      // try next
-    }
+function launchExecutable(exe: string): OpenClaudeResult {
+  if (exe.endsWith("://")) {
+    void shell.openExternal(exe);
+    return { ok: true, launchedFrom: exe };
   }
-  return null;
+
+  if (process.platform === "win32" && exe.startsWith("shell:")) {
+    const result = spawnSync("explorer.exe", [exe], {
+      windowsHide: true,
+      stdio: "ignore",
+    });
+    if (result.error) {
+      throw result.error;
+    }
+    return { ok: true, launchedFrom: exe };
+  }
+
+  if (process.platform === "win32" && !exe.toLowerCase().endsWith(".exe")) {
+    void shell.openPath(exe);
+    return { ok: true, launchedFrom: exe };
+  }
+
+  const child = spawn(exe, [], {
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+  return { ok: true, launchedFrom: exe };
+}
+
+async function pickAppPath(
+  appId: LaunchAppId,
+  getMainWindow: () => BrowserWindow | null,
+): Promise<PickAppPathResult> {
+  const win = getMainWindow();
+  const options: Electron.OpenDialogOptions = {
+    title: appId === "claude" ? "Claude Desktop" : "Codex",
+    properties: process.platform === "darwin" ? ["openFile", "openDirectory"] : ["openFile"],
+    filters:
+      process.platform === "win32"
+        ? [{ name: "Applications", extensions: ["exe", "lnk", "appref-ms"] }]
+        : undefined,
+  };
+  const result = win
+    ? await dialog.showOpenDialog(win, options)
+    : await dialog.showOpenDialog(options);
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { ok: false, reason: "cancelled" };
+  }
+
+  const picked = result.filePaths[0];
+  if (!picked) {
+    return { ok: false, reason: "cancelled" };
+  }
+  await writeManualAppPath(appId, picked);
+  return { ok: true, path: picked };
 }
 
 /**
@@ -139,21 +120,16 @@ async function firstExisting(paths: string[]): Promise<string | null> {
  */
 async function tryLaunch(): Promise<OpenClaudeResult> {
   if (process.platform === "win32") {
-    const exe = await firstExisting(windowsCandidates());
+    const exe = await resolveLaunchPath("claude");
     if (exe) {
       try {
-        const child = spawn(exe, [], {
-          detached: true,
-          stdio: "ignore",
-        });
-        child.unref();
-        return { ok: true, launchedFrom: exe };
+        return launchExecutable(exe);
       } catch (err) {
         log.warn(`[launcher] spawn failed: ${(err as Error).message}`);
       }
     }
   } else if (process.platform === "darwin") {
-    const appBundle = await firstExisting(macCandidates());
+    const appBundle = await resolveLaunchPath("claude");
     if (appBundle) {
       const result = await shell.openPath(appBundle);
       if (result === "") {
@@ -163,52 +139,35 @@ async function tryLaunch(): Promise<OpenClaudeResult> {
       log.warn(`[launcher] shell.openPath failed: ${result}`);
     }
   } else if (process.platform === "linux") {
-    const bin = await firstExisting(linuxCandidates());
+    const bin = await resolveLaunchPath("claude");
     if (bin) {
       try {
-        const child = spawn(bin, [], {
-          detached: true,
-          stdio: "ignore",
-        });
-        child.unref();
-        return { ok: true, launchedFrom: bin };
+        return launchExecutable(bin);
       } catch (err) {
         log.warn(`[launcher] spawn failed: ${(err as Error).message}`);
       }
     }
   }
 
-  // Fallback: try the claude:// URI scheme. If Claude was installed
-  // through Anthropic's official installer, the protocol handler is
-  // registered and opens the app regardless of disk path.
-  try {
-    await shell.openExternal("claude://");
-    return { ok: true, launchedFrom: "claude:// protocol handler" };
-  } catch (err) {
-    return {
-      ok: false,
-      error: `Could not launch Claude Desktop: ${(err as Error).message}`,
-    };
-  }
+  return {
+    ok: false,
+    needsManualPath: true,
+    error: "ToraSEO could not find the Claude Desktop executable path.",
+  };
 }
 
 async function tryLaunchCodex(): Promise<OpenCodexResult> {
   if (process.platform === "win32") {
-    const exe = await firstExisting(windowsCodexCandidates());
+    const exe = await resolveLaunchPath("codex");
     if (exe) {
       try {
-        const child = spawn(exe, [], {
-          detached: true,
-          stdio: "ignore",
-        });
-        child.unref();
-        return { ok: true, launchedFrom: exe };
+        return launchExecutable(exe);
       } catch (err) {
         log.warn(`[launcher] codex spawn failed: ${(err as Error).message}`);
       }
     }
   } else if (process.platform === "darwin") {
-    const appBundle = await firstExisting(macCodexCandidates());
+    const appBundle = await resolveLaunchPath("codex");
     if (appBundle) {
       const result = await shell.openPath(appBundle);
       if (result === "") {
@@ -217,33 +176,24 @@ async function tryLaunchCodex(): Promise<OpenCodexResult> {
       log.warn(`[launcher] codex shell.openPath failed: ${result}`);
     }
   } else if (process.platform === "linux") {
-    const bin = await firstExisting(linuxCodexCandidates());
+    const bin = await resolveLaunchPath("codex");
     if (bin) {
       try {
-        const child = spawn(bin, [], {
-          detached: true,
-          stdio: "ignore",
-        });
-        child.unref();
-        return { ok: true, launchedFrom: bin };
+        return launchExecutable(bin);
       } catch (err) {
         log.warn(`[launcher] codex spawn failed: ${(err as Error).message}`);
       }
     }
   }
 
-  try {
-    await shell.openExternal("codex://");
-    return { ok: true, launchedFrom: "codex:// protocol handler" };
-  } catch (err) {
-    return {
-      ok: false,
-      error: `Could not launch Codex: ${(err as Error).message}`,
-    };
-  }
+  return {
+    ok: false,
+    needsManualPath: true,
+    error: "ToraSEO could not find the Codex executable path.",
+  };
 }
 
-export function setupLauncher(): void {
+export function setupLauncher(getMainWindow: () => BrowserWindow | null): void {
   ipcMain.handle(LAUNCHER_CHANNELS.openClaude, async () => {
     log.info("[launcher] User requested Claude Desktop launch");
     const result = await tryLaunch();
@@ -264,5 +214,13 @@ export function setupLauncher(): void {
       log.error(`[launcher] Codex launch strategies failed: ${result.error}`);
     }
     return result;
+  });
+
+  ipcMain.handle(LAUNCHER_CHANNELS.pickClaudePath, async () => {
+    return pickAppPath("claude", getMainWindow);
+  });
+
+  ipcMain.handle(LAUNCHER_CHANNELS.pickCodexPath, async () => {
+    return pickAppPath("codex", getMainWindow);
   });
 }

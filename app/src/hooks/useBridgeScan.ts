@@ -35,12 +35,14 @@ interface UseBridgeScanReturn {
   prompt: string | null;
   startScan: (
     url: string,
-    toolIds: ToolId[],
+    toolIds: string[],
     bridgeClient?: BridgeClient,
+    input?: import("../types/ipc").BridgeAnalysisInput,
   ) => Promise<StartBridgeScanResult>;
   cancelScan: () => Promise<void>;
   retryHandshake: () => Promise<void>;
   copyCodexSetupPrompt: () => Promise<string>;
+  copyBridgeSetupPrompt: (bridgeClient: BridgeClient) => Promise<string>;
   isAwaitingHandshake: boolean;
 }
 
@@ -85,13 +87,15 @@ export function useBridgeScan(): UseBridgeScanReturn {
   const startScan = useCallback(
     async (
       url: string,
-      toolIds: ToolId[],
+      toolIds: string[],
       bridgeClient?: BridgeClient,
+      input?: import("../types/ipc").BridgeAnalysisInput,
     ) => {
       const result = await window.toraseo.bridge.startScan(
         url,
         toolIds,
         bridgeClient,
+        input,
       );
       setPrompt(result.prompt);
       return result;
@@ -115,6 +119,15 @@ export function useBridgeScan(): UseBridgeScanReturn {
     return result.prompt;
   }, []);
 
+  const copyBridgeSetupPrompt = useCallback(
+    async (bridgeClient: BridgeClient) => {
+      const result =
+        await window.toraseo.bridge.copyBridgeSetupPrompt(bridgeClient);
+      return result.prompt;
+    },
+    [],
+  );
+
   const stages = useMemo<BridgeStagesMap>(() => {
     if (!state) return {};
     const next: BridgeStagesMap = {};
@@ -133,6 +146,7 @@ export function useBridgeScan(): UseBridgeScanReturn {
     cancelScan,
     retryHandshake,
     copyCodexSetupPrompt,
+    copyBridgeSetupPrompt,
     isAwaitingHandshake: state?.status === "awaiting_handshake",
   };
 }

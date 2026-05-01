@@ -27,6 +27,9 @@ import type {
   CurrentScanState,
   DetectorStatus,
   DownloadSkillZipResult,
+  OpenClaudeResult,
+  OpenCodexResult,
+  PickAppPathResult,
   PickMcpConfigResult,
 } from "../../types/ipc";
 import type {
@@ -53,11 +56,14 @@ interface ModeSelectionProps {
   onConfirmExecutionMode: () => void;
   onChangeConfirmedExecutionMode: () => void;
   onBridgeProgramChange: (program: BridgeProgram) => void;
-  onOpenCodex: () => Promise<{ ok: boolean; error?: string }>;
+  onOpenCodex: () => Promise<OpenCodexResult>;
+  onPickCodexPath: () => Promise<PickAppPathResult>;
   onCopyCodexSetupPrompt: () => Promise<string>;
+  onCopyBridgeSetupPrompt: (program: BridgeProgram) => Promise<string>;
   onModelProfileChange: (profileId: string) => void;
   onOpenProviderSettings: () => void;
-  onOpenClaude: () => Promise<{ ok: boolean; error?: string }>;
+  onOpenClaude: () => Promise<OpenClaudeResult>;
+  onPickClaudePath: () => Promise<PickAppPathResult>;
   onPickMcpConfig: () => Promise<PickMcpConfigResult>;
   onClearManualMcpConfig: () => Promise<{ ok: boolean }>;
   onDownloadSkillZip: () => Promise<DownloadSkillZipResult>;
@@ -85,10 +91,13 @@ export default function ModeSelection({
   onChangeConfirmedExecutionMode,
   onBridgeProgramChange,
   onOpenCodex,
+  onPickCodexPath,
   onCopyCodexSetupPrompt,
+  onCopyBridgeSetupPrompt,
   onModelProfileChange,
   onOpenProviderSettings,
   onOpenClaude,
+  onPickClaudePath,
   onPickMcpConfig,
   onClearManualMcpConfig,
   onDownloadSkillZip,
@@ -213,8 +222,11 @@ export default function ModeSelection({
             confirmed={confirmedExecutionMode === "bridge"}
             onProgramChange={onBridgeProgramChange}
             onOpenCodex={onOpenCodex}
+            onPickCodexPath={onPickCodexPath}
             onCopyCodexSetupPrompt={onCopyCodexSetupPrompt}
+            onCopyBridgeSetupPrompt={onCopyBridgeSetupPrompt}
             onOpenClaude={onOpenClaude}
+            onPickClaudePath={onPickClaudePath}
             onPickMcpConfig={onPickMcpConfig}
             onClearManualMcpConfig={onClearManualMcpConfig}
             onDownloadSkillZip={onDownloadSkillZip}
@@ -418,8 +430,11 @@ function BridgeSetup({
   confirmed,
   onProgramChange,
   onOpenCodex,
+  onPickCodexPath,
   onCopyCodexSetupPrompt,
+  onCopyBridgeSetupPrompt,
   onOpenClaude,
+  onPickClaudePath,
   onPickMcpConfig,
   onClearManualMcpConfig,
   onDownloadSkillZip,
@@ -434,9 +449,12 @@ function BridgeSetup({
   status: DetectorStatus | null;
   confirmed: boolean;
   onProgramChange: (program: BridgeProgram) => void;
-  onOpenCodex: () => Promise<{ ok: boolean; error?: string }>;
+  onOpenCodex: () => Promise<OpenCodexResult>;
+  onPickCodexPath: () => Promise<PickAppPathResult>;
   onCopyCodexSetupPrompt: () => Promise<string>;
-  onOpenClaude: () => Promise<{ ok: boolean; error?: string }>;
+  onCopyBridgeSetupPrompt: (program: BridgeProgram) => Promise<string>;
+  onOpenClaude: () => Promise<OpenClaudeResult>;
+  onPickClaudePath: () => Promise<PickAppPathResult>;
   onPickMcpConfig: () => Promise<PickMcpConfigResult>;
   onClearManualMcpConfig: () => Promise<{ ok: boolean }>;
   onDownloadSkillZip: () => Promise<DownloadSkillZipResult>;
@@ -459,6 +477,13 @@ function BridgeSetup({
       ? "verified"
       : codexVerificationState;
   const codexPathReady = Boolean(status?.codexRunning) && codexSetupVerified;
+  const openCodexOrPickPath = async () => {
+    const result = await onOpenCodex();
+    if (!result.ok && result.needsManualPath) {
+      await onPickCodexPath();
+      await onOpenCodex();
+    }
+  };
 
   return (
     <div className="mt-4 rounded-lg border border-outline/10 bg-white p-4">
@@ -479,21 +504,30 @@ function BridgeSetup({
 
       {program === "claude" ? (
         status?.allGreen ? (
-          <StatusCallout
-            tone="ok"
-            title={t("modeSelection.bridge.readyTitle", {
-              defaultValue: "Claude Desktop path is ready",
-            })}
-            body={t("modeSelection.bridge.readyBody", {
-              defaultValue:
-                "Site audits will copy the Bridge prompt and stream MCP facts back into ToraSEO.",
-            })}
-          />
+          <>
+            <StatusCallout
+              tone="ok"
+              title={t("modeSelection.bridge.readyTitle", {
+                defaultValue: "Your Claude Desktop is ready for analysis",
+              })}
+              body={t("modeSelection.bridge.readyBody", {
+                defaultValue:
+                  "ToraSEO can hand Claude Desktop a check or analysis prompt and receive MCP results back into the app.",
+              })}
+            />
+            <BridgePromptCheckButton
+              label={t("modeSelection.bridge.verifyClaudePromptButton", {
+                defaultValue: "Check Claude Desktop through prompt",
+              })}
+              onClick={() => void onCopyBridgeSetupPrompt("claude")}
+            />
+          </>
         ) : (
           <div className="rounded-lg bg-orange-50/40">
             <OnboardingView
               status={status}
               onOpenClaude={onOpenClaude}
+              onPickClaudePath={onPickClaudePath}
               onPickMcpConfig={onPickMcpConfig}
               onClearManualMcpConfig={onClearManualMcpConfig}
               onDownloadSkillZip={onDownloadSkillZip}
@@ -504,16 +538,24 @@ function BridgeSetup({
           </div>
         )
       ) : codexPathReady ? (
-        <StatusCallout
-          tone="ok"
-          title={t("modeSelection.bridge.codexTitle", {
-            defaultValue: "Codex path readiness",
-          })}
-          body={t("modeSelection.bridge.codexBody", {
-            defaultValue:
-              "ToraSEO first confirms that Codex is open. Then you run one short setup check so ToraSEO can prove MCP access and Codex Workflow Instructions in a live Codex session.",
-          })}
-        />
+        <>
+          <StatusCallout
+            tone="ok"
+            title={t("modeSelection.bridge.codexTitle", {
+              defaultValue: "Your Codex is ready for analysis",
+            })}
+            body={t("modeSelection.bridge.codexBody", {
+              defaultValue:
+                "ToraSEO can hand Codex a check or analysis prompt and receive MCP results back into the app.",
+            })}
+          />
+          <BridgePromptCheckButton
+            label={t("modeSelection.bridge.verifyCodexPromptButton", {
+              defaultValue: "Check Codex through prompt",
+            })}
+            onClick={() => void onCopyBridgeSetupPrompt("codex")}
+          />
+        </>
       ) : (
         <div className="rounded-lg bg-orange-50/40 p-8">
           <header className="mx-auto mb-6 max-w-2xl text-center">
@@ -584,9 +626,15 @@ function BridgeSetup({
             <div className="space-y-2 rounded-lg border border-outline/10 bg-orange-50/30 px-4 py-3">
               <CodexReadinessRow
                 satisfied={Boolean(status?.codexRunning)}
-                label={t("modeSelection.bridge.codexRunningLabel", {
-                  defaultValue: "Codex is running",
-                })}
+                label={
+                  status?.codexRunning
+                    ? t("modeSelection.bridge.codexRunningLabel", {
+                        defaultValue: "Codex is running",
+                      })
+                    : t("modeSelection.bridge.codexRunningMissingLabel", {
+                        defaultValue: "Codex is not running",
+                      })
+                }
                 hint={
                   status?.codexRunning
                     ? t("modeSelection.bridge.codexRunningOk", {
@@ -599,13 +647,24 @@ function BridgeSetup({
                 action={
                   !status?.codexRunning
                     ? {
-                        label: t("modeSelection.bridge.openCodex", {
-                          defaultValue: "Open Codex",
-                        }),
-                        onClick: async () => {
-                          await onOpenCodex();
-                        },
+                        label: status?.codexAppPath
+                          ? t("modeSelection.bridge.openCodex", {
+                              defaultValue: "Open Codex",
+                            })
+                          : t("modeSelection.bridge.addCodexPath", {
+                              defaultValue: "Add path manually",
+                            }),
+                        onClick: openCodexOrPickPath,
                       }
+                    : undefined
+                }
+                pathWarning={
+                  !status?.codexRunning && !status?.codexAppPath
+                    ? t("modeSelection.bridge.appPathMissing", {
+                        appName: "Codex",
+                        defaultValue:
+                          "ToraSEO could not find the path to {{appName}}. Use the button above to add it manually.",
+                      })
                     : undefined
                 }
               />
@@ -781,6 +840,7 @@ function CodexReadinessRow({
   label,
   hint,
   action,
+  pathWarning,
 }: {
   satisfied?: boolean;
   state?: "pending" | "waiting" | "verified" | "failed";
@@ -790,48 +850,47 @@ function CodexReadinessRow({
     label: string;
     onClick: () => Promise<void> | void;
   };
+  pathWarning?: string;
 }) {
   const effectiveState =
     state ?? (satisfied ? "verified" : "failed");
-  const statusLabel =
-    effectiveState === "verified"
-      ? "Verified"
-      : effectiveState === "waiting"
-        ? "Waiting"
-        : effectiveState === "pending"
-          ? "Not checked"
-          : "Action needed";
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-outline/10 bg-white px-3 py-3">
-      <div className="flex min-w-0 items-center gap-3">
-        {effectiveState === "verified" ? (
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
-        ) : effectiveState === "waiting" ? (
-          <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-orange-300 border-t-primary" />
-        ) : effectiveState === "pending" ? (
-          <span className="h-5 w-5 shrink-0 rounded-full border-2 border-outline/20 bg-outline-900/5" />
-        ) : (
-          <XCircle className="h-5 w-5 shrink-0 text-orange-500" />
-        )}
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-outline-900">{label}</p>
-            <span className="rounded-full border border-outline/10 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-outline-900/55">
-              {statusLabel}
-            </span>
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-outline/10 bg-white px-3 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {effectiveState === "verified" ? (
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+          ) : effectiveState === "waiting" ? (
+            <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-orange-300 border-t-primary" />
+          ) : effectiveState === "pending" ? (
+            <span className="h-5 w-5 shrink-0 rounded-full border-2 border-outline/20 bg-outline-900/5" />
+          ) : (
+            <XCircle className="h-5 w-5 shrink-0 text-orange-500" />
+          )}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-outline-900">{label}</p>
+            </div>
+            <p className="text-xs leading-relaxed text-outline-900/60">
+              {hint}
+            </p>
           </div>
-          <p className="text-xs leading-relaxed text-outline-900/60">{hint}</p>
         </div>
+        {action && (
+          <button
+            type="button"
+            onClick={() => void action.onClick()}
+            className="shrink-0 rounded-md bg-orange-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-orange-600"
+          >
+            {action.label}
+          </button>
+        )}
       </div>
-      {action && (
-        <button
-          type="button"
-          onClick={() => void action.onClick()}
-          className="rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-medium text-outline-900 transition hover:bg-orange-50"
-        >
-          {action.label}
-        </button>
+      {pathWarning && (
+        <p className="pl-11 text-xs leading-relaxed text-red-700">
+          {pathWarning}
+        </p>
       )}
     </div>
   );
@@ -861,6 +920,26 @@ function SegmentButton({
     >
       {label}
     </button>
+  );
+}
+
+function BridgePromptCheckButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <div className="mt-3 flex justify-end">
+      <button
+        type="button"
+        onClick={onClick}
+        className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-600"
+      >
+        {label}
+      </button>
+    </div>
   );
 }
 

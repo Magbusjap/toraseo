@@ -197,10 +197,10 @@
       "confirmFirstBody": "Analysis type will become available after you choose the runtime path and confirm it."
     },
     "bridge": {
-      "readyTitle": "Claude Desktop path is ready",
-      "readyBody": "Site audits will copy the Bridge prompt and stream MCP facts back into ToraSEO.",
-      "codexTitle": "Codex path readiness",
-      "codexBody": "ToraSEO first confirms that Codex is open. Then you run one short setup check so ToraSEO can prove MCP access and Codex Workflow Instructions in a live Codex session.",
+      "readyTitle": "Your Claude Desktop is ready for analysis",
+      "readyBody": "ToraSEO can hand Claude Desktop a check or analysis prompt and receive MCP results back into the app.",
+      "codexTitle": "Your Codex is ready for analysis",
+      "codexBody": "ToraSEO can hand Codex a check or analysis prompt and receive MCP results back into the app.",
       "codexOnboardingTitle": "ToraSEO works in tandem with Codex",
       "codexOnboardingSubtitle": "Three components are required to run. When all three are green, scanning unlocks automatically.",
       "codexSetupTitle": "How to connect Codex",
@@ -228,7 +228,14 @@
       "codexInstructionsSetupVerified": "Verified in a live Codex setup check. ToraSEO saw the workflow token from the active Codex session.",
       "codexInstructionsHint": "The handshake token lives only in the Codex Workflow Instructions package and the MCP server.",
       "confirm": "Confirm",
-      "resetConfirmation": "Reset"
+      "resetConfirmation": "Reset",
+      "appPathMissing": "ToraSEO could not find the path to {{appName}}.",
+      "addCodexPath": "Add path manually",
+      "codexRunningMissingLabel": "Codex is not running",
+      "verifyClaudePromptButton": "Check Claude Desktop through prompt",
+      "verifyCodexPromptButton": "Check Codex through prompt",
+      "setupPromptNoticeTitle": "Check prompt copied",
+      "setupPromptNoticeBody": "Open a new session in {{appName}}, paste the prompt, and press Enter. This checks whether {{appName}} can see the ToraSEO SKILL and MCP."
     },
     "native": {
       "checking": "Checking...",
@@ -333,6 +340,9 @@
       "articleRoleCompetitor": "Competitor article",
       "aiDraftAction": "Suggest solution",
       "scanReadyTextAction": "Scan text",
+      "scanCancelled": "Analysis cancelled.",
+      "aiDraftPromptCopied": "Prompt copied. Paste it into {{appName}} chat so AI can continue this analysis.",
+      "scanPromptCopied": "Prompt copied. Paste it into {{appName}} chat so AI can continue this analysis.",
       "aiDraftNeedMore": "Write a bit more: at least two short paragraphs, so AI has enough context for a useful solution.",
       "aiDraftPrepared": "This looks like enough context for a solution. Full execution will connect with text analysis.",
       "targetQuery": "Target query",
@@ -530,11 +540,13 @@
       "opening": "Opening…"
     },
     "claude": {
-      "label": "Claude Desktop is running",
       "hintRunning": "Process found",
       "hintMissing": "Open Claude Desktop to continue",
       "openButton": "Open Claude Desktop",
-      "openFailedFallback": "Could not open Claude Desktop. Launch it manually."
+      "openFailedFallback": "Could not open Claude Desktop. Launch it manually.",
+      "labelRunning": "Claude Desktop is running",
+      "labelMissing": "Claude Desktop is not running",
+      "addPathButton": "Add path manually"
     },
     "mcp": {
       "label": "ToraSEO MCP server is connected",
@@ -566,7 +578,8 @@
       "confirmDialog": "Confirm that the ToraSEO Claude Bridge Instructions are installed in Claude Desktop via Settings → Skills?\n\nWithout those instructions loaded into Claude's context, the analysis will be incomplete — it will ignore CRAWLING_POLICY, verdict mapping, and the CGS scoring formula.",
       "tooltipFilesystem": "Claude Bridge Instructions are detected via the filesystem — no confirmation needed",
       "tooltipManual": "Manual confirmation already active — reset it below to confirm again"
-    }
+    },
+    "appPathMissing": "ToraSEO could not find the path to {{appName}}."
   },
   "preflight": {
     "depsFailed": "Dependency check failed. Open Claude Desktop, make sure MCP is connected and Claude Bridge Instructions are installed.",
@@ -574,6 +587,8 @@
     "providerMissing": "Add an AI provider before using API + AI Chat.",
     "modelMissing": "Choose an OpenRouter model before starting analysis.",
     "nativeUnavailable": "API + AI Chat is unavailable in this build.",
+    "articleTextBridgeRequired": "Text analysis through Codex or Claude Desktop requires MCP + Instructions mode.",
+    "codexClosedTitle": "Codex unavailable",
     "codexNeedsConfirmation": "Open Codex before starting the Codex bridge path.",
     "codexSetupMissing": "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
     "codexClosed": "Codex is closed. Open Codex to continue.",

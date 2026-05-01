@@ -24,6 +24,10 @@ const TOOL_LABELS: Record<ToolId, string> = {
   detect_stack: "Stack detection",
 };
 
+function isToolId(value: string): value is ToolId {
+  return TOOLS.some((tool) => tool.id === value);
+}
+
 function priorityFromStatus(
   status: "ok" | "warning" | "critical" | "error",
 ): RuntimeScanFact["severity"] {
@@ -357,7 +361,9 @@ export function buildBridgeScanFacts(
 ): RuntimeScanFact[] {
   if (!state) return [];
   const facts: RuntimeScanFact[] = [];
-  for (const toolId of state.selectedTools) {
+  for (const rawToolId of state.selectedTools) {
+    if (!isToolId(rawToolId)) continue;
+    const toolId = rawToolId;
     const entry = state.buffer[toolId];
     const stage = stages[toolId];
 

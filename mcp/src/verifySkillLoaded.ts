@@ -34,6 +34,7 @@ import { z } from "zod";
 import { applyHandshake, readState } from "./stateFile.js";
 import { probeAppAlive } from "./aliveFile.js";
 import { BRIDGE_PROTOCOL_TOKEN } from "./constants.js";
+import { readActiveInputMarkdown } from "./workspace.js";
 
 /**
  * Input schema. The token is the only argument вЂ” Claude reads it
@@ -221,6 +222,8 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
     };
   }
 
+  const workspaceText = await readActiveInputMarkdown(state);
+
   return {
     content: [
       {
@@ -230,12 +233,36 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
             ok: true,
             scanId: state!.scanId,
             url: state!.url,
+            analysisType: state!.analysisType ?? "site_by_url",
+            input: state!.input
+              ? {
+                  action: state!.input.action,
+                  topic: state!.input.topic,
+                  hasText: Boolean(
+                    workspaceText?.trim() || state!.input.text?.trim(),
+                  ),
+                  textLength:
+                    workspaceText?.length ?? state!.input.text?.length ?? 0,
+                  selectedAnalysisTools: state!.input.selectedAnalysisTools,
+                }
+              : undefined,
+            workspace: state!.workspace
+              ? {
+                  inputFile: state!.workspace.inputFile,
+                  metaFile: state!.workspace.metaFile,
+                  resultsDir: state!.workspace.resultsDir,
+                  expiresAt: state!.workspace.expiresAt,
+                }
+              : undefined,
             selectedTools: state!.selectedTools,
             message:
               "Handshake verified. Now call each tool in selectedTools " +
               "(in any order, but typically in the order listed). " +
               "Each tool's results will be displayed in the ToraSEO app " +
-              "automatically. After all tools complete, provide " +
+              "automatically. If analysisType is article_text, do not ask " +
+              "the user to paste the article into chat; the selected MCP " +
+              "tools read input.md from the temporary ToraSEO workspace. " +
+              "After all tools complete, provide " +
               "recommendations to the user in chat based on the data.",
           },
           null,

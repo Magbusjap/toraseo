@@ -11,10 +11,17 @@ Claude-side package turns a single user intent ("audit this site") into
 a coordinated sequence of MCP tool calls and produces a clear,
 prioritized report.
 
-> **Status: Mode A (Site Audit) + Bridge Mode handshake.**
-> The first `0.0.9` expansion adds analysis-type groundwork and public
-> stack detection. Content / article analysis is planned but not yet
-> available as MCP tools.
+> **Status: Mode A (Site Audit) + Mode B (Article Text) + Bridge Mode handshake.**
+> The `0.0.9` expansion adds article-text MCP tools. In Bridge Mode the
+> app stores the temporary text context in workspace `input.md`; Claude
+> must not ask the user to paste the article into chat.
+
+Bridge Mode has two command families:
+
+- `/toraseo` is the regular skill entry point and can be used without
+  the desktop app.
+- `/toraseobridge` is the desktop-app bridge entry point. Use it only
+  when the app created an active MCP state file.
 
 When the user is working inside a ToraSEO text/content analysis flow,
 keep the conversation anchored to that task. If they ask for broad or
@@ -38,7 +45,8 @@ alternate labels. For Russian article drafts, use:
 
 Activate this skill when **any** of the following is true:
 
-- The user types a slash-command starting with `/toraseo` (e.g.
+- The user types a slash-command starting with `/toraseo` or
+  `/toraseobridge` (e.g.
   `/toraseo`, `/toraseo bridge-mode`, `/toraseo проверь example.com`).
   This is an **unambiguous** trigger — always activate.
 - The user mentions ToraSEO by name in any spelling — English
@@ -68,9 +76,8 @@ Do **not** activate this skill when:
 - The user asks general SEO theory questions ("what is E-E-A-T?",
   "explain canonical tags") with no specific URL — answer from
   general knowledge instead.
-- The user asks for SEO help with a piece of text or article body
-  (no URL involved). That is Mode B territory and is not yet
-  implemented; tell them so honestly (see §7).
+- The user asks for unsupported off-scope text work such as private
+  anti-detector bypassing or backlink/ranking promises.
 - The user asks for keyword research, backlink analysis, or
   ranking-tracking. ToraSEO does not do those — it audits on-page
   signals only. Be explicit about the boundary.
@@ -98,6 +105,8 @@ Treat any of the following as a Bridge Mode signal:
 
 - The pasted message starts with `/toraseo bridge-mode` (the
   literal command the Desktop App copies to the clipboard).
+- The pasted message starts with `/toraseobridge article-text` (the
+  article-text bridge command copied by the Desktop App).
 - The user types `/toraseo` followed by any SEO-related request
   (e.g. `/toraseo проверь example.com`).
 - The user mentions the **Desktop App / приложение / программу**
@@ -131,6 +140,7 @@ If `verify_skill_loaded` returns:
   "ok": true,
   "scanId": "...",
   "url": "https://example.com",
+  "analysisType": "site_by_url",
   "selectedTools": ["check_robots_txt", "analyze_meta", ...],
   "message": "Handshake verified..."
 }
@@ -139,6 +149,12 @@ If `verify_skill_loaded` returns:
 — the app has a scan waiting. Use the returned `url` and
 `selectedTools` as your scope. **Do not ask the user to confirm
 the URL** — they already provided it in the app.
+
+If `analysisType` is `article_text`, the text is already stored in
+the temporary ToraSEO workspace as `input.md`. Do **not** ask the user
+to paste the article into Claude. Call the selected article-text MCP
+tools directly; those tools read `input.md` and write results back to
+the app state and `results/*.json`.
 
 Call each tool in `selectedTools` (in any order, but matching the
 listed order makes the app's UI feel linear). Each tool writes
@@ -317,6 +333,13 @@ plus the Bridge Mode handshake tool described in §2:
 | `check_redirects`     | HTTP redirect chain, loops, downgrades       |
 | `analyze_content`     | Word counts, text-to-code ratio, link / image inventory |
 | `detect_stack`        | Public CMS / builder / framework / analytics / CDN / server signals |
+| `detect_text_platform` | Article-text platform/use-case signals from app state |
+| `analyze_text_structure` | Article structure, headings, paragraphs, and thin-content risk |
+| `analyze_text_style` | Sentence length, directness, and mechanical phrasing |
+| `analyze_tone_fit` | Tone fit for topic risk and intended platform |
+| `language_audience_fit` | Language clarity and audience fit |
+| `media_placeholder_review` | Image/video/audio placeholder placement in the text |
+| `naturalness_indicators` | Repetition and mechanical phrasing indicators |
 
 Every analyzer tool returns a JSON object with an `issues[]` array
 of severity-tagged verdicts (`critical` / `warning` / `info`),
@@ -521,26 +544,25 @@ checklists don't cover a topic, say so.
 
 ---
 
-## 7. Mode B (Content Audit) — coming later
+## 7. Mode B (Article Text Bridge)
 
-If the user asks for any of:
+Article text analysis is available through Bridge Mode. The Desktop App
+stores the temporary text context in workspace `input.md` and selected
+checks in the state file; Claude should use MCP tools to read that file
+and write structured results back into the app.
 
-- AI-humanizer / make this text sound less AI-generated
-- Readability score for an article
-- Content quality review of pasted text (no URL)
-- Anti-detector verification (Originality.ai, GPTZero, etc.)
+When the bridge handshake returns `analysisType: "article_text"`:
 
-Respond honestly:
+- Call the selected article-text tools in `selectedTools`.
+- Do not ask the user to paste the article into chat.
+- Do not copy the article body into the final answer.
+- Use the tool results to summarize what to fix first and what can wait.
+- If a rewrite is useful, ask whether the user wants media placeholder
+  positions marked before inserting them.
 
-> Content Audit (Mode B) is planned for a later ToraSEO release
-> and is not available yet. The current build only audits sites
-> by URL (Mode A). For now, I can give you general feedback on
-> the text using my own judgement, but I don't have the toraseo
-> MCP tools for content humanization yet — those are coming.
-
-Then offer a fallback: if the text was published somewhere with a
-URL, you **can** audit that URL with Mode A and comment on the
-on-page signals around the article.
+For standalone `/toraseo` text requests without the app/MCP bridge, you
+may give a normal chat-only content review, but make clear that it will
+not write structured results into the ToraSEO app.
 
 ---
 

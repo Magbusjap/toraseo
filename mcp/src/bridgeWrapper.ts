@@ -29,6 +29,7 @@
  */
 
 import { mutateBuffer, type ToolBufferEntry } from "./stateFile.js";
+import { writeWorkspaceResult } from "./workspace.js";
 
 /**
  * Severity counts extracted from a core tool's verdict array.
@@ -161,13 +162,17 @@ export function bridgeWrap<TArgs, TResult>(
         err instanceof Error ? err.message : String(err);
 
       const completedAt = new Date().toISOString();
-      await mutateBuffer(toolId, () => ({
+      const updated = await mutateBuffer(toolId, () => ({
         status: "error",
         startedAt,
         completedAt,
         errorCode,
         errorMessage,
       }));
+      await writeWorkspaceResult(updated, toolId, {
+        errorCode,
+        errorMessage,
+      });
 
       return {
         isError: true,
@@ -194,6 +199,7 @@ export function bridgeWrap<TArgs, TResult>(
       data: result,
       summary: counts,
     }));
+    await writeWorkspaceResult(updated, toolId, result);
 
     if (updated) {
       // Active scan path — return a brief summary to Claude

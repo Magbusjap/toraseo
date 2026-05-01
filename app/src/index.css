@@ -35,6 +35,11 @@
     animation: toraseo-shake 0.36s ease-in-out;
   }
 
+  .toraseo-toast-progress {
+    animation: toraseo-toast-progress 10s linear forwards;
+    transform-origin: left center;
+  }
+
   @keyframes toraseo-shake {
     0%, 100% {
       transform: translateX(0);
@@ -50,6 +55,15 @@
     }
     88% {
       transform: translateX(3px);
+    }
+  }
+
+  @keyframes toraseo-toast-progress {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
     }
   }
 }

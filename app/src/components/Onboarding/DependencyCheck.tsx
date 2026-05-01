@@ -33,7 +33,7 @@ export default function DependencyCheck({
 }: DependencyCheckProps) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-outline/10 bg-white p-4">
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-outline/10 bg-white p-4">
       <div
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
           satisfied

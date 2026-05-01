@@ -9,7 +9,6 @@ import {
   SlidersHorizontal,
   Type,
   Video,
-  X,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,39 +25,37 @@ interface PlannedAnalysisViewProps {
   analysisType: AnalysisTypeId;
   executionMode: AuditExecutionMode;
   selectedToolIds: AnalysisToolId[];
+  activeRun: ArticleTextAction | null;
+  completedTools: number;
+  totalTools: number;
   bridgeUnavailable: boolean;
   bridgeUnavailableAppName: string;
   bridgeTargetAppName: string;
+  onArticleTextRun: (
+    action: ArticleTextAction,
+    data: ArticleTextPromptData,
+  ) => Promise<void>;
+  onArticleTextCancel: () => void;
 }
 
 export default function PlannedAnalysisView({
   analysisType,
   executionMode,
   selectedToolIds,
+  activeRun,
+  completedTools,
+  totalTools,
   bridgeUnavailable,
   bridgeUnavailableAppName,
   bridgeTargetAppName,
+  onArticleTextRun,
+  onArticleTextCancel,
 }: PlannedAnalysisViewProps) {
   const { t } = useTranslation();
-  const [activeRun, setActiveRun] = useState<ArticleTextAction | null>(null);
-  const [promptToastVisible, setPromptToastVisible] = useState(false);
   const meta = ANALYSIS_TYPES.find((item) => item.id === analysisType);
   const key = meta?.i18nKeyBase ?? "siteByUrl";
   const title = t(`modeSelection.analysisTypes.${key}.title`);
   const subtitle = t(`modeSelection.analysisTypes.${key}.subtitle`);
-
-  const handleArticleTextAction = async (action: ArticleTextAction, data: ArticleTextPromptData) => {
-    const prompt = buildArticleTextPrompt({
-      action,
-      data,
-      selectedToolIds,
-      executionMode,
-    });
-    await navigator.clipboard.writeText(prompt);
-    setActiveRun(action);
-    setPromptToastVisible(true);
-    window.setTimeout(() => setPromptToastVisible(false), 5200);
-  };
 
   return (
     <div className="h-full overflow-auto px-8 py-7">
@@ -90,6 +87,8 @@ export default function PlannedAnalysisView({
           <PlannedAnalysisStatusHero
             executionMode={executionMode}
             running={activeRun !== null}
+            completedTools={completedTools}
+            totalTools={totalTools}
           />
         </section>
 
@@ -98,9 +97,12 @@ export default function PlannedAnalysisView({
             {renderInputSurface(
               analysisType,
               t,
-              handleArticleTextAction,
+              onArticleTextRun,
+              onArticleTextCancel,
+              activeRun,
               bridgeUnavailable,
               bridgeUnavailableAppName,
+              bridgeTargetAppName,
             )}
           </div>
 
@@ -135,14 +137,6 @@ export default function PlannedAnalysisView({
           </aside>
         </section>
       </div>
-
-      {promptToastVisible && (
-        <PromptCopiedBubble
-          executionMode={executionMode}
-          bridgeTargetAppName={bridgeTargetAppName}
-          onDismiss={() => setPromptToastVisible(false)}
-        />
-      )}
     </div>
   );
 }
@@ -150,12 +144,21 @@ export default function PlannedAnalysisView({
 function PlannedAnalysisStatusHero({
   executionMode,
   running,
+  completedTools,
+  totalTools,
 }: {
   executionMode: AuditExecutionMode;
   running: boolean;
+  completedTools: number;
+  totalTools: number;
 }) {
   const { t } = useTranslation();
-  const visualProgress = running ? 8 : 0;
+  const visualProgress =
+    totalTools > 0
+      ? Math.max(running ? 8 : 0, Math.round((completedTools / totalTools) * 100))
+      : running
+        ? 8
+        : 0;
 
   return (
     <section className="rounded-lg border border-orange-100 bg-white px-5 py-4 shadow-sm">
@@ -189,7 +192,7 @@ function PlannedAnalysisStatusHero({
               </h2>
             </div>
             <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
-              0 / 0
+              {completedTools} / {totalTools}
             </span>
           </div>
 
@@ -220,8 +223,11 @@ function renderInputSurface(
     action: ArticleTextAction,
     data: ArticleTextPromptData,
   ) => Promise<void>,
+  onArticleTextCancel: () => void,
+  activeRun: ArticleTextAction | null,
   bridgeUnavailable: boolean,
   bridgeUnavailableAppName: string,
+  bridgeTargetAppName: string,
 ) {
   switch (analysisType) {
     case "page_by_url":
@@ -260,8 +266,11 @@ function renderInputSurface(
       return (
         <ArticleTextPanel
           onRun={onArticleTextAction}
+          onCancel={onArticleTextCancel}
+          activeRun={activeRun}
           bridgeUnavailable={bridgeUnavailable}
           bridgeUnavailableAppName={bridgeUnavailableAppName}
+          bridgeTargetAppName={bridgeTargetAppName}
         />
       );
     case "article_compare":
@@ -386,21 +395,27 @@ function InputPanel({
   );
 }
 
-type ArticleTextAction = "scan" | "solution";
+export type ArticleTextAction = "scan" | "solution";
 
-interface ArticleTextPromptData {
+export interface ArticleTextPromptData {
   topic: string;
   body: string;
 }
 
 function ArticleTextPanel({
   onRun,
+  onCancel,
+  activeRun,
   bridgeUnavailable,
   bridgeUnavailableAppName,
+  bridgeTargetAppName,
 }: {
   onRun: (action: ArticleTextAction, data: ArticleTextPromptData) => Promise<void>;
+  onCancel: () => void;
+  activeRun: ArticleTextAction | null;
   bridgeUnavailable: boolean;
   bridgeUnavailableAppName: string;
+  bridgeTargetAppName: string;
 }) {
   const { t } = useTranslation();
   const topicRef = useRef("");
@@ -410,9 +425,25 @@ function ArticleTextPanel({
   const [shake, setShake] = useState(false);
   const [busy, setBusy] = useState(false);
   const readyForAiDraft = isReadyForAiDraft(bodyStats);
-  const hasText = bodyStats.trim().length > 0;
+  const isRunning = activeRun !== null;
+  const isSolutionRunning = activeRun === "solution";
+  const isScanRunning = activeRun === "scan";
 
   const runAction = async (action: ArticleTextAction) => {
+    if (activeRun === action) {
+      onCancel();
+      setNotice(
+        t("plannedAnalysis.forms.scanCancelled", {
+          defaultValue: "Анализ отменён.",
+        }),
+      );
+      return;
+    }
+
+    if (activeRun !== null) {
+      return;
+    }
+
     if (bridgeUnavailable) {
       setNotice(
         t("plannedAnalysis.forms.bridgeUnavailable", {
@@ -451,12 +482,14 @@ function ArticleTextPanel({
       setNotice(
         action === "solution"
           ? t("plannedAnalysis.forms.aiDraftPromptCopied", {
+              appName: bridgeTargetAppName,
               defaultValue:
-                "Промпт для предложения решения скопирован. Вставьте его в чат ИИ.",
+                "Промпт скопирован. Вставьте его в чат {{appName}}, чтобы ИИ продолжил работу по этому анализу.",
             })
           : t("plannedAnalysis.forms.scanPromptCopied", {
+              appName: bridgeTargetAppName,
               defaultValue:
-                "Промпт для анализа текста скопирован. Вставьте его в чат ИИ.",
+                "Промпт скопирован. Вставьте его в чат {{appName}}, чтобы ИИ продолжил работу по этому анализу.",
             }),
       );
     } finally {
@@ -475,22 +508,32 @@ function ArticleTextPanel({
             <button
               type="button"
               onClick={() => void runAction("solution")}
-              disabled={busy || bridgeUnavailable}
+              disabled={busy || (isRunning && !isSolutionRunning)}
               className={`rounded-md border px-4 py-2 text-sm font-medium transition ${
-                readyForAiDraft && !bridgeUnavailable
-                  ? "border-primary/30 bg-white text-primary hover:bg-orange-50"
-                  : "border-outline/15 bg-outline-900/10 text-outline-900/40"
+                isSolutionRunning
+                  ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                  : readyForAiDraft && !isRunning
+                    ? "border-primary/30 bg-white text-primary hover:bg-orange-50"
+                    : "border-outline/15 bg-outline-900/10 text-outline-900/40"
               } ${shake ? "toraseo-shake" : ""}`}
             >
-              {t("plannedAnalysis.forms.aiDraftAction")}
+              {isSolutionRunning
+                ? t("sidebar.cancel", { defaultValue: "Отменить" })
+                : t("plannedAnalysis.forms.aiDraftAction")}
             </button>
             <button
               type="button"
               onClick={() => void runAction("scan")}
-              disabled={busy || !hasText || bridgeUnavailable}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
+              disabled={busy || (isRunning && !isScanRunning)}
+              className={
+                isScanRunning
+                  ? "rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
+                  : "rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
+              }
             >
-              {t("plannedAnalysis.forms.scanReadyTextAction")}
+              {isScanRunning
+                ? t("sidebar.cancel", { defaultValue: "Отменить" })
+                : t("plannedAnalysis.forms.scanReadyTextAction")}
             </button>
           </div>
           {notice && (
@@ -848,101 +891,6 @@ function normalizePastedContent(text: string): string {
     .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-}
-
-function PromptCopiedBubble({
-  executionMode,
-  bridgeTargetAppName,
-  onDismiss,
-}: {
-  executionMode: AuditExecutionMode;
-  bridgeTargetAppName: string;
-  onDismiss: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="pointer-events-none fixed bottom-6 left-[276px] z-40 w-[420px] max-w-[calc(100vw-300px)]">
-      <div className="pointer-events-auto rounded-lg border border-primary/30 bg-white px-4 py-3 shadow-xl">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 rounded-md bg-primary/10 p-2 text-primary">
-            <FileText size={16} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="text-sm font-semibold text-outline-900">
-                {t("plannedAnalysis.promptCopiedTitle", {
-                  defaultValue: "Промпт скопирован",
-                })}
-              </h3>
-              <button
-                type="button"
-                onClick={onDismiss}
-                className="rounded p-1 text-outline-900/45 transition hover:bg-orange-50 hover:text-outline-900"
-                aria-label={t("common.close", { defaultValue: "Close" })}
-              >
-                <X size={14} />
-              </button>
-            </div>
-            <p className="mt-1 text-sm leading-relaxed text-outline-900/65">
-              {executionMode === "native"
-                ? t("plannedAnalysis.promptCopiedNativeBody", {
-                    defaultValue:
-                      "Вставьте его в AI Chat ToraSEO, чтобы ИИ продолжил работу по этому анализу.",
-                  })
-                : t("plannedAnalysis.promptCopiedBridgeBody", {
-                    defaultValue:
-                      "Вставьте его в чат {{appName}}, чтобы ИИ продолжил работу по этому анализу.",
-                    appName: bridgeTargetAppName,
-                  })}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function buildArticleTextPrompt({
-  action,
-  data,
-  selectedToolIds,
-  executionMode,
-}: {
-  action: ArticleTextAction;
-  data: ArticleTextPromptData;
-  selectedToolIds: AnalysisToolId[];
-  executionMode: AuditExecutionMode;
-}): string {
-  const modeLine =
-    action === "scan"
-      ? "Сценарий: сканировать готовый текст, не переписывать статью целиком без отдельного согласия пользователя."
-      : "Сценарий: предложить решение по сырому тексту или черновику; можно предложить структуру, дописать недостающие части или подготовить улучшенный вариант.";
-  const topic = data.topic.trim() || "не указана";
-  const body = data.body.trim();
-
-  return [
-    "/toraseo text-analysis-0.0.9",
-    "",
-    "Работай в контексте ToraSEO.",
-    `Режим выполнения: ${executionMode === "native" ? "API + AI Chat" : "MCP + Instructions"}.`,
-    modeLine,
-    "",
-    "Правила:",
-    "- Держись только анализа текста, рекомендаций, противоречий и подготовки статьи.",
-    "- Если пользователь выбрал сканирование готового текста, не начинай резко переписывать всю статью; сначала дай анализ и спроси, нужен ли готовый переписанный вариант.",
-    "- Если предлагаешь переписать или существенно переделать статью, сразу уточни, нужно ли отметить места для изображений ради SEO.",
-    "- Если пользователь согласен на разметку изображений, вставляй точную строку внутри текста в нужных местах:",
-    "------------------------- место для изображения --------------------------",
-    "- Не переноси все медиа-маркеры в конец текста.",
-    "- Если в тексте уже есть медиа-маркеры ToraSEO, учитывай их как существующие места медиа.",
-    "- Если тема ниже конфликтует с заголовком внутри текста, заголовок в теле текста важнее.",
-    "",
-    `Выбранные инструменты анализа: ${selectedToolIds.length > 0 ? selectedToolIds.join(", ") : "не выбраны"}.`,
-    `Тема текста: ${topic}`,
-    "",
-    "Текст:",
-    body,
-  ].join("\n");
 }
 
 function MediaButton({

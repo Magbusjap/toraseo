@@ -1,6 +1,6 @@
 ---
 name: toraseo-codex-workflow
-description: Use when Codex is asked to work on the ToraSEO codebase, MCP server, runtime provider flow, SEO audit policy, smoke tests, release hardening, or the Codex bridge path. Provides the Codex-specific workflow, including the Codex bridge handshake, while keeping ToraSEO scoped to evidence-first audit behavior.
+description: Use when Codex is asked to work on the ToraSEO codebase, MCP server, runtime provider flow, SEO audit policy, smoke tests, release hardening, the Codex bridge path, or to check whether Codex can see/access ToraSEO MCP and Codex Workflow Instructions. Provides the Codex-specific workflow, including the Codex bridge handshake, while keeping ToraSEO scoped to evidence-first audit behavior.
 ---
 
 # ToraSEO Codex Workflow
@@ -36,8 +36,33 @@ When the pasted prompt says `Use $toraseo-codex-workflow` and contains
 verify_codex_workflow_loaded(token="codex-workflow-v1-2026-04-29")
 ```
 
+Also run this same check when the user manually asks whether Codex can
+see, access, or connect to ToraSEO, ToraSEO MCP, the ToraSEO SKILL, or
+Codex Workflow Instructions. Do not answer these setup questions from
+memory or process status alone. The live MCP handshake is the proof.
+
 Do not read the token from chat, do not ask the user for it, and do
 not start analyzer tools before that handshake succeeds.
+
+If `verify_codex_workflow_loaded` returns `token_mismatch`, do not ask
+the user to reveal or paste the protocol token. Treat it as an
+installation/version problem: tell the user to update or reinstall the
+`toraseo-codex-workflow` package, restart Codex, open a new session, and
+run the setup check again.
+
+After the handshake succeeds, use the returned `analysisType` and
+`selectedTools` as the contract. For `site_by_url`, selected tools audit
+the returned URL. For `article_text`, the article body is already stored
+in the temporary ToraSEO workspace as `input.md`; do not ask the user to
+paste the article into chat and do not copy the article body back into
+your final answer. Call the selected article-text MCP tools directly;
+they read `input.md` and write structured results back to the app state
+and `results/*.json`. Then summarize priorities and recommendations in
+chat.
+
+The prompt command is only a trigger. The real bridge protocol is:
+Codex Workflow Instructions -> `verify_codex_workflow_loaded` -> MCP
+selected tools -> app state updates.
 
 If Codex asks the user to approve ToraSEO MCP tools, prefer the
 one-time chat/session approval option when the platform offers it. Tell

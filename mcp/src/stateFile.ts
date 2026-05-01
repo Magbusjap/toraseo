@@ -86,6 +86,22 @@ export interface CurrentScanState {
   schemaVersion: 1;
   scanId: string;
   bridgeClient?: BridgeClient;
+  analysisType?: "site_by_url" | "article_text";
+  input?: {
+    action?: "scan" | "solution";
+    topic?: string;
+    text?: string;
+    selectedAnalysisTools?: string[];
+  };
+  workspace?: {
+    workspaceDir: string;
+    inputFile: string;
+    metaFile: string;
+    resultsDir: string;
+    createdAt: string;
+    expiresAt: string;
+    ttlDays: number;
+  };
   status: BridgeScanStatus;
   url: string;
   createdAt: string;
@@ -128,7 +144,7 @@ export interface CurrentScanState {
  * becomes a `@toraseo\app` two-level subfolder, since backslash and
  * forward slash are equivalent in Windows path APIs).
  */
-function userDataDirs(): string[] {
+export function userDataDirs(): string[] {
   const product = APP_PRODUCT_NAME;
   // Dev-mode dir: derived from package.json `name` field
   // "@toraseo/app". Electron joins this directly into the userData

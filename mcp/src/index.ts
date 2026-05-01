@@ -72,6 +72,16 @@ import {
   verifyCodexWorkflowLoadedHandler,
   verifyCodexWorkflowLoadedInputSchema,
 } from "./verifyCodexWorkflowLoaded.js";
+import {
+  emptyInputSchema,
+  detectTextPlatformHandler,
+  analyzeTextStructureHandler,
+  analyzeTextStyleHandler,
+  analyzeToneFitHandler,
+  languageAudienceFitHandler,
+  mediaPlaceholderReviewHandler,
+  naturalnessIndicatorsHandler,
+} from "./textAnalysisTools.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -109,11 +119,15 @@ server.registerTool(
     title: "Verify Codex Workflow Loaded (Bridge Mode handshake)",
     description:
       "Required first call when the user has an active ToraSEO Codex " +
-      "bridge scan waiting. Confirms that Codex can reach the ToraSEO " +
-      "MCP server and that the Codex Workflow Instructions are loaded " +
+      "bridge scan waiting, and also required when the user manually asks " +
+      "whether Codex can see/access ToraSEO, ToraSEO MCP, the ToraSEO " +
+      "SKILL, or Codex Workflow Instructions. Confirms that Codex can " +
+      "reach the ToraSEO MCP server and that the Codex Workflow Instructions are loaded " +
       "with a compatible protocol token. The prompt never contains the " +
       "token; the Codex Workflow Instructions package contains the exact " +
-      "token to pass.",
+      "token to pass. If the response is token_mismatch, do not ask the " +
+      "user to reveal or paste a token; tell them to update or reinstall " +
+      "the ToraSEO Codex Workflow Instructions package and restart Codex.",
     inputSchema: verifyCodexWorkflowLoadedInputSchema,
   },
   verifyCodexWorkflowLoadedHandler,
@@ -281,6 +295,85 @@ server.registerTool(
     inputSchema: detectStackInputSchema,
   },
   bridgeWrap("detect_stack", detectStack, DetectStackError),
+);
+
+// --- Tools: Content/Text analysis ----------------------------------------
+
+server.registerTool(
+  "detect_text_platform",
+  {
+    title: "Detect Text Platform",
+    description:
+      "Analyzes the active ToraSEO article_text context from the desktop app and infers likely platform/use-case signals. Use only during an active article text bridge run.",
+    inputSchema: emptyInputSchema,
+  },
+  detectTextPlatformHandler,
+);
+
+server.registerTool(
+  "analyze_text_structure",
+  {
+    title: "Analyze Text Structure",
+    description:
+      "Analyzes article structure, headings, paragraphs, and thin-content risk from the active ToraSEO article_text context.",
+    inputSchema: emptyInputSchema,
+  },
+  analyzeTextStructureHandler,
+);
+
+server.registerTool(
+  "analyze_text_style",
+  {
+    title: "Analyze Text Style",
+    description:
+      "Analyzes sentence length, directness, and mechanical phrasing from the active ToraSEO article_text context.",
+    inputSchema: emptyInputSchema,
+  },
+  analyzeTextStyleHandler,
+);
+
+server.registerTool(
+  "analyze_tone_fit",
+  {
+    title: "Analyze Tone Fit",
+    description:
+      "Reviews whether the tone fits the topic risk and intended platform for the active ToraSEO article_text context.",
+    inputSchema: emptyInputSchema,
+  },
+  analyzeToneFitHandler,
+);
+
+server.registerTool(
+  "language_audience_fit",
+  {
+    title: "Language and Audience Fit",
+    description:
+      "Reviews language and audience fit for the active ToraSEO article_text context.",
+    inputSchema: emptyInputSchema,
+  },
+  languageAudienceFitHandler,
+);
+
+server.registerTool(
+  "media_placeholder_review",
+  {
+    title: "Media Placeholder Review",
+    description:
+      "Checks image/video/audio placeholder placement in the active ToraSEO article_text context.",
+    inputSchema: emptyInputSchema,
+  },
+  mediaPlaceholderReviewHandler,
+);
+
+server.registerTool(
+  "naturalness_indicators",
+  {
+    title: "Naturalness Indicators",
+    description:
+      "Checks repetition and mechanical phrasing indicators in the active ToraSEO article_text context.",
+    inputSchema: emptyInputSchema,
+  },
+  naturalnessIndicatorsHandler,
 );
 
 // --- Transport & startup --------------------------------------------------

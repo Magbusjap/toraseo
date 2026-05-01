@@ -5,6 +5,7 @@ import type {
   DownloadSkillZipResult,
   OpenClaudeResult,
   OpenCodexResult,
+  PickAppPathResult,
   PickMcpConfigResult,
 } from "../types/ipc";
 
@@ -43,6 +44,8 @@ export interface UseDetectorReturn {
   checkNow: () => Promise<DetectorStatus>;
   openClaude: () => Promise<OpenClaudeResult>;
   openCodex: () => Promise<OpenCodexResult>;
+  pickClaudePath: () => Promise<PickAppPathResult>;
+  pickCodexPath: () => Promise<PickAppPathResult>;
   pickMcpConfig: () => Promise<PickMcpConfigResult>;
   clearManualMcpConfig: () => Promise<{ ok: boolean }>;
   downloadSkillZip: () => Promise<DownloadSkillZipResult>;
@@ -66,12 +69,36 @@ export function useDetector(): UseDetectorReturn {
   }, []);
 
   const openClaude = useCallback(async () => {
-    return window.toraseo.launcher.openClaude();
-  }, []);
+    const result = await window.toraseo.launcher.openClaude();
+    window.setTimeout(() => {
+      void checkNow();
+    }, 1200);
+    return result;
+  }, [checkNow]);
 
   const openCodex = useCallback(async () => {
-    return window.toraseo.launcher.openCodex();
-  }, []);
+    const result = await window.toraseo.launcher.openCodex();
+    window.setTimeout(() => {
+      void checkNow();
+    }, 1200);
+    return result;
+  }, [checkNow]);
+
+  const pickClaudePath = useCallback(async () => {
+    const result = await window.toraseo.launcher.pickClaudePath();
+    if (result.ok) {
+      void checkNow();
+    }
+    return result;
+  }, [checkNow]);
+
+  const pickCodexPath = useCallback(async () => {
+    const result = await window.toraseo.launcher.pickCodexPath();
+    if (result.ok) {
+      void checkNow();
+    }
+    return result;
+  }, [checkNow]);
 
   const pickMcpConfig = useCallback(async () => {
     return window.toraseo.detector.pickMcpConfig();
@@ -102,6 +129,8 @@ export function useDetector(): UseDetectorReturn {
     checkNow,
     openClaude,
     openCodex,
+    pickClaudePath,
+    pickCodexPath,
     pickMcpConfig,
     clearManualMcpConfig,
     downloadSkillZip,

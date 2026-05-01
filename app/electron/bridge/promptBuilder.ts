@@ -1,7 +1,8 @@
 /**
  * Builds the prompt that gets copied to the user's clipboard when
- * they click Scan. The prompt is an instruction to Claude Desktop:
- * the ToraSEO Desktop App is running and waiting for an audit.
+ * they click Scan. The prompt is an instruction to the selected bridge
+ * client (Claude Desktop or Codex): the ToraSEO Desktop App is running
+ * and waiting for an audit.
  *
  * SECURITY DESIGN: The prompt deliberately does NOT contain the
  * Bridge Mode protocol token. The token lives ONLY in SKILL.md
@@ -52,7 +53,7 @@
 
 import type {
   BridgeClient,
-  ToolId,
+  CurrentScanState,
   SupportedLocale,
 } from "../../src/types/ipc.js";
 
@@ -89,6 +90,20 @@ Use the tools: ${tools}.
 Results will be displayed in the ToraSEO Desktop App.
 After all tools complete, provide recommendations in chat based on the data.`;
 
+const CODEX_TOKEN_MISMATCH_NOTE_EN =
+  "If verify_codex_workflow_loaded returns token_mismatch, do not ask " +
+  "the user to provide the token. Report that the local " +
+  "toraseo-codex-workflow package is outdated, different, or not loaded; " +
+  "the user should update/reinstall it, restart Codex, start a new session, " +
+  "and run this check again.";
+
+const CODEX_TOKEN_MISMATCH_NOTE_RU =
+  "Если verify_codex_workflow_loaded вернул token_mismatch, не проси " +
+  "пользователя прислать token. Сообщи, что локальный пакет " +
+  "toraseo-codex-workflow устарел, отличается или не подхвачен; пользователю " +
+  "нужно обновить/переустановить его, перезапустить Codex, открыть новую " +
+  "сессию и повторить проверку.";
+
 const CODEX_TEMPLATE_EN = (url: string, tools: string): string =>
   `Use $toraseo-codex-workflow for this task.
 
@@ -97,6 +112,7 @@ const CODEX_TEMPLATE_EN = (url: string, tools: string): string =>
 The ToraSEO Desktop App is running and waiting for a Codex bridge scan of ${url}.
 
 First call verify_codex_workflow_loaded from the ToraSEO MCP server.
+${CODEX_TOKEN_MISMATCH_NOTE_EN}
 Then use the tools: ${tools}.
 
 Do not start analyzer tools until the Codex Workflow Instructions handshake succeeds.
@@ -112,12 +128,65 @@ const CODEX_TEMPLATE_RU = (url: string, tools: string): string =>
 Приложение ToraSEO Desktop App запущено и ожидает сканирование через Codex для ${url}.
 
 Сначала вызови verify_codex_workflow_loaded из ToraSEO MCP-сервера.
+${CODEX_TOKEN_MISMATCH_NOTE_RU}
 Затем используй инструменты: ${tools}.
 
 Не запускай инструменты анализа, пока handshake с Codex Workflow Instructions не завершится успешно.
 Если Codex запросит доступ к инструментам ToraSEO MCP, поставь галочку разрешения для текущего чата или сессии и нажми «Разрешить», если такой вариант доступен.
 Результаты будут отображены в приложении ToraSEO Desktop App.
 После завершения всех инструментов дай рекомендации в чате на основе данных.`;
+
+const TEXT_TEMPLATE_EN = (tools: string): string =>
+  `/toraseobridge article-text
+
+The ToraSEO Desktop App is running and waiting for article text analysis.
+
+Do not ask the user to paste the article here. Use ToraSEO MCP tools; they read input.md from the temporary ToraSEO workspace.
+Use these tools: ${tools}.
+
+Results will be displayed in the ToraSEO Desktop App.
+After all tools complete, provide recommendations in chat based on the MCP results.`;
+
+const TEXT_TEMPLATE_RU = (tools: string): string =>
+  `/toraseobridge article-text
+
+Приложение ToraSEO Desktop App запущено и ожидает анализ текста статьи.
+
+Не проси пользователя вставлять статью в чат. Используй инструменты ToraSEO MCP; они читают input.md из временной рабочей папки ToraSEO.
+Используй инструменты: ${tools}.
+
+Результаты будут отображены в приложении ToraSEO Desktop App.
+После завершения всех инструментов дай рекомендации в чате на основе результатов MCP.`;
+
+const CODEX_TEXT_TEMPLATE_EN = (tools: string): string =>
+  `Use $toraseo-codex-workflow for this task.
+
+/toraseo codex-bridge-mode
+
+The ToraSEO Desktop App is running and waiting for Codex article text analysis.
+
+First call verify_codex_workflow_loaded from the ToraSEO MCP server.
+${CODEX_TOKEN_MISMATCH_NOTE_EN}
+Do not ask the user to paste the article here. Use ToraSEO MCP tools; they read input.md from the temporary ToraSEO workspace.
+Then use these tools: ${tools}.
+
+Results will be displayed in the ToraSEO Desktop App.
+After all tools complete, provide recommendations in chat based on the MCP results.`;
+
+const CODEX_TEXT_TEMPLATE_RU = (tools: string): string =>
+  `Используй $toraseo-codex-workflow для этой задачи.
+
+/toraseo codex-bridge-mode
+
+Приложение ToraSEO Desktop App запущено и ожидает анализ текста статьи через Codex.
+
+Сначала вызови verify_codex_workflow_loaded из ToraSEO MCP-сервера.
+${CODEX_TOKEN_MISMATCH_NOTE_RU}
+Не проси пользователя вставлять статью в чат. Используй инструменты ToraSEO MCP; они читают input.md из временной рабочей папки ToraSEO.
+Затем используй инструменты: ${tools}.
+
+Результаты будут отображены в приложении ToraSEO Desktop App.
+После завершения всех инструментов дай рекомендации в чате на основе результатов MCP.`;
 
 const CODEX_SETUP_TEMPLATE_EN = (): string =>
   `Use $toraseo-codex-workflow for this task.
@@ -126,12 +195,14 @@ The ToraSEO Desktop App is already running in MCP + Instructions -> Codex mode.
 
 This is a setup check, not a site scan.
 First call verify_codex_workflow_loaded from the ToraSEO MCP server.
+${CODEX_TOKEN_MISMATCH_NOTE_EN}
 If Codex asks for ToraSEO MCP tool permission, tick the chat/session approval checkbox and click Allow when that option is available.
 
-If setup is correct, tell me in one short answer that:
-1. ToraSEO MCP is reachable from Codex.
-2. Codex Workflow Instructions are active in this session.
-3. I can return to ToraSEO and continue.`;
+If setup is correct, send this short confirmation:
+1. ToraSEO MCP is connected and reachable from Codex.
+2. The ToraSEO SKILL / Codex Workflow Instructions are active in this session.
+3. SKILL and MCP are configured correctly.
+4. You can safely choose an analysis in ToraSEO.`;
 
 const CODEX_SETUP_TEMPLATE_RU = (): string =>
   `Используй $toraseo-codex-workflow для этой задачи.
@@ -140,12 +211,14 @@ const CODEX_SETUP_TEMPLATE_RU = (): string =>
 
 Это setup-проверка, а не сканирование сайта.
 Сначала вызови verify_codex_workflow_loaded из ToraSEO MCP-сервера.
+${CODEX_TOKEN_MISMATCH_NOTE_RU}
 Если Codex запросит доступ к инструментам ToraSEO MCP, поставь галочку разрешения для текущего чата или сессии и нажми «Разрешить», если такой вариант доступен.
 
-Если всё настроено правильно, коротко ответь, что:
-1. ToraSEO MCP доступен из Codex.
-2. Codex Workflow Instructions активны в этой сессии.
-3. Я могу вернуться в ToraSEO и продолжить.`;
+Если всё настроено правильно, отправь короткое подтверждение:
+1. ToraSEO MCP подключен и доступен из Codex.
+2. ToraSEO SKILL / Codex Workflow Instructions активны в этой сессии.
+3. SKILL и MCP настроены корректно.
+4. Можете спокойно выбирать анализ в ToraSEO.`;
 
 /**
  * Build the full prompt for clipboard.
@@ -160,12 +233,23 @@ const CODEX_SETUP_TEMPLATE_RU = (): string =>
  */
 export function buildScanPrompt(
   url: string,
-  toolIds: ToolId[],
+  toolIds: string[],
   locale: SupportedLocale,
   bridgeClient: BridgeClient = "claude",
+  state?: Pick<CurrentScanState, "analysisType">,
 ): string {
   // Comma-separated tool names — Claude reads this as a list.
   const toolsList = toolIds.join(", ");
+  if (state?.analysisType === "article_text") {
+    if (bridgeClient === "codex") {
+      return locale === "ru"
+        ? CODEX_TEXT_TEMPLATE_RU(toolsList)
+        : CODEX_TEXT_TEMPLATE_EN(toolsList);
+    }
+    return locale === "ru"
+      ? TEXT_TEMPLATE_RU(toolsList)
+      : TEXT_TEMPLATE_EN(toolsList);
+  }
   const template =
     bridgeClient === "codex"
       ? locale === "ru"
@@ -177,6 +261,48 @@ export function buildScanPrompt(
   return template(url, toolsList);
 }
 
+const CLAUDE_SETUP_TEMPLATE_EN = (): string =>
+  `/toraseobridge setup-check
+
+The ToraSEO Desktop App is already running in MCP + Instructions -> Claude Desktop mode.
+
+This is a setup check, not a site scan.
+First call verify_skill_loaded(token="bridge-v1-2026-04-27") from the ToraSEO MCP server.
+
+If the tool returns app_running_no_scan, treat that as a successful setup check: it proves that Claude Desktop can see both the ToraSEO MCP server and the ToraSEO Claude Bridge Instructions. In that case, send this short confirmation:
+1. ToraSEO MCP is connected and reachable from Claude Desktop.
+2. The ToraSEO SKILL / Claude Bridge Instructions are active in this session.
+3. SKILL and MCP are configured correctly.
+4. You can safely choose an analysis in ToraSEO.`;
+
+const CLAUDE_SETUP_TEMPLATE_RU = (): string =>
+  `/toraseobridge setup-check
+
+Приложение ToraSEO Desktop App уже запущено в режиме MCP + Instructions -> Claude Desktop.
+
+Это проверка настройки, а не сканирование сайта.
+Сначала вызови verify_skill_loaded(token="bridge-v1-2026-04-27") из ToraSEO MCP-сервера.
+
+Если инструмент вернул app_running_no_scan, считай это успешной проверкой настройки: это доказывает, что Claude Desktop видит и ToraSEO MCP-сервер, и ToraSEO Claude Bridge Instructions. В таком случае отправь короткое подтверждение:
+1. ToraSEO MCP подключен и доступен из Claude Desktop.
+2. ToraSEO SKILL / Claude Bridge Instructions активны в этой сессии.
+3. SKILL и MCP настроены корректно.
+4. Можете спокойно выбирать анализ в ToraSEO.`;
+
+export function buildBridgeSetupPrompt(
+  locale: SupportedLocale,
+  bridgeClient: BridgeClient,
+): string {
+  if (bridgeClient === "codex") {
+    return locale === "ru"
+      ? CODEX_SETUP_TEMPLATE_RU()
+      : CODEX_SETUP_TEMPLATE_EN();
+  }
+  return locale === "ru"
+    ? CLAUDE_SETUP_TEMPLATE_RU()
+    : CLAUDE_SETUP_TEMPLATE_EN();
+}
+
 export function buildCodexSetupPrompt(locale: SupportedLocale): string {
-  return locale === "ru" ? CODEX_SETUP_TEMPLATE_RU() : CODEX_SETUP_TEMPLATE_EN();
+  return buildBridgeSetupPrompt(locale, "codex");
 }

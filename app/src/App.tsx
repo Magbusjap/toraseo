@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Clipboard, X } from "lucide-react";
+import { AlertTriangle, Clipboard, X } from "lucide-react";
 import i18n from "./i18n";
 
 import IdleSidebar from "./components/Sidebar/IdleSidebar";
@@ -16,12 +16,19 @@ import AnalysisDraftSidebar from "./components/Sidebar/AnalysisDraftSidebar";
 import ModeSelection, {
   type BridgeProgram,
 } from "./components/MainArea/ModeSelection";
-import PlannedAnalysisView from "./components/MainArea/PlannedAnalysisView";
+import PlannedAnalysisView, {
+  type ArticleTextAction,
+  type ArticleTextPromptData,
+} from "./components/MainArea/PlannedAnalysisView";
 import { SettingsView } from "./components/Settings";
 import { TopToolbar } from "./components/TopToolbar";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { NativeLayout } from "./components/NativeLayout";
 import ChatWindow from "./components/Chat/ChatWindow";
+import {
+  SidebarWidthOverlay,
+  WindowSizeOverlay,
+} from "./components/ViewportSizeOverlay";
 import { DEFAULT_SELECTED_TOOLS, TOOLS, type ToolId } from "./config/tools";
 import type { AnalysisTypeId } from "./config/analysisTypes";
 import {
@@ -38,7 +45,7 @@ import {
   buildNativeScanContext,
 } from "./runtime/scanContext";
 
-import type { SupportedLocale } from "./types/ipc";
+import type { BridgeClient, SupportedLocale } from "./types/ipc";
 import type {
   AuditExecutionMode,
   ProviderInfo,
@@ -119,6 +126,8 @@ function MainApp() {
 
   const [mode, setMode] = useState<AppMode>("idle");
   const [sidebarWidth, setSidebarWidth] = useState(readPersistedSidebarWidth);
+  const [sidebarWidthOverlayVisible, setSidebarWidthOverlayVisible] =
+    useState(false);
   const sidebarResizeRef = useRef({
     startX: 0,
     startWidth: SIDEBAR_DEFAULT_WIDTH,
@@ -139,6 +148,10 @@ function MainApp() {
       site_design_by_url: getDefaultAnalysisToolSet("site_design_by_url"),
     }));
   const [preflightError, setPreflightError] = useState<string | null>(null);
+  const [codexClosedNotice, setCodexClosedNotice] = useState<string | null>(
+    null,
+  );
+  const [codexClosedNoticeShake, setCodexClosedNoticeShake] = useState(false);
   const [executionModeDraft, setExecutionModeDraft] =
     useState<AuditExecutionMode>(() => readPersistedExecutionMode() ?? "native");
   const [confirmedExecutionMode, setConfirmedExecutionMode] =
@@ -165,7 +178,18 @@ function MainApp() {
     string | null
   >(null);
   const [promptCopyToastVisible, setPromptCopyToastVisible] = useState(false);
+  const [bridgeSetupPromptNotice, setBridgeSetupPromptNotice] =
+    useState<BridgeClient | null>(null);
   const promptCopyToastTimer = useRef<
+    ReturnType<typeof window.setTimeout> | null
+  >(null);
+  const bridgeSetupPromptNoticeTimer = useRef<
+    ReturnType<typeof window.setTimeout> | null
+  >(null);
+  const sidebarWidthOverlayTimer = useRef<
+    ReturnType<typeof window.setTimeout> | null
+  >(null);
+  const codexClosedNoticeShakeTimer = useRef<
     ReturnType<typeof window.setTimeout> | null
   >(null);
   const lastCodexRunningRef = useRef<boolean | null>(null);
@@ -182,6 +206,8 @@ function MainApp() {
     checkNow,
     openClaude,
     openCodex,
+    pickClaudePath,
+    pickCodexPath,
     pickMcpConfig,
     clearManualMcpConfig,
     downloadSkillZip,
@@ -286,6 +312,10 @@ function MainApp() {
   const bridgeExternalAppName =
     bridgeProgram === "codex" ? "Codex" : "Claude Desktop";
 
+  const showCodexClosedNotice = useCallback((message: string) => {
+    setCodexClosedNotice(message);
+  }, []);
+
   useEffect(() => {
     const codexBridgeBusy =
       codexBridgeState?.status === "awaiting_handshake" ||
@@ -295,17 +325,35 @@ function MainApp() {
       return;
     }
 
-    setPreflightError(
+    showCodexClosedNotice(
       t("preflight.codexClosedDuringScan", {
         defaultValue:
           "Codex closed during the bridge flow. The active Codex scan was cancelled.",
       }),
     );
     void bridge.cancelScan();
-  }, [bridge.cancelScan, codexBridgeState, detectorStatus?.codexRunning, t]);
+  }, [
+    bridge.cancelScan,
+    codexBridgeState,
+    detectorStatus?.codexRunning,
+    showCodexClosedNotice,
+    t,
+  ]);
 
   useEffect(() => {
     if (detectorStatus === null) return;
+
+    if (detectorStatus.codexRunning) {
+      setCodexClosedNotice(null);
+      setPreflightError((current) => {
+        if (!current) return current;
+        const lower = current.toLowerCase();
+        return current.includes("Codex") &&
+          (lower.includes("closed") || current.includes("закрыт"))
+          ? null
+          : current;
+      });
+    }
 
     const previous = lastCodexRunningRef.current;
     lastCodexRunningRef.current = detectorStatus.codexRunning;
@@ -321,7 +369,7 @@ function MainApp() {
       bridgeProgram === "codex" &&
       !codexBridgeBusy
     ) {
-      setPreflightError(
+      showCodexClosedNotice(
         t("preflight.codexClosed", {
           defaultValue: "Codex is closed. Open Codex to continue.",
         }),
@@ -334,6 +382,7 @@ function MainApp() {
     codexBridgeState?.status,
     detectorStatus,
     executionMode,
+    showCodexClosedNotice,
     t,
   ]);
 
@@ -367,8 +416,37 @@ function MainApp() {
       if (promptCopyToastTimer.current) {
         window.clearTimeout(promptCopyToastTimer.current);
       }
+      if (bridgeSetupPromptNoticeTimer.current) {
+        window.clearTimeout(bridgeSetupPromptNoticeTimer.current);
+      }
+      if (codexClosedNoticeShakeTimer.current) {
+        window.clearTimeout(codexClosedNoticeShakeTimer.current);
+      }
+      if (sidebarWidthOverlayTimer.current) {
+        window.clearTimeout(sidebarWidthOverlayTimer.current);
+      }
     };
   }, []);
+
+  const handleDismissCodexClosedNotice = () => {
+    if (detectorStatus?.codexRunning) {
+      setCodexClosedNotice(null);
+      setCodexClosedNoticeShake(false);
+      return;
+    }
+
+    setCodexClosedNoticeShake(false);
+    if (codexClosedNoticeShakeTimer.current) {
+      window.clearTimeout(codexClosedNoticeShakeTimer.current);
+    }
+    window.requestAnimationFrame(() => {
+      setCodexClosedNoticeShake(true);
+      codexClosedNoticeShakeTimer.current = window.setTimeout(() => {
+        setCodexClosedNoticeShake(false);
+        codexClosedNoticeShakeTimer.current = null;
+      }, 420);
+    });
+  };
 
   const handleModeSelect = async (selected: AnalysisTypeId) => {
     if (!confirmedExecutionMode) {
@@ -405,7 +483,7 @@ function MainApp() {
     if (confirmedExecutionMode === "bridge" && bridgeProgram === "codex") {
       const fresh = await checkNow();
       if (!fresh.codexRunning) {
-        setPreflightError(
+        showCodexClosedNotice(
           t("preflight.codexNeedsConfirmation", {
             defaultValue:
               "Open Codex before starting the Codex bridge path.",
@@ -580,13 +658,32 @@ function MainApp() {
     }, 1800);
   };
 
+  const showBridgeSetupPromptNotice = (bridgeClient: BridgeClient) => {
+    setBridgeSetupPromptNotice(bridgeClient);
+    if (bridgeSetupPromptNoticeTimer.current) {
+      window.clearTimeout(bridgeSetupPromptNoticeTimer.current);
+    }
+    bridgeSetupPromptNoticeTimer.current = window.setTimeout(() => {
+      setBridgeSetupPromptNotice(null);
+      bridgeSetupPromptNoticeTimer.current = null;
+    }, 10000);
+  };
+
+  const dismissBridgeSetupPromptNotice = () => {
+    setBridgeSetupPromptNotice(null);
+    if (bridgeSetupPromptNoticeTimer.current) {
+      window.clearTimeout(bridgeSetupPromptNoticeTimer.current);
+      bridgeSetupPromptNoticeTimer.current = null;
+    }
+  };
+
   const handleRunBridgeScan = async () => {
     setPreflightError(null);
     setRuntimeReport(null);
     if (bridgeProgram === "codex") {
       const fresh = await checkNow();
       if (!fresh.codexRunning) {
-        setPreflightError(
+        showCodexClosedNotice(
           t("preflight.codexNeedsConfirmation", {
             defaultValue: "Open Codex before starting the Codex bridge path.",
           }),
@@ -717,6 +814,12 @@ function MainApp() {
     return prompt;
   };
 
+  const handleCopyBridgeSetupPrompt = async (bridgeClient: BridgeClient) => {
+    const prompt = await bridge.copyBridgeSetupPrompt(bridgeClient);
+    showBridgeSetupPromptNotice(bridgeClient);
+    return prompt;
+  };
+
   const handleModelProfileChange = (profileId: string) => {
     setSelectedModelProfileId(profileId);
     persistSelectedOpenRouterModel(profileId);
@@ -731,6 +834,7 @@ function MainApp() {
   const handleSidebarResizeStart = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
       event.preventDefault();
+      setSidebarWidthOverlayVisible(true);
       sidebarResizeRef.current = {
         startX: event.clientX,
         startWidth: sidebarWidth,
@@ -747,6 +851,7 @@ function MainApp() {
             sidebarResizeRef.current.startX,
         );
         setSidebarWidth(nextWidth);
+        setSidebarWidthOverlayVisible(true);
       };
 
       const handleMouseUp = (upEvent: MouseEvent) => {
@@ -757,6 +862,13 @@ function MainApp() {
         );
         setSidebarWidth(finalWidth);
         persistSidebarWidth(finalWidth);
+        if (sidebarWidthOverlayTimer.current) {
+          window.clearTimeout(sidebarWidthOverlayTimer.current);
+        }
+        sidebarWidthOverlayTimer.current = window.setTimeout(() => {
+          setSidebarWidthOverlayVisible(false);
+          sidebarWidthOverlayTimer.current = null;
+        }, 1000);
         document.body.style.cursor = previousCursor;
         document.body.style.userSelect = previousUserSelect;
         window.removeEventListener("mousemove", handleMouseMove);
@@ -772,6 +884,14 @@ function MainApp() {
   const handleSidebarResizeDoubleClick = () => {
     setSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
     persistSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
+    setSidebarWidthOverlayVisible(true);
+    if (sidebarWidthOverlayTimer.current) {
+      window.clearTimeout(sidebarWidthOverlayTimer.current);
+    }
+    sidebarWidthOverlayTimer.current = window.setTimeout(() => {
+      setSidebarWidthOverlayVisible(false);
+      sidebarWidthOverlayTimer.current = null;
+    }, 1000);
   };
 
   const handleSaveLocale = async (locale: SupportedLocale): Promise<void> => {
@@ -804,6 +924,75 @@ function MainApp() {
     () => buildBridgeScanFacts(bridge.state, bridge.stages),
     [bridge.stages, bridge.state],
   );
+  const activeArticleTextRun =
+    bridge.state?.analysisType === "article_text" &&
+    (bridge.state.status === "awaiting_handshake" ||
+      bridge.state.status === "in_progress")
+      ? bridge.state.input?.action ?? "scan"
+      : null;
+  const plannedCompletedTools =
+    bridge.state?.analysisType === "article_text"
+      ? Object.values(bridge.state.buffer).filter(
+          (entry) => entry.status === "complete" || entry.status === "error",
+        ).length
+      : 0;
+  const plannedTotalTools =
+    bridge.state?.analysisType === "article_text"
+      ? bridge.state.selectedTools.length
+      : selectedAnalysisType
+        ? selectedAnalysisToolsByType[selectedAnalysisType].size
+        : 0;
+
+  const handleRunArticleTextBridge = async (
+    action: ArticleTextAction,
+    data: ArticleTextPromptData,
+  ) => {
+    if (executionMode !== "bridge") {
+      setPreflightError(
+        t("preflight.articleTextBridgeRequired", {
+          defaultValue:
+            "Text analysis through Codex or Claude Desktop requires MCP + Instructions mode.",
+        }),
+      );
+      return;
+    }
+
+    if (bridgeProgram === "codex") {
+      const fresh = await checkNow();
+      if (!fresh.codexRunning) {
+        showCodexClosedNotice(
+          t("preflight.codexNeedsConfirmation", {
+            defaultValue: "Open Codex before starting the Codex bridge path.",
+          }),
+        );
+        return;
+      }
+      if (!fresh.codexSetupVerified) {
+        setPreflightError(
+          t("preflight.codexSetupMissing", {
+            defaultValue:
+              "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
+          }),
+        );
+        return;
+      }
+    } else if (detectorStatus && !detectorStatus.allGreen) {
+      setPreflightError(t("preflight.depsFailed"));
+      return;
+    }
+
+    const toolIds = Array.from(selectedAnalysisToolsByType.article_text);
+    await bridge.startScan("toraseo://article-text", toolIds, bridgeProgram, {
+      action,
+      topic: data.topic,
+      text: data.body,
+      selectedAnalysisTools: toolIds,
+    });
+  };
+
+  const handleCancelArticleTextBridge = () => {
+    void bridge.cancelScan();
+  };
 
   const chatSession = useMemo<RuntimeChatWindowSession>(
     () => ({
@@ -1009,6 +1198,13 @@ function MainApp() {
             onProviderSaved={handleProviderSaved}
           />
         </div>
+        {bridgeSetupPromptNotice && (
+          <BridgeSetupPromptNotice
+            bridgeClient={bridgeSetupPromptNotice}
+            onDismiss={dismissBridgeSetupPromptNotice}
+          />
+        )}
+        <WindowSizeOverlay />
         <UpdateNotification />
       </div>
     );
@@ -1039,6 +1235,10 @@ function MainApp() {
             <span className="h-12 w-1 rounded-full bg-outline-900/10 transition group-hover:bg-primary/70" />
           </div>
         </aside>
+        <SidebarWidthOverlay
+          width={sidebarWidth}
+          visible={sidebarWidthOverlayVisible}
+        />
 
         <main className="flex-1 overflow-hidden">
           {mode === "idle" ? (
@@ -1060,10 +1260,13 @@ function MainApp() {
               onChangeConfirmedExecutionMode={handleChangeConfirmedExecutionMode}
               onBridgeProgramChange={setBridgeProgram}
               onOpenCodex={handleOpenCodex}
+              onPickCodexPath={pickCodexPath}
               onCopyCodexSetupPrompt={handleCopyCodexSetupPrompt}
+              onCopyBridgeSetupPrompt={handleCopyBridgeSetupPrompt}
               onModelProfileChange={handleModelProfileChange}
               onOpenProviderSettings={handleOpenProviderSettings}
               onOpenClaude={openClaude}
+              onPickClaudePath={pickClaudePath}
               onPickMcpConfig={pickMcpConfig}
               onClearManualMcpConfig={clearManualMcpConfig}
               onDownloadSkillZip={downloadSkillZip}
@@ -1079,9 +1282,14 @@ function MainApp() {
               selectedToolIds={Array.from(
                 selectedAnalysisToolsByType[selectedAnalysisType],
               )}
+              activeRun={activeArticleTextRun}
+              completedTools={plannedCompletedTools}
+              totalTools={plannedTotalTools}
               bridgeUnavailable={bridgeExternalAppClosed}
               bridgeUnavailableAppName={bridgeExternalAppName}
               bridgeTargetAppName={bridgeExternalAppName}
+              onArticleTextRun={handleRunArticleTextBridge}
+              onArticleTextCancel={handleCancelArticleTextBridge}
             />
           ) : (
             <NativeLayout
@@ -1107,6 +1315,13 @@ function MainApp() {
               })}
             </div>
           )}
+          {codexClosedNotice && mode !== "idle" && (
+            <CodexClosedNotice
+              message={codexClosedNotice}
+              shake={codexClosedNoticeShake}
+              onDismiss={handleDismissCodexClosedNotice}
+            />
+          )}
           {codexPromptHelperVisible &&
             executionModeDraft === "bridge" &&
             bridgeProgram === "codex" && (
@@ -1121,6 +1336,112 @@ function MainApp() {
       </div>
 
       <UpdateNotification />
+      {bridgeSetupPromptNotice && (
+        <BridgeSetupPromptNotice
+          bridgeClient={bridgeSetupPromptNotice}
+          onDismiss={dismissBridgeSetupPromptNotice}
+        />
+      )}
+      <WindowSizeOverlay />
+    </div>
+  );
+}
+
+function CodexClosedNotice({
+  message,
+  shake,
+  onDismiss,
+}: {
+  message: string;
+  shake: boolean;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="pointer-events-none fixed bottom-6 right-6 z-[60] w-[360px] max-w-[calc(100vw-32px)]">
+      <div
+        className={`pointer-events-auto rounded-lg border border-red-200 bg-white px-4 py-3 shadow-xl ${
+          shake ? "toraseo-shake" : ""
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 rounded-md bg-red-50 p-2 text-red-600">
+            <AlertTriangle size={16} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-sm font-semibold text-outline-900">
+                {t("preflight.codexClosedTitle", {
+                  defaultValue: "Codex unavailable",
+                })}
+              </h3>
+              <button
+                type="button"
+                onClick={onDismiss}
+                aria-label={t("common.close")}
+                className="rounded-md p-1 text-outline-900/45 transition hover:bg-red-50 hover:text-outline-900"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <p className="mt-1 text-sm leading-relaxed text-outline-900/70">
+              {message}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BridgeSetupPromptNotice({
+  bridgeClient,
+  onDismiss,
+}: {
+  bridgeClient: BridgeClient;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+  const appName = bridgeClient === "codex" ? "Codex" : "Claude Desktop";
+
+  return (
+    <div className="pointer-events-none fixed bottom-6 right-6 z-[70] w-[430px] max-w-[calc(100vw-32px)]">
+      <div className="pointer-events-auto overflow-hidden rounded-lg border border-primary/30 bg-white shadow-xl">
+        <div className="px-4 py-3">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 rounded-md bg-primary/10 p-2 text-primary">
+              <Clipboard size={16} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-sm font-semibold text-outline-900">
+                  {t("modeSelection.bridge.setupPromptNoticeTitle", {
+                    defaultValue: "Промпт проверки скопирован",
+                  })}
+                </h3>
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  aria-label={t("common.close")}
+                  className="rounded-md p-1 text-outline-900/45 transition hover:bg-orange-50 hover:text-outline-900"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <p className="mt-1 text-sm leading-relaxed text-outline-900/70">
+                {t("modeSelection.bridge.setupPromptNoticeBody", {
+                  appName,
+                  defaultValue:
+                    "Откройте новую сессию в {{appName}}, вставьте промпт и нажмите Enter. Так можно проверить, видит ли {{appName}} ToraSEO SKILL и MCP.",
+                })}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="h-1 bg-primary/15">
+          <div className="h-full bg-primary toraseo-toast-progress" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1128,7 +1449,7 @@ function MainApp() {
 function CodexPromptHelper({ onDismiss }: { onDismiss: () => void }) {
   const { t } = useTranslation();
   return (
-    <div className="pointer-events-none fixed bottom-6 left-[276px] z-40 w-[420px] max-w-[calc(100vw-300px)]">
+    <div className="pointer-events-none fixed bottom-6 right-6 z-40 w-[420px] max-w-[calc(100vw-32px)]">
       <div className="pointer-events-auto rounded-lg border border-primary/30 bg-white px-4 py-3 shadow-xl">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 rounded-md bg-primary/10 p-2 text-primary">

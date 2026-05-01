@@ -31,13 +31,13 @@ import {
   observeBridgeState,
 } from "./scanLifecycle.js";
 import { watchState } from "./stateFile.js";
-import { buildCodexSetupPrompt } from "./promptBuilder.js";
+import { buildBridgeSetupPrompt } from "./promptBuilder.js";
 import { getCurrentLocale } from "../locale.js";
 
 import type {
   BridgeClient,
+  BridgeAnalysisInput,
   CurrentScanState,
-  ToolId,
   StartBridgeScanResult,
 } from "../../src/types/ipc.js";
 
@@ -48,6 +48,7 @@ export const BRIDGE_CHANNELS = {
   retryHandshake: "toraseo:bridge:retry-handshake",
   getState: "toraseo:bridge:get-state",
   copyCodexSetupPrompt: "toraseo:bridge:copy-codex-setup-prompt",
+  copyBridgeSetupPrompt: "toraseo:bridge:copy-bridge-setup-prompt",
   // main → renderer (push)
   stateUpdate: "toraseo:bridge:state-update",
 } as const;
@@ -64,7 +65,12 @@ export function setupBridge(getMainWindow: () => BrowserWindow | null): void {
     BRIDGE_CHANNELS.startScan,
     async (
       _event,
-      args: { url: string; toolIds: ToolId[]; bridgeClient?: BridgeClient },
+      args: {
+        url: string;
+        toolIds: string[];
+        bridgeClient?: BridgeClient;
+        input?: BridgeAnalysisInput;
+      },
     ): Promise<StartBridgeScanResult> => {
       // Validate inputs at the trust boundary. Renderer is sandboxed
       // but a buggy renderer could still pass garbage; we reject
@@ -82,7 +88,7 @@ export function setupBridge(getMainWindow: () => BrowserWindow | null): void {
       ) {
         throw new Error("Invalid args: 'bridgeClient' must be claude or codex");
       }
-      return startScan(args.url.trim(), args.toolIds, args.bridgeClient);
+      return startScan(args.url.trim(), args.toolIds, args.bridgeClient, args.input);
     },
   );
 
@@ -111,7 +117,23 @@ export function setupBridge(getMainWindow: () => BrowserWindow | null): void {
     BRIDGE_CHANNELS.copyCodexSetupPrompt,
     async (): Promise<{ ok: boolean; prompt: string }> => {
       const locale = await getCurrentLocale();
-      const prompt = buildCodexSetupPrompt(locale);
+      const prompt = buildBridgeSetupPrompt(locale, "codex");
+      clipboard.writeText(prompt);
+      return { ok: true, prompt };
+    },
+  );
+
+  ipcMain.handle(
+    BRIDGE_CHANNELS.copyBridgeSetupPrompt,
+    async (
+      _event,
+      bridgeClient: BridgeClient,
+    ): Promise<{ ok: boolean; prompt: string }> => {
+      if (bridgeClient !== "claude" && bridgeClient !== "codex") {
+        throw new Error("Invalid bridgeClient: expected claude or codex");
+      }
+      const locale = await getCurrentLocale();
+      const prompt = buildBridgeSetupPrompt(locale, bridgeClient);
       clipboard.writeText(prompt);
       return { ok: true, prompt };
     },
