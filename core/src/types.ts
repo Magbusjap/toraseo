@@ -682,3 +682,59 @@ export interface AnalyzeContentResult {
     without_alt: number;
   };
 }
+
+/**
+ * A single stack/platform finding produced by `detect_stack`.
+ *
+ * This is intentionally evidence-first: the tool does not claim full
+ * fingerprinting accuracy. It reports public signals found in HTML and
+ * response headers so the AI layer can make platform-aware suggestions
+ * while keeping hypotheses separate from confirmed facts.
+ */
+export interface StackDetection {
+  name: string;
+  category:
+    | "cms"
+    | "builder"
+    | "ecommerce"
+    | "framework"
+    | "seo_plugin"
+    | "analytics"
+    | "tag_manager"
+    | "cdn"
+    | "server"
+    | "language"
+    | "unknown";
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackIssue {
+  severity: "critical" | "warning" | "info";
+  code: string;
+  message: string;
+}
+
+/**
+ * Result of public technology-stack detection for a single URL.
+ * Returned by the `detect_stack` tool.
+ *
+ * Out of scope:
+ * - port scanning
+ * - Wappalyzer-scale exhaustive fingerprinting
+ * - private admin paths
+ * - vulnerability claims
+ */
+export interface DetectStackResult {
+  url: string;
+  status: number;
+  response_time_ms: number;
+  issues: StackIssue[];
+  detections: StackDetection[];
+  headers: {
+    server: string | null;
+    powered_by: string | null;
+    generator: string | null;
+    via: string | null;
+  };
+}

@@ -1,5 +1,5 @@
 /**
- * The seven tools the ToraSEO MCP server can run for site audits.
+ * Site-audit tools the ToraSEO MCP server can run.
  *
  * These ids are used in three places:
  * - The sidebar checkboxes
@@ -23,7 +23,8 @@ export type ToolId =
   | "analyze_headings"
   | "check_redirects"
   | "analyze_content"
-  | "scan_site_minimal";
+  | "scan_site_minimal"
+  | "detect_stack";
 
 export interface ToolMeta {
   id: ToolId;
@@ -37,6 +38,7 @@ export const TOOLS: ToolMeta[] = [
   { id: "check_redirects" },
   { id: "analyze_content" },
   { id: "scan_site_minimal" },
+  { id: "detect_stack" },
 ];
 
 /**
@@ -60,6 +62,7 @@ const TOOL_I18N_KEY_BASE: Record<ToolId, string> = {
   check_redirects: "redirects",
   analyze_content: "content",
   scan_site_minimal: "scanMinimal",
+  detect_stack: "stack",
 };
 
 export function getToolI18nKeyBase(id: ToolId): string {

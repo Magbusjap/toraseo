@@ -2,11 +2,14 @@ import {
   Bot,
   CheckCircle2,
   Copy,
+  FileCheck2,
   FileText,
   Globe,
   Info,
+  PanelTop,
   PlugZap,
   Settings,
+  ScanEye,
   Wrench,
   XCircle,
 } from "lucide-react";
@@ -15,6 +18,10 @@ import { useTranslation } from "react-i18next";
 import OnboardingView from "../Onboarding/OnboardingView";
 import SleepingMascot from "../Mascot/SleepingMascot";
 import toraLogoWordmark from "@branding/logos/tora-logo-wordmark.svg";
+import {
+  ANALYSIS_TYPES,
+  type AnalysisTypeId,
+} from "../../config/analysisTypes";
 
 import type {
   CurrentScanState,
@@ -57,7 +64,7 @@ interface ModeSelectionProps {
   onOpenSkillReleasesPage: () => Promise<{ ok: boolean }>;
   onConfirmSkillInstalled: () => Promise<{ ok: boolean }>;
   onClearSkillConfirmation: () => Promise<{ ok: boolean }>;
-  onSelect: (mode: "site" | "content") => void;
+  onSelect: (analysisType: AnalysisTypeId) => void;
 }
 
 export default function ModeSelection({
@@ -105,6 +112,7 @@ export default function ModeSelection({
       : confirmedExecutionMode === "bridge"
         ? bridgeReady
         : false;
+  const canSelectDraftAnalysis = canSelectSite;
 
   return (
     <div className="flex h-full flex-col items-center justify-start overflow-auto px-8 pb-10 pt-4">
@@ -233,24 +241,112 @@ export default function ModeSelection({
         <SectionTitle
           title={t("modeSelection.question")}
         />
-        <div className="grid gap-3 md:grid-cols-2">
-          <AnalysisCard
-            icon={<Globe className="h-7 w-7" strokeWidth={1.5} />}
-            title={t("modeSelection.siteByUrl")}
-            subtitle={t("modeSelection.siteSubtitle")}
-            disabled={!canSelectSite}
-            onClick={() => onSelect("site")}
+        {!confirmedExecutionMode && (
+          <StatusCallout
+            tone="neutral"
+            title={t("modeSelection.execution.confirmFirstTitle", {
+              defaultValue: "Confirm the execution mode first",
+            })}
+            body={t("modeSelection.execution.confirmFirstBody", {
+              defaultValue:
+                "Analysis types will appear here after you choose the runtime path and confirm it.",
+            })}
           />
-          <AnalysisCard
-            icon={<FileText className="h-7 w-7" strokeWidth={1.5} />}
-            title={t("modeSelection.articleText")}
-            subtitle={t("modeSelection.articleSubtitle")}
-            disabled
-            onClick={() => onSelect("content")}
-          />
+        )}
+        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {ANALYSIS_TYPES.map((analysis) => {
+            const ready = analysis.availability === "ready";
+            const disabled =
+              analysis.id === "site_by_url"
+                ? !canSelectSite
+                : !canSelectDraftAnalysis;
+            const key = analysis.i18nKeyBase;
+            return (
+              <AnalysisCard
+                key={analysis.id}
+                icon={iconForAnalysis(analysis.id)}
+                title={t(`modeSelection.analysisTypes.${key}.title`)}
+                subtitle={t(`modeSelection.analysisTypes.${key}.subtitle`)}
+                statusLabel={
+                  ready
+                    ? t("modeSelection.analysisStatus.ready")
+                    : t("modeSelection.analysisStatus.planned")
+                }
+                disabled={disabled}
+                onClick={() => onSelect(analysis.id)}
+              />
+            );
+          })}
         </div>
       </section>
     </div>
+  );
+}
+
+function iconForAnalysis(id: AnalysisTypeId): React.ReactNode {
+  switch (id) {
+    case "site_by_url":
+      return <Globe className="h-7 w-7" strokeWidth={1.5} />;
+    case "page_by_url":
+      return <PanelTop className="h-7 w-7" strokeWidth={1.5} />;
+    case "article_text":
+      return <FileText className="h-7 w-7" strokeWidth={1.5} />;
+    case "article_compare":
+      return <CompareTextIcon className="h-7 w-7" />;
+    case "site_compare":
+      return (
+        <span className="relative inline-flex h-7 w-9 items-center justify-center">
+          <Globe className="absolute left-0 h-5 w-5" strokeWidth={1.5} />
+          <Globe className="absolute right-0 h-5 w-5" strokeWidth={1.5} />
+        </span>
+      );
+    case "site_design_by_url":
+      return <ScanEye className="h-7 w-7" strokeWidth={1.5} />;
+  }
+}
+
+function CompareTextIcon({ className }: { className: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className={className}
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M13.8 3H22L27 8V23.2Q27 25 25.2 25H13.8Q12 25 12 23.2V4.8Q12 3 13.8 3Z"
+        fill="#fff"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+        opacity="0.65"
+      />
+      <path
+        d="M22 3V8H27"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.65"
+      />
+      <path
+        d="M7.8 8H18L24 14V27.2Q24 29 22.2 29H7.8Q6 29 6 27.2V9.8Q6 8 7.8 8Z"
+        fill="#fff"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18 8V14H24"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M10 16H18" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M10 20H20" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M10 24H18" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
   );
 }
 
@@ -798,12 +894,14 @@ function AnalysisCard({
   icon,
   title,
   subtitle,
+  statusLabel,
   disabled,
   onClick,
 }: {
   icon: React.ReactNode;
   title: string;
   subtitle: string;
+  statusLabel: string;
   disabled?: boolean;
   onClick: () => void;
 }) {
@@ -812,7 +910,7 @@ function AnalysisCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-lg border bg-white p-5 text-center transition ${
+      className={`flex min-h-[152px] flex-col items-center justify-center gap-3 rounded-lg border bg-white p-5 text-center transition ${
         disabled
           ? "cursor-not-allowed border-outline/10 opacity-50"
           : "cursor-pointer border-outline/15 hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
@@ -822,11 +920,15 @@ function AnalysisCard({
       <span className={disabled ? "text-outline-900/40" : "text-primary"}>
         {icon}
       </span>
-      <span className="font-display text-base font-medium text-outline-900">
+      <span className="font-display text-base font-medium leading-snug text-outline-900">
         {title}
       </span>
       <span className="font-mono text-[10px] uppercase tracking-wider text-outline-900/50">
         {subtitle}
+      </span>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-outline/10 bg-orange-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-outline-900/55">
+        <FileCheck2 className="h-3 w-3" strokeWidth={2} />
+        {statusLabel}
       </span>
     </button>
   );

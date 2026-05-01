@@ -1,19 +1,34 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type MouseEvent as ReactMouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Clipboard, X } from "lucide-react";
 import i18n from "./i18n";
 
 import IdleSidebar from "./components/Sidebar/IdleSidebar";
 import ActiveSidebar from "./components/Sidebar/ActiveSidebar";
+import AnalysisDraftSidebar from "./components/Sidebar/AnalysisDraftSidebar";
 import ModeSelection, {
   type BridgeProgram,
 } from "./components/MainArea/ModeSelection";
+import PlannedAnalysisView from "./components/MainArea/PlannedAnalysisView";
 import { SettingsView } from "./components/Settings";
 import { TopToolbar } from "./components/TopToolbar";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { NativeLayout } from "./components/NativeLayout";
 import ChatWindow from "./components/Chat/ChatWindow";
 import { DEFAULT_SELECTED_TOOLS, TOOLS, type ToolId } from "./config/tools";
+import type { AnalysisTypeId } from "./config/analysisTypes";
+import {
+  ANALYSIS_TOOLS,
+  getDefaultAnalysisToolSet,
+  type AnalysisToolId,
+} from "./config/analysisTools";
 import { useScan } from "./hooks/useScan";
 import { useDetector } from "./hooks/useDetector";
 import { useNativeRuntimeFlag } from "./runtime/useNativeRuntimeFlag";
@@ -31,10 +46,24 @@ import type {
   RuntimeChatWindowSession,
 } from "./types/runtime";
 
-export type AppMode = "idle" | "site" | "content" | "settings";
+export type AppMode = "idle" | "site" | "analysis" | "settings";
+
+type NavigationTarget = {
+  mode: Exclude<AppMode, "settings">;
+  selectedAnalysisType: AnalysisTypeId | null;
+};
 
 const EXECUTION_MODE_STORAGE_KEY = "toraseo.executionMode";
 const OPENROUTER_MODEL_STORAGE_KEY = "toraseo.openrouterModelProfileId";
+const SIDEBAR_WIDTH_STORAGE_KEY = "toraseo.sidebarWidth";
+const RETURN_HOME_SHORTCUTS_STORAGE_KEY = "toraseo.returnHomeShortcuts";
+const SIDEBAR_DEFAULT_WIDTH = 260;
+const SIDEBAR_MIN_WIDTH = 220;
+const SIDEBAR_MAX_WIDTH = 390;
+
+function clampSidebarWidth(width: number): number {
+  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
+}
 
 function readPersistedExecutionMode(): AuditExecutionMode | null {
   const value = window.localStorage.getItem(EXECUTION_MODE_STORAGE_KEY);
@@ -53,6 +82,31 @@ function persistSelectedOpenRouterModel(profileId: string): void {
   window.localStorage.setItem(OPENROUTER_MODEL_STORAGE_KEY, profileId);
 }
 
+function readPersistedSidebarWidth(): number {
+  const width = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
+  return Number.isFinite(width)
+    ? clampSidebarWidth(width)
+    : SIDEBAR_DEFAULT_WIDTH;
+}
+
+function persistSidebarWidth(width: number): void {
+  window.localStorage.setItem(
+    SIDEBAR_WIDTH_STORAGE_KEY,
+    String(clampSidebarWidth(width)),
+  );
+}
+
+function readReturnHomeShortcutsEnabled(): boolean {
+  return window.localStorage.getItem(RETURN_HOME_SHORTCUTS_STORAGE_KEY) === "1";
+}
+
+function persistReturnHomeShortcutsEnabled(enabled: boolean): void {
+  window.localStorage.setItem(
+    RETURN_HOME_SHORTCUTS_STORAGE_KEY,
+    enabled ? "1" : "0",
+  );
+}
+
 export default function App() {
   if (window.location.hash === "#ai-chat") {
     return <ChatWindow />;
@@ -64,10 +118,26 @@ function MainApp() {
   const { t } = useTranslation();
 
   const [mode, setMode] = useState<AppMode>("idle");
+  const [sidebarWidth, setSidebarWidth] = useState(readPersistedSidebarWidth);
+  const sidebarResizeRef = useRef({
+    startX: 0,
+    startWidth: SIDEBAR_DEFAULT_WIDTH,
+  });
+  const [selectedAnalysisType, setSelectedAnalysisType] =
+    useState<AnalysisTypeId | null>(null);
   const [url, setUrl] = useState("");
   const [selectedTools, setSelectedTools] = useState<Set<ToolId>>(
     () => new Set(DEFAULT_SELECTED_TOOLS),
   );
+  const [selectedAnalysisToolsByType, setSelectedAnalysisToolsByType] =
+    useState<Record<AnalysisTypeId, Set<AnalysisToolId>>>(() => ({
+      site_by_url: getDefaultAnalysisToolSet("site_by_url"),
+      page_by_url: getDefaultAnalysisToolSet("page_by_url"),
+      article_text: getDefaultAnalysisToolSet("article_text"),
+      article_compare: getDefaultAnalysisToolSet("article_compare"),
+      site_compare: getDefaultAnalysisToolSet("site_compare"),
+      site_design_by_url: getDefaultAnalysisToolSet("site_design_by_url"),
+    }));
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [executionModeDraft, setExecutionModeDraft] =
     useState<AuditExecutionMode>(() => readPersistedExecutionMode() ?? "native");
@@ -76,7 +146,11 @@ function MainApp() {
   const [bridgeProgram, setBridgeProgram] =
     useState<BridgeProgram>("claude");
   const [settingsInitialTab, setSettingsInitialTab] =
-    useState<"language" | "providers">("language");
+    useState<"general" | "language" | "providers">("general");
+  const [settingsReturnTarget, setSettingsReturnTarget] =
+    useState<NavigationTarget | null>(null);
+  const [returnHomeShortcutsEnabled, setReturnHomeShortcutsEnabled] =
+    useState(readReturnHomeShortcutsEnabled);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [providersLoading, setProvidersLoading] = useState(true);
   const [selectedModelProfileId, setSelectedModelProfileId] = useState<
@@ -94,6 +168,7 @@ function MainApp() {
   const promptCopyToastTimer = useRef<
     ReturnType<typeof window.setTimeout> | null
   >(null);
+  const backShortcutTimerRef = useRef(0);
 
   const [currentLocale, setCurrentLocale] = useState<SupportedLocale>(
     () => (i18n.resolvedLanguage as SupportedLocale) ?? "en",
@@ -201,6 +276,14 @@ function MainApp() {
     bridgeProgram === "claude" &&
     detectorStatus !== null &&
     !detectorStatus.allGreen;
+  const bridgeExternalAppClosed =
+    executionMode === "bridge" &&
+    detectorStatus !== null &&
+    (bridgeProgram === "codex"
+      ? !detectorStatus.codexRunning
+      : !detectorStatus.claudeRunning);
+  const bridgeExternalAppName =
+    bridgeProgram === "codex" ? "Codex" : "Claude Desktop";
 
   useEffect(() => {
     const codexBridgeBusy =
@@ -253,16 +336,19 @@ function MainApp() {
     };
   }, []);
 
-  const handleModeSelect = async (selected: "site" | "content") => {
-    if (selected === "content") {
-      return;
-    }
+  const handleModeSelect = async (selected: AnalysisTypeId) => {
     if (!confirmedExecutionMode) {
       setPreflightError(
         t("preflight.executionModeMissing", {
           defaultValue: "Confirm an execution mode first.",
         }),
       );
+      return;
+    }
+    if (selected !== "site_by_url") {
+      setSelectedAnalysisType(selected);
+      setMode("analysis");
+      setPreflightError(null);
       return;
     }
     if (confirmedExecutionMode === "native" && !providerConfigured) {
@@ -327,7 +413,8 @@ function MainApp() {
         report: runtimeReport,
       });
     }
-    setMode(selected);
+    setSelectedAnalysisType(selected);
+    setMode("site");
   };
 
   const handleReturnHome = () => {
@@ -347,6 +434,7 @@ function MainApp() {
       }
     }
     setMode("idle");
+    setSelectedAnalysisType(null);
     setUrl("");
     setRuntimeReport(null);
     setPreflightError(null);
@@ -354,6 +442,28 @@ function MainApp() {
       void window.toraseo.runtime.endChatWindowSession();
     }
     void window.toraseo.runtime.endReportWindowSession();
+  };
+
+  const handleRestoreSettingsReturnTarget = () => {
+    const target = settingsReturnTarget;
+    if (!target) {
+      handleReturnHome();
+      return;
+    }
+    setMode(target.mode);
+    setSelectedAnalysisType(target.selectedAnalysisType);
+    setPreflightError(null);
+    setSettingsReturnTarget(null);
+  };
+
+  const handleNavigateBack = () => {
+    if (mode === "settings") {
+      handleRestoreSettingsReturnTarget();
+      return;
+    }
+    if (mode !== "idle") {
+      handleReturnHome();
+    }
   };
 
   const handleToggleTool = (toolId: ToolId) => {
@@ -365,9 +475,43 @@ function MainApp() {
     });
   };
 
+  const handleToggleAllTools = () => {
+    setSelectedTools((prev) =>
+      prev.size === TOOLS.length
+        ? new Set()
+        : new Set(TOOLS.map((tool) => tool.id)),
+    );
+  };
+
+  const handleToggleAnalysisTool = (toolId: AnalysisToolId) => {
+    if (!selectedAnalysisType) return;
+    setSelectedAnalysisToolsByType((prev) => {
+      const nextSet = new Set(prev[selectedAnalysisType]);
+      if (nextSet.has(toolId)) nextSet.delete(toolId);
+      else nextSet.add(toolId);
+      return {
+        ...prev,
+        [selectedAnalysisType]: nextSet,
+      };
+    });
+  };
+
+  const handleToggleAllAnalysisTools = () => {
+    if (!selectedAnalysisType) return;
+    const tools = ANALYSIS_TOOLS[selectedAnalysisType];
+    setSelectedAnalysisToolsByType((prev) => ({
+      ...prev,
+      [selectedAnalysisType]:
+        prev[selectedAnalysisType].size === tools.length
+          ? new Set()
+          : new Set(tools.map((tool) => tool.id)),
+    }));
+  };
+
   const handleStartNativeScan = async () => {
     setPreflightError(null);
     setRuntimeReport(null);
+    void window.toraseo.runtime.showReportWindowProcessing();
     if (!providerConfigured) {
       setPreflightError(
         t("preflight.providerMissing", {
@@ -410,6 +554,7 @@ function MainApp() {
   const handleRunBridgeScan = async () => {
     setPreflightError(null);
     setRuntimeReport(null);
+    void window.toraseo.runtime.showReportWindowProcessing();
     if (bridgeProgram === "codex") {
       if (!codexPathReady) {
         setPreflightError(
@@ -477,7 +622,15 @@ function MainApp() {
     await bridge.startScan(url.trim(), orderedIds, "claude");
   };
 
-  const handleOpenSettings = (tab: "language" | "providers" = "language") => {
+  const handleOpenSettings = (
+    tab: "general" | "language" | "providers" = "general",
+  ) => {
+    if (mode !== "settings") {
+      setSettingsReturnTarget({
+        mode,
+        selectedAnalysisType,
+      });
+    }
     setSettingsInitialTab(tab);
     setMode("settings");
   };
@@ -537,6 +690,57 @@ function MainApp() {
     setPreflightError(null);
   };
 
+  const handleReturnHomeShortcutsChange = (enabled: boolean) => {
+    setReturnHomeShortcutsEnabled(enabled);
+    persistReturnHomeShortcutsEnabled(enabled);
+  };
+
+  const handleSidebarResizeStart = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      sidebarResizeRef.current = {
+        startX: event.clientX,
+        startWidth: sidebarWidth,
+      };
+      const previousCursor = document.body.style.cursor;
+      const previousUserSelect = document.body.style.userSelect;
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const nextWidth = clampSidebarWidth(
+          sidebarResizeRef.current.startWidth +
+            moveEvent.clientX -
+            sidebarResizeRef.current.startX,
+        );
+        setSidebarWidth(nextWidth);
+      };
+
+      const handleMouseUp = (upEvent: MouseEvent) => {
+        const finalWidth = clampSidebarWidth(
+          sidebarResizeRef.current.startWidth +
+            upEvent.clientX -
+            sidebarResizeRef.current.startX,
+        );
+        setSidebarWidth(finalWidth);
+        persistSidebarWidth(finalWidth);
+        document.body.style.cursor = previousCursor;
+        document.body.style.userSelect = previousUserSelect;
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    },
+    [sidebarWidth],
+  );
+
+  const handleSidebarResizeDoubleClick = () => {
+    setSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
+    persistSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
+  };
+
   const handleSaveLocale = async (locale: SupportedLocale): Promise<void> => {
     try {
       await window.toraseo.locale.set(locale);
@@ -589,6 +793,60 @@ function MainApp() {
     if (mode === "site" && executionMode === "native") return;
     void window.toraseo.runtime.endChatWindowSession();
   }, [executionMode, mode]);
+
+  useEffect(() => {
+    if (!returnHomeShortcutsEnabled) return;
+
+    const isEditableTarget = (target: EventTarget | null) => {
+      const element = target as HTMLElement | null;
+      if (!element) return false;
+      return Boolean(
+        element.closest("input, textarea, select, [contenteditable='true']"),
+      );
+    };
+
+    const maybeNavigateBack = (event: KeyboardEvent | MouseEvent) => {
+      if (mode === "idle") return;
+      if (isEditableTarget(event.target)) return;
+      const now = Date.now();
+      if (now - backShortcutTimerRef.current < 250) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      backShortcutTimerRef.current = now;
+      event.preventDefault();
+      event.stopPropagation();
+      handleNavigateBack();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "BrowserBack") {
+        maybeNavigateBack(event);
+        return;
+      }
+      if (event.altKey && event.key === "ArrowLeft") {
+        maybeNavigateBack(event);
+      }
+    };
+
+    const handleMouseBack = (event: MouseEvent) => {
+      if (event.button === 3) {
+        maybeNavigateBack(event);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("mousedown", handleMouseBack, true);
+    window.addEventListener("mouseup", handleMouseBack, true);
+    window.addEventListener("auxclick", handleMouseBack, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("mousedown", handleMouseBack, true);
+      window.removeEventListener("mouseup", handleMouseBack, true);
+      window.removeEventListener("auxclick", handleMouseBack, true);
+    };
+  }, [mode, returnHomeShortcutsEnabled, settingsReturnTarget]);
 
   useEffect(() => {
     const unsubscribe = window.toraseo.runtime.onChatWindowSessionUpdate(
@@ -670,12 +928,21 @@ function MainApp() {
   const sidebar =
     mode === "idle" ? (
       <IdleSidebar />
+    ) : mode === "analysis" && selectedAnalysisType ? (
+      <AnalysisDraftSidebar
+        analysisType={selectedAnalysisType}
+        selectedTools={selectedAnalysisToolsByType[selectedAnalysisType]}
+        onToggleTool={handleToggleAnalysisTool}
+        onToggleAllTools={handleToggleAllAnalysisTools}
+        onReturnHome={handleReturnHome}
+      />
     ) : (
       <ActiveSidebar
         url={url}
         onUrlChange={setUrl}
         selectedTools={selectedTools}
         onToggleTool={handleToggleTool}
+        onToggleAllTools={handleToggleAllTools}
         isBusy={Boolean(isBusy)}
         scanButtonLabel={scanButtonLabel}
         scanButtonTooltip={scanButtonTooltip}
@@ -695,8 +962,12 @@ function MainApp() {
           <SettingsView
             currentLocale={currentLocale}
             initialTab={settingsInitialTab}
+            returnHomeShortcutsEnabled={returnHomeShortcutsEnabled}
+            onReturnHomeShortcutsChange={handleReturnHomeShortcutsChange}
             onReturnHome={() => {
+              setSettingsReturnTarget(null);
               setMode("idle");
+              setSelectedAnalysisType(null);
               void refreshProviders();
               void window.toraseo.runtime.endChatWindowSession();
             }}
@@ -714,7 +985,27 @@ function MainApp() {
     <div className="flex h-full flex-col bg-orange-50/30">
       <TopToolbar onOpenSettings={handleOpenSettings} />
       <div className="flex flex-1 overflow-hidden">
-        <aside className="relative w-[260px] shrink-0">{sidebar}</aside>
+        <aside
+          className="relative shrink-0"
+          style={{ width: sidebarWidth }}
+        >
+          {sidebar}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("sidebar.resizeHandle", {
+              defaultValue: "Resize sidebar",
+            })}
+            title={t("sidebar.resizeHandle", {
+              defaultValue: "Resize sidebar",
+            })}
+            onMouseDown={handleSidebarResizeStart}
+            onDoubleClick={handleSidebarResizeDoubleClick}
+            className="group absolute right-0 top-0 z-30 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"
+          >
+            <span className="h-12 w-1 rounded-full bg-outline-900/10 transition group-hover:bg-primary/70" />
+          </div>
+        </aside>
 
         <main className="flex-1 overflow-hidden">
           {mode === "idle" ? (
@@ -747,6 +1038,17 @@ function MainApp() {
               onConfirmSkillInstalled={confirmSkillInstalled}
               onClearSkillConfirmation={clearSkillConfirmation}
               onSelect={handleModeSelect}
+            />
+          ) : mode === "analysis" && selectedAnalysisType ? (
+            <PlannedAnalysisView
+              analysisType={selectedAnalysisType}
+              executionMode={executionMode}
+              selectedToolIds={Array.from(
+                selectedAnalysisToolsByType[selectedAnalysisType],
+              )}
+              bridgeUnavailable={bridgeExternalAppClosed}
+              bridgeUnavailableAppName={bridgeExternalAppName}
+              bridgeTargetAppName={bridgeExternalAppName}
             />
           ) : (
             <NativeLayout

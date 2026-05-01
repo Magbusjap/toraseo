@@ -32,6 +32,8 @@ import {
   CheckRedirectsError,
   analyzeContent,
   AnalyzeContentError,
+  detectStack,
+  DetectStackError,
 } from "@toraseo/core";
 
 import type { ToolId } from "../src/config/tools";
@@ -166,6 +168,11 @@ async function runOne(
           summary: { critical: 0, warning: 0, info: 0 },
         };
       }
+
+      case "detect_stack": {
+        const result = await detectStack(url);
+        return classify(toolId, result);
+      }
     }
   } catch (error: unknown) {
     return errorUpdate(toolId, error);
@@ -222,7 +229,8 @@ function errorUpdate(
     error instanceof AnalyzeHeadingsError ||
     error instanceof AnalyzeSitemapError ||
     error instanceof CheckRedirectsError ||
-    error instanceof AnalyzeContentError
+    error instanceof AnalyzeContentError ||
+    error instanceof DetectStackError
   ) {
     errorCode = error.code;
     errorMessage = error.message;

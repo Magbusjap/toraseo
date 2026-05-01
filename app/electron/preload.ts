@@ -118,6 +118,7 @@ const RUNTIME = {
   sendMessage: "toraseo:runtime:send-message",
   openReportWindow: "toraseo:runtime:open-report-window",
   closeReportWindow: "toraseo:runtime:close-report-window",
+  showReportWindowProcessing: "toraseo:runtime:show-report-window-processing",
   endReportWindowSession: "toraseo:runtime:end-report-window-session",
   exportReportPdf: "toraseo:runtime:export-report-pdf",
   exportReportDocument: "toraseo:runtime:export-report-document",
@@ -132,7 +133,7 @@ const RUNTIME = {
 } as const;
 
 const api: ToraseoApi = {
-  version: "0.0.8",
+  version: "0.0.9",
 
   startScan: (args: StartScanArgs) => {
     return ipcRenderer.invoke(SCAN.startScan, args) as Promise<{
@@ -388,6 +389,12 @@ const api: ToraseoApi = {
     closeReportWindow: () => {
       return ipcRenderer.invoke(
         RUNTIME.closeReportWindow,
+      ) as Promise<{ ok: boolean }>;
+    },
+
+    showReportWindowProcessing: () => {
+      return ipcRenderer.invoke(
+        RUNTIME.showReportWindowProcessing,
       ) as Promise<{ ok: boolean }>;
     },
 

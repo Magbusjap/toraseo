@@ -10,6 +10,12 @@
     "altMascotSurprised": "ToraSEO mascot surprised by issues",
     "altMascotChampion": "ToraSEO champion mascot"
   },
+  "bridgeClosedNotice": {
+    "title": "{{appName}} is closed",
+    "body": "Start {{appName}} again or return home and choose API + AI Chat.",
+    "restoredTitle": "{{appName}} is running again",
+    "restoredBody": "You can now close this notice and continue working."
+  },
   "toolbar": {
     "about": "About ToraSEO",
     "checkUpdates": "Check for updates",
@@ -38,6 +44,7 @@
       "configPath": "Manual path to Claude Desktop config.json"
     },
     "tabs": {
+      "general": "General",
       "language": "Language settings",
       "providers": "AI providers"
     },
@@ -47,11 +54,17 @@
     "language": {
       "title": "Language settings",
       "label": "Interface language",
-      "hint": "The change applies immediately. Dialogs from the OS (e.g. file picker) keep using your system language.",
+      "hint": "The change is applied after you click Save. Dialogs from the OS (e.g. file picker) keep using your system language.",
       "options": {
         "en": "English",
         "ru": "Russian"
       }
+    },
+    "general": {
+      "title": "General",
+      "intro": "Basic app behavior and quick actions.",
+      "returnHomeShortcuts": "Return home with keyboard and mouse back buttons",
+      "returnHomeShortcutsHint": "Off by default. When enabled, the mouse Back button, BrowserBack, and Alt+Left return from settings to the previous analysis, or from an analysis to the home screen."
     },
     "unsaved": {
       "title": "You have unsaved changes",
@@ -145,11 +158,43 @@
     "articleText": "Article text",
     "siteSubtitle": "Site Audit",
     "articleSubtitle": "v0.2 - coming soon",
+    "analysisStatus": {
+      "ready": "Ready",
+      "planned": "0.0.9"
+    },
+    "analysisTypes": {
+      "siteByUrl": {
+        "title": "Site by URL",
+        "subtitle": "Classic audit"
+      },
+      "pageByUrl": {
+        "title": "Page by URL",
+        "subtitle": "Article/page"
+      },
+      "articleText": {
+        "title": "Text",
+        "subtitle": "Paste text"
+      },
+      "articleCompare": {
+        "title": "Compare two texts",
+        "subtitle": "2 inputs"
+      },
+      "siteCompare": {
+        "title": "Site comparison by URL",
+        "subtitle": "Up to 3 URLs"
+      },
+      "siteDesignByUrl": {
+        "title": "Design and content by URL",
+        "subtitle": "Separate audit"
+      }
+    },
     "claudeOptional": "Connection to Claude Desktop is optional",
     "execution": {
       "title": "Execution mode",
       "change": "Change",
-      "confirm": "Confirm mode"
+      "confirm": "Confirm mode",
+      "confirmFirstTitle": "Confirm the execution mode first",
+      "confirmFirstBody": "Analysis type will become available after you choose the runtime path and confirm it."
     },
     "bridge": {
       "readyTitle": "Claude Desktop path is ready",
@@ -225,8 +270,186 @@
       "noChecks": "Pick at least one check",
       "alreadyScanning": "A scan is already running"
     },
+    "tools": {
+      "selectAll": "Select all",
+      "clearAll": "Clear all"
+    },
+    "resizeHandle": "Resize sidebar",
     "backToHomeTitle": "Back to home",
     "settingsTabs": "Settings"
+  },
+  "plannedAnalysis": {
+    "version": "0.0.9 setup",
+    "status": "Formula draft",
+    "actionLocked": "Execution is being prepared",
+    "policyTitle": "Formula policy",
+    "policyBody": "The standard score remains 0-100%. The dynamic formula changes the evaluation criteria according to selected tools, but it does not pretend that a larger formula automatically means a cleaner or higher score.",
+    "executionTitle": "Execution boundary",
+    "executionBody": "This screen is selectable in 0.0.9 so the workflow shape is visible. The analysis run button stays locked until the dedicated tools, prompts, and scoring contract are connected.",
+    "sidebar": {
+      "back": "Home",
+      "version": "0.0.9 setup",
+      "body": "Input and analysis boundaries are prepared here. Full execution will connect after the formula and tool contract is wired.",
+      "textContext": "Text context",
+      "platform": "Resource",
+      "customPlatform": "Custom resource",
+      "customPlatformPlaceholder": "Platform, community, publication, or channel",
+      "customPlatformHint": "Use this when the resource is not in the list; AI will account for that platform's rules.",
+      "textStyle": "Text style"
+    },
+    "platforms": {
+      "siteArticle": "Site article",
+      "xShort": "X / Twitter short post",
+      "xLong": "X / Twitter long post",
+      "facebook": "Facebook",
+      "linkedin": "LinkedIn",
+      "habr": "Habr",
+      "reddit": "Reddit",
+      "custom": "Custom"
+    },
+    "styles": {
+      "auto": "Auto-detect",
+      "informational": "Informational",
+      "journalistic": "Journalistic",
+      "business": "Business",
+      "educational": "Educational",
+      "humor": "Humor",
+      "personal": "Personal"
+    },
+    "forms": {
+      "url": "URL",
+      "intent": "Page goal or query intent",
+      "intentPlaceholder": "What should this page rank for or explain?",
+      "optionalTextBlock": "Optional text block",
+      "optionalTextBlockPlaceholder": "Paste a specific fragment if only part of the page should be analyzed.",
+      "textBlockAction": "Text block",
+      "textBlockMarker": "------------------------- text block -------------------------",
+      "compareGoal": "Analysis goal",
+      "compareGoalPlaceholder": "For example: find weaknesses in article B, improve my text, or compare both versions neutrally.",
+      "articleARole": "Article A role",
+      "articleBRole": "Article B role",
+      "articleRoleAuto": "Not selected",
+      "articleRoleOwn": "Your article",
+      "articleRoleCompetitor": "Competitor article",
+      "aiDraftAction": "Suggest solution",
+      "scanReadyTextAction": "Scan text",
+      "aiDraftNeedMore": "Write a bit more: at least two short paragraphs, so AI has enough context for a useful solution.",
+      "aiDraftPrepared": "This looks like enough context for a solution. Full execution will connect with text analysis.",
+      "targetQuery": "Target query",
+      "targetQueryPlaceholder": "Main keyword, topic, or user intent",
+      "textTopic": "Text topic (optional)",
+      "textTopicPlaceholder": "Topic, title, or intent. If the body has its own title, the body title wins.",
+      "article": "Article text",
+      "articlePlaceholder": "Paste the article text here",
+      "articleA": "Article A",
+      "articleB": "Article B",
+      "designFocus": "Review focus",
+      "designFocusPlaceholder": "Conversion, readability, page trust, visual hierarchy, or content UX",
+      "mediaMarkersTitle": "Media placeholders",
+      "mediaMarkersBody": "------------------------- image placeholder -------------------------\n\n------------------------ animation placeholder -----------------------\n\n------------------------- video placeholder --------------------------\n\n------------------------- audio placeholder --------------------------",
+      "mediaToolbarLabel": "Insert marker:",
+      "mediaImage": "Image",
+      "mediaAnimation": "Animation",
+      "mediaVideo": "Video",
+      "mediaAudio": "Audio",
+      "mediaMarkerImage": "------------------------- image placeholder -------------------------",
+      "mediaMarkerAnimation": "------------------------ animation placeholder -----------------------",
+      "mediaMarkerVideo": "------------------------- video placeholder --------------------------",
+      "mediaMarkerAudio": "------------------------- audio placeholder --------------------------",
+      "pageByUrl": {
+        "title": "Page source"
+      },
+      "articleText": {
+        "title": "Article draft"
+      },
+      "articleCompare": {
+        "title": "Two article versions"
+      },
+      "siteCompare": {
+        "title": "Comparable sites"
+      },
+      "siteDesignByUrl": {
+        "title": "Design and content source"
+      }
+    }
+  },
+  "analysisTools": {
+    "extract_main_text": {
+      "label": "Extract main text",
+      "tooltip": "Find the main article, post, or content block on the page"
+    },
+    "detect_text_platform": {
+      "label": "Platform detection",
+      "tooltip": "Adapt the analysis to site articles, X, Facebook, LinkedIn, Habr, Reddit, or a custom resource"
+    },
+    "analyze_text_structure": {
+      "label": "Text structure",
+      "tooltip": "Evaluate title, opening, sections, transitions, and completeness"
+    },
+    "analyze_text_style": {
+      "label": "Text style",
+      "tooltip": "Check whether the text style matches the selected goal and platform"
+    },
+    "analyze_tone_fit": {
+      "label": "Tone fit",
+      "tooltip": "Check whether the text sounds businesslike, educational, humorous, personal, or another chosen style"
+    },
+    "language_audience_fit": {
+      "label": "Language and audience",
+      "tooltip": "Warn when the text language does not fit the selected platform audience"
+    },
+    "media_placeholder_review": {
+      "label": "Media placement",
+      "tooltip": "Use image, video, animation, and audio placeholders in the text when giving recommendations"
+    },
+    "naturalness_indicators": {
+      "label": "Naturalness",
+      "tooltip": "Look for robotic phrasing, repetition, and weak human readability signals"
+    },
+    "compare_article_structure": {
+      "label": "Structure comparison",
+      "tooltip": "Compare how two texts organize the same idea"
+    },
+    "compare_article_style": {
+      "label": "Style comparison",
+      "tooltip": "Compare tone, clarity, rhythm, and platform fit"
+    },
+    "compare_platform_fit": {
+      "label": "Platform fit comparison",
+      "tooltip": "Compare which text better fits the selected platform or resource"
+    },
+    "compare_strengths_weaknesses": {
+      "label": "Strengths and weaknesses",
+      "tooltip": "Show strong and weak sides side by side"
+    },
+    "compare_site_positioning": {
+      "label": "Positioning comparison",
+      "tooltip": "Compare site promise, audience, and visible offer"
+    },
+    "compare_site_content_depth": {
+      "label": "Content depth comparison",
+      "tooltip": "Compare topical coverage and visible content completeness"
+    },
+    "compare_site_technical_basics": {
+      "label": "Technical baseline comparison",
+      "tooltip": "Compare basic SEO and public technical signals"
+    },
+    "visual_hierarchy": {
+      "label": "Visual hierarchy",
+      "tooltip": "Planned design-readability signal for future visual analysis"
+    },
+    "content_ux": {
+      "label": "Content UX",
+      "tooltip": "Check how content supports scanning, trust, and conversion"
+    },
+    "design_content_alignment": {
+      "label": "Design-content alignment",
+      "tooltip": "Check whether layout and content reinforce the same message"
+    },
+    "trust_signals": {
+      "label": "Trust signals",
+      "tooltip": "Review visible credibility markers such as contacts, proof, authorship, and policies"
+    }
   },
   "siteAudit": {
     "enterUrl": "Enter a site URL in the sidebar",
@@ -289,6 +512,10 @@
     "scanMinimal": {
       "label": "Minimal scan",
       "tooltip": "Overall site health probe"
+    },
+    "stack": {
+      "label": "Stack detection",
+      "tooltip": "CMS, builder, framework, analytics, CDN, and server signals"
     }
   },
   "onboarding": {
@@ -435,6 +662,13 @@
   "analysisPanel": {
     "title": "Analysis Results",
     "subtitle": "Facts, hypotheses, priority, export",
+    "startHint": "Enter a site URL, select tools, and click Scan.",
+    "phases": {
+      "facts": "facts",
+      "hypotheses": "hypotheses",
+      "priority": "priority",
+      "export": "export"
+    },
     "overview": "Overview",
     "confirmedFacts": "Confirmed facts",
     "expertHypotheses": "Expert hypotheses",

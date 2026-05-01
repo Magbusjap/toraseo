@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ExternalLink,
   FileDown,
@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 
 import type { CurrentScanState, ScanComplete } from "../../types/ipc";
 import type { SupportedLocale } from "../../types/ipc";
+import type { ScanState } from "../../hooks/useScan";
 import type {
   AuditExecutionMode,
   RuntimeAuditReport,
@@ -22,6 +23,7 @@ import type {
 
 interface AnalysisPanelProps {
   executionMode: AuditExecutionMode;
+  nativeScanState: ScanState;
   runtimeReport: RuntimeAuditReport | null;
   bridgeState: CurrentScanState | null;
   bridgeFacts: RuntimeScanFact[];
@@ -113,6 +115,7 @@ function buildFallbackReport(
 
 export default function AnalysisPanel({
   executionMode,
+  nativeScanState,
   runtimeReport,
   bridgeState,
   bridgeFacts,
@@ -123,6 +126,10 @@ export default function AnalysisPanel({
   const locale: SupportedLocale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const [secondScreenOpen, setSecondScreenOpen] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const hasStarted =
+    executionMode === "native"
+      ? nativeScanState !== "idle"
+      : Boolean(bridgeState);
 
   const effectiveReport = useMemo(
     () =>
@@ -136,23 +143,84 @@ export default function AnalysisPanel({
     [bridgeFacts, executionMode, locale, runtimeReport, scanContext],
   );
 
-  const totals = executionMode === "native"
-    ? scanContext?.totals ?? localSummary?.totals ?? {
-        critical: 0,
-        warning: 0,
-        info: 0,
-        errors: 0,
-      }
-    : bridgeFacts.reduce(
-        (acc, fact) => {
-          if (fact.severity === "critical") acc.critical += 1;
-          else if (fact.severity === "warning") acc.warning += 1;
-          else if (fact.severity === "error") acc.errors += 1;
-          else acc.info += 1;
-          return acc;
-        },
-        { critical: 0, warning: 0, info: 0, errors: 0 },
-      );
+  const totals =
+    executionMode === "native"
+      ? scanContext?.totals ?? localSummary?.totals ?? {
+          critical: 0,
+          warning: 0,
+          info: 0,
+          errors: 0,
+        }
+      : bridgeFacts.reduce(
+          (acc, fact) => {
+            if (fact.severity === "critical") acc.critical += 1;
+            else if (fact.severity === "warning") acc.warning += 1;
+            else if (fact.severity === "error") acc.errors += 1;
+            else acc.info += 1;
+            return acc;
+          },
+          { critical: 0, warning: 0, info: 0, errors: 0 },
+        );
+  const visibleMetricCards = [
+    {
+      label: t("analysisPanel.metrics.critical", {
+        defaultValue: "Critical",
+      }),
+      value: totals.critical,
+      accent: "text-red-600",
+    },
+    {
+      label: t("analysisPanel.metrics.warning", {
+        defaultValue: "Warning",
+      }),
+      value: totals.warning,
+      accent: "text-orange-700",
+    },
+    {
+      label: t("analysisPanel.metrics.info", { defaultValue: "Info" }),
+      value: totals.info,
+      accent: "text-emerald-600",
+    },
+    {
+      label: t("analysisPanel.metrics.errors", {
+        defaultValue: "Errors",
+      }),
+      value: totals.errors,
+      accent: "text-outline-900/70",
+    },
+  ].filter((metric) => metric.value > 0);
+  const phaseLabels = [
+    effectiveReport
+      ? t("analysisPanel.phases.facts", { defaultValue: "facts" })
+      : null,
+    effectiveReport?.expertHypotheses.length
+      ? t("analysisPanel.phases.hypotheses", { defaultValue: "hypotheses" })
+      : null,
+    effectiveReport
+      ? t("analysisPanel.phases.priority", { defaultValue: "priority" })
+      : null,
+    effectiveReport
+      ? t("analysisPanel.phases.export", { defaultValue: "export" })
+      : null,
+  ].filter(Boolean);
+
+  useEffect(() => {
+    if (!secondScreenOpen || !effectiveReport) return;
+    void window.toraseo.runtime.openReportWindow(effectiveReport);
+  }, [effectiveReport, secondScreenOpen]);
+
+  if (!hasStarted) {
+    return (
+      <section className="bg-transparent py-6">
+        <p className="rounded-lg border border-orange-100 bg-white/70 px-5 py-4 text-sm text-outline-900/65 shadow-sm">
+          {t("analysisPanel.startHint", {
+            defaultValue:
+              "Enter a site URL, select tools, and click Scan.",
+          })}
+        </p>
+      </section>
+    );
+  }
 
   const handleToggleSecondScreen = async () => {
     if (!effectiveReport) return;
@@ -198,17 +266,17 @@ export default function AnalysisPanel({
   };
 
   return (
-    <section className="flex h-full min-w-0 flex-col border-l border-orange-100 bg-orange-50/40">
-      <header className="flex items-center justify-between border-b border-orange-100 bg-white px-5 py-3">
+    <section className="flex min-w-0 flex-col bg-transparent">
+      <header className="flex items-center justify-between px-1 py-3">
         <div>
           <h2 className="text-sm font-semibold text-orange-900">
             {t("analysisPanel.title", { defaultValue: "Analysis Results" })}
           </h2>
-          <p className="text-xs text-orange-700/70">
-            {t("analysisPanel.subtitle", {
-              defaultValue: "Facts, hypotheses, priority, export",
-            })}
-          </p>
+          {phaseLabels.length > 0 && (
+            <p className="text-xs text-orange-700/70">
+              {phaseLabels.join(", ")}
+            </p>
+          )}
         </div>
         <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-orange-700">
           {executionMode === "native"
@@ -217,36 +285,21 @@ export default function AnalysisPanel({
         </span>
       </header>
 
-      <div className="flex-1 space-y-4 overflow-auto px-5 py-4">
-        <div className="grid grid-cols-2 gap-3">
-          <MetricCard
-            label={t("analysisPanel.metrics.critical", {
-              defaultValue: "Critical",
-            })}
-            value={totals.critical}
-            accent="text-red-600"
-          />
-          <MetricCard
-            label={t("analysisPanel.metrics.warning", {
-              defaultValue: "Warning",
-            })}
-            value={totals.warning}
-            accent="text-orange-700"
-          />
-          <MetricCard
-            label={t("analysisPanel.metrics.info", { defaultValue: "Info" })}
-            value={totals.info}
-            accent="text-emerald-600"
-          />
-          <MetricCard
-            label={t("analysisPanel.metrics.errors", {
-              defaultValue: "Errors",
-            })}
-            value={totals.errors}
-            accent="text-outline-900/70"
-          />
-        </div>
+      <div className="space-y-4 py-4">
+        {visibleMetricCards.length > 0 && (
+          <div className="grid grid-cols-2 gap-3">
+            {visibleMetricCards.map((metric) => (
+              <MetricCard
+                key={metric.label}
+                label={metric.label}
+                value={metric.value}
+                accent={metric.accent}
+              />
+            ))}
+          </div>
+        )}
 
+        {effectiveReport && (
         <div className="rounded-xl border border-orange-200 bg-white p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-orange-700">
             {t("analysisPanel.overview", { defaultValue: "Overview" })}
@@ -259,7 +312,9 @@ export default function AnalysisPanel({
                 }))}
           </p>
         </div>
+        )}
 
+        {effectiveReport && (
         <SectionCard
           title={t("analysisPanel.confirmedFacts", {
             defaultValue: "Confirmed facts",
@@ -301,7 +356,9 @@ export default function AnalysisPanel({
             />
           )}
         </SectionCard>
+        )}
 
+        {effectiveReport && (
         <SectionCard
           title={t("analysisPanel.expertHypotheses", {
             defaultValue: "Expert hypotheses",
@@ -327,7 +384,9 @@ export default function AnalysisPanel({
             />
           )}
         </SectionCard>
+        )}
 
+        {effectiveReport && (
         <div className="rounded-xl border border-orange-200 bg-white p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-orange-700">
             {t("analysisPanel.validationMethod", {
@@ -342,8 +401,10 @@ export default function AnalysisPanel({
               })}
           </p>
         </div>
+        )}
       </div>
 
+      {effectiveReport && (
       <footer className="space-y-2 border-t border-orange-100 bg-white px-5 py-3">
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -411,6 +472,7 @@ export default function AnalysisPanel({
           <p className="text-xs text-orange-700/70">{exportStatus}</p>
         )}
       </footer>
+      )}
     </section>
   );
 }

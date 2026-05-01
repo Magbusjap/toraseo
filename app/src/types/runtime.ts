@@ -342,6 +342,9 @@ export interface RuntimeApi {
   /** Close the second-screen details window if one is open. */
   closeReportWindow(): Promise<{ ok: boolean }>;
 
+  /** Replace an open second-screen details window with a processing state. */
+  showReportWindowProcessing(): Promise<{ ok: boolean }>;
+
   /** Mark the second-screen details window as inactive without closing it. */
   endReportWindowSession(): Promise<{ ok: boolean }>;
 

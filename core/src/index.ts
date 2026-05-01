@@ -39,6 +39,9 @@ export type {
   CheckRedirectsResult,
   ContentIssue,
   AnalyzeContentResult,
+  StackDetection,
+  StackIssue,
+  DetectStackResult,
 } from "./types.js";
 
 // --- Tools: Mode A (Site Audit) ------------------------------------------
@@ -83,3 +86,9 @@ export {
   analyzeContentInputSchema,
   AnalyzeContentError,
 } from "./tools/site/analyze-content.js";
+
+export {
+  detectStack,
+  detectStackInputSchema,
+  DetectStackError,
+} from "./tools/site/detect-stack.js";

@@ -1,6 +1,6 @@
-# ToraSEO 0.0.8 Smoke Tests
+# ToraSEO 0.0.9 Smoke Tests
 
-Use this checklist before tagging `v0.0.8`.
+Use this checklist before tagging `v0.0.9`.
 
 ## Safety rules
 
@@ -47,7 +47,7 @@ Expected result:
 ## Test 1: App starts
 
 1. Launch the app.
-2. Confirm the top toolbar shows version `0.0.8`.
+2. Confirm the top toolbar shows version `0.0.9`.
 3. Open Settings.
 4. Confirm the Language tab still works.
 5. Confirm the Providers tab is visible.
@@ -213,17 +213,17 @@ Pass criteria:
 
 ## Test 5: Release packaging
 
-1. Confirm the release tag will be a plain app tag such as `v0.0.8`,
+1. Confirm the release tag will be a plain app tag such as `v0.0.9`,
    not a package-specific tag.
 2. Confirm `.github/workflows/release-app.yml` uses Node.js 22.
 3. Confirm the workflow builds the app and attaches:
    - desktop installer assets
-   - `toraseo-claude-bridge-instructions-v0.0.8.zip`
-   - `toraseo-codex-workflow-v0.0.8.zip`
+   - `toraseo-claude-bridge-instructions-v0.0.9.zip`
+   - `toraseo-codex-workflow-v0.0.9.zip`
 4. Confirm `release-skill.yml` and `release-codex-workflow.yml` are
    manual artifact workflows and do not create public releases.
 5. After the GitHub Actions run, open the release page and confirm all
-   expected assets are visible under one `v0.0.8` release.
+   expected assets are visible under one `v0.0.9` release.
 
 Pass criteria:
 
@@ -256,7 +256,7 @@ Pass criteria:
 
 ## Release decision
 
-Do not tag `v0.0.8` until:
+Do not tag `v0.0.9` until:
 
 - all pass criteria above are met, or
 - every failure is documented with a reproduction step and a fix plan.

@@ -22,7 +22,9 @@ knowledge base. Load the reference files only when the task needs them.
    `references/codex-bridge-handshake.md`.
 3. If the task changes product behavior or UX, read
    `references/product-rules.md`.
-4. If the task is future-facing strategy work, read
+4. If the task changes analysis types, tool selection, or formula
+   groundwork, read `references/analysis-policy.md`.
+5. If the task is future-facing strategy work, read
    `references/future-direction.md`.
 
 ## Required Bridge Behavior
@@ -47,9 +49,25 @@ itself provides no broader approval path.
 
 - Keep ToraSEO evidence-first: deterministic scan facts first, model
   interpretation second.
+- Keep analysis type, selected tools, AI interpretation, and formula
+  policy as separate layers.
 - Keep `API + AI Chat` scoped to the active analysis.
 - Keep `MCP + Instructions` free of in-app AI chat.
+- When the active task is ToraSEO text/content analysis, keep the
+  conversation anchored to analysis, recommendations, contradiction
+  checks, or article drafting. If the user drifts into general search,
+  offer to gather material for the article instead of acting like a
+  general-purpose chat.
+- When proposing to rewrite or substantially rework an article, ask
+  immediately whether the user wants ToraSEO to mark recommended image
+  positions for better SEO. If the user agrees, or already asked for
+  image placement guidance, insert the exact ToraSEO media placeholder
+  lines inside the rewritten article at the intended positions; do not
+  invent alternate labels. For Russian article drafts, use:
+  `------------------------- место для изображения --------------------------`.
 - Do not claim that Codex Workflow Instructions are active unless the
   Codex handshake has verified them for the current session.
+- Do not introduce Tora Rank / gamified scoring into an implementation
+  pass unless the user explicitly asks for scoring work.
 - Keep detailed product rules, handshake notes, and long-form design
   material in `references/`, not in this file.

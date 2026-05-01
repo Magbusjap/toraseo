@@ -32,6 +32,7 @@ toraseo-codex-workflow/
 `- references/
    |- codex-bridge-handshake.md
    |- future-direction.md
+   |- analysis-policy.md
    |- product-rules.md
    `- runtime-distinction.md
 ```

@@ -34,38 +34,34 @@ should present one unified asset list.
 
 Current active app release candidate:
 
-- **App 0.0.8 - unified release + Codex bridge reliability.**
-- The app release workflow now attaches app assets, Claude Bridge
-  Instructions ZIP, and Codex Workflow Instructions ZIP to the same
-  GitHub release entry.
-- Codex bridge results are rendered from app-side bridge data, not
-  trusted from Codex chat text alone.
-- `Copy setup prompt` now has persistent in-app guidance for the Codex
-  handoff.
+- **App 0.0.9 - analysis-type expansion groundwork.**
+- The app now shows the approved first-wave `0.0.9` analysis-type map
+  on the home screen.
+- `Site by URL` now includes the first approved expansion tool:
+  `detect_stack`.
+- Codex Workflow Instructions and Claude Bridge Instructions now carry
+  updated analysis-type and formula-policy guidance.
 
 Current roadmap note:
 
 - App `0.0.7` is the released dual-mode baseline.
-- App `0.0.8` is the active release candidate for unified public
-  release packaging, Codex bridge reliability, and native chat polish.
-- Earlier internal notes that described `0.0.8` as only a skill
-  runtime-handshake release are now superseded by the app-led release
-  line. Claude Bridge Instructions and Codex Workflow Instructions
-  remain independently buildable packages, but they are distributed as
-  assets on the same app release entry.
+- App `0.0.8` is the released foundation for unified public release
+  packaging, Codex bridge reliability, and native chat polish.
+- App `0.0.9` is the active release candidate for analysis-type
+  expansion and `Site by URL` platform-aware stack detection.
 - Future skill/instruction-package work should stay aligned with the
   app release asset list instead of creating separate public release
   pages by default.
 
 ---
 
-## [App 0.0.8] - Unreleased
+## [App 0.0.9] - Unreleased
 
 ### Added
 
 - Unified app release workflow that attaches the app installer assets,
   Claude Bridge Instructions ZIP, and Codex Workflow Instructions ZIP
-  to one `v0.0.8` GitHub release entry.
+  to one `v0.0.9` GitHub release entry.
 - Manual packaging workflows for standalone Claude and Codex ZIP
   artifacts without creating separate public releases.
 - Persistent Codex copied-prompt helper that stays visible until the
