@@ -238,6 +238,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               ? {
                   action: state!.input.action,
                   topic: state!.input.topic,
+                  analysisRole: state!.input.analysisRole || "default",
                   hasText: Boolean(
                     workspaceText?.trim() || state!.input.text?.trim(),
                   ),

@@ -29,6 +29,11 @@ knowledge base. Load the reference files only when the task needs them.
 
 ## Required Bridge Behavior
 
+ToraSEO Desktop prompts are intentionally short. Do not expect the
+prompt to repeat the token rules, selected tools, temporary file paths,
+or result format. Extra prompt text costs user tokens; this package and
+the ToraSEO MCP handshake are the source of truth for those details.
+
 When the pasted prompt says `Use $toraseo-codex-workflow` and contains
 `/toraseo codex-bridge-mode`, your first action is:
 
@@ -57,8 +62,31 @@ in the temporary ToraSEO workspace as `input.md`; do not ask the user to
 paste the article into chat and do not copy the article body back into
 your final answer. Call the selected article-text MCP tools directly;
 they read `input.md` and write structured results back to the app state
-and `results/*.json`. Then summarize priorities and recommendations in
-chat.
+and `results/*.json`. Then give a useful article-analysis answer in
+chat: name what style/platform/tone you detected, mention every selected
+tool category at least briefly, and separate "what to fix first" from
+"optional improvements". Do not say only that results were written to
+the app. Built-in text checks may run even when they are not visible as
+sidebar checkboxes: uniqueness, syntax, AI-writing probability,
+naturalness, and logic consistency.
+
+If the handshake input contains `analysisRole`, apply that role while
+interpreting the text. If the role is `default` or empty, use ToraSEO's
+standard analysis posture and choose the most suitable reviewer role
+yourself when offering a rewrite.
+
+After an article-text analysis, end with a numbered list of clear user
+choices. Include whether the user needs a rewrite, whether they need a
+shorter structure pass, whether media markers are useful, and which role
+you would use for the rewrite. If the user stays silent or declines, do
+not push; respond politely and keep the analysis available for later.
+
+Do not confuse `ai_writing_probability` with
+`ai_hallucination_check`. The first is a style/rhythm probability. The
+second is an optional claim-safety review for vague sources, fabricated
+citations, or factual details that may have been invented during
+AI-assisted drafting. `fact_distortion_check` is also optional and is a
+claim-risk review, not a complete internet fact-check.
 
 The prompt command is only a trigger. The real bridge protocol is:
 Codex Workflow Instructions -> `verify_codex_workflow_loaded` -> MCP
@@ -84,12 +112,13 @@ itself provides no broader approval path.
   offer to gather material for the article instead of acting like a
   general-purpose chat.
 - When proposing to rewrite or substantially rework an article, ask
-  immediately whether the user wants ToraSEO to mark recommended image
-  positions for better SEO. If the user agrees, or already asked for
-  image placement guidance, insert the exact ToraSEO media placeholder
-  lines inside the rewritten article at the intended positions; do not
-  invent alternate labels. For Russian article drafts, use:
-  `------------------------- место для изображения --------------------------`.
+  whether the user wants ToraSEO to add text markers where media should
+  be placed. If the user agrees, choose the marker type from the article
+  context: image, animation, video, or audio. Insert the exact ToraSEO
+  media placeholder lines at the intended positions; do not invent
+  alternate labels. For Russian article drafts, use these marker words:
+  `место для изображения`, `место для анимации`, `место для видео`,
+  `место для аудио`.
 - Do not claim that Codex Workflow Instructions are active unless the
   Codex handshake has verified them for the current session.
 - Do not introduce Tora Rank / gamified scoring into an implementation

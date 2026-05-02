@@ -91,6 +91,7 @@ export interface CurrentScanState {
     action?: "scan" | "solution";
     topic?: string;
     text?: string;
+    analysisRole?: string;
     selectedAnalysisTools?: string[];
   };
   workspace?: {

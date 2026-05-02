@@ -53,11 +53,14 @@ Current planning direction:
   content, and stack detection; add text extraction, platform detection,
   text style, and language/audience fit.
 - `article_text`: focus on text platform, structure, style, tone,
-  language/audience fit, media placeholders, and naturalness. In Bridge
-  Mode the app stores the temporary article text in workspace `input.md`;
-  Codex/Claude should use MCP tools to read that file and write
-  structured results back to the app instead of asking the user to paste
-  the article into chat.
+  language/audience fit, media placeholders, and naturalness. Built-in
+  checks also include article uniqueness, language syntax, AI-writing
+  probability, and logic consistency. Optional deeper checks include
+  fact distortion and AI/hallucination review. In Bridge Mode the app
+  stores the temporary article text in workspace `input.md`; Codex/Claude
+  should use MCP tools to read that file and write structured results
+  back to the app instead of asking the user to paste the article into
+  chat.
 - `article_compare`: compare structure, style, platform fit, strengths
   and weaknesses, language/audience fit, and media placement.
 - `site_compare`: compare positioning, content depth, technical basics,
@@ -111,6 +114,14 @@ a generic business tone. Supported first-wave styles include:
 - humorous
 - personal
 
+The analysis role field is also optional. It answers a different
+question than text style: style describes the submitted text, while role
+describes the reviewer lens the AI should use. Examples: SEO editor,
+fact-checker, medical editor, product marketer, community moderator, or
+plain-language editor. If the role field is empty, the AI uses the
+standard ToraSEO analysis posture and may choose the best rewrite role
+itself when proposing next steps.
+
 For `article_text`, the "text topic" field is optional. If the text body
 contains a title that conflicts with the topic field, treat the title in
 the body as the stronger source of truth.
@@ -145,6 +156,13 @@ If the user asks for unrelated research while inside the text analysis
 flow, redirect gently back to the article task. Example: "I can collect
 options on this topic and prepare material for your article. Should I do
 that?"
+
+After an article-text analysis, the chat answer should end with a
+numbered list of user choices instead of one broad question. The list
+should say whether the user needs a rewrite, whether a structure-only
+pass is enough, whether media markers are useful, and which role the AI
+would use for rewriting. If the user says no or stays silent, do not
+pressure them; acknowledge the decision and keep the analysis available.
 
 Article text may include explicit placeholders:
 
@@ -256,6 +274,22 @@ guarantee of monotonic improvement.
 When an analysis type has explicit rules and selected tools, any AI
 rewrite or generation should adapt to those same rules. The model should
 not generate first and evaluate later as if the policy did not exist.
+
+`ai_writing_probability` and `ai_hallucination_check` are intentionally
+different checks. AI-writing probability estimates whether the article
+sounds AI-assisted from style, rhythm, repetition, and generic phrasing.
+AI/hallucination review looks for a different problem: vague authorities,
+fabricated citation placeholders, unsupported factual density, and signs
+that a model may have invented or blurred facts while drafting.
+
+`fact_distortion_check` is optional because it can require stricter
+claim review and may depend on external evidence. It should flag exact
+numbers, absolute claims, sensitive statements, and unsupported factual
+details. It must not pretend to be a full internet fact-check.
+
+`logic_consistency_check` is built in. It checks whether the text
+contradicts itself, jumps from premise to conclusion too quickly, or
+uses cause-and-effect language without enough intermediate reasoning.
 
 Recommended behavior:
 

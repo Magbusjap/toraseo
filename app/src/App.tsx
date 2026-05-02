@@ -20,7 +20,11 @@ import PlannedAnalysisView, {
   type ArticleTextAction,
   type ArticleTextPromptData,
 } from "./components/MainArea/PlannedAnalysisView";
+import ChangelogView from "./components/Changelog/ChangelogView";
+import DocumentationView from "./components/Documentation/DocumentationView";
+import FaqView from "./components/FAQ/FaqView";
 import { SettingsView } from "./components/Settings";
+import ToolCatalogView from "./components/ToolCatalog/ToolCatalogView";
 import { TopToolbar } from "./components/TopToolbar";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { NativeLayout } from "./components/NativeLayout";
@@ -53,10 +57,21 @@ import type {
   RuntimeChatWindowSession,
 } from "./types/runtime";
 
-export type AppMode = "idle" | "site" | "analysis" | "settings";
+export type AppMode =
+  | "idle"
+  | "site"
+  | "analysis"
+  | "settings"
+  | "documentation"
+  | "changelog"
+  | "toolCatalog"
+  | "faq";
 
 type NavigationTarget = {
-  mode: Exclude<AppMode, "settings">;
+  mode: Exclude<
+    AppMode,
+    "settings" | "documentation" | "changelog" | "toolCatalog" | "faq"
+  >;
   selectedAnalysisType: AnalysisTypeId | null;
 };
 
@@ -67,6 +82,13 @@ const RETURN_HOME_SHORTCUTS_STORAGE_KEY = "toraseo.returnHomeShortcuts";
 const SIDEBAR_DEFAULT_WIDTH = 260;
 const SIDEBAR_MIN_WIDTH = 220;
 const SIDEBAR_MAX_WIDTH = 390;
+const BUILT_IN_ARTICLE_TEXT_TOOLS = [
+  "article_uniqueness",
+  "language_syntax",
+  "ai_writing_probability",
+  "naturalness_indicators",
+  "logic_consistency_check",
+] as const;
 
 function clampSidebarWidth(width: number): number {
   return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
@@ -147,6 +169,9 @@ function MainApp() {
       site_compare: getDefaultAnalysisToolSet("site_compare"),
       site_design_by_url: getDefaultAnalysisToolSet("site_design_by_url"),
     }));
+  const [analysisRole, setAnalysisRole] = useState("");
+  const [articleTextScanStartedOnce, setArticleTextScanStartedOnce] =
+    useState(false);
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [codexClosedNotice, setCodexClosedNotice] = useState<string | null>(
     null,
@@ -161,6 +186,8 @@ function MainApp() {
   const [settingsInitialTab, setSettingsInitialTab] =
     useState<"general" | "language" | "providers">("general");
   const [settingsReturnTarget, setSettingsReturnTarget] =
+    useState<NavigationTarget | null>(null);
+  const [referenceReturnTarget, setReferenceReturnTarget] =
     useState<NavigationTarget | null>(null);
   const [returnHomeShortcutsEnabled, setReturnHomeShortcutsEnabled] =
     useState(readReturnHomeShortcutsEnabled);
@@ -540,8 +567,16 @@ function MainApp() {
         setCodexPromptHelperScanId(null);
       }
     }
+    if (executionMode === "bridge" && bridge.state) {
+      void bridge.cancelScan();
+      setCodexPromptHelperVisible(false);
+      setCodexPromptHelperScanId(null);
+    }
     setMode("idle");
     setSelectedAnalysisType(null);
+    setArticleTextScanStartedOnce(false);
+    setAnalysisRole("");
+    setReferenceReturnTarget(null);
     setUrl("");
     setRuntimeReport(null);
     setPreflightError(null);
@@ -563,7 +598,28 @@ function MainApp() {
     setSettingsReturnTarget(null);
   };
 
+  const restoreReferenceReturnTarget = () => {
+    const target = referenceReturnTarget;
+    setReferenceReturnTarget(null);
+    if (!target) {
+      handleReturnHome();
+      return;
+    }
+    setMode(target.mode);
+    setSelectedAnalysisType(target.selectedAnalysisType);
+    setPreflightError(null);
+  };
+
   const handleNavigateBack = () => {
+    if (
+      mode === "documentation" ||
+      mode === "changelog" ||
+      mode === "toolCatalog" ||
+      mode === "faq"
+    ) {
+      restoreReferenceReturnTarget();
+      return;
+    }
     if (mode === "settings") {
       handleRestoreSettingsReturnTarget();
       return;
@@ -755,7 +811,13 @@ function MainApp() {
   const handleOpenSettings = (
     tab: "general" | "language" | "providers" = "general",
   ) => {
-    if (mode !== "settings") {
+    if (
+      mode !== "settings" &&
+      mode !== "documentation" &&
+      mode !== "changelog" &&
+      mode !== "toolCatalog" &&
+      mode !== "faq"
+    ) {
       setSettingsReturnTarget({
         mode,
         selectedAnalysisType,
@@ -763,6 +825,38 @@ function MainApp() {
     }
     setSettingsInitialTab(tab);
     setMode("settings");
+  };
+
+  const openReferencePage = (nextMode: Extract<AppMode, "documentation" | "changelog" | "toolCatalog" | "faq">) => {
+    if (
+      mode !== "settings" &&
+      mode !== "documentation" &&
+      mode !== "changelog" &&
+      mode !== "toolCatalog" &&
+      mode !== "faq"
+    ) {
+      setReferenceReturnTarget({
+        mode,
+        selectedAnalysisType,
+      });
+    }
+    setMode(nextMode);
+  };
+
+  const handleOpenDocumentation = () => {
+    openReferencePage("documentation");
+  };
+
+  const handleOpenChangelog = () => {
+    openReferencePage("changelog");
+  };
+
+  const handleOpenToolCatalog = () => {
+    openReferencePage("toolCatalog");
+  };
+
+  const handleOpenFaq = () => {
+    openReferencePage("faq");
   };
 
   const handleOpenProviderSettings = () => {
@@ -981,12 +1075,22 @@ function MainApp() {
       return;
     }
 
-    const toolIds = Array.from(selectedAnalysisToolsByType.article_text);
+    const visibleToolIds = Array.from(selectedAnalysisToolsByType.article_text);
+    const toolIds = [
+      ...visibleToolIds,
+      ...BUILT_IN_ARTICLE_TEXT_TOOLS.filter(
+        (toolId) => !visibleToolIds.includes(toolId as AnalysisToolId),
+      ),
+    ];
+    if (action === "scan") {
+      setArticleTextScanStartedOnce(true);
+    }
     await bridge.startScan("toraseo://article-text", toolIds, bridgeProgram, {
       action,
       topic: data.topic,
       text: data.body,
-      selectedAnalysisTools: toolIds,
+      analysisRole: analysisRole.trim() || undefined,
+      selectedAnalysisTools: visibleToolIds,
     });
   };
 
@@ -1154,6 +1258,8 @@ function MainApp() {
       <AnalysisDraftSidebar
         analysisType={selectedAnalysisType}
         selectedTools={selectedAnalysisToolsByType[selectedAnalysisType]}
+        analysisRole={analysisRole}
+        onAnalysisRoleChange={setAnalysisRole}
         onToggleTool={handleToggleAnalysisTool}
         onToggleAllTools={handleToggleAllAnalysisTools}
         onReturnHome={handleReturnHome}
@@ -1179,7 +1285,13 @@ function MainApp() {
   if (mode === "settings") {
     return (
       <div className="flex h-full flex-col bg-orange-50/30">
-        <TopToolbar onOpenSettings={handleOpenSettings} />
+        <TopToolbar
+          onOpenSettings={handleOpenSettings}
+          onOpenDocumentation={handleOpenDocumentation}
+          onOpenChangelog={handleOpenChangelog}
+          onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenFaq={handleOpenFaq}
+        />
         <div className="flex flex-1 overflow-hidden">
           <SettingsView
             currentLocale={currentLocale}
@@ -1190,6 +1302,7 @@ function MainApp() {
               setSettingsReturnTarget(null);
               setMode("idle");
               setSelectedAnalysisType(null);
+              setArticleTextScanStartedOnce(false);
               void refreshProviders();
               void window.toraseo.runtime.endChatWindowSession();
             }}
@@ -1210,9 +1323,124 @@ function MainApp() {
     );
   }
 
+  if (mode === "toolCatalog") {
+    return (
+      <div className="flex h-full flex-col bg-orange-50/30">
+        <TopToolbar
+          onOpenSettings={handleOpenSettings}
+          onOpenDocumentation={handleOpenDocumentation}
+          onOpenChangelog={handleOpenChangelog}
+          onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenFaq={handleOpenFaq}
+        />
+        <div className="flex flex-1 overflow-hidden">
+          <ToolCatalogView
+            currentLocale={currentLocale}
+            onReturnHome={handleReturnHome}
+          />
+        </div>
+        {bridgeSetupPromptNotice && (
+          <BridgeSetupPromptNotice
+            bridgeClient={bridgeSetupPromptNotice}
+            onDismiss={dismissBridgeSetupPromptNotice}
+          />
+        )}
+        <WindowSizeOverlay />
+        <UpdateNotification />
+      </div>
+    );
+  }
+
+  if (mode === "faq") {
+    return (
+      <div className="flex h-full flex-col bg-orange-50/30">
+        <TopToolbar
+          onOpenSettings={handleOpenSettings}
+          onOpenDocumentation={handleOpenDocumentation}
+          onOpenChangelog={handleOpenChangelog}
+          onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenFaq={handleOpenFaq}
+        />
+        <div className="flex flex-1 overflow-hidden">
+          <FaqView onReturnHome={handleReturnHome} />
+        </div>
+        {bridgeSetupPromptNotice && (
+          <BridgeSetupPromptNotice
+            bridgeClient={bridgeSetupPromptNotice}
+            onDismiss={dismissBridgeSetupPromptNotice}
+          />
+        )}
+        <WindowSizeOverlay />
+        <UpdateNotification />
+      </div>
+    );
+  }
+
+  if (mode === "documentation") {
+    return (
+      <div className="flex h-full flex-col bg-orange-50/30">
+        <TopToolbar
+          onOpenSettings={handleOpenSettings}
+          onOpenDocumentation={handleOpenDocumentation}
+          onOpenChangelog={handleOpenChangelog}
+          onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenFaq={handleOpenFaq}
+        />
+        <div className="flex flex-1 overflow-hidden">
+          <DocumentationView
+            currentLocale={currentLocale}
+            onReturnHome={handleReturnHome}
+          />
+        </div>
+        {bridgeSetupPromptNotice && (
+          <BridgeSetupPromptNotice
+            bridgeClient={bridgeSetupPromptNotice}
+            onDismiss={dismissBridgeSetupPromptNotice}
+          />
+        )}
+        <WindowSizeOverlay />
+        <UpdateNotification />
+      </div>
+    );
+  }
+
+  if (mode === "changelog") {
+    return (
+      <div className="flex h-full flex-col bg-orange-50/30">
+        <TopToolbar
+          onOpenSettings={handleOpenSettings}
+          onOpenDocumentation={handleOpenDocumentation}
+          onOpenChangelog={handleOpenChangelog}
+          onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenFaq={handleOpenFaq}
+        />
+        <div className="flex flex-1 overflow-hidden">
+          <ChangelogView
+            currentLocale={currentLocale}
+            onReturnHome={handleReturnHome}
+          />
+        </div>
+        {bridgeSetupPromptNotice && (
+          <BridgeSetupPromptNotice
+            bridgeClient={bridgeSetupPromptNotice}
+            onDismiss={dismissBridgeSetupPromptNotice}
+          />
+        )}
+        <WindowSizeOverlay />
+        <UpdateNotification />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col bg-orange-50/30">
-      <TopToolbar onOpenSettings={handleOpenSettings} />
+      <TopToolbar
+        onOpenSettings={handleOpenSettings}
+        onOpenDocumentation={handleOpenDocumentation}
+        onOpenChangelog={handleOpenChangelog}
+        onOpenToolCatalog={handleOpenToolCatalog}
+        onOpenFaq={handleOpenFaq}
+      />
       <div className="flex flex-1 overflow-hidden">
         <aside
           className="relative shrink-0"
@@ -1285,6 +1513,8 @@ function MainApp() {
               activeRun={activeArticleTextRun}
               completedTools={plannedCompletedTools}
               totalTools={plannedTotalTools}
+              bridgeState={bridge.state}
+              scanStartedOnce={articleTextScanStartedOnce}
               bridgeUnavailable={bridgeExternalAppClosed}
               bridgeUnavailableAppName={bridgeExternalAppName}
               bridgeTargetAppName={bridgeExternalAppName}

@@ -7,7 +7,9 @@ import {
   Github,
   X,
   BookOpen,
+  History,
   HelpCircle,
+  ListChecks,
 } from "lucide-react";
 import { useUpdater } from "../../hooks/useUpdater";
 
@@ -15,8 +17,12 @@ interface TopToolbarProps {
   /**
    * Switch the app into Settings mode. App.tsx handles the actual
    * routing — the toolbar just signals intent.
-   */
+  */
   onOpenSettings: () => void;
+  onOpenDocumentation: () => void;
+  onOpenChangelog: () => void;
+  onOpenToolCatalog: () => void;
+  onOpenFaq: () => void;
 }
 
 /**
@@ -37,10 +43,9 @@ interface TopToolbarProps {
  *        UpdateNotification component reacting to the
  *        update-available event.
  *     4. We're on the latest — say "no updates, you're current".
- * - "Documentation" — opens README on GitHub. There's no project
- *   website yet; everything lives in the repo.
- * - "FAQ" — opens docs/FAQ.md on GitHub. Same reason: no website,
- *   FAQ is a markdown file in the repo that GitHub renders.
+ * - "Documentation" — opens the in-app documentation page.
+ * - "Changelog" — opens the in-app release history page.
+ * - "FAQ" — opens the in-app FAQ page.
  * - "Settings" — switches the app into Settings mode (App.tsx
  *   handles routing). The current Settings UI exposes only the
  *   Language tab; the placeholder modal that used to live here for
@@ -56,7 +61,13 @@ interface TopToolbarProps {
  * is exactly where they go to switch UI language before
  * troubleshooting).
  */
-export default function TopToolbar({ onOpenSettings }: TopToolbarProps) {
+export default function TopToolbar({
+  onOpenSettings,
+  onOpenDocumentation,
+  onOpenChangelog,
+  onOpenToolCatalog,
+  onOpenFaq,
+}: TopToolbarProps) {
   const { t } = useTranslation();
   const [aboutOpen, setAboutOpen] = useState(false);
   const [updateCheckMsg, setUpdateCheckMsg] = useState<string | null>(null);
@@ -125,17 +136,6 @@ export default function TopToolbar({ onOpenSettings }: TopToolbarProps) {
     window.open("https://github.com/Magbusjap/toraseo", "_blank");
   };
 
-  const handleOpenDocs = () => {
-    window.open("https://github.com/Magbusjap/toraseo#readme", "_blank");
-  };
-
-  const handleOpenFaq = () => {
-    window.open(
-      "https://github.com/Magbusjap/toraseo/blob/main/docs/FAQ.md",
-      "_blank",
-    );
-  };
-
   return (
     <>
       <header
@@ -171,12 +171,22 @@ export default function TopToolbar({ onOpenSettings }: TopToolbarProps) {
           <ToolbarButton
             icon={<BookOpen size={14} />}
             label={t("toolbar.documentation")}
-            onClick={handleOpenDocs}
+            onClick={onOpenDocumentation}
+          />
+          <ToolbarButton
+            icon={<History size={14} />}
+            label={t("toolbar.changelog")}
+            onClick={onOpenChangelog}
           />
           <ToolbarButton
             icon={<HelpCircle size={14} />}
             label={t("toolbar.faq")}
-            onClick={handleOpenFaq}
+            onClick={onOpenFaq}
+          />
+          <ToolbarButton
+            icon={<ListChecks size={14} />}
+            label={t("toolbar.toolCatalog")}
+            onClick={onOpenToolCatalog}
           />
           <ToolbarButton
             icon={<Settings size={14} />}

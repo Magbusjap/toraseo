@@ -80,7 +80,13 @@ import {
   analyzeToneFitHandler,
   languageAudienceFitHandler,
   mediaPlaceholderReviewHandler,
+  articleUniquenessHandler,
+  languageSyntaxHandler,
+  aiWritingProbabilityHandler,
   naturalnessIndicatorsHandler,
+  factDistortionCheckHandler,
+  logicConsistencyCheckHandler,
+  aiHallucinationCheckHandler,
 } from "./textAnalysisTools.js";
 
 // --- Server setup ---------------------------------------------------------
@@ -363,6 +369,72 @@ server.registerTool(
     inputSchema: emptyInputSchema,
   },
   mediaPlaceholderReviewHandler,
+);
+
+server.registerTool(
+  "article_uniqueness",
+  {
+    title: "Article Uniqueness",
+    description:
+      "Built-in article_text check. Estimates local uniqueness and repetition risk for the active ToraSEO article text context. This is not an internet plagiarism check.",
+    inputSchema: emptyInputSchema,
+  },
+  articleUniquenessHandler,
+);
+
+server.registerTool(
+  "language_syntax",
+  {
+    title: "Language Syntax",
+    description:
+      "Built-in article_text check. Reviews grammar-adjacent syntax, punctuation, and sentence boundary risks in the active ToraSEO article text context.",
+    inputSchema: emptyInputSchema,
+  },
+  languageSyntaxHandler,
+);
+
+server.registerTool(
+  "ai_writing_probability",
+  {
+    title: "AI Writing Probability",
+    description:
+      "Built-in article_text check. Estimates the probability that the text reads like AI-assisted writing using local style and repetition signals.",
+    inputSchema: emptyInputSchema,
+  },
+  aiWritingProbabilityHandler,
+);
+
+server.registerTool(
+  "fact_distortion_check",
+  {
+    title: "Fact Distortion Check",
+    description:
+      "Optional article_text check. Flags fact-sensitive claims, absolute wording, exact numbers, and unsupported sensitive statements that may distort facts if they are wrong.",
+    inputSchema: emptyInputSchema,
+  },
+  factDistortionCheckHandler,
+);
+
+server.registerTool(
+  "logic_consistency_check",
+  {
+    title: "Logic Consistency Check",
+    description:
+      "Built-in article_text check. Reviews internal contradictions, unsupported cause-and-effect jumps, and weak logical transitions in the active ToraSEO article text context.",
+    inputSchema: emptyInputSchema,
+  },
+  logicConsistencyCheckHandler,
+);
+
+server.registerTool(
+  "ai_hallucination_check",
+  {
+    title: "AI Hallucination Check",
+    description:
+      "Optional article_text check. Reviews whether the text shows signs of AI involvement through vague authorities, fabricated citation placeholders, or factual details that need verification.",
+    inputSchema: emptyInputSchema,
+  },
+  aiHallucinationCheckHandler,
 );
 
 server.registerTool(

@@ -11,6 +11,8 @@ import ToolChecklist from "./ToolChecklist";
 interface AnalysisDraftSidebarProps {
   analysisType: AnalysisTypeId;
   selectedTools: Set<AnalysisToolId>;
+  analysisRole: string;
+  onAnalysisRoleChange: (value: string) => void;
   onToggleTool: (toolId: AnalysisToolId) => void;
   onToggleAllTools: () => void;
   onReturnHome: () => void;
@@ -19,6 +21,8 @@ interface AnalysisDraftSidebarProps {
 export default function AnalysisDraftSidebar({
   analysisType,
   selectedTools,
+  analysisRole,
+  onAnalysisRoleChange,
   onToggleTool,
   onToggleAllTools,
   onReturnHome,
@@ -147,6 +151,23 @@ export default function AnalysisDraftSidebar({
                   {t("plannedAnalysis.styles.personal")}
                 </option>
               </select>
+            </label>
+
+            <label className="mt-3 block">
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/60">
+                {t("plannedAnalysis.sidebar.analysisRole")}
+              </span>
+              <input
+                type="text"
+                value={analysisRole}
+                onChange={(event) => onAnalysisRoleChange(event.target.value)}
+                placeholder={t("plannedAnalysis.sidebar.analysisRolePlaceholder")}
+                title={t("plannedAnalysis.sidebar.analysisRoleHint")}
+                className="w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white transition placeholder:text-white/30 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <span className="mt-1.5 block text-xs leading-relaxed text-white/45">
+                {t("plannedAnalysis.sidebar.analysisRoleHint")}
+              </span>
             </label>
           </SidebarSection>
         )}

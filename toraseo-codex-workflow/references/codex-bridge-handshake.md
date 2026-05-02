@@ -13,6 +13,12 @@ session:
 
 ## Required first call
 
+The user-facing prompt should stay compact. It only needs to activate
+this package and say that ToraSEO is waiting. Do not require the prompt
+to list selected tools, temporary workspace files, token-mismatch
+handling, or final confirmation text; those details belong to this
+package and the MCP handshake response.
+
 When the prompt says `Use $toraseo-codex-workflow` and contains
 `/toraseo codex-bridge-mode`, the first MCP call must be:
 
@@ -57,6 +63,41 @@ The handshake response can describe different bridge workloads:
   not ask the user to paste it into chat. The selected MCP tools read
   that file and write their structured results back into the app state
   and `results/*.json`.
+
+For `article_text`, the final chat answer must be more than a completion
+notice. Summarize each selected category, explicitly name the detected
+style/platform/tone when those tools ran, and explain the first fixes the
+user should make. If media placement is missing, ask whether the user
+wants ToraSEO to add media markers; choose image, animation, video, or
+audio from the article context only after the user agrees or asks for a
+rewrite.
+
+If the handshake response contains `input.analysisRole`, apply it as the
+reviewer role. If it is `default` or absent, use ToraSEO's standard
+analysis rules and choose a suitable rewrite role yourself when proposing
+next steps.
+
+End article-text chat output with a numbered list of choices for the
+user, not a vague open question. Example shape:
+
+1. Нужно ли пользователю переписать статью целиком в роли `<role>`?
+2. Нужно ли пользователю сначала поправить структуру H2/H3?
+3. Нужно ли пользователю добавить медиа-метки?
+
+If the user declines or does not answer, acknowledge it gently and leave
+the analysis as-is.
+
+Some article-text checks are built in and may be present in
+`selectedTools` even when the user did not see them as sidebar
+checkboxes: `article_uniqueness`, `language_syntax`,
+`ai_writing_probability`, `naturalness_indicators`, and
+`logic_consistency_check`. Optional sidebar checks can include
+`fact_distortion_check` and `ai_hallucination_check`.
+
+Treat `ai_writing_probability` and `ai_hallucination_check` as separate
+questions. The former estimates AI-like style; the latter reviews claim
+safety around vague authorities, fabricated citation placeholders, and
+possibly invented factual details.
 
 The slash command in the copied prompt is only the trigger. It must not
 encode fake versioned text-analysis subcommands; the source of truth is

@@ -138,6 +138,7 @@ export async function createBridgeWorkspace(
       ? {
           action: options.input.action,
           topic: options.input.topic,
+          analysisRole: options.input.analysisRole,
           selectedAnalysisTools: options.input.selectedAnalysisTools,
           hasText: Boolean(options.input.text?.trim()),
           textLength: options.input.text?.length ?? 0,

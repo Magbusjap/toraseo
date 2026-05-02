@@ -20,10 +20,39 @@
     "about": "About ToraSEO",
     "checkUpdates": "Check for updates",
     "documentation": "Documentation",
+    "changelog": "Changelog",
     "faq": "FAQ",
+    "toolCatalog": "Analytics tools",
     "settings": "Settings",
     "github": "GitHub",
     "checking": "Checking…"
+  },
+  "toolCatalog": {
+    "title": "Analytics tools list",
+    "sidebarEyebrow": "Analytics registry",
+    "sidebarBody": "This reference shows which checks belong to each analysis type. It is read-only for now.",
+    "readOnly": "Read-only",
+    "body": "This page shows user-facing tool names, their role in analysis, and version changes. Internal keys stay hidden from the interface.",
+    "currentHint": "Current table for the active development branch.",
+    "archiveHint": "Archive table showing tool state in the selected version.",
+    "legendTitle": "Version colors",
+    "groups": {
+      "primary": "Primary",
+      "secondary": "Secondary",
+      "additional": "Additional",
+      "choice": "Choice tools"
+    },
+    "columns": {
+      "tool": "Tool",
+      "status": "Status",
+      "description": "What it does"
+    },
+    "status": {
+      "stable": "Unchanged",
+      "added": "Added",
+      "moved": "Moved",
+      "removed": "Removed"
+    }
   },
   "about": {
     "title": "About ToraSEO",
@@ -302,7 +331,10 @@
       "customPlatform": "Custom resource",
       "customPlatformPlaceholder": "Platform, community, publication, or channel",
       "customPlatformHint": "Use this when the resource is not in the list; AI will account for that platform's rules.",
-      "textStyle": "Text style"
+      "textStyle": "Text style",
+      "analysisRole": "AI analysis role",
+      "analysisRolePlaceholder": "For example: SEO editor, fact-checker, medical editor",
+      "analysisRoleHint": "Leave empty to let AI use the default ToraSEO analysis settings."
     },
     "platforms": {
       "siteArticle": "Site article",
@@ -323,6 +355,67 @@
       "humor": "Humor",
       "personal": "Personal"
     },
+    "results": {
+      "title": "Analysis results",
+      "body": "Current text MCP results are shown here. The chat answer may be shorter, but the app keeps the structured checks below.",
+      "uniquenessTitle": "Article uniqueness",
+      "uniquenessHint": "Local repetition and template-risk estimate. This is not an internet plagiarism check.",
+      "syntaxTitle": "Language syntax",
+      "aiProbabilityTitle": "AI writing probability",
+      "logicTitle": "Logic issues",
+      "naturalnessTitle": "Naturalness",
+      "waitingMetric": "waiting",
+      "export": "Export",
+      "exportReady": "Report exported.",
+      "exportFailed": "Failed to export the report.",
+      "keyFacts": "Key facts",
+      "findings": "Findings",
+      "recommendation": "What to do",
+      "noDetails": "The check completed without extra notes.",
+      "statusComplete": "Done",
+      "statusRunning": "Running",
+      "statusError": "Error",
+      "statusPending": "Waiting",
+      "reportExpectedImpact": "Improve clarity, trust, and SEO content quality.",
+      "reportValidationMethod": "Run ToraSEO text analysis again after edits.",
+      "reportSummary": "Structured report for the ToraSEO article text analysis.",
+      "reportNextStep": "Review recommendations, choose priority edits, and scan the text again.",
+      "summary": {
+        "topic": "Topic",
+        "analysisRole": "Role",
+        "wordCount": "Words",
+        "paragraphCount": "Paragraphs",
+        "headingCount": "Headings",
+        "hasMarkdown": "Markdown",
+        "platform": "Platform",
+        "style": "Style",
+        "tone": "Tone",
+        "score": "Score",
+        "probability": "Probability",
+        "uniqueWordRatio": "Unique words",
+        "duplicates": "Duplicates",
+        "suspectedIssues": "Suspected issues",
+        "warning": "Warnings",
+        "markers": "Media markers",
+        "markerTypes": "Media types"
+      },
+      "descriptions": {
+        "platform": "Detects the publishing platform and context.",
+        "structure": "Checks headings, paragraphs, and article structure.",
+        "style": "Detects text style and weak spots.",
+        "tone": "Reviews whether the tone fits the topic and audience.",
+        "audience": "Checks language, audience, and explanation level.",
+        "media": "Checks where and how media markers are placed.",
+        "uniqueness": "Estimates local repetition and template risk.",
+        "syntax": "Checks syntax and clear language risks.",
+        "ai": "Estimates AI-style signals in the text.",
+        "naturalness": "Looks for mechanical phrasing and repetition.",
+        "logic": "Checks contradictions and reasoning jumps.",
+        "facts": "Looks for disputed facts and overconfident claims.",
+        "hallucination": "Looks for invented details and AI hallucination signals.",
+        "default": "ToraSEO text check."
+      }
+    },
     "forms": {
       "url": "URL",
       "intent": "Page goal or query intent",
@@ -340,6 +433,7 @@
       "articleRoleCompetitor": "Competitor article",
       "aiDraftAction": "Suggest solution",
       "scanReadyTextAction": "Scan text",
+      "scanReadyTextAgainAction": "Scan text again",
       "scanCancelled": "Analysis cancelled.",
       "aiDraftPromptCopied": "Prompt copied. Paste it into {{appName}} chat so AI can continue this analysis.",
       "scanPromptCopied": "Prompt copied. Paste it into {{appName}} chat so AI can continue this analysis.",
@@ -415,6 +509,30 @@
     "naturalness_indicators": {
       "label": "Naturalness",
       "tooltip": "Look for robotic phrasing, repetition, and weak human readability signals"
+    },
+    "article_uniqueness": {
+      "label": "Article uniqueness",
+      "tooltip": "Estimate local repetition and template risk without claiming internet plagiarism detection"
+    },
+    "language_syntax": {
+      "label": "Language syntax",
+      "tooltip": "Check grammar-adjacent syntax, punctuation, and sentence boundary risks"
+    },
+    "ai_writing_probability": {
+      "label": "AI writing probability",
+      "tooltip": "Estimate AI-style signals from rhythm, repetition, and generic phrasing"
+    },
+    "fact_distortion_check": {
+      "label": "Fact distortion",
+      "tooltip": "Find claims, numbers, and absolute wording that may distort facts without source verification"
+    },
+    "logic_consistency_check": {
+      "label": "Logic issues",
+      "tooltip": "Check internal contradictions, conclusion jumps, and weak cause-and-effect transitions"
+    },
+    "ai_hallucination_check": {
+      "label": "AI and hallucination check",
+      "tooltip": "Check AI involvement signals, vague authorities, and factual details that may have been invented"
     },
     "compare_article_structure": {
       "label": "Structure comparison",

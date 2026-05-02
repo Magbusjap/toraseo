@@ -458,6 +458,7 @@ export interface BridgeAnalysisInput {
   action?: BridgeRunAction;
   topic?: string;
   text?: string;
+  analysisRole?: string;
   selectedAnalysisTools?: string[];
 }
 

@@ -14,7 +14,8 @@ export type AnalysisToolId =
   | "analyze_tone_fit"
   | "language_audience_fit"
   | "media_placeholder_review"
-  | "naturalness_indicators"
+  | "fact_distortion_check"
+  | "ai_hallucination_check"
   | "compare_article_structure"
   | "compare_article_style"
   | "compare_platform_fit"
@@ -31,6 +32,7 @@ export interface AnalysisToolMeta {
   id: AnalysisToolId;
   i18nKeyBase: string;
   source: "site" | "analysis";
+  defaultSelected?: boolean;
 }
 
 function siteTool(id: ToolId): AnalysisToolMeta {
@@ -41,11 +43,15 @@ function siteTool(id: ToolId): AnalysisToolMeta {
   };
 }
 
-function analysisTool(id: Exclude<AnalysisToolId, ToolId>): AnalysisToolMeta {
+function analysisTool(
+  id: Exclude<AnalysisToolId, ToolId>,
+  options: { defaultSelected?: boolean } = {},
+): AnalysisToolMeta {
   return {
     id,
     i18nKeyBase: id,
     source: "analysis",
+    ...options,
   };
 }
 
@@ -69,7 +75,8 @@ export const ANALYSIS_TOOLS: Record<AnalysisTypeId, AnalysisToolMeta[]> = {
     analysisTool("analyze_tone_fit"),
     analysisTool("language_audience_fit"),
     analysisTool("media_placeholder_review"),
-    analysisTool("naturalness_indicators"),
+    analysisTool("fact_distortion_check", { defaultSelected: false }),
+    analysisTool("ai_hallucination_check", { defaultSelected: false }),
   ],
   article_compare: [
     analysisTool("compare_article_structure"),
@@ -103,5 +110,9 @@ export const ANALYSIS_TOOLS: Record<AnalysisTypeId, AnalysisToolMeta[]> = {
 export function getDefaultAnalysisToolSet(
   analysisType: AnalysisTypeId,
 ): Set<AnalysisToolId> {
-  return new Set(ANALYSIS_TOOLS[analysisType].map((tool) => tool.id));
+  return new Set(
+    ANALYSIS_TOOLS[analysisType]
+      .filter((tool) => tool.defaultSelected !== false)
+      .map((tool) => tool.id),
+  );
 }

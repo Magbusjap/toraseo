@@ -185,6 +185,7 @@ export async function verifyCodexWorkflowLoadedHandler({
               ? {
                   action: state!.input.action,
                   topic: state!.input.topic,
+                  analysisRole: state!.input.analysisRole || "default",
                   hasText: Boolean(
                     workspaceText?.trim() || state!.input.text?.trim(),
                   ),

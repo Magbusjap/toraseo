@@ -58,6 +58,11 @@ toraseo-codex-workflow/
 4. In ToraSEO, click `Copy setup prompt`.
 5. Paste that text into Codex.
 
+The copied prompt is intentionally short. It should only activate this
+package and point Codex to ToraSEO MCP. The workflow rules, selected
+tools, temporary files, error handling, and final response policy live
+in this package and in the MCP handshake response.
+
 If Codex can call `verify_codex_workflow_loaded`, ToraSEO will know that:
 
 - the ToraSEO MCP server is reachable from Codex
