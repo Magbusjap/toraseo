@@ -1581,12 +1581,6 @@ function renderContentGap(
   return `<article class="insight-card"><h3>${escapeHtml(labels.contentGap)}</h3><ul class="gap-list">${rows}</ul></article>`;
 }
 
-function renderToraRankGroundwork(
-  labels: ReturnType<typeof articleDashboardExtraCopy>,
-): string {
-  return `<article class="insight-card rank-groundwork"><h3>${escapeHtml(labels.toraRankGroundwork)}</h3><p>${escapeHtml(labels.evidenceLayer)}</p></article>`;
-}
-
 function renderIntentSeoPackage(
   report: RuntimeAuditReport,
   isRu: boolean,
@@ -1777,7 +1771,6 @@ function renderArticleInsights(
       <div class="insight-grid">
         ${renderArticleProfile(report, labels)}
         ${renderContentGap(report, labels, isRu)}
-        ${renderToraRankGroundwork(labels)}
       </div>
     </section>`;
 }
@@ -1826,15 +1819,15 @@ function articleToolDescriptionForReport(toolIds: string[], isRu: boolean): stri
       ru: "Проверяет пунктуацию, границы предложений и перегруженные фразы.",
       en: "Checks punctuation, sentence boundaries, and overloaded phrasing.",
     },
-    logic_consistency: {
+    logic_consistency_check: {
       ru: "Проверяет противоречия, скачки вывода и причинно-следственные переходы.",
       en: "Checks contradictions, reasoning jumps, and causal transitions.",
     },
-    naturalness_score: {
+    naturalness_indicators: {
       ru: "Оценивает естественность ритма, повторов и формулировок.",
       en: "Evaluates naturalness of rhythm, repetition, and phrasing.",
     },
-    ai_likelihood: {
+    ai_writing_probability: {
       ru: "Оценивает, насколько текст звучит как ИИ-черновик.",
       en: "Estimates how AI-draft-like the text sounds.",
     },
@@ -1846,6 +1839,14 @@ function articleToolDescriptionForReport(toolIds: string[], isRu: boolean): stri
       ru: "Ищет юридические, медицинские, научные и технические риски.",
       en: "Finds legal, medical, scientific, and technical risk signals.",
     },
+    fact_distortion_check: {
+      ru: "Проверяет факт-чувствительные утверждения и риск искажения.",
+      en: "Checks fact-sensitive claims and distortion risk.",
+    },
+    ai_hallucination_check: {
+      ru: "Проверяет признаки галлюцинаций и неподтвержденных утверждений.",
+      en: "Checks hallucination and unsupported-claim signals.",
+    },
   };
   return (
     descriptions[toolId]?.[isRu ? "ru" : "en"] ??
@@ -1853,12 +1854,83 @@ function articleToolDescriptionForReport(toolIds: string[], isRu: boolean): stri
   );
 }
 
+function articleToolLabelForReport(toolIds: string[], isRu: boolean): string {
+  const toolId = toolIds[0] ?? "";
+  const labels: Record<string, { ru: string; en: string }> = {
+    detect_text_platform: {
+      ru: "Определение платформы",
+      en: "Platform detection",
+    },
+    analyze_text_structure: {
+      ru: "Структура текста",
+      en: "Text structure",
+    },
+    analyze_text_style: {
+      ru: "Стиль текста",
+      en: "Text style",
+    },
+    analyze_tone_fit: {
+      ru: "Соответствие тона",
+      en: "Tone fit",
+    },
+    language_audience_fit: {
+      ru: "Язык и аудитория",
+      en: "Language and audience",
+    },
+    media_placeholder_review: {
+      ru: "Размещение медиа",
+      en: "Media placement",
+    },
+    article_uniqueness: {
+      ru: "Уникальность статьи",
+      en: "Article uniqueness",
+    },
+    language_syntax: {
+      ru: "Синтаксис языка",
+      en: "Language syntax",
+    },
+    ai_writing_probability: {
+      ru: "Вероятность написания ИИ",
+      en: "AI writing probability",
+    },
+    naturalness_indicators: {
+      ru: "Естественность",
+      en: "Naturalness",
+    },
+    logic_consistency_check: {
+      ru: "Проверка логики",
+      en: "Logic check",
+    },
+    intent_seo_forecast: {
+      ru: "Прогноз интента и SEO",
+      en: "Intent and SEO forecast",
+    },
+    safety_science_review: {
+      ru: "Проверка рисков",
+      en: "Risk review",
+    },
+    fact_distortion_check: {
+      ru: "Искажение фактов",
+      en: "Fact distortion",
+    },
+    ai_hallucination_check: {
+      ru: "Проверка наличия ИИ и его галлюцинаций",
+      en: "AI and hallucination check",
+    },
+  };
+  return labels[toolId]?.[isRu ? "ru" : "en"] ?? (toolId || "Tool");
+}
+
 function renderToolFactDetail(
   detail: string,
   labels: ReturnType<typeof articleDashboardExtraCopy>,
   isRu: boolean,
 ): string {
-  const sections = detail
+  const normalizedDetail = detail
+    .replace(/^Ключевые данные:\s*/gim, "")
+    .replace(/^Что найдено:\s*/gim, "")
+    .replace(/^Что сделать:\s*/gim, "");
+  const sections = normalizedDetail
     .split(/\n{2,}/)
     .map((section) => section.trim())
     .map((section) => localizeToolDataText(section, isRu))
@@ -1976,18 +2048,25 @@ function renderArticleFooterReport(
   const fixes =
     article.priorities.length > 0
       ? article.priorities
-          .map(
-            (item) => `
+          .map((item) => {
+            const firstToolId = item.sourceToolIds[0] ?? "";
+            const toolTitle =
+              item.sourceToolIds.length > 0
+                ? articleToolLabelForReport(item.sourceToolIds, isRu)
+                : "";
+            const title =
+              toolTitle && toolTitle !== firstToolId ? toolTitle : item.title;
+            return `
               <li class="${item.priority}">
                 <div>
                   <header>
-                    <strong>${escapeHtml(item.title)}</strong>
+                    <strong>${escapeHtml(title)}</strong>
                     <small>${escapeHtml(priorityToneLabel(item.priority, labels))}</small>
                   </header>
                   <p>${escapeHtml(item.detail)}</p>
                 </div>
-              </li>`,
-          )
+              </li>`;
+          })
           .join("")
       : `<li class="low"><div><header><strong>${escapeHtml(
           isRu ? "Критичных правок нет" : "No critical fixes",
@@ -1996,6 +2075,7 @@ function renderArticleFooterReport(
             ? "По текущим инструментам блокирующих проблем не найдено."
             : "The current tools did not find blocking issues.",
         )}</p></div></li>`;
+
   const toolRows =
     report.confirmedFacts.length > 0
       ? report.confirmedFacts
@@ -2006,7 +2086,7 @@ function renderArticleFooterReport(
                   <div class="tool-data-heading">
                     <span class="tool-data-icon">☷</span>
                     <div>
-                      <strong>${escapeHtml(localizeToolDataText(fact.title, isRu))}</strong>
+                      <strong>${escapeHtml(articleToolLabelForReport(fact.sourceToolIds, isRu))}</strong>
                       <small>${escapeHtml(articleToolDescriptionForReport(fact.sourceToolIds, isRu))}</small>
                     </div>
                   </div>

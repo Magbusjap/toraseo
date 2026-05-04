@@ -29,6 +29,7 @@ import type {
   RuntimeArticleTextSummary,
   RuntimeArticleTextVerdict,
   RuntimeAuditReport,
+  RuntimeConfirmedFact,
 } from "../../types/runtime";
 import type { CurrentScanState, ToolBufferEntry } from "../../types/ipc";
 import sleepingMascot from "@branding/mascots/tora-sleeping.svg";
@@ -38,17 +39,21 @@ interface PlannedAnalysisViewProps {
   executionMode: AuditExecutionMode;
   selectedToolIds: AnalysisToolId[];
   activeRun: ArticleTextAction | null;
+  completedArticleTextAction: ArticleTextAction | null;
   completedTools: number;
   totalTools: number;
   bridgeState: CurrentScanState | null;
+  articleTextState: CurrentScanState | null;
+  runtimeReport: RuntimeAuditReport | null;
   scanStartedOnce: boolean;
+  solutionProvidedOnce: boolean;
   bridgeUnavailable: boolean;
   bridgeUnavailableAppName: string;
   bridgeTargetAppName: string;
   onArticleTextRun: (
     action: ArticleTextAction,
     data: ArticleTextPromptData,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   onArticleTextCancel: () => void;
 }
 
@@ -57,10 +62,14 @@ export default function PlannedAnalysisView({
   executionMode,
   selectedToolIds,
   activeRun,
+  completedArticleTextAction,
   completedTools,
   totalTools,
   bridgeState,
+  articleTextState,
+  runtimeReport,
   scanStartedOnce,
+  solutionProvidedOnce,
   bridgeUnavailable,
   bridgeUnavailableAppName,
   bridgeTargetAppName,
@@ -103,6 +112,7 @@ export default function PlannedAnalysisView({
           <PlannedAnalysisStatusHero
             executionMode={executionMode}
             running={activeRun !== null}
+            completedArticleTextAction={completedArticleTextAction}
             completedTools={completedTools}
             totalTools={totalTools}
           />
@@ -113,11 +123,13 @@ export default function PlannedAnalysisView({
             {renderInputSurface(
               analysisType,
               t,
+              executionMode,
               onArticleTextRun,
               onArticleTextCancel,
               activeRun,
               bridgeState,
               scanStartedOnce,
+              solutionProvidedOnce,
               bridgeUnavailable,
               bridgeUnavailableAppName,
               bridgeTargetAppName,
@@ -155,9 +167,19 @@ export default function PlannedAnalysisView({
           </aside>
         </section>
 
-        {analysisType === "article_text" && (
+        {analysisType === "article_text" &&
+          (articleTextState || runtimeReport || activeRun === "scan") &&
+          articleTextState?.input?.action !== "solution" && (
           <section className="pb-8">
-            <ArticleTextResultsDashboard state={bridgeState} />
+            {articleTextState ? (
+              <ArticleTextResultsDashboard state={articleTextState} />
+            ) : (
+              <ApiArticleTextReportPanel
+                report={runtimeReport}
+                completedTools={completedTools}
+                totalTools={totalTools}
+              />
+            )}
           </section>
         )}
       </div>
@@ -168,11 +190,13 @@ export default function PlannedAnalysisView({
 function PlannedAnalysisStatusHero({
   executionMode,
   running,
+  completedArticleTextAction,
   completedTools,
   totalTools,
 }: {
   executionMode: AuditExecutionMode;
   running: boolean;
+  completedArticleTextAction: ArticleTextAction | null;
   completedTools: number;
   totalTools: number;
 }) {
@@ -183,6 +207,21 @@ function PlannedAnalysisStatusHero({
       : running
         ? 8
         : 0;
+  const statusTitle = running
+    ? t("analysisHero.scanning", {
+        defaultValue: "Analysis in progress",
+      })
+    : completedArticleTextAction === "solution"
+      ? t("analysisHero.solutionProvided", {
+          defaultValue: "Answer provided in chat",
+        })
+      : completedArticleTextAction === "scan"
+        ? t("analysisHero.reportReady", {
+            defaultValue: "Report formed",
+          })
+        : t("analysisHero.ready", {
+            defaultValue: "Ready to scan",
+          });
 
   return (
     <section className="rounded-lg border border-orange-100 bg-white px-5 py-4 shadow-sm">
@@ -206,13 +245,7 @@ function PlannedAnalysisStatusHero({
                     })}
               </p>
               <h2 className="mt-1 text-lg font-semibold text-outline-900">
-                {running
-                  ? t("analysisHero.scanning", {
-                      defaultValue: "Analysis in progress",
-                    })
-                  : t("analysisHero.ready", {
-                      defaultValue: "Ready to scan",
-                    })}
+                {statusTitle}
               </h2>
             </div>
             <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
@@ -243,14 +276,16 @@ function PlannedAnalysisStatusHero({
 function renderInputSurface(
   analysisType: AnalysisTypeId,
   t: ReturnType<typeof useTranslation>["t"],
+  executionMode: AuditExecutionMode,
   onArticleTextAction: (
     action: ArticleTextAction,
     data: ArticleTextPromptData,
-  ) => Promise<void>,
+  ) => Promise<boolean>,
   onArticleTextCancel: () => void,
   activeRun: ArticleTextAction | null,
   bridgeState: CurrentScanState | null,
   scanStartedOnce: boolean,
+  solutionProvidedOnce: boolean,
   bridgeUnavailable: boolean,
   bridgeUnavailableAppName: string,
   bridgeTargetAppName: string,
@@ -294,7 +329,9 @@ function renderInputSurface(
           onRun={onArticleTextAction}
           onCancel={onArticleTextCancel}
           activeRun={activeRun}
+          executionMode={executionMode}
           scanStartedOnce={scanStartedOnce}
+          solutionProvidedOnce={solutionProvidedOnce}
           bridgeUnavailable={bridgeUnavailable}
           bridgeUnavailableAppName={bridgeUnavailableAppName}
           bridgeTargetAppName={bridgeTargetAppName}
@@ -433,15 +470,22 @@ function ArticleTextPanel({
   onRun,
   onCancel,
   activeRun,
+  executionMode,
   scanStartedOnce,
+  solutionProvidedOnce,
   bridgeUnavailable,
   bridgeUnavailableAppName,
   bridgeTargetAppName,
 }: {
-  onRun: (action: ArticleTextAction, data: ArticleTextPromptData) => Promise<void>;
+  onRun: (
+    action: ArticleTextAction,
+    data: ArticleTextPromptData,
+  ) => Promise<boolean>;
   onCancel: () => void;
   activeRun: ArticleTextAction | null;
+  executionMode: AuditExecutionMode;
   scanStartedOnce: boolean;
+  solutionProvidedOnce: boolean;
   bridgeUnavailable: boolean;
   bridgeUnavailableAppName: string;
   bridgeTargetAppName: string;
@@ -518,9 +562,22 @@ function ArticleTextPanel({
 
     setBusy(true);
     try {
-      await onRun(action, data);
+      const ok = await onRun(action, data);
+      if (!ok) {
+        return;
+      }
       setNotice(
-        action === "solution"
+        executionMode === "native"
+          ? action === "solution"
+            ? t("plannedAnalysis.forms.aiDraftSentToApiChat", {
+                defaultValue:
+                  "Запрос отправлен в API + AI Chat, чтобы ИИ смог предоставить вам решение.",
+              })
+            : t("plannedAnalysis.forms.scanSentToApiChat", {
+                defaultValue:
+                  "Текст отправлен в API + AI Chat, чтобы ИИ проанализировал его.",
+              })
+          : action === "solution"
           ? t("plannedAnalysis.forms.aiDraftPromptCopied", {
               appName: bridgeTargetAppName,
               defaultValue:
@@ -530,6 +587,19 @@ function ArticleTextPanel({
               appName: bridgeTargetAppName,
               defaultValue:
                 "Промпт скопирован. Вставьте его в чат {{appName}}, чтобы ИИ продолжил работу по этому анализу.",
+            }),
+      );
+    } catch (err) {
+      console.warn("[article-text] run failed:", err);
+      setNotice(
+        executionMode === "native"
+          ? t("plannedAnalysis.forms.aiChatOpenFailed", {
+              defaultValue:
+                "Не удалось открыть API + AI Chat. Проверьте провайдера и попробуйте снова.",
+            })
+          : t("plannedAnalysis.forms.bridgeRunFailed", {
+              defaultValue:
+                "Не удалось запустить анализ. Проверьте режим MCP + Instructions и попробуйте снова.",
             }),
       );
     } finally {
@@ -559,7 +629,11 @@ function ArticleTextPanel({
             >
               {isSolutionRunning
                 ? t("sidebar.cancel", { defaultValue: "Отменить" })
-                : t("plannedAnalysis.forms.aiDraftAction")}
+                : solutionProvidedOnce
+                  ? t("plannedAnalysis.forms.aiDraftAgainAction", {
+                      defaultValue: "Предложить решение повторно",
+                    })
+                  : t("plannedAnalysis.forms.aiDraftAction")}
             </button>
             <button
               type="button"
@@ -646,16 +720,6 @@ interface TextToolResult {
   annotations?: TextAnnotationResult[];
 }
 
-const ARTICLE_TEXT_METRIC_TOOL_IDS = new Set([
-  "article_uniqueness",
-  "language_syntax",
-  "ai_writing_probability",
-  "logic_consistency_check",
-  "naturalness_indicators",
-  "intent_seo_forecast",
-  "safety_science_review",
-]);
-
 const ARTICLE_TEXT_METRIC_ORDER = new Map(
   ["uniqueness", "syntax", "logic", "naturalness", "ai"].map((id, index) => [
     id,
@@ -670,6 +734,297 @@ function orderArticleMetrics(
     (left, right) =>
       (ARTICLE_TEXT_METRIC_ORDER.get(left.id) ?? 99) -
       (ARTICLE_TEXT_METRIC_ORDER.get(right.id) ?? 99),
+  );
+}
+
+function ApiArticleTextReportPanel({
+  report,
+  completedTools,
+  totalTools,
+}: {
+  report: RuntimeAuditReport | null;
+  completedTools: number;
+  totalTools: number;
+}) {
+  const { t } = useTranslation();
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
+
+  if (!report) {
+    return (
+      <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
+        <h2 className="font-display text-lg font-semibold text-outline-900">
+          {t("plannedAnalysis.results.waitingAiReportTitle", {
+            defaultValue: "Ожидаем отчет от ИИ",
+          })}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
+          {t("plannedAnalysis.results.waitingAiReportBody", {
+            defaultValue:
+              "В API-режиме структурированный отчет формирует выбранная модель. ToraSEO покажет результат здесь после ответа AI Chat.",
+          })}
+        </p>
+      </section>
+    );
+  }
+  const article = report.articleText;
+  const reportComplete = Boolean(
+    report &&
+      completedTools >= totalTools &&
+      (!article || article.coverage.completed >= article.coverage.total),
+  );
+  const highlightFacts =
+    article && article.priorities.length > 0
+      ? article.priorities.slice(0, 4)
+      : report.confirmedFacts.slice(0, 6);
+  const hiddenSourceCount =
+    article && article.priorities.length > 0
+      ? article.priorities.length
+      : report.confirmedFacts.length;
+  const hiddenFactCount = Math.max(
+    0,
+    hiddenSourceCount - highlightFacts.length,
+  );
+  const visibleEvidenceFacts = report.confirmedFacts;
+
+  const openDetails = () => {
+    if (!reportComplete) return;
+    void window.toraseo.runtime.openReportWindow(report);
+  };
+
+  const exportReport = async () => {
+    if (!reportComplete) return;
+    setExportStatus(null);
+    setCopyStatus(null);
+    const result = await window.toraseo.runtime.exportReportPdf(report);
+    if (result.ok) {
+      setExportStatus(
+        t("plannedAnalysis.results.exportReady", {
+          defaultValue: "Отчет экспортирован.",
+        }),
+      );
+      return;
+    }
+    if (result.error === "cancelled") {
+      setExportStatus(
+        t("plannedAnalysis.results.exportCancelled", {
+          defaultValue: "Экспорт отменен.",
+        }),
+      );
+      return;
+    }
+    const fallback = t("plannedAnalysis.results.exportFailed", {
+      defaultValue: "Не удалось экспортировать отчет.",
+    });
+    setExportStatus(result.error ? `${fallback} ${result.error}` : fallback);
+  };
+
+  const copyOriginalText = async () => {
+    if (!reportComplete) return;
+    setExportStatus(null);
+    setCopyStatus(null);
+    const result = await window.toraseo.runtime.copyArticleSourceText(report);
+    if (result.ok) {
+      setCopyStatus(
+        t("plannedAnalysis.results.copySourceReady", {
+          defaultValue: "Исходный текст скопирован.",
+        }),
+      );
+      return;
+    }
+    const fallback = t("plannedAnalysis.results.copySourceFailed", {
+      defaultValue: "Не удалось скопировать исходный текст.",
+    });
+    setCopyStatus(result.error ? `${fallback} ${result.error}` : fallback);
+  };
+
+  return (
+    <section className="rounded-lg border border-outline/10 bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-semibold text-outline-900">
+            {t("plannedAnalysis.results.title", {
+              defaultValue: "Результаты анализа",
+            })}
+          </h2>
+          <p className="mt-1 text-sm leading-relaxed text-outline-900/60">
+            {report.summary}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
+            {completedTools} / {totalTools}
+          </span>
+          <button
+            type="button"
+            onClick={openDetails}
+            disabled={!reportComplete}
+            className="rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-semibold text-outline-900/70 transition hover:border-primary/40 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {t("analysisPanel.actions.details", { defaultValue: "Подробнее" })}
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportReport()}
+            disabled={!reportComplete}
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
+          >
+            {t("plannedAnalysis.results.export", {
+              defaultValue: "Экспортировать",
+            })}
+          </button>
+          <button
+            type="button"
+            onClick={() => void copyOriginalText()}
+            disabled={!reportComplete}
+            className="rounded-md border border-primary/25 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/45 hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-outline/10 disabled:bg-outline-900/5 disabled:text-outline-900/35"
+          >
+            {t("plannedAnalysis.results.copySourceText", {
+              defaultValue: "Копировать исходный текст",
+            })}
+          </button>
+        </div>
+      </div>
+      {(exportStatus || copyStatus) && (
+        <p className="mt-3 text-xs font-medium text-orange-700/75">
+          {copyStatus ?? exportStatus}
+        </p>
+      )}
+
+      {article && (
+        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <article
+            className={`rounded-lg border p-4 ${
+              article.verdict === "high_risk"
+                ? "border-red-200 bg-red-50/45"
+                : article.verdict === "needs_revision"
+                  ? "border-amber-200 bg-amber-50/45"
+                  : "border-emerald-200 bg-emerald-50/45"
+            }`}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-outline-900/45">
+              {t("plannedAnalysis.results.readiness", {
+                defaultValue: "Готовность к публикации",
+              })}
+            </p>
+            <h3 className="mt-1 text-base font-semibold text-outline-900">
+              {article.verdictLabel}
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-outline-900/65">
+              {article.verdictDetail}
+            </p>
+          </article>
+          <article className="rounded-lg border border-orange-100 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-outline-900/45">
+              {t("plannedAnalysis.results.coverage", {
+                defaultValue: "Покрытие инструментами",
+              })}
+            </p>
+            <p className="mt-2 text-3xl font-semibold text-outline-900">
+              {article.coverage.percent}
+              <span className="ml-1 text-sm">%</span>
+            </p>
+            <p className="mt-2 text-sm text-outline-900/60">
+              {article.coverage.completed} / {article.coverage.total}
+            </p>
+          </article>
+        </div>
+      )}
+
+      {article && article.metrics.length > 0 && (
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {orderArticleMetrics(article.metrics).map((metric) => (
+            <MetricCard key={metric.id} metric={metric} />
+          ))}
+        </div>
+      )}
+
+      {article && (
+        <>
+          <div className="mt-5 rounded-lg border border-outline/10 bg-white p-4">
+            <div className="grid gap-3 lg:grid-cols-2">
+              <InsightList
+                title={t("plannedAnalysis.results.strengths", {
+                  defaultValue: "Сильные стороны",
+                })}
+                items={article.strengths}
+                emptyText={t("plannedAnalysis.results.strengthsEmpty", {
+                  defaultValue:
+                    "Сильные стороны появятся после завершения проверок.",
+                })}
+                tone="good"
+              />
+              <InsightList
+                title={t("plannedAnalysis.results.weaknesses", {
+                  defaultValue: "Слабые стороны",
+                })}
+                items={article.weaknesses}
+                emptyText={t("plannedAnalysis.results.weaknessesEmpty", {
+                  defaultValue:
+                    "Явных слабых сторон по текущим инструментам не найдено.",
+                })}
+                tone="warn"
+              />
+            </div>
+            <WarningSummaryPanel articleSummary={article} />
+          </div>
+
+          <IntentForecastPanel articleSummary={article} />
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {article.dimensions.map((dimension) => (
+              <DimensionCard key={dimension.id} dimension={dimension} />
+            ))}
+          </div>
+
+          <section className="mt-4 rounded-lg border border-outline/10 bg-white p-4">
+            <h3 className="text-center text-sm font-semibold text-outline-900">
+              {t("plannedAnalysis.results.priorityTitle", {
+                defaultValue: "Что исправить сначала",
+              })}
+            </h3>
+            <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              {highlightFacts.map((item) => (
+                <PriorityRow key={`${item.title}-${item.detail}`} item={item} />
+              ))}
+            </div>
+            {hiddenFactCount > 0 && (
+              <p className="mt-3 text-xs leading-relaxed text-outline-900/50">
+                {t("plannedAnalysis.results.hiddenAiReportItems", {
+                  count: hiddenFactCount,
+                  defaultValue:
+                    "Еще {{count}} пунктов доступны в подробном отчете, но здесь показаны только ключевые приоритеты.",
+                })}
+              </p>
+            )}
+          </section>
+
+          {visibleEvidenceFacts.length > 0 && (
+            <>
+              <div className="mt-5">
+                <h3 className="text-center text-sm font-semibold text-outline-900">
+                  {t("plannedAnalysis.results.toolEvidenceTitle", {
+                    defaultValue: "Данные инструментов",
+                  })}
+                </h3>
+              </div>
+              <div className="mt-5 grid gap-3 xl:grid-cols-2">
+                {visibleEvidenceFacts.map((fact, index) => (
+                  <ApiFactRow
+                    key={`${fact.sourceToolIds.join(",")}-${fact.title}-${index}`}
+                    fact={fact}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      <p className="mt-5 text-sm font-medium text-outline-900">
+        {report.nextStep}
+      </p>
+    </section>
   );
 }
 
@@ -709,9 +1064,7 @@ function ArticleTextResultsDashboard({
     Boolean(
       articleSummary.document.text.trim() || articleSummary.document.sourceFile,
     );
-  const evidenceEntries = entries.filter(
-    ([toolId]) => !ARTICLE_TEXT_METRIC_TOOL_IDS.has(toolId),
-  );
+  const evidenceEntries = entries;
 
   const openDetails = () => {
     if (!report) return;
@@ -1103,7 +1456,7 @@ function ArticleTextResultsDashboard({
           />
           <MetricCard
             label={t("plannedAnalysis.results.logicTitle", {
-              defaultValue: "Нарушение логики",
+              defaultValue: "Логическая связность",
             })}
             value={logicScore}
             suffix="%"
@@ -1166,6 +1519,264 @@ function ArticleTextResultsDashboard({
         ))}
       </div>
     </section>
+  );
+}
+
+function IntentForecastPanel({
+  articleSummary,
+}: {
+  articleSummary: RuntimeArticleTextSummary;
+}) {
+  const { t } = useTranslation();
+  const forecast = articleSummary.intentForecast;
+  if (!forecast) return null;
+
+  return (
+    <div className="mt-5 rounded-lg border border-orange-200/70 bg-orange-100/50 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
+            {t("plannedAnalysis.results.intentForecast.title", {
+              defaultValue: "Прогноз интента и SEO-пакет",
+            })}
+          </p>
+          <h3 className="mt-1 font-display text-lg font-semibold text-outline-900">
+            {forecast.intentLabel}
+          </h3>
+          <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
+            {forecast.internetDemandAvailable
+              ? forecast.internetDemandSource
+              : t("plannedAnalysis.results.intentForecast.noInternet", {
+                  defaultValue:
+                    "Это локальный прогноз без SERP и соцданных. Интернет-сверку позже можно подключить отдельным внешним источником.",
+                })}
+          </p>
+        </div>
+        <div className="grid min-w-[260px] grid-cols-3 gap-2 text-center">
+          {[
+            {
+              label: t("plannedAnalysis.results.intentForecast.hook", {
+                defaultValue: "Хук",
+              }),
+              value: forecast.hookScore,
+              tooltip: t("plannedAnalysis.results.intentForecast.hookTooltip", {
+                defaultValue:
+                  "Хук показывает, насколько первые строки цепляют читателя: видна ли боль, польза или обещание результата.",
+              }),
+            },
+            {
+              label: t("plannedAnalysis.results.intentForecast.ctr", {
+                defaultValue: "CTR",
+              }),
+              value: forecast.ctrPotential,
+              tooltip: t("plannedAnalysis.results.intentForecast.ctrTooltip", {
+                defaultValue:
+                  "CTR — локальная оценка кликабельности заголовка и описания. Это не реальная статистика выдачи.",
+              }),
+            },
+            {
+              label: t("plannedAnalysis.results.intentForecast.trend", {
+                defaultValue: "Тренд",
+              }),
+              value: forecast.trendPotential,
+              tooltip: t("plannedAnalysis.results.intentForecast.trendTooltip", {
+                defaultValue:
+                  "Тренд — примерная локальная оценка потенциала темы по формулировкам текста. Интернет-спрос здесь не проверяется.",
+              }),
+            },
+          ].map(({ label, value, tooltip }) => (
+            <div
+              key={String(label)}
+              className="group relative rounded-md bg-white p-2 shadow-sm"
+              aria-label={String(tooltip)}
+            >
+              <div className="text-xl font-semibold text-outline-900">
+                {typeof value === "number" ? value : "—"}
+              </div>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-outline-900/45">
+                {label}
+              </div>
+              <div className="pointer-events-none absolute bottom-[calc(100%+10px)] left-1/2 z-20 hidden w-64 -translate-x-1/2 rounded-lg border border-outline/10 bg-white px-3 py-2 text-left text-xs font-medium leading-relaxed text-outline-900/75 shadow-xl group-hover:block">
+                {tooltip}
+                <span className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r border-outline/10 bg-white" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-md border border-orange-200/70 bg-orange-50/80 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
+            {t("plannedAnalysis.results.intentForecast.cmsPackage", {
+              defaultValue: "Для WordPress / Laravel CMS",
+            })}
+          </p>
+          <dl className="mt-2 grid gap-2 text-xs text-outline-900/65">
+            <div>
+              <dt className="font-semibold text-outline-900">
+                {t("plannedAnalysis.results.intentForecast.seoTitle", {
+                  defaultValue: "SEO-title",
+                })}
+              </dt>
+              <dd>{forecast.seoPackage.seoTitle || "—"}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-outline-900">
+                {t("plannedAnalysis.results.intentForecast.description", {
+                  defaultValue: "Описание",
+                })}
+              </dt>
+              <dd>{forecast.seoPackage.metaDescription || "—"}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-outline-900">
+                {t("plannedAnalysis.results.intentForecast.keywords", {
+                  defaultValue: "Ключевые слова",
+                })}
+              </dt>
+              <dd>{forecast.seoPackage.keywords.join(", ") || "—"}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-outline-900">
+                {t("plannedAnalysis.results.intentForecast.taxonomy", {
+                  defaultValue: "Категория / метки",
+                })}
+              </dt>
+              <dd>
+                {forecast.seoPackage.category}
+                {forecast.seoPackage.tags.length > 0
+                  ? ` · ${forecast.seoPackage.tags.join(", ")}`
+                  : ""}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-outline-900">
+                {t("plannedAnalysis.results.intentForecast.slug", {
+                  defaultValue: "URL-slug",
+                })}
+              </dt>
+              <dd>{forecast.seoPackage.slug || "—"}</dd>
+            </div>
+          </dl>
+        </div>
+        <div className="rounded-md border border-orange-200/70 bg-orange-50/80 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
+            {t("plannedAnalysis.results.intentForecast.hooksTitle", {
+              defaultValue: "Цепляющие хуки",
+            })}
+          </p>
+          <ul className="mt-2 grid gap-2 text-xs leading-relaxed text-outline-900/65">
+            {forecast.hookIdeas.map((hook) => (
+              <li key={hook}>• {hook}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ApiFactRow({ fact }: { fact: RuntimeConfirmedFact }) {
+  const { i18n, t } = useTranslation();
+  const isRu = i18n.language.startsWith("ru");
+  const toolId = fact.sourceToolIds[0] ?? "";
+  const normalizedDetail = fact.detail
+    .replace(/^Ключевые данные:\s*/gim, "")
+    .replace(/^Что найдено:\s*/gim, "")
+    .replace(/^Что сделать:\s*/gim, "");
+  const chunks = normalizedDetail
+    .split(/\n{2,}/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const keyData = chunks[0] ?? fact.detail;
+  const found = chunks[1] ?? "";
+  const todo = chunks.slice(2).join("\n\n");
+  const findingText = found || keyData;
+  const titledFinding =
+    fact.title && !findingText.toLowerCase().includes(fact.title.toLowerCase())
+      ? `${localizeArticleUiText(fact.title, isRu)}: ${localizeArticleUiText(
+          findingText,
+          isRu,
+        )}`
+      : localizeArticleUiText(findingText, isRu);
+  const chips =
+    keyData.includes(";") && keyData.length <= 260
+      ? keyData
+          .split(/;\s*/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .slice(0, 6)
+      : [];
+
+  return (
+    <article className="rounded-lg border border-outline/10 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="rounded-md bg-orange-100 p-2 text-primary">
+            <ListChecks className="h-4 w-4" strokeWidth={2} />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-outline-900">
+              {textToolLabel(t, toolId)}
+            </h3>
+            <p className="text-xs text-outline-900/45">
+              {resultDescription(t, toolId)}
+            </p>
+          </div>
+        </div>
+        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+          {t("plannedAnalysis.results.statusComplete", {
+            defaultValue: "Готово",
+          })}
+        </span>
+      </div>
+
+      {chips.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
+            {t("plannedAnalysis.results.keyFacts", {
+              defaultValue: "Ключевые данные",
+            })}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {chips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full border border-orange-200/70 bg-orange-100 px-2.5 py-1 text-xs text-outline-900/75"
+              >
+                {localizeArticleUiText(chip, isRu)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(found || chips.length === 0) && (
+        <div className="mt-4 rounded-md border border-orange-200/75 bg-orange-50/90 px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-orange-800/75">
+            {t("plannedAnalysis.results.findings", {
+              defaultValue: "Что найдено",
+            })}
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-outline-900/70">
+            {titledFinding}
+          </p>
+        </div>
+      )}
+
+      {todo && (
+        <div className="mt-4 rounded-md border border-orange-200/75 bg-orange-100/70 px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-orange-800/75">
+            {t("plannedAnalysis.results.recommendation", {
+              defaultValue: "Что сделать",
+            })}
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-outline-900/70">
+            {localizeArticleUiText(todo, isRu)}
+          </p>
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -1615,6 +2226,9 @@ function DimensionCard({
 
 function PriorityRow({ item }: { item: RuntimeArticleTextPriority }) {
   const { t } = useTranslation();
+  const firstToolId = item.sourceToolIds[0] ?? "";
+  const toolTitle = firstToolId ? textToolLabel(t, firstToolId) : "";
+  const title = toolTitle && toolTitle !== firstToolId ? toolTitle : item.title;
   const tone =
     item.priority === "high"
       ? "border-red-100 bg-red-50/45"
@@ -1625,7 +2239,7 @@ function PriorityRow({ item }: { item: RuntimeArticleTextPriority }) {
   return (
     <article className={`rounded-md border px-3 py-2 ${tone}`}>
       <div className="flex items-start justify-between gap-3">
-        <h4 className="text-sm font-semibold text-outline-900">{item.title}</h4>
+        <h4 className="text-sm font-semibold text-outline-900">{title}</h4>
         <span className="shrink-0 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-outline-900/50">
           {priorityUiLabel(t, item.priority)}
         </span>
@@ -2587,6 +3201,13 @@ function resultDescription(
     logic_consistency_check: t("plannedAnalysis.results.descriptions.logic", {
       defaultValue: "Проверяет противоречия и скачки вывода.",
     }),
+    intent_seo_forecast: t("plannedAnalysis.results.descriptions.intent", {
+      defaultValue: "Оценивает интент, первую подачу и SEO-пакет.",
+    }),
+    safety_science_review: t("plannedAnalysis.results.descriptions.safety", {
+      defaultValue:
+        "Ищет юридические, медицинские, научные и технические риски.",
+    }),
     fact_distortion_check: t("plannedAnalysis.results.descriptions.facts", {
       defaultValue: "Ищет спорные факты и слишком уверенные утверждения.",
     }),
@@ -3514,7 +4135,7 @@ function textToolLabel(
       defaultValue: "Искажение фактов",
     }),
     logic_consistency_check: t("analysisTools.logic_consistency_check.label", {
-      defaultValue: "Нарушение логики",
+      defaultValue: "Проверка логики",
     }),
     ai_hallucination_check: t("analysisTools.ai_hallucination_check.label", {
       defaultValue: "Проверка наличия ИИ и его галлюцинаций",

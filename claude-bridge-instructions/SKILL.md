@@ -596,9 +596,23 @@ When the bridge handshake returns `analysisType: "article_text"`:
 - If a rewrite is useful, ask whether the user wants media placeholder
   positions marked before inserting them.
 
-For standalone `/toraseo` text requests without the app/MCP bridge, you
-may give a normal chat-only content review, but make clear that it will
-not write structured results into the ToraSEO app.
+For standalone `/toraseo` text requests without the app/MCP bridge, or
+when ToraSEO Desktop App is unavailable, analyze the pasted chat text
+through this SKILL in chat-only mode. Use the same article-text logic as
+the bridge path where possible: platform/use-case, structure, style,
+tone, language/audience, media placeholders, local repetition,
+AI-writing style risk, logic, SEO intent/metadata draft, and
+safety/science/legal-sensitive risk flags. Make clear that no structured
+results are written into the ToraSEO app and that local/chat-only review
+is not live SERP, plagiarism, legal, medical, investment, engineering,
+or scientific verification.
+
+If the standalone user asks to rewrite or draft the article, write the
+article directly in chat as a separate copyable block. Keep the rewrite
+bounded by the same rules: do not strengthen unverified claims, keep
+necessary caveats, ask about media placeholder positions before adding
+them unless the user already requested media placement, and recommend
+copying the result into ToraSEO for a new scan.
 
 ---
 

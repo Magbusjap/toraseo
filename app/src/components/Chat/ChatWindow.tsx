@@ -46,17 +46,26 @@ export default function ChatWindow() {
     };
   }, []);
 
-  const handleReport = useCallback((report: RuntimeAuditReport | null) => {
-    setSession((prev) => {
-      if (!prev) return prev;
-      const next: RuntimeChatWindowSession = {
-        ...prev,
-        report,
-      };
-      void window.toraseo.runtime.updateChatWindowSession(next);
-      return next;
-    });
-  }, []);
+  const handleReport = useCallback(
+    (
+      report: RuntimeAuditReport | null,
+      runState?: "running" | "complete" | "failed",
+      errorMessage?: string,
+    ) => {
+      setSession((prev) => {
+        if (!prev) return prev;
+        const next: RuntimeChatWindowSession = {
+          ...prev,
+          articleTextRunState: runState ?? prev.articleTextRunState,
+          articleTextRunError: errorMessage ?? prev.articleTextRunError,
+          report,
+        };
+        void window.toraseo.runtime.updateChatWindowSession(next);
+        return next;
+      });
+    },
+    [],
+  );
 
   if (loadError) {
     return (
@@ -110,7 +119,9 @@ export default function ChatWindow() {
       <ChatPanel
         locale={session.locale}
         executionMode="native"
+        analysisType={session.analysisType}
         scanContext={session.scanContext}
+        articleTextContext={session.articleTextContext}
         selectedModelProfile={session.selectedModelProfile}
         bridgeState={null}
         bridgePrompt={null}

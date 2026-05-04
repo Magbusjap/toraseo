@@ -770,7 +770,7 @@ function NativeSetup({
         })
       : providerConfigured && !hasModels
         ? t("modeSelection.native.modelMissing", {
-            defaultValue: "Add at least one OpenRouter model in Settings.",
+            defaultValue: "Add at least one AI provider model in Settings.",
           })
         : t("modeSelection.native.providerMissing", {
             defaultValue: "Add an AI provider before starting this mode.",

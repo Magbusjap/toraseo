@@ -26,7 +26,7 @@ import type { ToolId } from "../config/tools";
  */
 export type RuntimePolicyMode = "strict_audit" | "audit_plus_ideas";
 export type AuditExecutionMode = "bridge" | "native";
-export type RuntimeAnalysisType = "site";
+export type RuntimeAnalysisType = "site" | "article_text";
 
 /**
  * A single rule the policy layer enforces. Keep this minimal in
@@ -183,6 +183,17 @@ export interface RuntimeScanContext {
     errors: number;
   };
   facts: RuntimeScanFact[];
+}
+
+export interface RuntimeArticleTextContext {
+  action: "scan" | "solution";
+  runId?: string;
+  topic: string;
+  body: string;
+  analysisRole?: string;
+  textPlatform: string;
+  customPlatform?: string;
+  selectedTools: string[];
 }
 
 export interface RuntimeConfirmedFact {
@@ -345,6 +356,9 @@ export interface RuntimeChatWindowSession {
   analysisType: RuntimeAnalysisType;
   selectedModelProfile: ProviderModelProfile | null;
   scanContext: RuntimeScanContext | null;
+  articleTextContext?: RuntimeArticleTextContext | null;
+  articleTextRunState?: "idle" | "running" | "complete" | "failed";
+  articleTextRunError?: string;
   report: RuntimeAuditReport | null;
   endedReason?: string;
 }
@@ -405,6 +419,8 @@ export interface OrchestratorMessageInput {
   locale: SupportedLocale;
   /** Current scan evidence, if any. */
   scanContext?: RuntimeScanContext | null;
+  /** Current article text context for API + AI Chat text workflows. */
+  articleTextContext?: RuntimeArticleTextContext | null;
 }
 
 /**

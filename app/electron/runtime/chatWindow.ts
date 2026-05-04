@@ -18,6 +18,8 @@ let currentSession: RuntimeChatWindowSession = {
   analysisType: "site",
   selectedModelProfile: null,
   scanContext: null,
+  articleTextContext: null,
+  articleTextRunState: "idle",
   report: null,
   endedReason: "No active analysis session.",
 };
@@ -110,6 +112,7 @@ export async function endChatWindowSession(): Promise<{ ok: boolean }> {
     ...currentSession,
     status: "ended",
     scanContext: null,
+    articleTextRunState: "idle",
     report: null,
     endedReason: "Session ended",
   };
@@ -126,6 +129,7 @@ export async function closeChatWindow(): Promise<{ ok: boolean }> {
     ...currentSession,
     status: "ended",
     scanContext: null,
+    articleTextRunState: "idle",
     report: null,
     endedReason: "Session ended",
   };

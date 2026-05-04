@@ -50,6 +50,7 @@ import {
 } from "./runtime/scanContext";
 
 import type { BridgeClient, SupportedLocale } from "./types/ipc";
+import type { CurrentScanState } from "./types/ipc";
 import type {
   AuditExecutionMode,
   ProviderInfo,
@@ -91,6 +92,31 @@ const BUILT_IN_ARTICLE_TEXT_TOOLS = [
   "intent_seo_forecast",
   "safety_science_review",
 ] as const;
+
+function effectiveArticleTextToolIds(
+  selectedToolIds: Iterable<AnalysisToolId>,
+): string[] {
+  const result = Array.from(selectedToolIds, String);
+  for (const toolId of BUILT_IN_ARTICLE_TEXT_TOOLS) {
+    if (!result.includes(toolId)) result.push(toolId);
+  }
+  return result;
+}
+
+function countCoveredReportTools(
+  report: RuntimeAuditReport | null,
+  expectedToolIds: string[],
+): number {
+  if (!report) return 0;
+  const expected = new Set(expectedToolIds);
+  const covered = new Set<string>();
+  for (const fact of report.confirmedFacts) {
+    for (const toolId of fact.sourceToolIds) {
+      if (expected.has(toolId)) covered.add(toolId);
+    }
+  }
+  return covered.size;
+}
 
 function clampSidebarWidth(width: number): number {
   return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
@@ -176,6 +202,12 @@ function MainApp() {
   const [customPlatform, setCustomPlatform] = useState("");
   const [articleTextScanStartedOnce, setArticleTextScanStartedOnce] =
     useState(false);
+  const [articleTextSolutionProvidedOnce, setArticleTextSolutionProvidedOnce] =
+    useState(false);
+  const [nativeArticleTextState, setNativeArticleTextState] =
+    useState<CurrentScanState | null>(null);
+  const [nativeArticleTextActiveRun, setNativeArticleTextActiveRun] =
+    useState<ArticleTextAction | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [codexClosedNotice, setCodexClosedNotice] = useState<string | null>(
     null,
@@ -506,7 +538,8 @@ function MainApp() {
     if (confirmedExecutionMode === "native" && !selectedModelProfile) {
       setPreflightError(
         t("preflight.modelMissing", {
-          defaultValue: "Choose an OpenRouter model before starting analysis.",
+          defaultValue:
+            "Choose the AI provider model before starting analysis.",
         }),
       );
       return;
@@ -579,6 +612,9 @@ function MainApp() {
     setMode("idle");
     setSelectedAnalysisType(null);
     setArticleTextScanStartedOnce(false);
+    setArticleTextSolutionProvidedOnce(false);
+    setNativeArticleTextState(null);
+    setNativeArticleTextActiveRun(null);
     setAnalysisRole("");
     setReferenceReturnTarget(null);
     setUrl("");
@@ -691,7 +727,8 @@ function MainApp() {
     if (!selectedModelProfile) {
       setPreflightError(
         t("preflight.modelMissing", {
-          defaultValue: "Choose an OpenRouter model before starting analysis.",
+          defaultValue:
+            "Choose the AI provider model before starting analysis.",
         }),
       );
       return;
@@ -1023,28 +1060,157 @@ function MainApp() {
     [bridge.stages, bridge.state],
   );
   const activeArticleTextRun =
+    executionMode === "native"
+      ? nativeArticleTextActiveRun
+      : bridge.state?.analysisType === "article_text" &&
+          (bridge.state.status === "awaiting_handshake" ||
+            bridge.state.status === "in_progress")
+        ? bridge.state.input?.action ?? "scan"
+        : null;
+  const completedArticleTextAction =
     bridge.state?.analysisType === "article_text" &&
-    (bridge.state.status === "awaiting_handshake" ||
-      bridge.state.status === "in_progress")
+    bridge.state.status === "complete"
       ? bridge.state.input?.action ?? "scan"
       : null;
+  const displayedCompletedArticleTextAction =
+    executionMode === "native"
+      ? articleTextSolutionProvidedOnce
+        ? "solution"
+        : runtimeReport && selectedAnalysisType === "article_text"
+          ? "scan"
+          : null
+      : completedArticleTextAction;
+  const displayedArticleTextState =
+    executionMode === "native" ? nativeArticleTextState : bridge.state;
+  const effectiveArticleTextTools =
+    selectedAnalysisType === "article_text"
+      ? effectiveArticleTextToolIds(selectedAnalysisToolsByType.article_text)
+      : [];
   const plannedCompletedTools =
-    bridge.state?.analysisType === "article_text"
-      ? Object.values(bridge.state.buffer).filter(
+    executionMode === "native" &&
+    selectedAnalysisType === "article_text" &&
+    runtimeReport
+      ? countCoveredReportTools(runtimeReport, effectiveArticleTextTools)
+      : displayedArticleTextState?.analysisType === "article_text"
+      ? Object.values(displayedArticleTextState.buffer).filter(
           (entry) => entry.status === "complete" || entry.status === "error",
         ).length
       : 0;
   const plannedTotalTools =
-    bridge.state?.analysisType === "article_text"
-      ? bridge.state.selectedTools.length
+    executionMode === "native" && selectedAnalysisType === "article_text"
+      ? effectiveArticleTextTools.length
+      : displayedArticleTextState?.analysisType === "article_text"
+      ? displayedArticleTextState.selectedTools.length
       : selectedAnalysisType
         ? selectedAnalysisToolsByType[selectedAnalysisType].size
         : 0;
 
+  useEffect(() => {
+    if (
+      bridge.state?.analysisType !== "article_text" ||
+      bridge.state.status !== "complete"
+    ) {
+      return;
+    }
+    const action = bridge.state.input?.action ?? "scan";
+    if (action === "scan") {
+      setArticleTextScanStartedOnce(true);
+      return;
+    }
+    setArticleTextSolutionProvidedOnce(true);
+  }, [bridge.state]);
+
   const handleRunArticleTextBridge = async (
     action: ArticleTextAction,
     data: ArticleTextPromptData,
-  ) => {
+  ): Promise<boolean> => {
+    const visibleToolIds = Array.from(selectedAnalysisToolsByType.article_text);
+    const toolIds = effectiveArticleTextToolIds(visibleToolIds);
+
+    if (executionMode === "native") {
+      setPreflightError(null);
+      if (!nativeRuntimeEnabled || !window.toraseo?.runtime?.openChatWindow) {
+        setPreflightError(
+          t("preflight.nativeUnavailable", {
+            defaultValue: "API + AI Chat is unavailable in this build.",
+          }),
+        );
+        return false;
+      }
+      if (!providerConfigured) {
+        setPreflightError(
+          t("preflight.providerMissing", {
+            defaultValue: "Add an AI provider before using API + AI Chat.",
+          }),
+        );
+        handleOpenProviderSettings();
+        return false;
+      }
+      if (!selectedModelProfile) {
+        setPreflightError(
+          t("preflight.modelMissing", {
+            defaultValue:
+              "Choose the AI provider model before starting analysis.",
+          }),
+        );
+        return false;
+      }
+      if (action === "scan") {
+        setNativeArticleTextActiveRun("scan");
+        setNativeArticleTextState(null);
+        setRuntimeReport(null);
+      }
+
+      let result: { ok: boolean };
+      try {
+        result = await window.toraseo.runtime.openChatWindow({
+          status: "active",
+          locale: currentLocale,
+          analysisType: "article_text",
+          selectedModelProfile,
+          scanContext: null,
+          articleTextContext: {
+            action,
+            runId: `${action}-${Date.now()}`,
+            topic: data.topic,
+            body: data.body,
+            analysisRole: analysisRole.trim() || undefined,
+            textPlatform,
+            customPlatform: customPlatform.trim() || undefined,
+            selectedTools: toolIds,
+          },
+          report: null,
+          articleTextRunState: action === "scan" ? "running" : "idle",
+        });
+      } catch {
+        result = { ok: false };
+      }
+      if (!result.ok) {
+        if (action === "scan") {
+          setNativeArticleTextActiveRun(null);
+          setPreflightError(
+            t("preflight.nativeUnavailable", {
+              defaultValue:
+                "API + AI Chat is unavailable in this build.",
+            }),
+          );
+          return true;
+        }
+        setPreflightError(
+          t("preflight.nativeUnavailable", {
+            defaultValue: "API + AI Chat is unavailable in this build.",
+          }),
+        );
+        return false;
+      }
+      if (action === "scan") {
+        setArticleTextScanStartedOnce(true);
+      } else {
+        setArticleTextSolutionProvidedOnce(true);
+      }
+      return true;
+    }
+
     if (executionMode !== "bridge") {
       setPreflightError(
         t("preflight.articleTextBridgeRequired", {
@@ -1052,7 +1218,7 @@ function MainApp() {
             "Text analysis through Codex or Claude Desktop requires MCP + Instructions mode.",
         }),
       );
-      return;
+      return false;
     }
 
     if (bridgeProgram === "codex") {
@@ -1063,7 +1229,7 @@ function MainApp() {
             defaultValue: "Open Codex before starting the Codex bridge path.",
           }),
         );
-        return;
+        return false;
       }
       if (!fresh.codexSetupVerified) {
         setPreflightError(
@@ -1072,22 +1238,16 @@ function MainApp() {
               "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
           }),
         );
-        return;
+        return false;
       }
     } else if (detectorStatus && !detectorStatus.allGreen) {
       setPreflightError(t("preflight.depsFailed"));
-      return;
+      return false;
     }
 
-    const visibleToolIds = Array.from(selectedAnalysisToolsByType.article_text);
-    const toolIds = [
-      ...visibleToolIds,
-      ...BUILT_IN_ARTICLE_TEXT_TOOLS.filter(
-        (toolId) => !visibleToolIds.includes(toolId as AnalysisToolId),
-      ),
-    ];
     if (action === "scan") {
       setArticleTextScanStartedOnce(true);
+      void window.toraseo.runtime.showReportWindowProcessing();
     }
     await bridge.startScan("toraseo://article-text", toolIds, bridgeProgram, {
       action,
@@ -1098,9 +1258,24 @@ function MainApp() {
       customPlatform: customPlatform.trim() || undefined,
       selectedAnalysisTools: visibleToolIds,
     });
+    return true;
   };
 
   const handleCancelArticleTextBridge = () => {
+    if (executionMode === "native") {
+      setNativeArticleTextActiveRun(null);
+      void window.toraseo.runtime.updateChatWindowSession({
+        status: "active",
+        locale: currentLocale,
+        analysisType: "article_text",
+        selectedModelProfile,
+        scanContext: null,
+        articleTextContext: null,
+        articleTextRunState: "idle",
+        report: runtimeReport,
+      });
+      return;
+    }
     void bridge.cancelScan();
   };
 
@@ -1111,6 +1286,7 @@ function MainApp() {
       analysisType: "site",
       selectedModelProfile,
       scanContext: nativeScanContext,
+      articleTextContext: null,
       report: runtimeReport,
     }),
     [currentLocale, nativeScanContext, runtimeReport, selectedModelProfile],
@@ -1195,11 +1371,31 @@ function MainApp() {
               ? prev
               : session.report,
           );
+          if (session.analysisType === "article_text") {
+            setArticleTextScanStartedOnce(true);
+          }
+        }
+        if (
+          session.status === "active" &&
+          session.analysisType === "article_text" &&
+          (session.articleTextRunState === "complete" ||
+            session.articleTextRunState === "failed")
+        ) {
+          setNativeArticleTextActiveRun(null);
+          if (session.articleTextRunState === "failed") {
+            setPreflightError(
+              session.articleTextRunError ||
+                t("preflight.articleTextAiReportFailed", {
+                  defaultValue:
+                    "AI returned an answer, but ToraSEO could not convert it into a structured report.",
+                }),
+            );
+          }
         }
       },
     );
     return unsubscribe;
-  }, []);
+  }, [t]);
 
   const isBusy =
     executionMode === "native"
@@ -1243,7 +1439,8 @@ function MainApp() {
         })
       : executionMode === "native" && !selectedModelProfile
         ? t("preflight.modelMissing", {
-            defaultValue: "Choose an OpenRouter model before starting analysis.",
+            defaultValue:
+              "Choose the AI provider model before starting analysis.",
           })
       : executionMode === "bridge" && isBridgeBlocked
       ? t("preflight.depsFailed")
@@ -1318,6 +1515,9 @@ function MainApp() {
               setMode("idle");
               setSelectedAnalysisType(null);
               setArticleTextScanStartedOnce(false);
+              setArticleTextSolutionProvidedOnce(false);
+              setNativeArticleTextState(null);
+              setNativeArticleTextActiveRun(null);
               void refreshProviders();
               void window.toraseo.runtime.endChatWindowSession();
               void window.toraseo.runtime.endReportWindowSession();
@@ -1527,11 +1727,17 @@ function MainApp() {
                 selectedAnalysisToolsByType[selectedAnalysisType],
               )}
               activeRun={activeArticleTextRun}
+              completedArticleTextAction={displayedCompletedArticleTextAction}
               completedTools={plannedCompletedTools}
               totalTools={plannedTotalTools}
               bridgeState={bridge.state}
+              articleTextState={displayedArticleTextState}
+              runtimeReport={runtimeReport}
               scanStartedOnce={articleTextScanStartedOnce}
-              bridgeUnavailable={bridgeExternalAppClosed}
+              solutionProvidedOnce={articleTextSolutionProvidedOnce}
+              bridgeUnavailable={
+                executionMode === "bridge" && bridgeExternalAppClosed
+              }
               bridgeUnavailableAppName={bridgeExternalAppName}
               bridgeTargetAppName={bridgeExternalAppName}
               onArticleTextRun={handleRunArticleTextBridge}
