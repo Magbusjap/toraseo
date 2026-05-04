@@ -346,6 +346,19 @@
       "reddit": "Reddit",
       "custom": "Custom"
     },
+    "platformLabels": {
+      "site_article": "Site article",
+      "markdown_article": "Markdown article",
+      "short_social_post": "Short post",
+      "short_article_or_long_social_post": "Short article or long post"
+    },
+    "platformDetails": {
+      "site_article": "Fits a long-form article with a title, sections, and search intent.",
+      "markdown_article": "The text looks like a Markdown article; preserve heading structure.",
+      "short_social_post": "Looks like a short post: a title is usually unnecessary, while clarity and fast meaning matter.",
+      "short_article_or_long_social_post": "Sits between article and long-post formats; packaging depends on the publishing platform.",
+      "default": "The format is inferred from the current text and selected tools."
+    },
     "styles": {
       "auto": "Auto-detect",
       "informational": "Informational",
@@ -353,7 +366,29 @@
       "business": "Business",
       "educational": "Educational",
       "humor": "Humor",
-      "personal": "Personal"
+      "personal": "Personal",
+      "analytical": "Analytical"
+    },
+    "tones": {
+      "cautiousExpert": "Cautious expert",
+      "energetic": "Energetic",
+      "personal": "Personal",
+      "neutralExplaining": "Neutral explaining"
+    },
+    "actionLabels": {
+      "scan": "Scan text",
+      "solution": "Suggest solution"
+    },
+    "scriptLabels": {
+      "cyrillic": "Cyrillic",
+      "latin": "Latin"
+    },
+    "methodLabels": {
+      "local_repetition_risk": "Local repetition",
+      "heuristic_style_probability": "AI-style heuristic",
+      "claim_risk_heuristic": "Claim-risk heuristic",
+      "internal_logic_heuristic": "Internal logic",
+      "ai_claim_hallucination_heuristic": "AI-detail risk"
     },
     "results": {
       "title": "Analysis results",
@@ -364,10 +399,21 @@
       "aiProbabilityTitle": "AI writing probability",
       "logicTitle": "Logic issues",
       "naturalnessTitle": "Naturalness",
+      "syntaxHint": "Shows punctuation, sentence-boundary, and overloaded-phrase risk.",
+      "aiProbabilityHint": "Estimates how strongly the text sounds like an AI draft from rhythm and templates.",
+      "logicHint": "Checks contradictions, conclusion jumps, and weak cause-and-effect transitions.",
+      "naturalnessHint": "Shows mechanical phrasing, repetition, and uniform-rhythm risk.",
       "waitingMetric": "waiting",
       "export": "Export",
       "exportReady": "Report exported.",
       "exportFailed": "Failed to export the report.",
+      "verdictEyebrow": "Publish readiness",
+      "evidenceCoverage": "Evidence coverage",
+      "coverageTools": "tools completed. Coverage is not a quality score.",
+      "priorityTitle": "What to fix first",
+      "toolEvidenceTitle": "Tool evidence",
+      "untitled": "Untitled",
+      "titleMissingNote": "No title was found in the text. A future AI layer can suggest one beside the heading.",
       "keyFacts": "Key facts",
       "findings": "Findings",
       "recommendation": "What to do",
@@ -380,12 +426,70 @@
       "reportValidationMethod": "Run ToraSEO text analysis again after edits.",
       "reportSummary": "Structured report for the ToraSEO article text analysis.",
       "reportNextStep": "Review recommendations, choose priority edits, and scan the text again.",
+      "annotationStatus": {
+        "issuesAndRecommendations": "Notes and recommendations found",
+        "recommendations": "Recommendations found",
+        "styleIssues": "Style issues found",
+        "almostClean": "Almost no notes or recommendations"
+      },
+      "annotationKinds": {
+        "issue": "Issue",
+        "recommendation": "Recommendation",
+        "style": "Style",
+        "note": "Note"
+      },
+      "dimensionStatus": {
+        "healthy": "Healthy",
+        "watch": "Watch",
+        "problem": "Problem"
+      },
+      "priority": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "verdict": {
+        "ready": "Ready to publish",
+        "needsRevision": "Needs revision before publish",
+        "highRisk": "Needs review before publishing",
+        "readyDetail": "The available tool evidence does not show blocking problems. Final human review is still recommended.",
+        "needsRevisionDetail": "The article can improve materially if the highlighted issues are fixed before publication.",
+        "highRiskDetail": "One or more core dimensions need attention. Check warnings and priority items before publishing.",
+        "lowCoverageDetail": "The analysis has useful signals, but evidence coverage is partial. Treat the result as a guided editing pass."
+      },
+      "dimensions": {
+        "originality": "Originality",
+        "originalityDetail": "Local repetition, template risk, naturalness, and AI-style signals.",
+        "originalityFix": "Rewrite repeated fragments with fresher examples and less uniform phrasing.",
+        "originalityKeep": "Keep the specific examples and avoid adding generic filler in later edits.",
+        "clarity": "Clarity",
+        "clarityDetail": "Syntax, sentence density, structure, headings, and scanability.",
+        "clarityFix": "Shorten dense sentences and add clearer section breaks before polishing style.",
+        "clarityKeep": "Use the current structure as the base and polish only the weak sections.",
+        "logic": "Logic",
+        "logicDetail": "Internal contradictions, weak transitions, and unsupported conclusions.",
+        "logicFix": "Add missing intermediate reasoning where the text jumps from claim to conclusion.",
+        "logicKeep": "Preserve the current argument chain and verify new claims after editing.",
+        "trust": "Trust risk",
+        "trustDetail": "Fact-sensitive claims, vague authorities, exact numbers, and hallucination risk.",
+        "trustFix": "Verify exact numbers and soften claims that are not supported by concrete evidence.",
+        "trustOptional": "Run optional trust checks for claim-heavy medical, legal, finance, or technical articles.",
+        "platform": "Platform fit",
+        "platformDetail": "Publishing context, tone, audience, language, and media placement.",
+        "platformFix": "Add media markers only where they clarify the article, not as decoration.",
+        "platformKeep": "Keep platform-specific packaging separate from the article body."
+      },
+      "nextActionFix": "Fix top priorities",
+      "nextActionRewrite": "Ask AI for a bounded rewrite",
+      "nextActionRerun": "Re-run after edits",
+      "priorityDefaultTitle": "Keep the result stable",
+      "priorityDefaultDetail": "No blocking findings were detected. Keep edits focused and re-run analysis after the final draft.",
       "summary": {
         "topic": "Topic",
         "analysisRole": "Role",
         "wordCount": "Words",
         "paragraphCount": "Paragraphs",
-        "headingCount": "Headings",
+        "headingCount": "Heading-like lines",
         "hasMarkdown": "Markdown",
         "platform": "Platform",
         "style": "Style",
@@ -414,6 +518,44 @@
         "facts": "Looks for disputed facts and overconfident claims.",
         "hallucination": "Looks for invented details and AI hallucination signals.",
         "default": "ToraSEO text check."
+      },
+      "issueMessages": {
+        "thin_text": "The text is short for a search-oriented article; expand the useful answer before optimizing.",
+        "low_paragraph_structure": "The text has too few clear paragraphs, which makes scanning harder.",
+        "weak_heading_structure": "Add clear sections or subheadings so structure is easier to read.",
+        "long_sentences": "Average sentence length is high; split dense phrases.",
+        "formal_phrasing": "The text contains formal or mechanical phrasing; make key explanations more direct.",
+        "tone_review": "Keep tone aligned with topic risk: caveats should help the reader without weighing down every paragraph.",
+        "audience_fit": "Check that examples, terminology, and explanation level fit the intended reader.",
+        "media_markers_present": "Media markers are already present in the body; keep them near the relevant explanation.",
+        "no_media_markers": "No media markers were found. Add them only where image, video, animation, or audio improves understanding.",
+        "uniqueness_risk": "The text has local repetition or duplicate-pattern risk. This is not an internet plagiarism check.",
+        "duplicate_sentences": "Some sentences repeat almost exactly inside the article.",
+        "syntax_risk": "The text has visible syntax or punctuation risks that should be checked before publishing.",
+        "dense_sentences": "Several sentences are dense; grammar may be correct, but readability suffers.",
+        "ai_style_probability": "The text has AI-style signals: generic transitions, uniform rhythm, or repeated words.",
+        "fact_distortion_risk": "The text contains fact-sensitive claims that may need source verification before publication.",
+        "absolute_claims": "Absolute wording can distort meaning when the text does not prove the claim.",
+        "sensitive_claims_without_sources": "Medical, legal, financial, or technical claims should be supported by sources or cautious wording.",
+        "possible_internal_contradiction": "The text may contain statements that pull conclusions in different directions.",
+        "unsupported_causality": "Some cause-and-effect transitions may need examples, data, or intermediate reasoning.",
+        "hallucination_risk": "Factual details created or processed by AI may need verification.",
+        "vague_authorities": "Phrases like “experts say” or “studies show” should point to a concrete source."
+      },
+      "recommendations": {
+        "platform": "Keep platform metadata separate from the body: title, description, tags, and preview text.",
+        "structure": "Use one clear main title and group sections by intent.",
+        "style": "Add concrete verbs, shorter sentences, and examples where the reader may hesitate.",
+        "tone": "Use caveats precisely: they should protect the reader without making the whole text defensive.",
+        "audience": "Name the target reader in the introduction when the topic can serve several audiences.",
+        "media": "Place media markers inside relevant sections, not at the end of the text.",
+        "uniqueness": "Rewrite repeated fragments with new examples, narrower claims, or clearer transitions.",
+        "syntax": "Run a final human pass for punctuation, sentence boundaries, and overloaded phrases.",
+        "ai": "To sound more authorial, add specific examples, context, and more varied sentence rhythm.",
+        "naturalness": "Vary sentence openings and remove service phrases that do not add meaning.",
+        "logic": "Check places with “therefore”, “because”, “always”, and “never”; they need enough support.",
+        "facts": "Verify numbers, names, and sensitive claims; soften statements that cannot be supported confidently.",
+        "hallucination": "Replace vague authorities with concrete sources or remove details that cannot be verified."
       }
     },
     "forms": {
@@ -437,6 +579,7 @@
       "scanCancelled": "Analysis cancelled.",
       "aiDraftPromptCopied": "Prompt copied. Paste it into {{appName}} chat so AI can continue this analysis.",
       "scanPromptCopied": "Prompt copied. Paste it into {{appName}} chat so AI can continue this analysis.",
+      "aiDraftNeedContext": "Add at least a topic, query, or short text draft so AI can suggest a useful solution.",
       "aiDraftNeedMore": "Write a bit more: at least two short paragraphs, so AI has enough context for a useful solution.",
       "aiDraftPrepared": "This looks like enough context for a solution. Full execution will connect with text analysis.",
       "targetQuery": "Target query",

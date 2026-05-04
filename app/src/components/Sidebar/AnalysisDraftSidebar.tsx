@@ -12,7 +12,11 @@ interface AnalysisDraftSidebarProps {
   analysisType: AnalysisTypeId;
   selectedTools: Set<AnalysisToolId>;
   analysisRole: string;
+  textPlatform: string;
+  customPlatform: string;
   onAnalysisRoleChange: (value: string) => void;
+  onTextPlatformChange: (value: string) => void;
+  onCustomPlatformChange: (value: string) => void;
   onToggleTool: (toolId: AnalysisToolId) => void;
   onToggleAllTools: () => void;
   onReturnHome: () => void;
@@ -22,7 +26,11 @@ export default function AnalysisDraftSidebar({
   analysisType,
   selectedTools,
   analysisRole,
+  textPlatform,
+  customPlatform,
   onAnalysisRoleChange,
+  onTextPlatformChange,
+  onCustomPlatformChange,
   onToggleTool,
   onToggleAllTools,
   onReturnHome,
@@ -83,7 +91,11 @@ export default function AnalysisDraftSidebar({
               <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/60">
                 {t("plannedAnalysis.sidebar.platform")}
               </span>
-              <select className="toraseo-dark-select w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/40">
+              <select
+                value={textPlatform}
+                onChange={(event) => onTextPlatformChange(event.target.value)}
+                className="toraseo-dark-select w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/40"
+              >
                 <option value="site_article">
                   {t("plannedAnalysis.platforms.siteArticle")}
                 </option>
@@ -117,6 +129,8 @@ export default function AnalysisDraftSidebar({
               </span>
               <input
                 type="text"
+                value={customPlatform}
+                onChange={(event) => onCustomPlatformChange(event.target.value)}
                 placeholder={t("plannedAnalysis.sidebar.customPlatformPlaceholder")}
                 title={t("plannedAnalysis.sidebar.customPlatformHint")}
                 className="w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white transition placeholder:text-white/30 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -172,7 +186,15 @@ export default function AnalysisDraftSidebar({
           </SidebarSection>
         )}
 
-        <SidebarSection title={t("sidebar.section.checks")}>
+        <SidebarSection
+          title={
+            showTextContext
+              ? t("plannedAnalysis.sidebar.additionalChecks", {
+                  defaultValue: "Дополнительные проверки",
+                })
+              : t("sidebar.section.checks")
+          }
+        >
           <ToolChecklist
             tools={toolItems}
             selectedTools={selectedTools}

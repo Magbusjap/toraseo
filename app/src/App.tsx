@@ -88,6 +88,8 @@ const BUILT_IN_ARTICLE_TEXT_TOOLS = [
   "ai_writing_probability",
   "naturalness_indicators",
   "logic_consistency_check",
+  "intent_seo_forecast",
+  "safety_science_review",
 ] as const;
 
 function clampSidebarWidth(width: number): number {
@@ -170,6 +172,8 @@ function MainApp() {
       site_design_by_url: getDefaultAnalysisToolSet("site_design_by_url"),
     }));
   const [analysisRole, setAnalysisRole] = useState("");
+  const [textPlatform, setTextPlatform] = useState("site_article");
+  const [customPlatform, setCustomPlatform] = useState("");
   const [articleTextScanStartedOnce, setArticleTextScanStartedOnce] =
     useState(false);
   const [preflightError, setPreflightError] = useState<string | null>(null);
@@ -1090,6 +1094,8 @@ function MainApp() {
       topic: data.topic,
       text: data.body,
       analysisRole: analysisRole.trim() || undefined,
+      textPlatform,
+      customPlatform: customPlatform.trim() || undefined,
       selectedAnalysisTools: visibleToolIds,
     });
   };
@@ -1119,6 +1125,11 @@ function MainApp() {
     if (mode === "site" && executionMode === "native") return;
     void window.toraseo.runtime.endChatWindowSession();
   }, [executionMode, mode]);
+
+  useEffect(() => {
+    if (mode !== "idle") return;
+    void window.toraseo.runtime.endReportWindowSession();
+  }, [mode]);
 
   useEffect(() => {
     if (!returnHomeShortcutsEnabled) return;
@@ -1259,7 +1270,11 @@ function MainApp() {
         analysisType={selectedAnalysisType}
         selectedTools={selectedAnalysisToolsByType[selectedAnalysisType]}
         analysisRole={analysisRole}
+        textPlatform={textPlatform}
+        customPlatform={customPlatform}
         onAnalysisRoleChange={setAnalysisRole}
+        onTextPlatformChange={setTextPlatform}
+        onCustomPlatformChange={setCustomPlatform}
         onToggleTool={handleToggleAnalysisTool}
         onToggleAllTools={handleToggleAllAnalysisTools}
         onReturnHome={handleReturnHome}
@@ -1305,6 +1320,7 @@ function MainApp() {
               setArticleTextScanStartedOnce(false);
               void refreshProviders();
               void window.toraseo.runtime.endChatWindowSession();
+              void window.toraseo.runtime.endReportWindowSession();
             }}
             onSaveLocale={handleSaveLocale}
             nativeRuntimeEnabled={true}

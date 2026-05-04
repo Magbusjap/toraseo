@@ -42,7 +42,19 @@ async function writeTextAtomic(filePath: string, content: string): Promise<void>
 
 function buildInputMarkdown(options: CreateWorkspaceOptions): string {
   if (options.analysisType === "article_text") {
-    return options.input?.text ?? "";
+    const body = options.input?.text?.trim() ?? "";
+    if (body) return body;
+    const topic = options.input?.topic?.trim() ?? "";
+    if (topic && options.input?.action === "solution") {
+      return [
+        `Тема / запрос: ${topic}`,
+        "",
+        "Задача пользователя: предложить решение или черновик статьи на основе этой темы и настроек ToraSEO.",
+        "Если контекста недостаточно для готового текста, ИИ должен честно назвать, чего не хватает, и предложить следующий шаг.",
+        "",
+      ].join("\n");
+    }
+    return "";
   }
 
   return [
@@ -139,6 +151,8 @@ export async function createBridgeWorkspace(
           action: options.input.action,
           topic: options.input.topic,
           analysisRole: options.input.analysisRole,
+          textPlatform: options.input.textPlatform,
+          customPlatform: options.input.customPlatform,
           selectedAnalysisTools: options.input.selectedAnalysisTools,
           hasText: Boolean(options.input.text?.trim()),
           textLength: options.input.text?.length ?? 0,

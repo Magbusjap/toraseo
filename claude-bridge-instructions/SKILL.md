@@ -556,7 +556,43 @@ When the bridge handshake returns `analysisType: "article_text"`:
 - Call the selected article-text tools in `selectedTools`.
 - Do not ask the user to paste the article into chat.
 - Do not copy the article body into the final answer.
+- If the handshake input contains `action: "solution"`, treat it as the
+  app's "Suggest solution" flow: run the selected tools first, then
+  propose a concrete solution, outline, or draft direction in chat from
+  the tool evidence. If `input.md` contains only a topic or very thin
+  brief, do not pretend a full article was analyzed; name the missing
+  context and give a bounded plan or minimum clarifying question.
 - Use the tool results to summarize what to fix first and what can wait.
+- Keep recommendations and rewrite directions bounded by selected MCP
+  tool evidence and built-in text checks; do not invent ranking promises,
+  hidden formula weights, or unsupported editorial strategy.
+- If `intent_seo_forecast` is present, use it for intent, hook,
+  CTR/trend-potential, and WordPress/Laravel CMS metadata suggestions.
+  Treat it as a local forecast unless a real SERP, Search Console, or
+  social-platform data source is explicitly connected.
+- If `safety_science_review` is present, surface critical warnings
+  clearly and do not help with illegal activity, platform-rule evasion,
+  or dangerous instructions. For legal, scientific, medical, investment,
+  technical/engineering, country-specific, source-dependent, or
+  calculation-heavy claims, treat the tool as a risk flag only. Do not
+  present the result as legal, medical, investment, engineering, or
+  scientific advice; say when expert, official-source, platform-rule, or
+  external SERP/social verification is required.
+- For copied article text, treat headings as text-only heading-like
+  lines. Do not claim that Claude or MCP saw the original page's HTML
+  H1. If no title is present, say the title was not found; for short
+  social posts, an untitled state is acceptable.
+- If the user later asks to rewrite, improve, or draft the analyzed
+  article in the same bridge session, call `article_rewrite_context`
+  instead of asking the user to paste the article again or trying to read
+  `input.md` directly. Write the rewritten article directly in chat as a
+  separate copyable article block; do not write it back into ToraSEO.
+  The user copies the rewritten article into ToraSEO, runs a new scan,
+  and may send the new bridge prompt again in the same session.
+- Rewrite using the active Bridge Instructions plus selected tool
+  evidence: platform, style/audience fit, SEO intent, media-marker
+  policy, and safety/legal/medical/scientific/technical risk flags.
+  Do not strengthen unverified claims or remove necessary caveats.
 - If a rewrite is useful, ask whether the user wants media placeholder
   positions marked before inserting them.
 

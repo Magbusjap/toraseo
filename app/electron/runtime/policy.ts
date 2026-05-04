@@ -67,7 +67,11 @@ const STAGE1_RULES: RuntimePolicyRule[] = [
   },
   {
     id: "text.generate-vs-analyze",
-    text: "If the user asks to analyze a ready text, do not abruptly rewrite the whole article; ask whether they want a rewrite. If they explicitly ask for an AI solution or draft and there is enough context, provide a separate copyable article block and recommend re-running text analysis on the finished version.",
+    text: "If the user asks to analyze a ready text, do not abruptly rewrite the whole article; ask whether they want a rewrite. If they explicitly ask for an AI solution or draft and there is enough context, provide the rewritten article directly in chat as a separate copyable article block and recommend re-running text analysis on the finished version. The user copies that article into ToraSEO and scans it again.",
+  },
+  {
+    id: "text.evidence-boundary",
+    text: "For article-text analysis, explain errors, recommendations, and rewrite directions only inside the selected or built-in tool evidence. Rewrites must follow the active ToraSEO workflow behavior and selected tools: platform fit, style/audience fit, SEO intent, media-marker policy, and safety/legal/medical/scientific/technical risk flags. Do not promise ranking gains, invent quality scores, add unsupported editorial strategy, strengthen unverified claims, or remove necessary caveats. If the current tools do not cover a question, say which additional check is needed.",
   },
   {
     id: "text.media-placement-before-rewrite",

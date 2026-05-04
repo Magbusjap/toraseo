@@ -208,7 +208,10 @@ export async function verifyCodexWorkflowLoadedHandler({
               "selectedTools. If analysisType is article_text, do not ask " +
               "the user to paste the article into chat; the selected MCP " +
               "tools read input.md from the temporary ToraSEO workspace. Results will be displayed " +
-              "in the ToraSEO app.",
+              "in the ToraSEO app. If input.action is solution, run the tools first, " +
+              "then propose a concrete solution or draft direction in chat from the tool evidence. " +
+              "If the input is only a topic or too thin for a complete article, be explicit about " +
+              "the missing context and provide a bounded plan or minimum clarifying question.",
           },
           null,
           2,

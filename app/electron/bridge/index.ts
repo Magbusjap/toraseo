@@ -28,6 +28,7 @@ import {
   cancelScan,
   retryHandshake,
   getCurrentState,
+  getVisibleState,
   observeBridgeState,
 } from "./scanLifecycle.js";
 import { watchState } from "./stateFile.js";
@@ -142,11 +143,18 @@ export function setupBridge(getMainWindow: () => BrowserWindow | null): void {
   // ----- Push channel (state-file polling) -----
 
   watchState((state) => {
-    observeBridgeState(state);
-    const win = getMainWindow();
-    if (win && !win.isDestroyed()) {
-      win.webContents.send(BRIDGE_CHANNELS.stateUpdate, state);
-    }
+    void (async () => {
+      const visibleState = await getVisibleState(state);
+      observeBridgeState(visibleState);
+      const win = getMainWindow();
+      if (win && !win.isDestroyed()) {
+        win.webContents.send(BRIDGE_CHANNELS.stateUpdate, visibleState);
+      }
+    })().catch((error: unknown) => {
+      log.error(
+        `[bridge] failed to publish state update: ${(error as Error).message}`,
+      );
+    });
   });
 
   log.info("[bridge] IPC handlers registered, polling watcher started");

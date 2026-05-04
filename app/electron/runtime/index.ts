@@ -32,6 +32,7 @@ import {
 import { isNativeRuntimeEnabled } from "./featureFlag.js";
 import {
   closeReportWindow,
+  copyArticleSourceText,
   endReportWindowSession,
   exportReportDocument,
   exportReportPdf,
@@ -73,6 +74,7 @@ export const RUNTIME_CHANNELS = {
   closeReportWindow: "toraseo:runtime:close-report-window",
   showReportWindowProcessing: "toraseo:runtime:show-report-window-processing",
   endReportWindowSession: "toraseo:runtime:end-report-window-session",
+  copyArticleSourceText: "toraseo:runtime:copy-article-source-text",
   exportReportPdf: "toraseo:runtime:export-report-pdf",
   exportReportDocument: "toraseo:runtime:export-report-document",
   exportReportPresentation: "toraseo:runtime:export-report-presentation",
@@ -270,6 +272,16 @@ export async function setupRuntime(): Promise<void> {
     RUNTIME_CHANNELS.endReportWindowSession,
     async (): Promise<{ ok: boolean }> => {
       return endReportWindowSession();
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.copyArticleSourceText,
+    async (
+      _event,
+      report: RuntimeAuditReport,
+    ): Promise<{ ok: boolean; charCount?: number; error?: string }> => {
+      return copyArticleSourceText(report);
     },
   );
 

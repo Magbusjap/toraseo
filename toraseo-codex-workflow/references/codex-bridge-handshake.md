@@ -64,6 +64,15 @@ The handshake response can describe different bridge workloads:
   that file and write their structured results back into the app state
   and `results/*.json`.
 
+For `article_text`, the handshake input may include `action: "scan"` or
+`action: "solution"`. `scan` means analyze the submitted article and
+summarize recommendations. `solution` means the user clicked "Suggest
+solution": run the selected tools first, then propose a solution,
+outline, or draft direction in chat from the tool evidence. If the app
+only supplied a topic or very thin brief in `input.md`, do not imitate a
+full analysis. Explain the missing context and give a bounded plan or
+the minimum clarifying question needed for the next step.
+
 For `article_text`, the final chat answer must be more than a completion
 notice. Summarize each selected category, explicitly name the detected
 style/platform/tone when those tools ran, and explain the first fixes the
@@ -71,6 +80,59 @@ user should make. If media placement is missing, ask whether the user
 wants ToraSEO to add media markers; choose image, animation, video, or
 audio from the article context only after the user agrees or asks for a
 rewrite.
+
+Keep backend keys out of the user-facing wording. For example, explain
+`site_article` as "длинная статья для сайта" / "long site article" and
+use raw IDs only in parentheses when they help debugging. Do the same for
+tool IDs, issue codes, intent IDs, style IDs, and platform IDs.
+
+When discussing headings in copied article text, do not claim that MCP
+has seen the original page's HTML H1. It only sees pasted text and can
+estimate heading-like lines. If the article title is missing, say that
+the title was not found; for short social posts, "Untitled" is acceptable
+because those formats may not use article titles.
+
+If the user later asks to rewrite, improve, or draft the analyzed article
+in the same ToraSEO bridge session, do not try to read `input.md`
+directly through Codex filesystem access and do not ask the user to paste
+the article again. Call the MCP tool `article_rewrite_context`; it reads
+the active/cached ToraSEO article workspace and returns the article text
+plus completed tool results for the rewrite pass. The rewritten article
+must be written in chat as a separate copyable article block. Do not
+write it back into ToraSEO. The expected loop is: user copies the
+rewritten article from chat, pastes it into ToraSEO, runs a new scan, and
+may paste the new bridge prompt again in the same Codex session. Treat
+that later bridge prompt as a new analysis iteration and run the
+handshake/tools again.
+
+The article-text chat answer must stay evidence-bound. Base errors,
+recommendations, rewrite directions, and "publish readiness" language on
+the selected MCP tool results and built-in text checks only. Do not
+invent ranking promises, a hidden ToraRank score, unsupported platform
+strategy, or a full editorial rewrite outside the available evidence.
+If a useful question is not covered by the current tools, name the
+missing check instead of guessing.
+
+When rewriting, preserve the behavior of this workflow package and the
+selected ToraSEO tools: account for platform fit, style/audience fit,
+SEO intent and metadata, media placeholder rules, safety/legal/medical/
+scientific/technical risk flags, and the local-only nature of the
+analysis. Do not silently remove required caveats or turn unverified
+claims into stronger claims.
+
+When `intent_seo_forecast` is present, use it for intent, hook,
+CTR/trend-potential, and WordPress/Laravel CMS metadata suggestions.
+Treat it as a local forecast unless a real external source explicitly
+provides SERP, Search Console, or social-platform demand data.
+If the CMS package looks copied from a service element such as
+"Part 1", "Download PDF", or a numeric navigation line, tell the user
+that metadata is a weak draft and suggest a human-readable title,
+description, keywords, category, tags, and slug from the article topic.
+When `safety_science_review` is present, surface critical warnings
+clearly and do not help with illegal activity, platform-rule evasion, or
+dangerous instructions. For legal, scientific, medical, financial, or
+calculation-heavy claims, treat the tool as a risk flag only and remind
+the user that AI can be wrong and expert review may be required.
 
 If the handshake response contains `input.analysisRole`, apply it as the
 reviewer role. If it is `default` or absent, use ToraSEO's standard
@@ -91,7 +153,8 @@ Some article-text checks are built in and may be present in
 `selectedTools` even when the user did not see them as sidebar
 checkboxes: `article_uniqueness`, `language_syntax`,
 `ai_writing_probability`, `naturalness_indicators`, and
-`logic_consistency_check`. Optional sidebar checks can include
+`logic_consistency_check`, `intent_seo_forecast`, and
+`safety_science_review`. Optional sidebar checks can include
 `fact_distortion_check` and `ai_hallucination_check`.
 
 Treat `ai_writing_probability` and `ai_hallucination_check` as separate

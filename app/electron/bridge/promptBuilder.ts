@@ -106,43 +106,95 @@ const CODEX_TEMPLATE_RU = (url: string): string =>
 ToraSEO ожидает анализ сайта: ${url}.
 Детали возьми из SKILL + MCP.`;
 
-const TEXT_TEMPLATE_EN = (tools: string): string =>
+const TEXT_EVIDENCE_BOUNDARY =
+  "Base recommendations only on selected MCP tool evidence. Use intent_seo_forecast for intent, hook, CTR, and CMS metadata suggestions when present. Keep backend IDs out of user-facing wording: translate platform/tool/issue keys into human-readable language and show raw IDs only in parentheses when useful for debugging. If the CMS metadata looks copied from a service line such as Part 1, Download PDF, or a numeric navigation line, call it a weak draft and suggest a clearer title, description, keywords, category, tags, and slug from the article topic. Use safety_science_review warnings for unsafe, legal-sensitive, scientific, or calculation-heavy content, while noting that AI can be wrong and does not replace expert review. Do not claim live SERP/social demand unless an external data source explicitly provides it. Do not rewrite, rank, or add editorial claims outside that evidence. If the user later asks to rewrite or improve the analyzed article, call article_rewrite_context instead of reading input.md directly or asking the user to paste the article again. Write the rewritten article directly in chat as a separate copyable article block; the user will copy it into ToraSEO and run a new scan. Keep rewrite choices aligned with the active workflow instructions, selected tools, platform/style/audience fit, SEO intent, media-marker policy, and risk warnings.";
+
+function articleTextRunLabel(state?: Pick<CurrentScanState, "input">): {
+  isSolution: boolean;
+  labelEn: string;
+  labelRu: string;
+} {
+  const isSolution = state?.input?.action === "solution";
+  return {
+    isSolution,
+    labelEn: isSolution
+      ? "article solution / draft proposal"
+      : "article text analysis",
+    labelRu: isSolution
+      ? "предложение решения / черновика по статье"
+      : "анализ текста статьи",
+  };
+}
+
+const TEXT_TEMPLATE_EN = (
+  tools: string,
+  state?: Pick<CurrentScanState, "input">,
+): string => {
+  const run = articleTextRunLabel(state);
+  return (
   `/toraseobridge article-text
 
-The ToraSEO Desktop App is running and waiting for article text analysis.
+The ToraSEO Desktop App is running and waiting for ${run.labelEn}.
 
 Do not ask the user to paste the article here. Use ToraSEO MCP tools; they read input.md from the temporary ToraSEO workspace.
 Use these tools: ${tools}.
+Base recommendations only on selected MCP tool evidence.
+Use intent_seo_forecast for intent, hook, CTR, and CMS metadata suggestions when present.
+Use safety_science_review warnings for unsafe, legal-sensitive, scientific, or calculation-heavy content. Note that AI can be wrong and does not replace expert review.
+Do not claim live SERP/social demand unless an external data source explicitly provides it.
+Do not rewrite, rank, or add editorial claims outside that evidence.
+If the user later asks to rewrite or improve the analyzed article, call article_rewrite_context instead of reading input.md directly or asking the user to paste the article again.
+Write the rewritten article directly in chat as a separate copyable article block; the user will copy it into ToraSEO and run a new scan.
+Keep rewrite choices aligned with the active workflow instructions, selected tools, platform/style/audience fit, SEO intent, media-marker policy, and risk warnings.
+${run.isSolution ? "\nThis run was started from Suggest solution. First run all selected MCP tools, then propose a concrete solution in chat based on their results. If the input is only a topic or too thin for a full article, do not pretend otherwise: give a brief plan, missing-context questions, and the next best draft direction instead of claiming a finished analysis.\n" : ""}
 
 Results will be displayed in the ToraSEO Desktop App.
-After all tools complete, provide recommendations in chat based on the MCP results.`;
+After all tools complete, provide recommendations in chat based on the MCP results.`
+  );
+};
 
-const TEXT_TEMPLATE_RU = (tools: string): string =>
-  `/toraseobridge article-text
+const TEXT_TEMPLATE_RU = (
+  tools: string,
+  state?: Pick<CurrentScanState, "input">,
+): string => {
+  const run = articleTextRunLabel(state);
+  return `/toraseobridge article-text
 
-Приложение ToraSEO Desktop App запущено и ожидает анализ текста статьи.
+Приложение ToraSEO Desktop App запущено и ожидает: ${run.labelRu}.
 
 Не проси пользователя вставлять статью в чат. Используй инструменты ToraSEO MCP; они читают input.md из временной рабочей папки ToraSEO.
 Используй инструменты: ${tools}.
+${run.isSolution ? "\nЭтот запуск сделан через кнопку «Предложить решение». Сначала выполни все выбранные MCP-инструменты, затем предложи конкретное решение в чате на основе их результатов. Если в input.md только тема или слишком мало контекста для готовой статьи, честно скажи, чего не хватает, и дай краткий план/направление черновика вместо имитации полноценного анализа.\n" : ""}
 
 Результаты будут отображены в приложении ToraSEO Desktop App.
 После завершения всех инструментов дай рекомендации в чате на основе результатов MCP.`;
+};
 
-const CODEX_TEXT_TEMPLATE_EN = (): string =>
-  `Use $toraseo-codex-workflow.
+const CODEX_TEXT_TEMPLATE_EN = (
+  state?: Pick<CurrentScanState, "input">,
+): string => {
+  const run = articleTextRunLabel(state);
+  return `Use $toraseo-codex-workflow.
 
 /toraseo codex-bridge-mode
 
-ToraSEO is waiting for article text analysis.
+ToraSEO is waiting for ${run.labelEn}.
+${run.isSolution ? "This was started from Suggest solution: after the handshake and all selected MCP tools complete, propose the solution or draft direction directly in chat using the tool evidence. If the input is only a topic or too thin, ask the minimum necessary clarifying question or give a bounded outline instead of pretending there is a full article." : "After the handshake and all selected MCP tools complete, summarize recommendations in chat using the tool evidence."}
 Use SKILL + MCP for the details.`;
+};
 
-const CODEX_TEXT_TEMPLATE_RU = (): string =>
-  `Используй $toraseo-codex-workflow.
+const CODEX_TEXT_TEMPLATE_RU = (
+  state?: Pick<CurrentScanState, "input">,
+): string => {
+  const run = articleTextRunLabel(state);
+  return `Используй $toraseo-codex-workflow.
 
 /toraseo codex-bridge-mode
 
-ToraSEO ожидает анализ текста статьи.
+ToraSEO ожидает: ${run.labelRu}.
+${run.isSolution ? "Запуск сделан кнопкой «Предложить решение»: после handshake и завершения всех выбранных MCP-инструментов предложи решение или направление черновика прямо в чате, опираясь на результаты инструментов. Если в input.md только тема или контекста мало, задай минимальный уточняющий вопрос или дай ограниченный план, не имитируя полноценную готовую статью." : "После handshake и завершения всех выбранных MCP-инструментов дай рекомендации в чате на основе результатов инструментов."}
 Детали возьми из SKILL + MCP.`;
+};
 
 const CODEX_SETUP_TEMPLATE_EN = (): string =>
   `Use $toraseo-codex-workflow.
@@ -176,19 +228,19 @@ export function buildScanPrompt(
   toolIds: string[],
   locale: SupportedLocale,
   bridgeClient: BridgeClient = "claude",
-  state?: Pick<CurrentScanState, "analysisType">,
+  state?: Pick<CurrentScanState, "analysisType" | "input">,
 ): string {
   // Comma-separated tool names — Claude reads this as a list.
   const toolsList = toolIds.join(", ");
   if (state?.analysisType === "article_text") {
     if (bridgeClient === "codex") {
       return locale === "ru"
-        ? CODEX_TEXT_TEMPLATE_RU()
-        : CODEX_TEXT_TEMPLATE_EN();
+        ? CODEX_TEXT_TEMPLATE_RU(state)
+        : CODEX_TEXT_TEMPLATE_EN(state);
     }
     return locale === "ru"
-      ? TEXT_TEMPLATE_RU(toolsList)
-      : TEXT_TEMPLATE_EN(toolsList);
+      ? `${TEXT_TEMPLATE_RU(toolsList, state)}\n${TEXT_EVIDENCE_BOUNDARY}`
+      : TEXT_TEMPLATE_EN(toolsList, state);
   }
   const template =
     bridgeClient === "codex"

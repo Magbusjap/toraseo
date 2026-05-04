@@ -125,6 +125,7 @@ const RUNTIME = {
   closeReportWindow: "toraseo:runtime:close-report-window",
   showReportWindowProcessing: "toraseo:runtime:show-report-window-processing",
   endReportWindowSession: "toraseo:runtime:end-report-window-session",
+  copyArticleSourceText: "toraseo:runtime:copy-article-source-text",
   exportReportPdf: "toraseo:runtime:export-report-pdf",
   exportReportDocument: "toraseo:runtime:export-report-document",
   exportReportPresentation: "toraseo:runtime:export-report-presentation",
@@ -429,6 +430,13 @@ const api: ToraseoApi = {
       return ipcRenderer.invoke(
         RUNTIME.endReportWindowSession,
       ) as Promise<{ ok: boolean }>;
+    },
+
+    copyArticleSourceText: (report: RuntimeAuditReport) => {
+      return ipcRenderer.invoke(
+        RUNTIME.copyArticleSourceText,
+        report,
+      ) as Promise<{ ok: boolean; charCount?: number; error?: string }>;
     },
 
     exportReportPdf: (report: RuntimeAuditReport) => {

@@ -70,6 +70,14 @@ the app. Built-in text checks may run even when they are not visible as
 sidebar checkboxes: uniqueness, syntax, AI-writing probability,
 naturalness, and logic consistency.
 
+If the handshake input contains `action: "solution"`, treat the run as
+the app's "Suggest solution" flow. Run the selected article-text tools
+first, then propose the solution, outline, or draft direction directly
+in chat from the tool evidence. The app may provide only a topic or a
+short brief in `input.md`; in that case, do not pretend a full article
+was analyzed. State what context is missing and give a bounded plan or
+the minimum clarifying question needed for a stronger draft.
+
 If the handshake input contains `analysisRole`, apply that role while
 interpreting the text. If the role is `default` or empty, use ToraSEO's
 standard analysis posture and choose the most suitable reviewer role

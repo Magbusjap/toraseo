@@ -264,7 +264,11 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               "the user to paste the article into chat; the selected MCP " +
               "tools read input.md from the temporary ToraSEO workspace. " +
               "After all tools complete, provide " +
-              "recommendations to the user in chat based on the data.",
+              "recommendations to the user in chat based on the data. " +
+              "If input.action is solution, run the tools first, then propose " +
+              "a concrete solution or draft direction in chat from the tool evidence. " +
+              "If the input is only a topic or too thin for a complete article, be explicit " +
+              "about the missing context and provide a bounded plan or minimum clarifying question.",
           },
           null,
           2,

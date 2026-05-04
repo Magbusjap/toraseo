@@ -84,6 +84,9 @@ import {
   languageSyntaxHandler,
   aiWritingProbabilityHandler,
   naturalnessIndicatorsHandler,
+  intentSeoForecastHandler,
+  safetyScienceReviewHandler,
+  articleRewriteContextHandler,
   factDistortionCheckHandler,
   logicConsistencyCheckHandler,
   aiHallucinationCheckHandler,
@@ -446,6 +449,39 @@ server.registerTool(
     inputSchema: emptyInputSchema,
   },
   naturalnessIndicatorsHandler,
+);
+
+server.registerTool(
+  "intent_seo_forecast",
+  {
+    title: "Intent and SEO Forecast",
+    description:
+      "Built-in article_text check. Builds a local intent forecast, hook score, CTR/trend potential, and a CMS/SEO metadata package from the active article text. It does not fetch live SERP or social trend data.",
+    inputSchema: emptyInputSchema,
+  },
+  intentSeoForecastHandler,
+);
+
+server.registerTool(
+  "safety_science_review",
+  {
+    title: "Safety, Legal and Science Review",
+    description:
+      "Built-in article_text check. Flags unsafe/platform-evasion intent, legal-sensitive claims, scientific-method claims, and calculation-heavy passages. This is a heuristic risk flag and does not replace expert review.",
+    inputSchema: emptyInputSchema,
+  },
+  safetyScienceReviewHandler,
+);
+
+server.registerTool(
+  "article_rewrite_context",
+  {
+    title: "Article Rewrite Context",
+    description:
+      "Use only after the user explicitly asks to rewrite, improve, or draft the active article_text analysis. Reads the cached ToraSEO article input and completed tool results through MCP, so the assistant must write the rewritten article in chat and must not ask the user to paste the article or try to read input.md directly.",
+    inputSchema: emptyInputSchema,
+  },
+  articleRewriteContextHandler,
 );
 
 // --- Transport & startup --------------------------------------------------

@@ -189,7 +189,7 @@ export interface RuntimeConfirmedFact {
   title: string;
   detail: string;
   priority: "high" | "medium" | "low";
-  sourceToolIds: ToolId[];
+  sourceToolIds: string[];
 }
 
 export interface RuntimeExpertHypothesis {
@@ -198,6 +198,126 @@ export interface RuntimeExpertHypothesis {
   priority: "high" | "medium" | "low";
   expectedImpact: string;
   validationMethod: string;
+}
+
+export type RuntimeArticleTextVerdict =
+  | "ready"
+  | "needs_revision"
+  | "high_risk";
+
+export type RuntimeArticleTextDimensionStatus =
+  | "healthy"
+  | "watch"
+  | "problem";
+
+export interface RuntimeArticleTextMetric {
+  id: string;
+  label: string;
+  value: number | null;
+  suffix: string;
+  tone: "good" | "warn" | "bad" | "pending";
+  description: string;
+}
+
+export interface RuntimeArticleTextPlatform {
+  key: string;
+  label: string;
+  detail: string;
+}
+
+export interface RuntimeArticleTextDocument {
+  title: string;
+  titleNote: string | null;
+  text: string;
+  sourceFile?: string;
+  wordCount: number | null;
+  paragraphCount: number | null;
+}
+
+export interface RuntimeArticleTextAnnotation {
+  id: number;
+  kind: "issue" | "recommendation" | "style" | "note";
+  label: string;
+  detail: string;
+  sourceToolIds: string[];
+  category?: string;
+  severity?: "critical" | "warning" | "info";
+  marker?: "underline" | "outline" | "strike" | "muted" | "note";
+  paragraphId?: string;
+  quote?: string;
+  title?: string;
+  shortMessage?: string;
+  confidence?: number;
+  global?: boolean;
+}
+
+export interface RuntimeArticleTextDimension {
+  id: string;
+  label: string;
+  status: RuntimeArticleTextDimensionStatus;
+  detail: string;
+  recommendation: string;
+  sourceToolIds: string[];
+}
+
+export interface RuntimeArticleTextPriority {
+  title: string;
+  detail: string;
+  priority: "high" | "medium" | "low";
+  sourceToolIds: string[];
+}
+
+export interface RuntimeArticleTextInsight {
+  title: string;
+  detail: string;
+  sourceToolIds: string[];
+}
+
+export interface RuntimeArticleTextSeoPackage {
+  seoTitle: string;
+  metaDescription: string;
+  primaryKeyword: string;
+  secondaryKeywords: string[];
+  keywords: string[];
+  category: string;
+  tags: string[];
+  slug: string;
+}
+
+export interface RuntimeArticleTextIntentForecast {
+  intent: string;
+  intentLabel: string;
+  hookType: string;
+  hookScore: number | null;
+  ctrPotential: number | null;
+  trendPotential: number | null;
+  internetDemandAvailable: boolean;
+  internetDemandSource: string;
+  hookIdeas: string[];
+  seoPackage: RuntimeArticleTextSeoPackage;
+}
+
+export interface RuntimeArticleTextSummary {
+  verdict: RuntimeArticleTextVerdict;
+  verdictLabel: string;
+  verdictDetail: string;
+  coverage: {
+    completed: number;
+    total: number;
+    percent: number;
+  };
+  platform: RuntimeArticleTextPlatform;
+  document: RuntimeArticleTextDocument;
+  annotationStatus: string;
+  annotations: RuntimeArticleTextAnnotation[];
+  dimensions: RuntimeArticleTextDimension[];
+  priorities: RuntimeArticleTextPriority[];
+  metrics: RuntimeArticleTextMetric[];
+  warningCount: number;
+  strengths: RuntimeArticleTextInsight[];
+  weaknesses: RuntimeArticleTextInsight[];
+  intentForecast?: RuntimeArticleTextIntentForecast;
+  nextActions: string[];
 }
 
 export interface RuntimeAuditReport {
@@ -209,6 +329,7 @@ export interface RuntimeAuditReport {
   nextStep: string;
   confirmedFacts: RuntimeConfirmedFact[];
   expertHypotheses: RuntimeExpertHypothesis[];
+  articleText?: RuntimeArticleTextSummary;
 }
 
 export interface ProviderUsage {
@@ -347,6 +468,13 @@ export interface RuntimeApi {
 
   /** Mark the second-screen details window as inactive without closing it. */
   endReportWindowSession(): Promise<{ ok: boolean }>;
+
+  /** Copy the original analyzed article text, without media placeholders. */
+  copyArticleSourceText(report: RuntimeAuditReport): Promise<{
+    ok: boolean;
+    charCount?: number;
+    error?: string;
+  }>;
 
   /** Export the current report to PDF. */
   exportReportPdf(report: RuntimeAuditReport): Promise<{

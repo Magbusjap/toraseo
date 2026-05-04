@@ -109,6 +109,30 @@ interface ScanTimers {
 }
 
 let activeTimers: ScanTimers | null = null;
+const LIFECYCLE_STARTED_AT_MS = Date.now();
+
+function isInFlightStatus(status: CurrentScanState["status"]): boolean {
+  return status === "awaiting_handshake" || status === "in_progress";
+}
+
+function wasCreatedBeforeThisAppRun(state: CurrentScanState): boolean {
+  const createdAtMs = Date.parse(state.createdAt);
+  return !Number.isFinite(createdAtMs) || createdAtMs < LIFECYCLE_STARTED_AT_MS;
+}
+
+async function discardStaleInFlightState(
+  state: CurrentScanState | null,
+): Promise<CurrentScanState | null> {
+  if (!state || !isInFlightStatus(state.status)) return state;
+  if (activeTimers) return state;
+  if (!wasCreatedBeforeThisAppRun(state)) return state;
+
+  log.warn(
+    `[bridge:lifecycle] discarding stale ${state.status} scan ${state.scanId} from a previous app run`,
+  );
+  await removeState();
+  return null;
+}
 
 /**
  * Clear all timers for the active scan and forget the entry.
@@ -153,7 +177,8 @@ export async function startScan(
 
   const scanId = randomUUID();
   const now = new Date().toISOString();
-  const analysisType = input?.text ? "article_text" : "site_by_url";
+  const analysisType =
+    input || url === "toraseo://article-text" ? "article_text" : "site_by_url";
   const workspace = await createBridgeWorkspace({
     scanId,
     bridgeClient,
@@ -247,6 +272,14 @@ export async function startScan(
  */
 export async function cancelScan(): Promise<{ ok: boolean }> {
   if (!activeTimers) {
+    const staleState = await readState();
+    if (staleState && isInFlightStatus(staleState.status)) {
+      log.info(
+        `[bridge:lifecycle] cancelling stale ${staleState.status} scan ${staleState.scanId}`,
+      );
+      await removeState();
+      return { ok: true };
+    }
     log.debug("[bridge:lifecycle] cancel called but no active scan");
     return { ok: true };
   }
@@ -340,7 +373,13 @@ export async function retryHandshake(): Promise<{
  * scan is active.
  */
 export async function getCurrentState(): Promise<CurrentScanState | null> {
-  return readState();
+  return discardStaleInFlightState(await readState());
+}
+
+export async function getVisibleState(
+  state: CurrentScanState | null,
+): Promise<CurrentScanState | null> {
+  return discardStaleInFlightState(state);
 }
 
 /**

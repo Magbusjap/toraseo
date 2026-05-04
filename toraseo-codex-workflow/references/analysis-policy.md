@@ -53,14 +53,25 @@ Current planning direction:
   content, and stack detection; add text extraction, platform detection,
   text style, and language/audience fit.
 - `article_text`: focus on text platform, structure, style, tone,
-  language/audience fit, media placeholders, and naturalness. Built-in
+  language/audience fit, media placeholders, naturalness, safety/legal,
+  medical, investment, technical/engineering, jurisdiction, source-context
+  risk flags, and scientific/calculation review signals. Built-in
   checks also include article uniqueness, language syntax, AI-writing
-  probability, and logic consistency. Optional deeper checks include
+  probability, logic consistency, and the intent/SEO forecast layer.
+  The intent/SEO layer may suggest hooks, CTR/trend potential, and CMS
+  metadata, but must not claim live search, platform rules, likes/dislikes,
+  SERP demand, jurisdiction rules, or social demand unless a real external
+  data source is connected. Optional deeper checks include
   fact distortion and AI/hallucination review. In Bridge Mode the app
   stores the temporary article text in workspace `input.md`; Codex/Claude
   should use MCP tools to read that file and write structured results
   back to the app instead of asking the user to paste the article into
-  chat.
+  chat. If the user later asks for a rewrite or ready draft from the
+  same analysis, use `article_rewrite_context` instead of reading
+  `input.md` directly or asking for the pasted text again. The rewritten
+  article should be produced in chat as a copyable block; the user then
+  pastes it into ToraSEO and starts a new scan. The rewrite must still
+  follow the active workflow rules and selected tool evidence.
 - `article_compare`: compare structure, style, platform fit, strengths
   and weaknesses, language/audience fit, and media placement.
 - `site_compare`: compare positioning, content depth, technical basics,
@@ -135,7 +146,11 @@ If the user chose finished-text analysis, the AI should not suddenly
 rewrite the whole article. It may point out problems, recommend fixes,
 and ask whether the user wants a rewrite. If the user chose AI solution,
 the AI may draft the article when there is enough context, or ask a
-short clarifying question when context is insufficient.
+short clarifying question when context is insufficient. The bridge must
+still start as `article_text` even when the user supplies only a topic
+for this solution flow; the temporary `input.md` should contain that
+topic/brief so the selected MCP tools and the final chat proposal are
+working from the same evidence.
 
 When AI drafts a full article, the final response should clearly separate
 the ready article from recommendations, so the user can copy only the
@@ -235,6 +250,11 @@ Keep the layers separate:
   per-tool controls
 
 Do not ask the model to invent facts that should come from tools.
+For `article_text`, the model must also keep recommendations and rewrite
+directions inside selected/built-in tool evidence. It may explain what a
+weak metric means, what to fix first, and what extra check is missing;
+it must not invent ranking promises, hidden formula weights, or a broad
+editorial strategy that the current tools did not evaluate.
 
 ## Formula Policy
 
