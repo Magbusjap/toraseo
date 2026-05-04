@@ -112,6 +112,13 @@ function createWindow(): void {
     mainWindow.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
   }
 
+  mainWindow.on("close", () => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (win === mainWindow || win.isDestroyed()) continue;
+      win.close();
+    }
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
   });

@@ -100,6 +100,16 @@ The prompt command is only a trigger. The real bridge protocol is:
 Codex Workflow Instructions -> `verify_codex_workflow_loaded` -> MCP
 selected tools -> app state updates.
 
+If the user asks for article-text analysis while ToraSEO Desktop App or
+the live MCP bridge is unavailable, stay in chat-only ToraSEO mode
+instead of pretending the app was updated. Analyze the pasted chat text
+with the same conceptual checks where possible: platform/use-case,
+structure, style, tone, language/audience, media placeholders, local
+repetition, AI-writing style risk, logic, SEO intent/metadata draft, and
+safety/science/legal-sensitive risk flags. Make clear that this does not
+write structured results into ToraSEO and is not live SERP, plagiarism,
+legal, medical, investment, engineering, or scientific verification.
+
 If Codex asks the user to approve ToraSEO MCP tools, prefer the
 one-time chat/session approval option when the platform offers it. Tell
 the user to tick the chat/session approval checkbox and click Allow. Do

@@ -45,7 +45,7 @@ const STAGE1_RULES: RuntimePolicyRule[] = [
   },
   {
     id: "facts.vs.hypotheses",
-    text: "Always separate confirmed facts (sourced from MCP tool outputs) from expert hypotheses. Mark hypotheses explicitly.",
+    text: "Always separate confirmed facts from expert hypotheses. In MCP + Instructions mode facts come from MCP tool outputs; in API Native article-text mode facts come from the provided article text and the AI-generated structured report contract. Mark hypotheses explicitly.",
   },
   {
     id: "format.structured",
@@ -54,7 +54,7 @@ const STAGE1_RULES: RuntimePolicyRule[] = [
   },
   {
     id: "format.facts-only",
-    text: "Respond using only confirmed facts from the provided scan evidence. Do NOT add speculative recommendations in this mode.",
+    text: "Respond using only confirmed facts from the provided scan evidence or article text. Do NOT add speculative recommendations in this mode.",
     modes: ["strict_audit"],
   },
   {
@@ -72,6 +72,10 @@ const STAGE1_RULES: RuntimePolicyRule[] = [
   {
     id: "text.evidence-boundary",
     text: "For article-text analysis, explain errors, recommendations, and rewrite directions only inside the selected or built-in tool evidence. Rewrites must follow the active ToraSEO workflow behavior and selected tools: platform fit, style/audience fit, SEO intent, media-marker policy, and safety/legal/medical/scientific/technical risk flags. Do not promise ranking gains, invent quality scores, add unsupported editorial strategy, strengthen unverified claims, or remove necessary caveats. If the current tools do not cover a question, say which additional check is needed.",
+  },
+  {
+    id: "text.native-tool-scope",
+    text: "In API + AI Chat mode, article-text work must stay within the active analysis scope. Use only the text-analysis checks relevant to the user's request instead of pretending every possible tool ran. Core checks are platform/use-case, structure, style, tone, language/audience, media placeholders, local uniqueness/repetition, syntax, AI-writing style probability, naturalness, logic consistency, local SEO intent/metadata forecast, and safety/science/legal-sensitive risk flags. Optional claim checks are fact distortion and AI hallucination review.",
   },
   {
     id: "text.media-placement-before-rewrite",

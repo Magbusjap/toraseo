@@ -151,6 +151,24 @@ const articleTextCurrent: CatalogToolRow[] = [
     ),
   },
   {
+    name: text("Прогноз интента и SEO-пакет", "Intent forecast and SEO package"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Встроенный локальный прогноз интента, хука, CTR/тренд-потенциала и черновика CMS-метаданных. Не является интернет-сверкой спроса.",
+      "Built-in local forecast for intent, hook, CTR/trend potential, and CMS metadata draft. It is not live internet demand verification.",
+    ),
+  },
+  {
+    name: text("Риски и экспертная проверка", "Risk and expert review"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Встроенный риск-флаг для unsafe, юридически, медицински, научно, технически и расчетно чувствительных утверждений. Не заменяет эксперта.",
+      "Built-in risk flag for unsafe, legal, medical, scientific, technical, and calculation-sensitive claims. It does not replace expert review.",
+    ),
+  },
+  {
     name: text("Платформа текста", "Text platform"),
     group: "secondary",
     description: text(

@@ -48,9 +48,13 @@ interface OpenRouterSuccessPayload {
 
 type OutputContractMode = "json_schema" | "prompt_only";
 
-function buildSchema(mode: RuntimeAuditReport["mode"]): object {
+function buildSchema(
+  mode: RuntimeAuditReport["mode"],
+  confirmedFactCount = 1,
+): object {
   const hypothesisMin = mode === "strict_audit" ? 0 : 0;
   const hypothesisMax = mode === "strict_audit" ? 0 : 8;
+  const factCount = Math.max(1, Math.min(24, confirmedFactCount));
 
   return {
     type: "object",
@@ -73,8 +77,8 @@ function buildSchema(mode: RuntimeAuditReport["mode"]): object {
       },
       confirmedFacts: {
         type: "array",
-        minItems: 1,
-        maxItems: 12,
+        minItems: factCount,
+        maxItems: Math.max(factCount, 24),
         items: {
           type: "object",
           additionalProperties: false,
@@ -253,6 +257,94 @@ function hasScanEvidence(request: ProviderChatRequest): boolean {
   );
 }
 
+function hasArticleTextContext(request: ProviderChatRequest): boolean {
+  return Boolean(request.articleTextContext?.body.trim());
+}
+
+function articleTextAutoRunAction(
+  request: ProviderChatRequest,
+): "scan" | "solution" | null {
+  const match = request.userText.match(
+    /TORASEO_ARTICLE_TEXT_AUTO_RUN=(scan|solution)/,
+  );
+  return match ? (match[1] as "scan" | "solution") : null;
+}
+
+function isStructuredArticleTextScan(request: ProviderChatRequest): boolean {
+  return (
+    hasArticleTextContext(request) &&
+    request.articleTextContext?.action === "scan" &&
+    articleTextAutoRunAction(request) === "scan"
+  );
+}
+
+function expectedConfirmedFactCount(request: ProviderChatRequest): number {
+  if (isStructuredArticleTextScan(request)) {
+    return request.articleTextContext?.selectedTools.length || 1;
+  }
+  return 1;
+}
+
+function platformLabelForPrompt(value: string, locale: "en" | "ru"): string {
+  const labels: Record<string, { ru: string; en: string }> = {
+    site_article: { ru: "статья для сайта", en: "site article" },
+    markdown_article: { ru: "статья в Markdown", en: "Markdown article" },
+    short_social_post: {
+      ru: "короткий пост для соцсетей",
+      en: "short social post",
+    },
+    short_article_or_long_social_post: {
+      ru: "короткая статья или длинный пост",
+      en: "short article or long social post",
+    },
+    auto: { ru: "определить автоматически", en: "auto-detected format" },
+  };
+  return labels[value]?.[locale] ?? value;
+}
+
+function toolLabelForPrompt(value: string, locale: "en" | "ru"): string {
+  const labels: Record<string, { ru: string; en: string }> = {
+    detect_text_platform: { ru: "платформа текста", en: "text platform" },
+    analyze_text_structure: { ru: "структура текста", en: "text structure" },
+    analyze_text_style: { ru: "стиль текста", en: "text style" },
+    analyze_tone_fit: { ru: "соответствие тона", en: "tone fit" },
+    language_audience_fit: {
+      ru: "язык и аудитория",
+      en: "language and audience",
+    },
+    media_placeholder_review: {
+      ru: "размещение медиа",
+      en: "media placement",
+    },
+    article_uniqueness: {
+      ru: "локальная уникальность и повторы",
+      en: "local uniqueness and repetition",
+    },
+    language_syntax: { ru: "синтаксис языка", en: "language syntax" },
+    ai_writing_probability: {
+      ru: "вероятность ИИ-стиля",
+      en: "AI-writing probability",
+    },
+    naturalness_indicators: {
+      ru: "естественность текста",
+      en: "naturalness indicators",
+    },
+    logic_consistency_check: {
+      ru: "логическая согласованность",
+      en: "logic consistency",
+    },
+    intent_seo_forecast: {
+      ru: "SEO-интент и метаданные",
+      en: "SEO intent and metadata",
+    },
+    safety_science_review: {
+      ru: "риск-флаги и экспертная проверка",
+      en: "risk flags and expert review",
+    },
+  };
+  return labels[value]?.[locale] ?? value;
+}
+
 function resolveBaseUrl(configBaseUrl?: string): string {
   const raw = configBaseUrl?.trim();
   if (!raw) return DEFAULT_BASE_URL;
@@ -278,36 +370,249 @@ function normaliseToolIds(input: unknown): string[] {
   return input.filter((value): value is string => typeof value === "string");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function priorityValue(value: unknown): "high" | "medium" | "low" {
+  const raw = stringValue(value).toLowerCase();
+  if (raw === "high" || raw.includes("high") || raw.includes("высок")) {
+    return "high";
+  }
+  if (raw === "low" || raw.includes("low") || raw.includes("низк")) {
+    return "low";
+  }
+  return "medium";
+}
+
+function fallbackToolId(
+  request: ProviderChatRequest,
+  index: number,
+): string {
+  return (
+    request.articleTextContext?.selectedTools[index] ??
+    request.articleTextContext?.selectedTools[0] ??
+    request.scanContext?.selectedTools[index] ??
+    request.scanContext?.selectedTools[0] ??
+    "api_article_text"
+  );
+}
+
+function mapToolLabelToId(value: string): string | null {
+  const normalized = value.toLowerCase().replace(/[_-]+/g, " ").trim();
+  const aliases: Record<string, string> = {
+    "platform text": "detect_text_platform",
+    "text platform": "detect_text_platform",
+    platform: "detect_text_platform",
+    "structure text": "analyze_text_structure",
+    "text structure": "analyze_text_structure",
+    structure: "analyze_text_structure",
+    "style text": "analyze_text_style",
+    "text style": "analyze_text_style",
+    style: "analyze_text_style",
+    "tone fit": "analyze_tone_fit",
+    tone: "analyze_tone_fit",
+    "language audience": "language_audience_fit",
+    "language and audience": "language_audience_fit",
+    audience: "language_audience_fit",
+    "media placement": "media_placeholder_review",
+    "media placeholders": "media_placeholder_review",
+    media: "media_placeholder_review",
+    "local repetition and uniqueness": "article_uniqueness",
+    "local uniqueness and repetition": "article_uniqueness",
+    uniqueness: "article_uniqueness",
+    repetition: "article_uniqueness",
+    syntax: "language_syntax",
+    "language syntax": "language_syntax",
+    "ai style probability": "ai_writing_probability",
+    "ai writing probability": "ai_writing_probability",
+    "ai-writing probability": "ai_writing_probability",
+    "naturalness indicators": "naturalness_indicators",
+    naturalness: "naturalness_indicators",
+    logic: "logic_consistency_check",
+    "logic consistency": "logic_consistency_check",
+    "seo intent and metadata": "intent_seo_forecast",
+    "seo intent": "intent_seo_forecast",
+    metadata: "intent_seo_forecast",
+    "risk flags and expert check": "safety_science_review",
+    "risk flags and expert review": "safety_science_review",
+    "risk flags": "safety_science_review",
+    "expert check": "safety_science_review",
+    "fact distortion": "fact_distortion_check",
+    "hallucination check": "ai_hallucination_check",
+  };
+  return aliases[normalized] ?? null;
+}
+
+function normalizeSourceToolIds(
+  input: unknown,
+  request: ProviderChatRequest,
+  index: number,
+): string[] {
+  const expected = new Set([
+    ...(request.articleTextContext?.selectedTools ?? []),
+    ...(request.scanContext?.selectedTools ?? []),
+  ]);
+  const raw = normaliseToolIds(input);
+  const direct = raw.filter((toolId) => expected.has(toolId));
+  if (direct.length > 0) return direct;
+
+  const mapped = raw
+    .map(mapToolLabelToId)
+    .filter((toolId): toolId is string =>
+      Boolean(toolId && (expected.size === 0 || expected.has(toolId))),
+    );
+  if (mapped.length > 0) return [...new Set(mapped)];
+
+  return [fallbackToolId(request, index)];
+}
+
+function arrayValue(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function coerceLocalizedArticleReport(
+  candidate: Record<string, unknown>,
+  request: ProviderChatRequest,
+  model: string,
+): RuntimeAuditReport | null {
+  const factsSource = arrayValue(candidate["факты"]);
+  if (factsSource.length === 0) return null;
+
+  const summarySource = candidate["сводка"];
+  const summary =
+    typeof summarySource === "string"
+      ? summarySource.trim()
+      : isRecord(summarySource)
+        ? [
+            stringValue(summarySource["тип_анализа"]),
+            stringValue(summarySource["платформа"]),
+            stringValue(summarySource["тема"]),
+          ]
+            .filter(Boolean)
+            .join(". ")
+        : "";
+
+  const nextStepSource = candidate["следующий_шаг"];
+  const nextStep = isRecord(nextStepSource)
+    ? stringValue(nextStepSource["действие"])
+    : stringValue(nextStepSource);
+
+  const confirmedFacts = factsSource
+    .filter(isRecord)
+    .map((item, index) => {
+      const title =
+        stringValue(item["проверка"]) ||
+        stringValue(item["заголовок"]) ||
+        `Article text check ${index + 1}`;
+      const detail = [
+        stringValue(item["наблюдение"]),
+        stringValue(item["рекомендация"]),
+        stringValue(item["основание"]),
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      return {
+        title,
+        detail,
+        priority: priorityValue(item["приоритет"]),
+        sourceToolIds: normalizeSourceToolIds(
+          item["sourceToolIds"],
+          request,
+          index,
+        ),
+      };
+    })
+    .filter((item) => item.title && item.detail);
+
+  if (confirmedFacts.length === 0) return null;
+
+  const localizedRecommendations = arrayValue(
+    candidate["рекомендации_по_приоритету"],
+  );
+  const expertHypotheses =
+    request.policy.mode === "strict_audit"
+      ? []
+      : localizedRecommendations
+          .filter(isRecord)
+          .map((item) => ({
+            title: stringValue(item["рекомендация"]).slice(0, 200),
+            detail: stringValue(item["рекомендация"]),
+            priority: priorityValue(item["приоритет"]),
+            expectedImpact: stringValue(item["эффект"]),
+            validationMethod: stringValue(item["метод_проверки"]),
+          }))
+          .filter(
+            (item) =>
+              item.title &&
+              item.detail &&
+              item.expectedImpact &&
+              item.validationMethod,
+          )
+          .slice(0, 8);
+
+  return {
+    mode: request.policy.mode,
+    providerId: "openrouter",
+    model,
+    generatedAt: new Date().toISOString(),
+    summary:
+      summary ||
+      "Структурированный API-отчет по тексту статьи сформирован моделью.",
+    nextStep:
+      nextStep ||
+      confirmedFacts[0]?.detail.slice(0, 500) ||
+      "Просмотрите приоритетные замечания и повторите анализ после правок.",
+    confirmedFacts,
+    expertHypotheses,
+  };
+}
+
 function coerceReport(
   raw: unknown,
   request: ProviderChatRequest,
   model: string,
 ): RuntimeAuditReport | null {
-  if (!raw || typeof raw !== "object") return null;
-  const candidate = raw as Record<string, unknown>;
+  if (!isRecord(raw)) return null;
+  const candidate = raw;
+  const localizedReport = coerceLocalizedArticleReport(candidate, request, model);
+  if (localizedReport) return localizedReport;
+  const hasExpertHypothesisArray = Array.isArray(candidate.expertHypotheses);
   if (
     typeof candidate.summary !== "string" ||
     typeof candidate.nextStep !== "string" ||
     !Array.isArray(candidate.confirmedFacts) ||
-    !Array.isArray(candidate.expertHypotheses)
+    (request.policy.mode !== "strict_audit" && !hasExpertHypothesisArray)
   ) {
     return null;
   }
 
   const confirmedFacts = candidate.confirmedFacts
     .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
-    .map((item) => ({
-      title: typeof item.title === "string" ? item.title.trim() : "",
-      detail: typeof item.detail === "string" ? item.detail.trim() : "",
-      priority:
-        item.priority === "high" || item.priority === "low"
-          ? item.priority
-          : "medium",
-      sourceToolIds: normaliseToolIds(item.sourceToolIds),
-    }))
+    .map((item, index) => {
+      return {
+        title: typeof item.title === "string" ? item.title.trim() : "",
+        detail: typeof item.detail === "string" ? item.detail.trim() : "",
+        priority:
+          item.priority === "high" || item.priority === "low"
+            ? item.priority
+            : "medium",
+        sourceToolIds: normalizeSourceToolIds(
+          item.sourceToolIds,
+          request,
+          index,
+        ),
+      };
+    })
     .filter((item) => item.title && item.detail && item.sourceToolIds.length > 0);
 
-  const expertHypotheses = candidate.expertHypotheses
+  const expertHypothesisSource =
+    request.policy.mode === "strict_audit" ? [] : candidate.expertHypotheses;
+  const expertHypotheses = arrayValue(expertHypothesisSource)
     .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
     .map((item) => ({
       title: typeof item.title === "string" ? item.title.trim() : "",
@@ -334,10 +639,6 @@ function coerceReport(
   if (confirmedFacts.length === 0) {
     return null;
   }
-  if (request.policy.mode === "strict_audit" && expertHypotheses.length > 0) {
-    return null;
-  }
-
   return {
     mode: request.policy.mode,
     providerId: "openrouter",
@@ -379,6 +680,77 @@ export class OpenRouterAdapter implements ProviderAdapter {
   }
 
   private buildUserPrompt(request: ProviderChatRequest): string {
+    if (hasArticleTextContext(request)) {
+      const context = request.articleTextContext!;
+      const structuredScan = isStructuredArticleTextScan(request);
+      const autoRunAction = articleTextAutoRunAction(request);
+      const languageInstruction =
+        request.policy.locale === "ru"
+          ? "Ответь по-русски."
+          : "Reply in English.";
+      const actionInstruction =
+        !autoRunAction
+          ? "Answer the user's current message inside the active ToraSEO article-text workflow. Use the article text as context, and do not claim you can see the user's screen."
+          : context.action === "solution"
+          ? "The user clicked Suggest solution. First reason through the selected ToraSEO text-analysis checks, then provide a concrete solution, rewrite plan, or draft direction. If there is enough context and the user expects a rewrite, write the rewritten article directly in chat as a separate copyable block."
+          : "The user clicked Scan text in API + AI Chat. Analyze the article text and provide prioritized recommendations in chat.";
+      const modeInstruction =
+        request.policy.mode === "strict_audit"
+          ? "Strict mode: do not include an Expert hypotheses section. Do not invent hidden tool scores. List only observations that are directly visible in the article text or explicitly described as local heuristics, and tie every recommendation to a visible observation."
+          : "Ideas mode: expert hypotheses and rewrite directions are allowed, but label them as hypotheses or suggestions and keep them bounded by the article text.";
+      const platform =
+        context.customPlatform?.trim() ||
+        platformLabelForPrompt(context.textPlatform, request.policy.locale);
+      const selectedChecks = context.selectedTools.map((toolId) =>
+        toolLabelForPrompt(toolId, request.policy.locale),
+      );
+
+      const outputInstruction = structuredScan
+        ? "The user clicked Scan text. The API model must form the structured ToraSEO report. Return JSON that satisfies the required audit schema only; do not wrap it in markdown fences. Do not translate JSON property names. Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses. Each confirmedFacts item must use exactly: title, detail, priority, sourceToolIds. Priority values must be exactly high, medium, or low. User-facing string values should still be written in the user's language. Return one confirmedFacts item for every selected check, in the same order as selectedToolIds. sourceToolIds must contain the exact backend id for the current check from selectedToolIds, not the translated label. Use title for the finding headline, not the tool name; the app will render the tool name itself. Write detail in three short paragraphs when possible: key evidence, what was found, what to do. Use high only for blocking or publication-critical problems; use medium for normal editing issues; use low for healthy or informational findings. If this request contains only one selected check, treat it as the current step of a larger multi-tool scan: evaluate the article for that check, but do not write that only one check was selected, and do not turn scan mechanics into a content finding."
+        : "This is a ToraSEO API + AI Chat article-text workflow. Do not return JSON.";
+
+      return [
+        outputInstruction,
+        languageInstruction,
+        actionInstruction,
+        modeInstruction,
+        structuredScan
+          ? "The report source is the AI provider response. The application only prepares the text/context and displays the structured report after this response is parsed."
+          : "If the user asks whether the report exists in ToraSEO, explain that in API mode the application can display a report only after the AI provider has returned a structured report; you cannot see the screen, but you can describe this workflow.",
+        "Stay within the selected/relevant text-analysis tools. Do not pretend live MCP tools, internet SERP checks, external plagiarism checks, legal, medical, investment, engineering, or scientific expert verification ran.",
+        "Use human-readable wording, not backend IDs. Mention uncertainty where a check is only heuristic.",
+        structuredScan
+          ? "For structured scan output, every confirmed fact must describe the article itself or a clearly labeled local heuristic. Do not create findings about selectedChecks, runId, JSON schema, API mode, or other orchestration details."
+          : "Keep orchestration details out of the answer unless the user asks how the workflow works.",
+        "Relevant checks may include platform/use-case, structure, style, tone, language/audience, media placeholders, local repetition/uniqueness, syntax, AI-writing style probability, naturalness, logic, local SEO intent/metadata, and safety/science/legal-sensitive risk flags.",
+        "If rewriting or substantially reworking, preserve necessary caveats and do not strengthen unverified claims. Ask about media placeholder positions before adding them unless the user already requested media placement.",
+        "",
+        "User message:",
+        request.userText.replace(/TORASEO_ARTICLE_TEXT_AUTO_RUN=(scan|solution)\s*/g, "").trim(),
+        "",
+        "Article context:",
+        JSON.stringify(
+          {
+            action: context.action,
+            runId: context.runId ?? "not specified",
+            topic: context.topic,
+            analysisRole: context.analysisRole ?? "default",
+            platform,
+            selectedToolIds: context.selectedTools,
+            selectedChecks,
+          },
+          null,
+          2,
+        ),
+        "",
+        "User request:",
+        request.userText,
+        "",
+        "Article text:",
+        context.body,
+      ].join("\n");
+    }
+
     if (!hasScanEvidence(request)) {
       const languageInstruction =
         request.policy.locale === "ru"
@@ -389,7 +761,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
         "This is a pre-scan ToraSEO chat turn. Do not return JSON.",
         languageInstruction,
         "You may explain how ToraSEO works, what the current analysis mode can do, how the user should run a site audit, and what kind of questions can be asked after scan results exist.",
-        "If the user asks you to analyze a site, article, pasted content, or anything outside the active ToraSEO workflow, explain that the analysis must be started from the main ToraSEO window first.",
+        "If the user asks you to analyze a site or anything outside the active ToraSEO workflow, explain that the analysis must be started from the main ToraSEO window first.",
         "Keep the answer helpful and concise.",
         "",
         `User message: ${request.userText}`,
@@ -416,7 +788,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
       "Active analysis type:",
       request.analysisType === "site"
         ? "Site audit by URL. Redirect unrelated or generic assistant requests back to the current site audit."
-        : "Unsupported analysis type. Do not answer outside the active ToraSEO workflow.",
+        : "Article text analysis. Redirect unrelated or generic assistant requests back to the current article text workflow.",
       "",
       "Current scan context:",
       factsSection,
@@ -438,7 +810,11 @@ export class OpenRouterAdapter implements ProviderAdapter {
     const requestBody: Record<string, unknown> = {
       model,
       temperature: request.policy.mode === "strict_audit" ? 0.1 : 0.35,
-      max_tokens: hasScanEvidence(request) ? 1800 : 700,
+      max_tokens: hasArticleTextContext(request)
+        ? 3600
+        : hasScanEvidence(request)
+          ? 1800
+          : 700,
       messages: [
         { role: "system", content: request.policy.systemPrompt },
         { role: "user", content: this.buildUserPrompt(request) },
@@ -451,7 +827,10 @@ export class OpenRouterAdapter implements ProviderAdapter {
         json_schema: {
           name: "toraseo_audit_report",
           strict: true,
-          schema: buildSchema(request.policy.mode),
+          schema: buildSchema(
+            request.policy.mode,
+            expectedConfirmedFactCount(request),
+          ),
         },
       };
     }
@@ -628,9 +1007,10 @@ export class OpenRouterAdapter implements ProviderAdapter {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
-        const initialContractMode: OutputContractMode = hasScanEvidence(request)
-          ? "json_schema"
-          : "prompt_only";
+        const initialContractMode: OutputContractMode =
+          hasScanEvidence(request) || isStructuredArticleTextScan(request)
+            ? "json_schema"
+            : "prompt_only";
         const result = await this.executeAttempt(
           request,
           model,

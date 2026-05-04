@@ -19,6 +19,7 @@ import type {
   ProviderUsage,
   ProviderId,
   RuntimeAnalysisType,
+  RuntimeArticleTextContext,
   RuntimeAuditReport,
   RuntimePolicyBundle,
   RuntimeScanContext,
@@ -38,6 +39,8 @@ export interface ProviderChatRequest {
   analysisType: RuntimeAnalysisType;
   /** Scan facts the assistant may cite. */
   scanContext?: RuntimeScanContext | null;
+  /** Article text context for native API text analysis. */
+  articleTextContext?: RuntimeArticleTextContext | null;
   /** Override default model for this request. */
   modelOverride?: string;
 }
