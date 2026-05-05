@@ -513,6 +513,13 @@ export interface RuntimeApi {
     error?: string;
   }>;
 
+  /** Export the raw structured report JSON for private Eval Lab runs. */
+  exportReportJson(report: RuntimeAuditReport): Promise<{
+    ok: boolean;
+    filePath?: string;
+    error?: string;
+  }>;
+
   /** Probe the selected provider with a minimal scoped audit request. */
   testProviderConnection(
     providerId: ProviderId,
