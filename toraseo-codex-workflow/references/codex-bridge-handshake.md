@@ -26,6 +26,14 @@ When the prompt says `Use $toraseo-codex-workflow` and contains
 verify_codex_workflow_loaded(token="codex-workflow-v1-2026-04-29")
 ```
 
+Current user-facing Codex commands are:
+
+| Command | Purpose |
+|---|---|
+| `/toraseo codex-bridge-mode setup-check` | Prove that Codex can access ToraSEO MCP and the Codex Workflow Instructions in the active session. |
+| `/toraseo codex-bridge-mode article-text` | Run the article-text bridge flow. |
+| `/toraseo codex-bridge-mode article-compare` | Run the two-text comparison bridge flow. |
+
 The same MCP call is required for manual connectivity questions. If the
 user asks in their own words whether Codex sees, can access, or is
 connected to ToraSEO, ToraSEO MCP, the ToraSEO SKILL, or Codex Workflow
@@ -63,6 +71,14 @@ The handshake response can describe different bridge workloads:
   not ask the user to paste it into chat. The selected MCP tools read
   that file and write their structured results back into the app state
   and `results/*.json`.
+- `article_compare`: call the selected comparison tools. Text A and
+  Text B are stored in the temporary ToraSEO workspace as `input.md`, so
+  Codex must not ask the user to paste either text into chat. Some
+  selected tool IDs are shared with `article_text`; in this analysis type
+  they mean "analyze A and B side by side." If the input goal is empty,
+  produce the standard comparison report. If the goal focuses on one
+  side, adapt the final chat answer to that side. Compare text evidence
+  only; do not claim ranking causes from text alone.
 
 For `article_text`, the handshake input may include `action: "scan"` or
 `action: "solution"`. `scan` means analyze the submitted article and
@@ -166,6 +182,15 @@ The slash command in the copied prompt is only the trigger. It must not
 encode fake versioned text-analysis subcommands; the source of truth is
 the handshake response, the app state, and the temporary workspace paths
 returned by MCP.
+
+## Chat-Only Fallback
+
+If Codex Workflow Instructions are loaded but ToraSEO MCP and/or the
+Desktop App scan is unavailable, do not pretend that the app was updated.
+Load `references/chat-only-fallback.md` and give a bounded chat-only
+ToraSEO analysis from the text or details the user provided. Do not load
+that fallback reference when the handshake succeeds and selected MCP
+tools are available.
 
 ## Tool permissions
 

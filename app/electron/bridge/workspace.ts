@@ -41,6 +41,27 @@ async function writeTextAtomic(filePath: string, content: string): Promise<void>
 }
 
 function buildInputMarkdown(options: CreateWorkspaceOptions): string {
+  if (options.analysisType === "article_compare") {
+    return [
+      "# ToraSEO Article Compare Input",
+      "",
+      `Goal: ${options.input?.goal?.trim() || "стандартный отчет сравнения"}`,
+      `Goal mode: ${options.input?.goalMode ?? "standard_comparison"}`,
+      `Text A role: ${options.input?.roleA ?? "auto"}`,
+      `Text B role: ${options.input?.roleB ?? "auto"}`,
+      `Platform: ${options.input?.customPlatform?.trim() || options.input?.textPlatform || "auto"}`,
+      "",
+      "## Text A",
+      "",
+      options.input?.textA?.trim() ?? "",
+      "",
+      "## Text B",
+      "",
+      options.input?.textB?.trim() ?? "",
+      "",
+    ].join("\n");
+  }
+
   if (options.analysisType === "article_text") {
     const body = options.input?.text?.trim() ?? "";
     if (body) return body;
@@ -150,12 +171,20 @@ export async function createBridgeWorkspace(
       ? {
           action: options.input.action,
           topic: options.input.topic,
+          goal: options.input.goal,
+          goalMode: options.input.goalMode,
+          roleA: options.input.roleA,
+          roleB: options.input.roleB,
           analysisRole: options.input.analysisRole,
           textPlatform: options.input.textPlatform,
           customPlatform: options.input.customPlatform,
           selectedAnalysisTools: options.input.selectedAnalysisTools,
           hasText: Boolean(options.input.text?.trim()),
           textLength: options.input.text?.length ?? 0,
+          hasTextA: Boolean(options.input.textA?.trim()),
+          hasTextB: Boolean(options.input.textB?.trim()),
+          textALength: options.input.textA?.length ?? 0,
+          textBLength: options.input.textB?.length ?? 0,
         }
       : undefined,
     workspace,

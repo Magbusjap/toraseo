@@ -15,6 +15,11 @@ import type {
   AuditExecutionMode,
   OrchestratorMessageInput,
   OrchestratorMessageResult,
+  RuntimeArticleCompareContext,
+  RuntimeArticleCompareGoalMode,
+  RuntimeArticleCompareMetric,
+  RuntimeArticleCompareSummary,
+  RuntimeArticleCompareTextSide,
   RuntimeArticleTextContext,
   ProviderModelProfile,
   RuntimeAuditReport,
@@ -37,7 +42,8 @@ interface ChatPanelProps {
   executionMode: AuditExecutionMode;
   scanContext: RuntimeScanContext | null;
   articleTextContext?: RuntimeArticleTextContext | null;
-  analysisType?: "site" | "article_text";
+  articleCompareContext?: RuntimeArticleCompareContext | null;
+  analysisType?: "site" | "article_text" | "article_compare";
   selectedModelProfile: ProviderModelProfile | null;
   bridgeState: CurrentScanState | null;
   bridgePrompt: string | null;
@@ -85,6 +91,185 @@ function articleTextContextKey(
     context.body.length,
     context.body.slice(0, 80),
   ].join("|");
+}
+
+function articleCompareContextKey(
+  context: RuntimeArticleCompareContext | null | undefined,
+): string | null {
+  if (!context) return null;
+  return [
+    context.runId ?? "",
+    context.goal,
+    context.goalMode ?? "",
+    context.textPlatform,
+    context.customPlatform ?? "",
+    context.roleA,
+    context.roleB,
+    context.selectedTools.join(","),
+    context.textA.length,
+    context.textB.length,
+    context.textA.slice(0, 60),
+    context.textB.slice(0, 60),
+  ].join("|");
+}
+
+function inferArticleCompareGoalMode(
+  goal: string,
+): RuntimeArticleCompareGoalMode {
+  const normalized = goal.trim().toLowerCase();
+  if (!normalized) return "standard_comparison";
+  const mentionsA =
+    /(?:\ba\b|text\s*a|article\s*a|текст\s*a|стать[яиею]\s*a)/iu.test(
+      normalized,
+    );
+  const mentionsB =
+    /(?:\bb\b|text\s*b|article\s*b|текст\s*b|стать[яиею]\s*b)/iu.test(
+      normalized,
+    );
+  if (/похож|копир|плагиат|уникальн|заимств|similar|copy|plagiar|overlap/iu.test(normalized)) {
+    return "similarity_check";
+  }
+  if (/стил|тон|ритм|подраж|style|tone|voice|imitat/iu.test(normalized)) {
+    return "style_match";
+  }
+  if (/верс|вариант|до\s+и\s+после|что\s+стало|version|variant|before|after/iu.test(normalized)) {
+    return "version_compare";
+  }
+  if (/\bab\b|a\/b|пост|хук|hook|cta|соцсет|social/iu.test(normalized)) {
+    return "ab_post";
+  }
+  if (/конкур|обогн|лучше\s+конкур|топ|top|competitor|beat|outrank/iu.test(normalized)) {
+    return "beat_competitor";
+  }
+  if (mentionsB && !mentionsA) return "focus_text_b";
+  if (mentionsA && !mentionsB) return "focus_text_a";
+  return "standard_comparison";
+}
+
+function compareGoalModeLabel(
+  mode: RuntimeArticleCompareGoalMode,
+  locale: SupportedLocale,
+): string {
+  const ru: Record<RuntimeArticleCompareGoalMode, string> = {
+    standard_comparison: "Стандартное сравнение",
+    focus_text_a: "Фокус на тексте A",
+    focus_text_b: "Фокус на тексте B",
+    beat_competitor: "Сравнение с конкурентом",
+    style_match: "Подражание стилю",
+    similarity_check: "Проверка похожести",
+    version_compare: "Сравнение версий",
+    ab_post: "A/B-анализ поста",
+  };
+  const en: Record<RuntimeArticleCompareGoalMode, string> = {
+    standard_comparison: "Standard comparison",
+    focus_text_a: "Focus on Text A",
+    focus_text_b: "Focus on Text B",
+    beat_competitor: "Competitor comparison",
+    style_match: "Style matching",
+    similarity_check: "Similarity check",
+    version_compare: "Version comparison",
+    ab_post: "A/B post comparison",
+  };
+  return locale === "ru" ? ru[mode] : en[mode];
+}
+
+function compareGoalModeDescription(
+  mode: RuntimeArticleCompareGoalMode,
+  locale: SupportedLocale,
+): string {
+  const ru: Record<RuntimeArticleCompareGoalMode, string> = {
+    standard_comparison:
+      "Цель не указана: отчет показывает оба текста, разрывы по категориям, риск похожести и план улучшения.",
+    focus_text_a:
+      "Отчет сфокусирован на тексте A; текст B используется как контекст сравнения.",
+    focus_text_b:
+      "Отчет сфокусирован на тексте B; текст A используется как контекст сравнения.",
+    beat_competitor:
+      "Отчет ищет текстовые преимущества конкурента и план усиления без копирования.",
+    style_match:
+      "Отчет делает акцент на тоне, ритме, ясности, примерах и переносимых стилевых приемах.",
+    similarity_check:
+      "Отчет ставит на первое место дословные совпадения, смысловую близость и риск копирования.",
+    version_compare:
+      "Отчет показывает, что стало сильнее или слабее между двумя версиями.",
+    ab_post:
+      "Отчет оценивает хук, ясность, краткость, платформенность и потенциал реакции.",
+  };
+  const en: Record<RuntimeArticleCompareGoalMode, string> = {
+    standard_comparison:
+      "No goal was provided: the report compares both texts, category gaps, similarity risk, and improvement actions.",
+    focus_text_a:
+      "The report focuses on Text A; Text B is used as comparison context.",
+    focus_text_b:
+      "The report focuses on Text B; Text A is used as comparison context.",
+    beat_competitor:
+      "The report looks for competitor text advantages and a non-copying improvement plan.",
+    style_match:
+      "The report emphasizes tone, rhythm, clarity, examples, and transferable style techniques.",
+    similarity_check:
+      "The report prioritizes exact overlap, semantic closeness, and copying risk.",
+    version_compare:
+      "The report shows what improved or worsened between the two versions.",
+    ab_post:
+      "The report evaluates hook, clarity, brevity, platform fit, and reaction potential.",
+  };
+  return locale === "ru" ? ru[mode] : en[mode];
+}
+
+function buildArticleComparePrompt(
+  context: RuntimeArticleCompareContext,
+  locale: SupportedLocale,
+): string {
+  const selectedTools = context.selectedTools
+    .map((toolId) => toolLabelForChat(toolId, locale))
+    .join(", ");
+  const platform =
+    context.customPlatform ||
+    platformLabelForChat(context.textPlatform, locale);
+  const goalMode =
+    context.goalMode ?? inferArticleCompareGoalMode(context.goal);
+  const goalModeLabel = compareGoalModeLabel(goalMode, locale);
+  const goalModeDescription = compareGoalModeDescription(goalMode, locale);
+
+  if (locale === "ru") {
+    return [
+      "TORASEO_ARTICLE_COMPARE_AUTO_RUN=scan",
+      "Сравни два текста в рамках ToraSEO.",
+      "",
+      `Цель: ${context.goal || "нейтрально сравнить оба текста"}`,
+      `Режим отчета по цели: ${goalModeLabel}`,
+      `Как использовать цель: ${goalModeDescription}`,
+      `Площадка: ${platform}`,
+      `Роль текста A: ${context.roleA}`,
+      `Роль текста B: ${context.roleB}`,
+      `Выбранные проверки: ${selectedTools || "сравнительные проверки текста"}`,
+      "",
+      "Верни структурированный отчет именно по этим выбранным проверкам и под указанный режим цели. Если в запросе передана одна проверка, считай это шагом большого сканирования: не пиши, что выбрана только одна проверка, и не превращай механику сканирования в вывод.",
+      "Если режим фокусируется на тексте A или B, выводи сильные и слабые стороны прежде всего по этому тексту, а второй текст используй как сравнительный контекст. Если режим про конкурента, покажи текстовые разрывы и план усиления без копирования. Если режим про стиль, похожесть, версии или A/B-пост, смести вывод в эту сторону.",
+      "Сначала оцени каждый текст отдельно, затем сравни их по выбранным проверкам. Не делай вывод, что позиция в поиске зависит только от текста: говори о текстовом преимуществе, разрывах и улучшениях.",
+      "Не добавляй готовый переписанный текст. Пользователь сравнивает две версии и ждёт выводы, разрывы, риск похожести и план улучшения.",
+      "Не упоминай API, JSON, backend ids, selectedTools, sourceToolIds или внутреннюю механику. Пиши названия проверок нормальным русским языком.",
+    ].join("\n");
+  }
+
+  return [
+    "TORASEO_ARTICLE_COMPARE_AUTO_RUN=scan",
+    "Compare two texts within ToraSEO.",
+    "",
+    `Goal: ${context.goal || "neutral comparison"}`,
+    `Goal report mode: ${goalModeLabel}`,
+    `How to use the goal: ${goalModeDescription}`,
+    `Platform: ${platform}`,
+    `Text A role: ${context.roleA}`,
+    `Text B role: ${context.roleB}`,
+    `Selected checks: ${selectedTools || "text comparison checks"}`,
+    "",
+    "Return a structured report for exactly these selected checks and the selected goal mode. If only one check is present, treat it as one step of a larger scan: do not say only one check was selected and do not turn scan mechanics into a finding.",
+    "If the mode focuses on Text A or Text B, report strengths and weaknesses primarily for that text and use the other text as comparison context. If the mode is competitor, style, similarity, version, or A/B post, shape the findings and actions around that purpose.",
+    "Evaluate each text separately first, then compare them by the selected checks. Do not claim search ranking is explained by text alone: describe text advantage, gaps, and improvements.",
+    "Do not write a rewritten article. The user is comparing two versions and needs findings, gaps, similarity risk, and an improvement plan.",
+    "Do not mention API, JSON, backend ids, selectedTools, sourceToolIds, or internal orchestration in user-facing wording.",
+  ].join("\n");
 }
 
 function buildArticleTextPrompt(
@@ -180,9 +365,17 @@ function toolLabelForChat(value: string, locale: SupportedLocale): string {
       ru: "естественность текста",
       en: "naturalness indicators",
     },
+    fact_distortion_check: {
+      ru: "искажение фактов",
+      en: "fact distortion",
+    },
     logic_consistency_check: {
       ru: "логическая согласованность",
       en: "logic consistency",
+    },
+    ai_hallucination_check: {
+      ru: "ИИ и галлюцинации",
+      en: "AI and hallucination check",
     },
     intent_seo_forecast: {
       ru: "SEO-интент и метаданные",
@@ -192,12 +385,48 @@ function toolLabelForChat(value: string, locale: SupportedLocale): string {
       ru: "риск-флаги и экспертная проверка",
       en: "risk flags and expert review",
     },
+    compare_intent_gap: { ru: "сравнение интента", en: "intent gap" },
+    compare_article_structure: {
+      ru: "сравнение структуры",
+      en: "structure comparison",
+    },
+    compare_content_gap: { ru: "разрывы по содержанию", en: "content gap" },
+    compare_semantic_gap: {
+      ru: "смысловое покрытие",
+      en: "semantic gap",
+    },
+    compare_specificity_gap: {
+      ru: "сравнение конкретики",
+      en: "specificity gap",
+    },
+    compare_trust_gap: { ru: "сравнение доверия", en: "trust gap" },
+    compare_article_style: {
+      ru: "сравнение стиля",
+      en: "style comparison",
+    },
+    compare_title_ctr: {
+      ru: "заголовок и клик",
+      en: "title and CTR comparison",
+    },
+    compare_platform_fit: {
+      ru: "сравнение под платформу",
+      en: "platform fit comparison",
+    },
+    compare_strengths_weaknesses: {
+      ru: "сильные и слабые стороны",
+      en: "strengths and weaknesses",
+    },
+    similarity_risk: { ru: "риск похожести", en: "similarity risk" },
+    compare_improvement_plan: {
+      ru: "план улучшения",
+      en: "improvement plan",
+    },
   };
   return labels[value]?.[locale] ?? value;
 }
 
 function defaultPolicyModeForSession(
-  analysisType: "site" | "article_text",
+  analysisType: "site" | "article_text" | "article_compare",
   articleTextContext: RuntimeArticleTextContext | null | undefined,
 ): RuntimePolicyMode {
   if (
@@ -210,7 +439,7 @@ function defaultPolicyModeForSession(
 }
 
 function isAutoArticleTextScan(
-  analysisType: "site" | "article_text",
+  analysisType: "site" | "article_text" | "article_compare",
   articleTextContext: RuntimeArticleTextContext | null | undefined,
   text: string,
 ): boolean {
@@ -385,6 +614,74 @@ function renderReportText(
   report: RuntimeAuditReport,
   locale: SupportedLocale,
 ): string {
+  if (report.articleCompare) {
+    const compare = report.articleCompare;
+    if (locale === "ru") {
+      const focus =
+        compare.focusSide === "textA"
+          ? compare.textA
+          : compare.focusSide === "textB"
+            ? compare.textB
+            : null;
+      const focusLines = focus
+        ? [
+            "",
+            `**Фокус отчета: ${focus.label}**`,
+            ...focus.strengths.slice(0, 4).map((item) => `- Сильная сторона: ${item.title}. ${item.detail}`),
+            ...focus.weaknesses.slice(0, 4).map((item) => `- Слабая сторона: ${item.title}. ${item.detail}`),
+          ]
+        : [];
+      const metricLines = compare.metrics
+        .slice(0, 6)
+        .map((metric) => {
+          return `- ${metric.label}: A — ${metric.textA ?? "—"}${metric.textA !== null ? metric.suffix : ""}, B — ${metric.textB ?? "—"}${metric.textB !== null ? metric.suffix : ""}. ${metric.description}`;
+        });
+      const gaps = compare.gaps.length > 0
+        ? compare.gaps.slice(0, 5).map((gap) => `- ${gap.title}: ${gap.detail}`)
+        : ["- Явные разрывы по содержанию в локальной сводке не выделены."];
+      const actions = compare.actionPlan.length > 0
+        ? compare.actionPlan.slice(0, 5).map((item, index) => `${index + 1}. ${item.title}: ${item.detail}`)
+        : ["1. Проверьте интент, конкретику, структуру и риск похожести после правок."];
+      return [
+        `Коротко: ${compare.verdict.label}`,
+        "",
+        `Режим по цели: ${compare.goalLabel}. ${compare.goalDescription}`,
+        "",
+        compare.verdict.detail,
+        ...focusLines,
+        "",
+        "**Сравнение по категориям**",
+        ...metricLines,
+        "",
+        "**Разрывы по содержанию**",
+        ...gaps,
+        "",
+        "**План действий**",
+        ...actions,
+        "",
+        `Следующий шаг: ${report.nextStep}`,
+      ].join("\n");
+    }
+
+    const metricLines = compare.metrics
+      .slice(0, 6)
+      .map((metric) => {
+        return `- ${metric.label}: A ${metric.textA ?? "—"}${metric.textA !== null ? metric.suffix : ""}, B ${metric.textB ?? "—"}${metric.textB !== null ? metric.suffix : ""}. ${metric.description}`;
+      });
+    return [
+      `Summary: ${compare.verdict.label}`,
+      "",
+      `Goal mode: ${compare.goalLabel}. ${compare.goalDescription}`,
+      "",
+      compare.verdict.detail,
+      "",
+      "**Category comparison**",
+      ...metricLines,
+      "",
+      `Next step: ${report.nextStep}`,
+    ].join("\n");
+  }
+
   if (report.articleText) {
     return renderArticleReportText(report, locale);
   }
@@ -464,6 +761,125 @@ function paragraphsInText(text: string): number {
     .split(/\n\s*\n/g)
     .map((item) => item.trim())
     .filter(Boolean).length;
+}
+
+interface CompareLocalStats {
+  wordCount: number;
+  paragraphCount: number;
+  headingCount: number;
+  sentenceCount: number;
+  averageSentenceWords: number | null;
+  listCount: number;
+  numberCount: number;
+  questionCount: number;
+  trustCount: number;
+  terms: string[];
+}
+
+function compareWordTokens(text: string): string[] {
+  return Array.from(text.toLowerCase().matchAll(/[\p{L}\p{N}]+/gu)).map(
+    (match) => match[0],
+  );
+}
+
+function compareTopTerms(words: string[]): string[] {
+  const stopWords = new Set([
+    "это",
+    "как",
+    "что",
+    "для",
+    "или",
+    "если",
+    "при",
+    "они",
+    "она",
+    "его",
+    "the",
+    "and",
+    "for",
+    "that",
+    "with",
+  ]);
+  const counts = new Map<string, number>();
+  for (const word of words) {
+    if (word.length < 4 || stopWords.has(word)) continue;
+    counts.set(word, (counts.get(word) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 10)
+    .map(([word]) => word);
+}
+
+function compareLocalStats(text: string): CompareLocalStats {
+  const words = compareWordTokens(text);
+  const paragraphs = paragraphsInText(text);
+  const lines = text.split(/\r?\n/g).map((line) => line.trim()).filter(Boolean);
+  const sentenceCount = text
+    .split(/[.!?…]+/u)
+    .map((item) => item.trim())
+    .filter(Boolean).length;
+  return {
+    wordCount: words.length,
+    paragraphCount: paragraphs,
+    headingCount: lines.filter((line) =>
+      /^(#{1,6}\s+|[А-ЯA-Z0-9][^.!?]{2,90}:?$)/u.test(line),
+    ).length,
+    sentenceCount,
+    averageSentenceWords:
+      sentenceCount > 0 ? Math.round(words.length / sentenceCount) : null,
+    listCount: lines.filter((line) => /^\s*(?:[-*•]|\d+[.)])\s+/.test(line))
+      .length,
+    numberCount: (text.match(/\b\d+(?:[.,]\d+)?\b/g) ?? []).length,
+    questionCount: (text.match(/\?/g) ?? []).length,
+    trustCount: (
+      text.match(
+        /источник|исследован|данн|ссылка|по данным|рекоменд|врач|эксперт|закон|ГОСТ|pubmed|doi|source|study|research|according|expert|warning|risk/giu,
+      ) ?? []
+    ).length,
+    terms: compareTopTerms(words),
+  };
+}
+
+function compareSharedPercent(left: string[], right: string[]): number {
+  const a = new Set(left);
+  const b = new Set(right);
+  if (a.size === 0 || b.size === 0) return 0;
+  let shared = 0;
+  for (const item of a) {
+    if (b.has(item)) shared += 1;
+  }
+  return Math.round((shared / Math.min(a.size, b.size)) * 100);
+}
+
+function compareExactOverlapPercent(textA: string, textB: string): number {
+  const shingles = (text: string) => {
+    const words = compareWordTokens(text);
+    const result = new Set<string>();
+    for (let index = 0; index <= words.length - 4; index += 1) {
+      result.add(words.slice(index, index + 4).join(" "));
+    }
+    return result;
+  };
+  const a = shingles(textA);
+  const b = shingles(textB);
+  if (a.size === 0 || b.size === 0) return 0;
+  let shared = 0;
+  for (const item of a) {
+    if (b.has(item)) shared += 1;
+  }
+  return Math.round((shared / Math.min(a.size, b.size)) * 100);
+}
+
+function compareMetricWinner(
+  left: number | null,
+  right: number | null,
+  inverse = false,
+): RuntimeArticleCompareMetric["winner"] {
+  if (left === null || right === null) return "pending";
+  if (Math.abs(left - right) <= 2) return "tie";
+  if (inverse) return left < right ? "textA" : "textB";
+  return left > right ? "textA" : "textB";
 }
 
 function stripArticleHeadingMarker(value: string): string {
@@ -1773,6 +2189,335 @@ function mergeArticleTextReports(
   };
 }
 
+function inferCompareTextTitle(text: string, fallback: string): string {
+  const firstLine = text
+    .split(/\r?\n/g)
+    .map((line) => line.trim().replace(/^#{1,6}\s+/, ""))
+    .find(Boolean);
+  if (!firstLine) return fallback;
+  return firstLine.length > 90 ? `${firstLine.slice(0, 87)}...` : firstLine;
+}
+
+function compareSideFromApi(
+  id: "textA" | "textB",
+  label: string,
+  role: RuntimeArticleCompareTextSide["role"],
+  text: string,
+  stats: CompareLocalStats,
+  facts: RuntimeConfirmedFact[],
+): RuntimeArticleCompareTextSide {
+  const marker =
+    id === "textA"
+      ? /\b(A|textA|text A|текст A)\b/i
+      : /\b(B|textB|text B|текст B)\b/i;
+  return {
+    id,
+    label,
+    role,
+    title: inferCompareTextTitle(text, label),
+    text,
+    wordCount: stats.wordCount,
+    paragraphCount: stats.paragraphCount,
+    headingCount: stats.headingCount,
+    sentenceCount: stats.sentenceCount,
+    averageSentenceWords: stats.averageSentenceWords,
+    strengths: facts
+      .filter((fact) => marker.test(`${fact.title} ${fact.detail}`))
+      .slice(0, 4)
+      .map((fact) => ({
+        title: fact.title,
+        detail: fact.detail,
+        sourceToolIds: fact.sourceToolIds,
+      })),
+    weaknesses: facts
+      .filter((fact) => fact.priority !== "low" && marker.test(`${fact.title} ${fact.detail}`))
+      .slice(0, 4)
+      .map((fact) => ({
+        title: fact.title,
+        detail: fact.detail,
+        sourceToolIds: fact.sourceToolIds,
+      })),
+  };
+}
+
+function buildArticleCompareSummaryForApi(
+  context: RuntimeArticleCompareContext,
+  confirmedFacts: RuntimeConfirmedFact[],
+  expectedToolIds: string[],
+  locale: SupportedLocale,
+): RuntimeArticleCompareSummary {
+  const isRu = locale === "ru";
+  const statsA = compareLocalStats(context.textA);
+  const statsB = compareLocalStats(context.textB);
+  const overlap = compareExactOverlapPercent(context.textA, context.textB);
+  const copyRisk =
+    overlap >= 35 ? "high" : overlap >= 15 ? "medium" : "low";
+  const termOverlap = compareSharedPercent(statsA.terms, statsB.terms);
+  const completed = confirmedFacts.length;
+  const total = Math.max(1, expectedToolIds.length);
+  const goalMode =
+    context.goalMode ?? inferArticleCompareGoalMode(context.goal);
+  const focusSide =
+    goalMode === "focus_text_a"
+      ? "textA"
+      : goalMode === "focus_text_b"
+        ? "textB"
+        : null;
+  const textAAdvantage =
+    confirmedFacts.filter((fact) => /\b(A|text A|textA|текст A)\b/i.test(fact.detail))
+      .length + (statsA.headingCount > statsB.headingCount ? 1 : 0);
+  const textBAdvantage =
+    confirmedFacts.filter((fact) => /\b(B|text B|textB|текст B)\b/i.test(fact.detail))
+      .length + (statsB.headingCount > statsA.headingCount ? 1 : 0);
+  const winner =
+    Math.abs(textAAdvantage - textBAdvantage) <= 1
+      ? "tie"
+      : textAAdvantage > textBAdvantage
+        ? "textA"
+        : "textB";
+  const winnerLabel =
+    focusSide === "textA"
+      ? isRu
+        ? "Отчет сфокусирован на тексте A"
+        : "Report focused on Text A"
+      : focusSide === "textB"
+        ? isRu
+          ? "Отчет сфокусирован на тексте B"
+          : "Report focused on Text B"
+        : goalMode === "similarity_check"
+          ? isRu
+            ? "Главный вывод: риск похожести и заимствований"
+            : "Main finding: similarity and copying risk"
+          : goalMode === "style_match"
+            ? isRu
+              ? "Главный вывод: различия стиля и подачи"
+              : "Main finding: style and delivery differences"
+            : goalMode === "version_compare"
+              ? isRu
+                ? "Главный вывод: что изменилось между версиями"
+                : "Main finding: changes between versions"
+              : goalMode === "beat_competitor"
+                ? isRu
+                  ? "Главный вывод: текстовые разрывы с конкурентом"
+                  : "Main finding: competitor text gaps"
+                : winner === "textA"
+      ? isRu
+        ? "Текст A сильнее по текстовым признакам"
+        : "Text A has stronger text signals"
+      : winner === "textB"
+        ? isRu
+          ? "Текст B сильнее по текстовым признакам"
+          : "Text B has stronger text signals"
+        : isRu
+          ? "Тексты близки: важнее разрывы по категориям"
+          : "The texts are close: category gaps matter more";
+  const missingInA = statsB.terms
+    .filter((term) => !statsA.terms.includes(term))
+    .slice(0, 6);
+  const missingInB = statsA.terms
+    .filter((term) => !statsB.terms.includes(term))
+    .slice(0, 6);
+
+  return {
+    verdict: {
+      winner,
+      label: winnerLabel,
+      detail:
+        confirmedFacts[0]?.detail ??
+        (isRu
+          ? "ИИ сравнил оба текста по выбранным проверкам API + AI Chat."
+          : "AI compared both texts using the selected API + AI Chat checks."),
+      mainGap:
+        termOverlap < 35
+          ? isRu
+            ? "Главный риск: тексты могут отвечать на разные интенты, поэтому вывод “кто лучше” нужно делать осторожно."
+            : "Main risk: the texts may answer different intents, so the winner should be interpreted carefully."
+          : isRu
+            ? "Главные разрывы смотрите в блоках содержания, конкретики, структуры и доверия."
+            : "Review the main gaps in coverage, specificity, structure, and trust.",
+    },
+    goal: context.goal,
+    goalMode,
+    goalLabel: compareGoalModeLabel(goalMode, locale),
+    goalDescription: compareGoalModeDescription(goalMode, locale),
+    focusSide,
+    platform: {
+      key: context.textPlatform,
+      label: platformLabelForChat(context.textPlatform, locale),
+      detail: isRu
+        ? "Сравнение учитывает только текстовую часть: без домена, ссылок, технического SEO и живой выдачи."
+        : "This compares text only: no domain, backlink, technical SEO, or live SERP data.",
+    },
+    coverage: {
+      completed,
+      total,
+      percent: Math.min(100, Math.round((completed / total) * 100)),
+    },
+    textA: compareSideFromApi("textA", "Текст A", context.roleA, context.textA, statsA, confirmedFacts),
+    textB: compareSideFromApi("textB", "Текст B", context.roleB, context.textB, statsB, confirmedFacts),
+    metrics: [
+      {
+        id: "intent",
+        label: isRu ? "Интент" : "Intent",
+        textA: termOverlap,
+        textB: termOverlap,
+        delta: 0,
+        suffix: "%",
+        winner: termOverlap >= 55 ? "tie" : "pending",
+        description: isRu
+          ? "Пересечение локальных ключевых понятий. Низкое значение означает, что интент нужно проверить вручную."
+          : "Overlap of local key concepts. Low values mean the intent needs manual review.",
+      },
+      {
+        id: "structure",
+        label: isRu ? "Структура" : "Structure",
+        textA: statsA.headingCount + statsA.listCount,
+        textB: statsB.headingCount + statsB.listCount,
+        delta: statsA.headingCount + statsA.listCount - statsB.headingCount - statsB.listCount,
+        suffix: "",
+        winner: compareMetricWinner(
+          statsA.headingCount + statsA.listCount,
+          statsB.headingCount + statsB.listCount,
+        ),
+        description: isRu
+          ? "Учитывает заголовки и списки как локальные признаки структуры."
+          : "Uses headings and lists as local structure signals.",
+      },
+      {
+        id: "specificity",
+        label: isRu ? "Конкретика" : "Specificity",
+        textA: statsA.numberCount + statsA.listCount + statsA.questionCount,
+        textB: statsB.numberCount + statsB.listCount + statsB.questionCount,
+        delta:
+          statsA.numberCount + statsA.listCount + statsA.questionCount -
+          statsB.numberCount - statsB.listCount - statsB.questionCount,
+        suffix: "",
+        winner: compareMetricWinner(
+          statsA.numberCount + statsA.listCount + statsA.questionCount,
+          statsB.numberCount + statsB.listCount + statsB.questionCount,
+        ),
+        description: isRu
+          ? "Локальный сигнал по цифрам, вопросам, спискам и шагам."
+          : "Local signal from numbers, questions, lists, and steps.",
+      },
+      {
+        id: "readability",
+        label: isRu ? "Читаемость" : "Readability",
+        textA: statsA.averageSentenceWords,
+        textB: statsB.averageSentenceWords,
+        delta:
+          statsA.averageSentenceWords !== null && statsB.averageSentenceWords !== null
+            ? statsA.averageSentenceWords - statsB.averageSentenceWords
+            : null,
+        suffix: "",
+        winner: compareMetricWinner(
+          statsA.averageSentenceWords,
+          statsB.averageSentenceWords,
+          true,
+        ),
+        description: isRu
+          ? "Более короткие предложения обычно легче сканировать."
+          : "Shorter sentences are usually easier to scan.",
+      },
+      {
+        id: "similarity",
+        label: isRu ? "Дословные совпадения" : "Exact overlap",
+        textA: overlap,
+        textB: overlap,
+        delta: 0,
+        suffix: "%",
+        winner: copyRisk === "low" ? "tie" : "risk",
+        description: isRu
+          ? "Локальная проверка совпавших фраз. Это не внешняя база плагиата."
+          : "Local phrase overlap check. This is not an external plagiarism database.",
+      },
+    ],
+    gaps: [
+      ...missingInA.map((term) => ({
+        title: isRu ? `Нет в A: ${term}` : `Missing in A: ${term}`,
+        detail: isRu
+          ? "Проверьте, нужна ли эта тема в тексте A с учетом цели сравнения."
+          : "Check whether this topic belongs in Text A for the comparison goal.",
+        side: "missing_in_a" as const,
+        sourceToolIds: ["compare_content_gap"],
+      })),
+      ...missingInB.map((term) => ({
+        title: isRu ? `Нет в B: ${term}` : `Missing in B: ${term}`,
+        detail: isRu
+          ? "Проверьте, нужна ли эта тема в тексте B с учетом цели сравнения."
+          : "Check whether this topic belongs in Text B for the comparison goal.",
+        side: "missing_in_b" as const,
+        sourceToolIds: ["compare_content_gap"],
+      })),
+    ].slice(0, 8),
+    priorities: confirmedFacts.map((fact) => ({
+      title: fact.title,
+      detail: fact.detail,
+      priority: fact.priority,
+      sourceToolIds: fact.sourceToolIds,
+    })),
+    similarity: {
+      exactOverlap: overlap,
+      semanticSimilarity: null,
+      copyRisk,
+      detail: isRu
+        ? "Это локальная проверка совпавших фраз; смысловую похожесть оценивайте по выводам и разрывам ниже."
+        : "This is a local exact-phrase check; assess semantic similarity through the findings and gaps below.",
+    },
+    actionPlan: confirmedFacts.slice(0, 6).map((fact) => ({
+      title: fact.title,
+      detail: fact.detail,
+      priority: fact.priority,
+      sourceToolIds: fact.sourceToolIds,
+    })),
+    limitations: [
+      isRu
+        ? "Это сравнение только текста: домен, ссылки, техническое SEO и поведенческие сигналы не учитываются."
+        : "This compares text only: domain, links, technical SEO, and behavior signals are not included.",
+      isRu
+        ? "Риск похожести — локальная эвристика, а не интернет-проверка плагиата."
+        : "Similarity risk is a local heuristic, not an internet plagiarism check.",
+    ],
+  };
+}
+
+function mergeArticleCompareReports(
+  reports: RuntimeAuditReport[],
+  context: RuntimeArticleCompareContext,
+  locale: SupportedLocale,
+): RuntimeAuditReport | null {
+  if (reports.length === 0) return null;
+  const last = reports[reports.length - 1];
+  const expectedToolIds = context.selectedTools;
+  const confirmedFacts = compactFactsByTool(
+    reports.flatMap((report) => report.confirmedFacts),
+    expectedToolIds,
+  );
+  const expertHypotheses = reports.flatMap((report) => report.expertHypotheses);
+  const goalMode =
+    context.goalMode ?? inferArticleCompareGoalMode(context.goal);
+  const summary =
+    locale === "ru"
+      ? `ИИ сформировал отчет по сравнению двух текстов под цель: ${compareGoalModeLabel(goalMode, locale)}. Проверено пунктов: ${confirmedFacts.length}.`
+      : `AI formed a two-text comparison report for: ${compareGoalModeLabel(goalMode, locale)}. Completed checks: ${confirmedFacts.length}.`;
+  return {
+    mode: last.mode,
+    providerId: last.providerId,
+    model: last.model,
+    generatedAt: new Date().toISOString(),
+    summary,
+    nextStep: last.nextStep,
+    confirmedFacts,
+    expertHypotheses,
+    articleCompare: buildArticleCompareSummaryForApi(
+      context,
+      confirmedFacts,
+      expectedToolIds,
+      locale,
+    ),
+  };
+}
+
 function renderInlineMarkdown(text: string): ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return parts.map((part, index) => {
@@ -1867,6 +2612,7 @@ export default function ChatPanel({
   executionMode,
   scanContext,
   articleTextContext = null,
+  articleCompareContext = null,
   analysisType = "site",
   selectedModelProfile,
   bridgeState,
@@ -1891,6 +2637,7 @@ export default function ChatPanel({
   );
   const autoInterpretationKey = useRef<string | null>(null);
   const autoArticleTextKey = useRef<string | null>(null);
+  const autoArticleCompareKey = useRef<string | null>(null);
   const policySessionKey = useRef<string | null>(null);
   const copyResetTimer = useRef<number | null>(null);
 
@@ -1924,12 +2671,13 @@ export default function ChatPanel({
     const key = [
       analysisType,
       articleTextContextKey(articleTextContext) ?? "",
+      articleCompareContextKey(articleCompareContext) ?? "",
       scanContextKey(scanContext) ?? "",
     ].join("|");
     if (policySessionKey.current === key) return;
     policySessionKey.current = key;
     setPolicyMode(defaultPolicyModeForSession(analysisType, articleTextContext));
-  }, [analysisType, articleTextContext, scanContext]);
+  }, [analysisType, articleCompareContext, articleTextContext, scanContext]);
 
   const helperText = useMemo(() => {
     if (executionMode === "bridge") {
@@ -1975,6 +2723,16 @@ export default function ChatPanel({
               "Article context is ready. Strict mode is used for the first analysis.",
           });
     }
+    if (
+      analysisType === "article_compare" &&
+      articleCompareContext?.textA.trim() &&
+      articleCompareContext.textB.trim()
+    ) {
+      return t("chat.helper.nativeArticleCompare", {
+        defaultValue:
+          "Two texts are ready. Strict mode is used for the comparison report.",
+      });
+    }
     if (!isScanContextReady(scanContext)) {
       return t("chat.helper.nativeNoScan", {
         defaultValue:
@@ -1987,7 +2745,15 @@ export default function ChatPanel({
       defaultValue:
         "Scan context ready: {{completed}}/{{total}} tools completed.",
     });
-  }, [analysisType, articleTextContext, bridgeState, executionMode, scanContext, t]);
+  }, [
+    analysisType,
+    articleCompareContext,
+    articleTextContext,
+    bridgeState,
+    executionMode,
+    scanContext,
+    t,
+  ]);
 
   const sendToRuntime = useCallback(
     async (
@@ -2007,6 +2773,9 @@ export default function ChatPanel({
         articleTextContext,
         text,
       );
+      const autoArticleCompareScan =
+        analysisType === "article_compare" &&
+        text.includes("TORASEO_ARTICLE_COMPARE_AUTO_RUN=scan");
       if (autoArticleScan) {
         onReport(null, "running");
       }
@@ -2020,6 +2789,7 @@ export default function ChatPanel({
         locale,
         scanContext,
         articleTextContext,
+        articleCompareContext,
       };
 
       let result: OrchestratorMessageResult;
@@ -2036,8 +2806,11 @@ export default function ChatPanel({
 
       if (result.ok) {
         if (result.report) {
-          onReport(result.report, autoArticleScan ? "complete" : undefined);
-        } else if (autoArticleScan) {
+          onReport(
+            result.report,
+            autoArticleScan || autoArticleCompareScan ? "complete" : undefined,
+          );
+        } else if (autoArticleScan || autoArticleCompareScan) {
           onReport(
             null,
             "failed",
@@ -2061,7 +2834,11 @@ export default function ChatPanel({
           },
         ]);
       } else {
-        onReport(null, autoArticleScan ? "failed" : undefined, result.errorMessage);
+        onReport(
+          null,
+          autoArticleScan || autoArticleCompareScan ? "failed" : undefined,
+          result.errorMessage,
+        );
         setHistory((prev) => [
           ...prev,
           {
@@ -2084,6 +2861,7 @@ export default function ChatPanel({
       policyMode,
       scanContext,
       articleTextContext,
+      articleCompareContext,
       analysisType,
       selectedModelProfile?.modelId,
       t,
@@ -2196,6 +2974,113 @@ export default function ChatPanel({
     ],
   );
 
+  const runArticleCompareScanSequence = useCallback(
+    async (
+      context: RuntimeArticleCompareContext,
+      policyModeOverride: RuntimePolicyMode,
+    ) => {
+      if (busy || executionMode !== "native") return;
+      setBusy(true);
+      onReport(null, "running");
+      setHistory((prev) => [
+        ...prev,
+        {
+          role: "system",
+          text: t("chat.articleCompareStarted", {
+            defaultValue: "Two text inputs received. Preparing comparison...",
+          }),
+        },
+      ]);
+
+      const reports: RuntimeAuditReport[] = [];
+      for (let index = 0; index < context.selectedTools.length; index += 1) {
+        const toolId = context.selectedTools[index];
+        const toolContext: RuntimeArticleCompareContext = {
+          ...context,
+          selectedTools: [toolId],
+        };
+        const input: OrchestratorMessageInput = {
+          text: buildArticleComparePrompt(toolContext, locale),
+          mode: policyModeOverride,
+          executionMode,
+          analysisType,
+          providerId: RUNTIME_PROVIDER_ID,
+          modelOverride: selectedModelProfile?.modelId,
+          locale,
+          scanContext,
+          articleTextContext: null,
+          articleCompareContext: toolContext,
+        };
+
+        let result: OrchestratorMessageResult;
+        try {
+          result = await window.toraseo.runtime.sendMessage(input);
+        } catch (err) {
+          result = {
+            ok: false,
+            errorCode: "ipc_failure",
+            errorMessage:
+              err instanceof Error ? err.message : "Unknown IPC failure",
+          };
+        }
+
+        if (!result.ok || !result.report) {
+          const message =
+            result.errorMessage ||
+            t("chat.articleTextReportParseFailed", {
+              defaultValue:
+                "AI returned a chat answer instead of a structured ToraSEO report.",
+            });
+          onReport(null, "failed", message);
+          setHistory((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              text: t("chat.providerError", {
+                code: result.errorCode ?? "article_compare_report_failed",
+                message,
+                defaultValue: "[error: {{code}}] {{message}}",
+              }),
+            },
+          ]);
+          setBusy(false);
+          return;
+        }
+
+        reports.push(result.report);
+        const partial = mergeArticleCompareReports(reports, context, locale);
+        if (partial) {
+          onReport(
+            partial,
+            index === context.selectedTools.length - 1 ? "complete" : "running",
+          );
+        }
+      }
+
+      const finalReport = mergeArticleCompareReports(reports, context, locale);
+      if (finalReport) {
+        setHistory((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: renderReportText(finalReport, locale),
+          },
+        ]);
+      }
+      setBusy(false);
+    },
+    [
+      analysisType,
+      busy,
+      executionMode,
+      locale,
+      onReport,
+      scanContext,
+      selectedModelProfile?.modelId,
+      t,
+    ],
+  );
+
   useEffect(() => {
     if (executionMode !== "native" || analysisType !== "article_text") return;
     if (!articleTextContext?.body.trim()) return;
@@ -2225,6 +3110,25 @@ export default function ChatPanel({
     locale,
     runArticleTextScanSequence,
     sendToRuntime,
+  ]);
+
+  useEffect(() => {
+    if (executionMode !== "native" || analysisType !== "article_compare") return;
+    if (!articleCompareContext?.textA.trim() || !articleCompareContext.textB.trim()) {
+      return;
+    }
+    if (busy) return;
+    const key = articleCompareContextKey(articleCompareContext);
+    if (!key || autoArticleCompareKey.current === key) return;
+    autoArticleCompareKey.current = key;
+    setPolicyMode("strict_audit");
+    void runArticleCompareScanSequence(articleCompareContext, "strict_audit");
+  }, [
+    analysisType,
+    articleCompareContext,
+    busy,
+    executionMode,
+    runArticleCompareScanSequence,
   ]);
 
   useEffect(() => {

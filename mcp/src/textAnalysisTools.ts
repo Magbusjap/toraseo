@@ -1,5 +1,6 @@
 import { mutateBuffer, readState, type ToolBufferEntry } from "./stateFile.js";
 import { readActiveInputMarkdown, writeWorkspaceResult } from "./workspace.js";
+import { runCompareTool } from "./articleCompareTools.js";
 
 type TextToolId =
   | "detect_text_platform"
@@ -712,6 +713,11 @@ async function runTextTool(
   toolId: TextToolId,
   analyzer: (context: TextContext) => TextToolResult,
 ): Promise<McpHandlerResult> {
+  const activeState = await readState();
+  if (activeState?.analysisType === "article_compare") {
+    return runCompareTool(toolId);
+  }
+
   const startedAt = new Date().toISOString();
   await mutateBuffer(toolId, () => ({
     status: "running",

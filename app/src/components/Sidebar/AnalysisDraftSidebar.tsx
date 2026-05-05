@@ -44,11 +44,15 @@ export default function AnalysisDraftSidebar({
     label:
       tool.source === "site"
         ? t(`tools.${tool.i18nKeyBase}.label`)
-        : t(`analysisTools.${tool.i18nKeyBase}.label`),
+        : t(`analysisTools.${tool.i18nKeyBase}.label`, {
+            defaultValue: analysisToolFallback(tool.id).label,
+          }),
     tooltip:
       tool.source === "site"
         ? t(`tools.${tool.i18nKeyBase}.tooltip`)
-        : t(`analysisTools.${tool.i18nKeyBase}.tooltip`),
+        : t(`analysisTools.${tool.i18nKeyBase}.tooltip`, {
+            defaultValue: analysisToolFallback(tool.id).tooltip,
+          }),
   }));
   const showTextContext =
     analysisType === "page_by_url" ||
@@ -222,6 +226,52 @@ function SidebarSection({
       </h3>
       {children}
     </section>
+  );
+}
+
+function analysisToolFallback(toolId: AnalysisToolId): {
+  label: string;
+  tooltip: string;
+} {
+  const labels: Partial<Record<AnalysisToolId, { label: string; tooltip: string }>> = {
+    compare_intent_gap: {
+      label: "Сравнение интента",
+      tooltip: "Проверить, отвечают ли оба текста на один и тот же запрос.",
+    },
+    compare_content_gap: {
+      label: "Разрывы по содержанию",
+      tooltip: "Найти темы и разделы, которые есть в одном тексте и отсутствуют в другом.",
+    },
+    compare_semantic_gap: {
+      label: "Смысловое покрытие",
+      tooltip: "Сравнить сущности, понятия и подтемы в двух текстах.",
+    },
+    compare_specificity_gap: {
+      label: "Сравнение конкретики",
+      tooltip: "Сравнить примеры, цифры, шаги, сценарии и практическую пользу.",
+    },
+    compare_trust_gap: {
+      label: "Сравнение доверия",
+      tooltip: "Сравнить источники, предупреждения и рискованные утверждения.",
+    },
+    compare_title_ctr: {
+      label: "Заголовок и клик",
+      tooltip: "Сравнить ясность заголовка, обещание пользы и потенциальную кликабельность.",
+    },
+    similarity_risk: {
+      label: "Риск похожести",
+      tooltip: "Оценить локальные дословные совпадения и риск копирования между текстами.",
+    },
+    compare_improvement_plan: {
+      label: "План улучшения",
+      tooltip: "Собрать план усиления нужного текста без копирования второго.",
+    },
+  };
+  return (
+    labels[toolId] ?? {
+      label: String(toolId),
+      tooltip: String(toolId),
+    }
   );
 }
 

@@ -17,6 +17,8 @@ import ModeSelection, {
   type BridgeProgram,
 } from "./components/MainArea/ModeSelection";
 import PlannedAnalysisView, {
+  inferArticleCompareGoalMode,
+  type ArticleComparePromptData,
   type ArticleTextAction,
   type ArticleTextPromptData,
 } from "./components/MainArea/PlannedAnalysisView";
@@ -54,6 +56,7 @@ import type { CurrentScanState } from "./types/ipc";
 import type {
   AuditExecutionMode,
   ProviderInfo,
+  RuntimeArticleCompareGoalMode,
   RuntimeAuditReport,
   RuntimeChatWindowSession,
 } from "./types/runtime";
@@ -92,12 +95,47 @@ const BUILT_IN_ARTICLE_TEXT_TOOLS = [
   "intent_seo_forecast",
   "safety_science_review",
 ] as const;
+const BUILT_IN_ARTICLE_COMPARE_TOOLS = [
+  "analyze_text_structure",
+  "analyze_text_style",
+  "analyze_tone_fit",
+  "media_placeholder_review",
+  "article_uniqueness",
+  "language_syntax",
+  "ai_writing_probability",
+  "naturalness_indicators",
+  "logic_consistency_check",
+  "intent_seo_forecast",
+  "safety_science_review",
+  "compare_intent_gap",
+  "compare_article_structure",
+  "compare_content_gap",
+  "compare_semantic_gap",
+  "compare_specificity_gap",
+  "compare_trust_gap",
+  "compare_article_style",
+  "similarity_risk",
+  "compare_title_ctr",
+  "compare_platform_fit",
+  "compare_strengths_weaknesses",
+  "compare_improvement_plan",
+] as const;
 
 function effectiveArticleTextToolIds(
   selectedToolIds: Iterable<AnalysisToolId>,
 ): string[] {
   const result = Array.from(selectedToolIds, String);
   for (const toolId of BUILT_IN_ARTICLE_TEXT_TOOLS) {
+    if (!result.includes(toolId)) result.push(toolId);
+  }
+  return result;
+}
+
+function effectiveArticleCompareToolIds(
+  selectedToolIds: Iterable<AnalysisToolId>,
+): string[] {
+  const result = Array.from(selectedToolIds, String);
+  for (const toolId of BUILT_IN_ARTICLE_COMPARE_TOOLS) {
     if (!result.includes(toolId)) result.push(toolId);
   }
   return result;
@@ -116,6 +154,99 @@ function countCoveredReportTools(
     }
   }
   return covered.size;
+}
+
+function joinPromptLines(lines: Array<string | null | undefined>): string {
+  return lines.filter((line): line is string => Boolean(line)).join("\n");
+}
+
+function buildClaudeSkillFallbackArticleTextPrompt(options: {
+  action: ArticleTextAction;
+  data: ArticleTextPromptData;
+  locale: SupportedLocale;
+  analysisRole?: string;
+  textPlatform: string;
+  customPlatform?: string;
+  selectedTools: string[];
+}): string {
+  return joinPromptLines([
+    "Используй ToraSEO Claude Bridge Instructions.",
+    "",
+    "/toraseo chat-only-fallback article-text",
+    "",
+    "ToraSEO Desktop App и/или MCP сейчас недоступны, но SKILL подключен.",
+    "Если можешь загрузить SKILL, прочитай только references/chat-only-fallback.md и не читай лишние fallback-файлы при рабочем Bridge.",
+    "Не запускай MCP-инструменты, если они недоступны. Не утверждай, что результаты записаны в приложение или results/*.json.",
+    "В ответе пользователю используй нормальные названия проверок, а не технические id инструментов.",
+    "Сделай анализ прямо в чате по правилам ToraSEO: факты отдельно от гипотез, осторожно с медицинскими/юридическими/финансовыми утверждениями, без обещаний ранжирования.",
+    "",
+    `Локаль интерфейса: ${options.locale}`,
+    `Тип анализа: ${options.action === "solution" ? "предложить решение по тексту" : "анализ текста"}`,
+    `Платформа: ${options.textPlatform}`,
+    options.customPlatform ? `Своя платформа: ${options.customPlatform}` : null,
+    options.analysisRole ? `Роль/цель анализа: ${options.analysisRole}` : null,
+    `Выбранные проверки ToraSEO: ${options.selectedTools.join(", ")}`,
+    "",
+    "Тема/заголовок:",
+    options.data.topic.trim() || "Не указано.",
+    "",
+    "Текст:",
+    options.data.body,
+  ]);
+}
+
+function buildClaudeSkillFallbackArticleComparePrompt(options: {
+  data: ArticleComparePromptData;
+  locale: SupportedLocale;
+  goalMode: RuntimeArticleCompareGoalMode;
+  textPlatform: string;
+  customPlatform?: string;
+  selectedTools: string[];
+}): string {
+  return joinPromptLines([
+    "Используй ToraSEO Claude Bridge Instructions.",
+    "",
+    "/toraseo chat-only-fallback article-compare",
+    "",
+    "ToraSEO Desktop App и/или MCP сейчас недоступны, но SKILL подключен.",
+    "Если можешь загрузить SKILL, прочитай только references/chat-only-fallback.md и не читай лишние fallback-файлы при рабочем Bridge.",
+    "Не запускай MCP-инструменты, если они недоступны. Не утверждай, что результаты записаны в приложение или results/*.json.",
+    "В ответе пользователю используй нормальные названия проверок, а не технические id инструментов.",
+    "Сделай сравнительный отчёт прямо в чате. Если цель анализа фокусируется на тексте A или B, не расписывай второй текст сверх того, что нужно для сравнения.",
+    "Не утверждай причины ранжирования только по двум текстам. Пиши про текстовые преимущества, разрывы, риск похожести и план улучшения.",
+    "",
+    `Локаль интерфейса: ${options.locale}`,
+    `Режим цели анализа: ${options.goalMode}`,
+    `Цель анализа: ${options.data.goal.trim() || "Не указана. Используй стандартный отчёт сравнения."}`,
+    `Платформа: ${options.textPlatform}`,
+    options.customPlatform ? `Своя платформа: ${options.customPlatform}` : null,
+    `Роль текста A: ${options.data.roleA}`,
+    `Роль текста B: ${options.data.roleB}`,
+    `Выбранные проверки ToraSEO: ${options.selectedTools.join(", ")}`,
+    "",
+    "Обязательные блоки отчёта:",
+    "1. Краткая сводка под цель анализа.",
+    "2. Сравнение интента, структуры, полноты, смыслового покрытия, конкретики, доверия, стиля, заголовка/клика и платформенной пригодности.",
+    "3. Риск похожести: дословные совпадения отдельно от смысловой близости; не называй локальную метрику внешней проверкой плагиата.",
+    "4. Сильные и слабые стороны в удобной одной колонке.",
+    "5. Content Gap простыми словами: что есть в одном тексте и отсутствует в другом.",
+    "6. План улучшения под цель пользователя.",
+    "",
+    "Текст A:",
+    options.data.textA,
+    "",
+    "Текст B:",
+    options.data.textB,
+  ]);
+}
+
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function clampSidebarWidth(width: number): number {
@@ -208,6 +339,12 @@ function MainApp() {
     useState<CurrentScanState | null>(null);
   const [nativeArticleTextActiveRun, setNativeArticleTextActiveRun] =
     useState<ArticleTextAction | null>(null);
+  const [articleCompareStartedOnce, setArticleCompareStartedOnce] =
+    useState(false);
+  const [nativeArticleCompareActiveRun, setNativeArticleCompareActiveRun] =
+    useState<"scan" | null>(null);
+  const [articleCompareInput, setArticleCompareInput] =
+    useState<ArticleComparePromptData | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [codexClosedNotice, setCodexClosedNotice] = useState<string | null>(
     null,
@@ -365,7 +502,12 @@ function MainApp() {
     executionMode === "bridge" &&
     bridgeProgram === "claude" &&
     detectorStatus !== null &&
-    !detectorStatus.allGreen;
+    !detectorStatus.allGreen &&
+    !detectorStatus.skillInstalled;
+  const claudeSkillFallbackAvailable =
+    executionMode === "bridge" &&
+    bridgeProgram === "claude" &&
+    Boolean(detectorStatus?.skillInstalled);
   const bridgeExternalAppClosed =
     executionMode === "bridge" &&
     detectorStatus !== null &&
@@ -581,6 +723,8 @@ function MainApp() {
         analysisType: "site",
         selectedModelProfile,
         scanContext: nativeScanContext,
+        articleTextContext: null,
+        articleCompareContext: null,
         report: runtimeReport,
       });
     }
@@ -615,6 +759,9 @@ function MainApp() {
     setArticleTextSolutionProvidedOnce(false);
     setNativeArticleTextState(null);
     setNativeArticleTextActiveRun(null);
+    setArticleCompareStartedOnce(false);
+    setNativeArticleCompareActiveRun(null);
+    setArticleCompareInput(null);
     setAnalysisRole("");
     setReferenceReturnTarget(null);
     setUrl("");
@@ -1060,15 +1207,22 @@ function MainApp() {
     [bridge.stages, bridge.state],
   );
   const activeArticleTextRun =
-    executionMode === "native"
+    executionMode === "native" && selectedAnalysisType === "article_compare"
+      ? nativeArticleCompareActiveRun
+      : executionMode === "native"
       ? nativeArticleTextActiveRun
+      : bridge.state?.analysisType === "article_compare" &&
+          (bridge.state.status === "awaiting_handshake" ||
+            bridge.state.status === "in_progress")
+        ? "scan"
       : bridge.state?.analysisType === "article_text" &&
           (bridge.state.status === "awaiting_handshake" ||
             bridge.state.status === "in_progress")
         ? bridge.state.input?.action ?? "scan"
         : null;
   const completedArticleTextAction =
-    bridge.state?.analysisType === "article_text" &&
+    (bridge.state?.analysisType === "article_text" ||
+      bridge.state?.analysisType === "article_compare") &&
     bridge.state.status === "complete"
       ? bridge.state.input?.action ?? "scan"
       : null;
@@ -1078,6 +1232,8 @@ function MainApp() {
         ? "solution"
         : runtimeReport && selectedAnalysisType === "article_text"
           ? "scan"
+          : runtimeReport && selectedAnalysisType === "article_compare"
+            ? "scan"
           : null
       : completedArticleTextAction;
   const displayedArticleTextState =
@@ -1086,20 +1242,36 @@ function MainApp() {
     selectedAnalysisType === "article_text"
       ? effectiveArticleTextToolIds(selectedAnalysisToolsByType.article_text)
       : [];
+  const effectiveArticleCompareTools =
+    selectedAnalysisType === "article_compare"
+      ? effectiveArticleCompareToolIds(selectedAnalysisToolsByType.article_compare)
+      : [];
   const plannedCompletedTools =
     executionMode === "native" &&
     selectedAnalysisType === "article_text" &&
     runtimeReport
       ? countCoveredReportTools(runtimeReport, effectiveArticleTextTools)
+      : executionMode === "native" &&
+          selectedAnalysisType === "article_compare" &&
+          runtimeReport
+        ? countCoveredReportTools(runtimeReport, effectiveArticleCompareTools)
+      : displayedArticleTextState?.analysisType === "article_compare"
+        ? displayedArticleTextState.selectedTools.filter((toolId) => {
+            const entry = displayedArticleTextState.buffer[toolId];
+            return entry?.status === "complete" || entry?.status === "error";
+          }).length
       : displayedArticleTextState?.analysisType === "article_text"
-      ? Object.values(displayedArticleTextState.buffer).filter(
-          (entry) => entry.status === "complete" || entry.status === "error",
-        ).length
+        ? Object.values(displayedArticleTextState.buffer).filter(
+            (entry) => entry.status === "complete" || entry.status === "error",
+          ).length
       : 0;
   const plannedTotalTools =
     executionMode === "native" && selectedAnalysisType === "article_text"
       ? effectiveArticleTextTools.length
-      : displayedArticleTextState?.analysisType === "article_text"
+      : executionMode === "native" && selectedAnalysisType === "article_compare"
+        ? effectiveArticleCompareTools.length
+      : displayedArticleTextState?.analysisType === "article_text" ||
+          displayedArticleTextState?.analysisType === "article_compare"
       ? displayedArticleTextState.selectedTools.length
       : selectedAnalysisType
         ? selectedAnalysisToolsByType[selectedAnalysisType].size
@@ -1241,6 +1413,35 @@ function MainApp() {
         return false;
       }
     } else if (detectorStatus && !detectorStatus.allGreen) {
+      if (detectorStatus.skillInstalled) {
+        const copied = await copyTextToClipboard(
+          buildClaudeSkillFallbackArticleTextPrompt({
+            action,
+            data,
+            locale: currentLocale,
+            analysisRole: analysisRole.trim() || undefined,
+            textPlatform,
+            customPlatform: customPlatform.trim() || undefined,
+            selectedTools: toolIds,
+          }),
+        );
+        if (!copied) {
+          setPreflightError(
+            t("preflight.skillFallbackCopyFailed", {
+              defaultValue:
+                "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+            }),
+          );
+          return false;
+        }
+        if (action === "scan") {
+          setArticleTextScanStartedOnce(true);
+        } else {
+          setArticleTextSolutionProvidedOnce(true);
+        }
+        showPromptCopiedToast();
+        return true;
+      }
       setPreflightError(t("preflight.depsFailed"));
       return false;
     }
@@ -1271,12 +1472,182 @@ function MainApp() {
         selectedModelProfile,
         scanContext: null,
         articleTextContext: null,
+        articleCompareContext: null,
         articleTextRunState: "idle",
         report: runtimeReport,
       });
       return;
     }
     void bridge.cancelScan();
+  };
+
+  const handleRunArticleCompare = async (
+    data: ArticleComparePromptData,
+  ): Promise<boolean | "fallback"> => {
+    const visibleToolIds = Array.from(
+      selectedAnalysisToolsByType.article_compare,
+      String,
+    );
+    const toolIds = effectiveArticleCompareToolIds(
+      selectedAnalysisToolsByType.article_compare,
+    );
+
+    setPreflightError(null);
+    const goalMode = data.goalMode ?? inferArticleCompareGoalMode(data.goal);
+    const compareData = { ...data, goalMode };
+    setArticleCompareInput(compareData);
+
+    if (executionMode === "bridge") {
+      if (bridgeProgram === "codex") {
+        const fresh = await checkNow();
+        if (!fresh.codexRunning) {
+          showCodexClosedNotice(
+            t("preflight.codexNeedsConfirmation", {
+              defaultValue: "Open Codex before starting the Codex bridge path.",
+            }),
+          );
+          return false;
+        }
+        if (!fresh.codexSetupVerified) {
+          setPreflightError(
+            t("preflight.codexSetupMissing", {
+              defaultValue:
+                "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
+            }),
+          );
+          return false;
+        }
+      } else if (detectorStatus && !detectorStatus.allGreen) {
+        if (detectorStatus.skillInstalled) {
+          const copied = await copyTextToClipboard(
+            buildClaudeSkillFallbackArticleComparePrompt({
+              data: compareData,
+              locale: currentLocale,
+              goalMode,
+              textPlatform,
+              customPlatform: customPlatform.trim() || undefined,
+              selectedTools: toolIds,
+            }),
+          );
+          if (!copied) {
+            setPreflightError(
+              t("preflight.skillFallbackCopyFailed", {
+                defaultValue:
+                  "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+              }),
+            );
+            return false;
+          }
+          setArticleCompareStartedOnce(true);
+          showPromptCopiedToast();
+          return "fallback";
+        }
+        setPreflightError(t("preflight.depsFailed"));
+        return false;
+      }
+
+      setArticleCompareStartedOnce(true);
+      await bridge.startScan("toraseo://article-compare", toolIds, bridgeProgram, {
+        action: "scan",
+        goal: compareData.goal,
+        goalMode,
+        textA: compareData.textA,
+        textB: compareData.textB,
+        roleA: compareData.roleA,
+        roleB: compareData.roleB,
+        textPlatform,
+        customPlatform: customPlatform.trim() || undefined,
+        selectedAnalysisTools: visibleToolIds,
+      });
+      return true;
+    }
+
+    if (!nativeRuntimeEnabled || !window.toraseo?.runtime?.openChatWindow) {
+      setPreflightError(
+        t("preflight.nativeUnavailable", {
+          defaultValue: "API + AI Chat is unavailable in this build.",
+        }),
+      );
+      return false;
+    }
+    if (!providerConfigured) {
+      setPreflightError(
+        t("preflight.providerMissing", {
+          defaultValue: "Add an AI provider before using API + AI Chat.",
+        }),
+      );
+      handleOpenProviderSettings();
+      return false;
+    }
+    if (!selectedModelProfile) {
+      setPreflightError(
+        t("preflight.modelMissing", {
+          defaultValue: "Choose the AI provider model before starting analysis.",
+        }),
+      );
+      return false;
+    }
+
+    setNativeArticleCompareActiveRun("scan");
+    setRuntimeReport(null);
+
+    let result: { ok: boolean };
+    try {
+      result = await window.toraseo.runtime.openChatWindow({
+        status: "active",
+        locale: currentLocale,
+        analysisType: "article_compare",
+        selectedModelProfile,
+        scanContext: null,
+        articleTextContext: null,
+        articleCompareContext: {
+          runId: `compare-${Date.now()}`,
+          goal: compareData.goal,
+          goalMode,
+          textA: compareData.textA,
+          textB: compareData.textB,
+          roleA: compareData.roleA,
+          roleB: compareData.roleB,
+          textPlatform,
+          customPlatform: customPlatform.trim() || undefined,
+          selectedTools: toolIds,
+        },
+        articleTextRunState: "running",
+        report: null,
+      });
+    } catch {
+      result = { ok: false };
+    }
+    if (!result.ok) {
+      setNativeArticleCompareActiveRun(null);
+      setPreflightError(
+        t("preflight.nativeUnavailable", {
+          defaultValue: "API + AI Chat is unavailable in this build.",
+        }),
+      );
+      return false;
+    }
+    setArticleCompareStartedOnce(true);
+    return true;
+  };
+
+  const handleCancelArticleCompare = () => {
+    if (executionMode !== "native") {
+      void bridge.cancelScan();
+      return;
+    }
+    setNativeArticleCompareActiveRun(null);
+    void window.toraseo.runtime.updateChatWindowSession({
+      status: "active",
+      locale: currentLocale,
+      analysisType: "article_compare",
+      selectedModelProfile,
+      scanContext: null,
+      articleTextContext: null,
+      articleCompareContext: null,
+      articleTextRunState: "idle",
+      report: runtimeReport,
+    });
   };
 
   const chatSession = useMemo<RuntimeChatWindowSession>(
@@ -1287,6 +1658,7 @@ function MainApp() {
       selectedModelProfile,
       scanContext: nativeScanContext,
       articleTextContext: null,
+      articleCompareContext: null,
       report: runtimeReport,
     }),
     [currentLocale, nativeScanContext, runtimeReport, selectedModelProfile],
@@ -1374,14 +1746,22 @@ function MainApp() {
           if (session.analysisType === "article_text") {
             setArticleTextScanStartedOnce(true);
           }
+          if (session.analysisType === "article_compare") {
+            setArticleCompareStartedOnce(true);
+          }
         }
         if (
           session.status === "active" &&
-          session.analysisType === "article_text" &&
+          (session.analysisType === "article_text" ||
+            session.analysisType === "article_compare") &&
           (session.articleTextRunState === "complete" ||
             session.articleTextRunState === "failed")
         ) {
-          setNativeArticleTextActiveRun(null);
+          if (session.analysisType === "article_text") {
+            setNativeArticleTextActiveRun(null);
+          } else {
+            setNativeArticleCompareActiveRun(null);
+          }
           if (session.articleTextRunState === "failed") {
             setPreflightError(
               session.articleTextRunError ||
@@ -1733,15 +2113,21 @@ function MainApp() {
               bridgeState={bridge.state}
               articleTextState={displayedArticleTextState}
               runtimeReport={runtimeReport}
+              articleCompareInput={articleCompareInput}
               scanStartedOnce={articleTextScanStartedOnce}
+              compareStartedOnce={articleCompareStartedOnce}
               solutionProvidedOnce={articleTextSolutionProvidedOnce}
               bridgeUnavailable={
-                executionMode === "bridge" && bridgeExternalAppClosed
+                executionMode === "bridge" &&
+                bridgeExternalAppClosed &&
+                !claudeSkillFallbackAvailable
               }
               bridgeUnavailableAppName={bridgeExternalAppName}
               bridgeTargetAppName={bridgeExternalAppName}
               onArticleTextRun={handleRunArticleTextBridge}
               onArticleTextCancel={handleCancelArticleTextBridge}
+              onArticleCompareRun={handleRunArticleCompare}
+              onArticleCompareCancel={handleCancelArticleCompare}
             />
           ) : (
             <NativeLayout

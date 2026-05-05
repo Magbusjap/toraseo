@@ -91,6 +91,21 @@ import {
   logicConsistencyCheckHandler,
   aiHallucinationCheckHandler,
 } from "./textAnalysisTools.js";
+import {
+  articleCompareInternalHandler,
+  compareIntentGapHandler,
+  compareArticleStructureHandler,
+  compareContentGapHandler,
+  compareSemanticGapHandler,
+  compareSpecificityGapHandler,
+  compareTrustGapHandler,
+  compareArticleStyleHandler,
+  similarityRiskHandler,
+  compareTitleCtrHandler,
+  comparePlatformFitHandler,
+  compareStrengthsWeaknessesHandler,
+  compareImprovementPlanHandler,
+} from "./articleCompareTools.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -313,7 +328,7 @@ server.registerTool(
   {
     title: "Detect Text Platform",
     description:
-      "Analyzes the active ToraSEO article_text context from the desktop app and infers likely platform/use-case signals. Use only during an active article text bridge run.",
+      "Analyzes the active ToraSEO article_text context or compares Text A/B platform signals in an article_compare bridge run.",
     inputSchema: emptyInputSchema,
   },
   detectTextPlatformHandler,
@@ -324,7 +339,7 @@ server.registerTool(
   {
     title: "Analyze Text Structure",
     description:
-      "Analyzes article structure, headings, paragraphs, and thin-content risk from the active ToraSEO article_text context.",
+      "Analyzes article structure, headings, paragraphs, and thin-content risk for article_text, or compares those signals for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   analyzeTextStructureHandler,
@@ -335,7 +350,7 @@ server.registerTool(
   {
     title: "Analyze Text Style",
     description:
-      "Analyzes sentence length, directness, and mechanical phrasing from the active ToraSEO article_text context.",
+      "Analyzes sentence length, directness, and mechanical phrasing for article_text, or compares those signals for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   analyzeTextStyleHandler,
@@ -346,7 +361,7 @@ server.registerTool(
   {
     title: "Analyze Tone Fit",
     description:
-      "Reviews whether the tone fits the topic risk and intended platform for the active ToraSEO article_text context.",
+      "Reviews whether tone fits the topic risk and platform for article_text, or compares tone fit for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   analyzeToneFitHandler,
@@ -357,7 +372,7 @@ server.registerTool(
   {
     title: "Language and Audience Fit",
     description:
-      "Reviews language and audience fit for the active ToraSEO article_text context.",
+      "Reviews language and audience fit for article_text, or compares audience readability for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   languageAudienceFitHandler,
@@ -368,7 +383,7 @@ server.registerTool(
   {
     title: "Media Placeholder Review",
     description:
-      "Checks image/video/audio placeholder placement in the active ToraSEO article_text context.",
+      "Checks image/video/audio placeholder placement for article_text, or compares media planning for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   mediaPlaceholderReviewHandler,
@@ -379,7 +394,7 @@ server.registerTool(
   {
     title: "Article Uniqueness",
     description:
-      "Built-in article_text check. Estimates local uniqueness and repetition risk for the active ToraSEO article text context. This is not an internet plagiarism check.",
+      "Built-in text check. Estimates local uniqueness/repetition for article_text, or exact phrase overlap between Text A/B in article_compare. This is not an internet plagiarism check.",
     inputSchema: emptyInputSchema,
   },
   articleUniquenessHandler,
@@ -390,7 +405,7 @@ server.registerTool(
   {
     title: "Language Syntax",
     description:
-      "Built-in article_text check. Reviews grammar-adjacent syntax, punctuation, and sentence boundary risks in the active ToraSEO article text context.",
+      "Built-in text check. Reviews syntax, punctuation, and sentence boundary risks for article_text, or compares local syntax signals for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   languageSyntaxHandler,
@@ -401,7 +416,7 @@ server.registerTool(
   {
     title: "AI Writing Probability",
     description:
-      "Built-in article_text check. Estimates the probability that the text reads like AI-assisted writing using local style and repetition signals.",
+      "Built-in text check. Estimates AI-style signals for article_text, or compares AI-style signals for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   aiWritingProbabilityHandler,
@@ -412,7 +427,7 @@ server.registerTool(
   {
     title: "Fact Distortion Check",
     description:
-      "Optional article_text check. Flags fact-sensitive claims, absolute wording, exact numbers, and unsupported sensitive statements that may distort facts if they are wrong.",
+      "Optional text check. Flags fact-sensitive claims for article_text, or compares fact-sensitive signals for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   factDistortionCheckHandler,
@@ -423,7 +438,7 @@ server.registerTool(
   {
     title: "Logic Consistency Check",
     description:
-      "Built-in article_text check. Reviews internal contradictions, unsupported cause-and-effect jumps, and weak logical transitions in the active ToraSEO article text context.",
+      "Built-in text check. Reviews logical transitions for article_text, or compares local logic-risk signals for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   logicConsistencyCheckHandler,
@@ -434,7 +449,7 @@ server.registerTool(
   {
     title: "AI Hallucination Check",
     description:
-      "Optional article_text check. Reviews whether the text shows signs of AI involvement through vague authorities, fabricated citation placeholders, or factual details that need verification.",
+      "Optional text check. Reviews vague authorities and unverifiable detail signals for article_text, or compares those risks for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   aiHallucinationCheckHandler,
@@ -445,7 +460,7 @@ server.registerTool(
   {
     title: "Naturalness Indicators",
     description:
-      "Checks repetition and mechanical phrasing indicators in the active ToraSEO article_text context.",
+      "Checks repetition and mechanical phrasing indicators for article_text, or compares naturalness signals for Text A/B in article_compare.",
     inputSchema: emptyInputSchema,
   },
   naturalnessIndicatorsHandler,
@@ -456,7 +471,7 @@ server.registerTool(
   {
     title: "Intent and SEO Forecast",
     description:
-      "Built-in article_text check. Builds a local intent forecast, hook score, CTR/trend potential, and a CMS/SEO metadata package from the active article text. It does not fetch live SERP or social trend data.",
+      "Built-in text check. Builds a local intent forecast for article_text, or compares intent/title signals for Text A/B in article_compare. It does not fetch live SERP or social trend data.",
     inputSchema: emptyInputSchema,
   },
   intentSeoForecastHandler,
@@ -467,7 +482,7 @@ server.registerTool(
   {
     title: "Safety, Legal and Science Review",
     description:
-      "Built-in article_text check. Flags unsafe/platform-evasion intent, legal-sensitive claims, scientific-method claims, and calculation-heavy passages. This is a heuristic risk flag and does not replace expert review.",
+      "Built-in text check. Flags safety/legal/science risk for article_text, or compares those boundaries for Text A/B in article_compare. This does not replace expert review.",
     inputSchema: emptyInputSchema,
   },
   safetyScienceReviewHandler,
@@ -482,6 +497,151 @@ server.registerTool(
     inputSchema: emptyInputSchema,
   },
   articleRewriteContextHandler,
+);
+
+// --- Tools: Article comparison -------------------------------------------
+
+server.registerTool(
+  "article_compare_internal",
+  {
+    title: "Внутренний пакет сравнения текстов",
+    description:
+      "Runs the full internal ToraSEO A/B text comparison package in one MCP call and writes all structured comparison results into the active article_compare state.",
+    inputSchema: emptyInputSchema,
+  },
+  articleCompareInternalHandler,
+);
+
+server.registerTool(
+  "compare_intent_gap",
+  {
+    title: "Сравнение интента",
+    description:
+      "Compares whether Text A and Text B appear to answer the same user intent in the active ToraSEO article_compare context.",
+    inputSchema: emptyInputSchema,
+  },
+  compareIntentGapHandler,
+);
+
+server.registerTool(
+  "compare_article_structure",
+  {
+    title: "Сравнение структуры",
+    description:
+      "Compares headings, paragraph structure, lists, and visible reader path for the active ToraSEO article_compare context.",
+    inputSchema: emptyInputSchema,
+  },
+  compareArticleStructureHandler,
+);
+
+server.registerTool(
+  "compare_content_gap",
+  {
+    title: "Разрывы по содержанию",
+    description:
+      "Finds local topic terms present in one text and missing from the other for the active ToraSEO article_compare context.",
+    inputSchema: emptyInputSchema,
+  },
+  compareContentGapHandler,
+);
+
+server.registerTool(
+  "compare_semantic_gap",
+  {
+    title: "Смысловое покрытие",
+    description:
+      "Compares entity and concept coverage between Text A and Text B in the active ToraSEO article_compare context.",
+    inputSchema: emptyInputSchema,
+  },
+  compareSemanticGapHandler,
+);
+
+server.registerTool(
+  "compare_specificity_gap",
+  {
+    title: "Сравнение конкретики",
+    description:
+      "Compares concrete examples, numbers, questions, and list/step signals in the active ToraSEO article_compare context.",
+    inputSchema: emptyInputSchema,
+  },
+  compareSpecificityGapHandler,
+);
+
+server.registerTool(
+  "compare_trust_gap",
+  {
+    title: "Сравнение доверия",
+    description:
+      "Compares local trust signals, caveats, sources, and sensitive-claim indicators in the active ToraSEO article_compare context.",
+    inputSchema: emptyInputSchema,
+  },
+  compareTrustGapHandler,
+);
+
+server.registerTool(
+  "compare_article_style",
+  {
+    title: "Сравнение стиля",
+    description:
+      "Compares sentence rhythm, readability, and style distance for the active ToraSEO article_compare context.",
+    inputSchema: emptyInputSchema,
+  },
+  compareArticleStyleHandler,
+);
+
+server.registerTool(
+  "similarity_risk",
+  {
+    title: "Риск похожести",
+    description:
+      "Estimates local exact phrase overlap and copying risk between Text A and Text B. This is not an external plagiarism database check.",
+    inputSchema: emptyInputSchema,
+  },
+  similarityRiskHandler,
+);
+
+server.registerTool(
+  "compare_title_ctr",
+  {
+    title: "Заголовок и клик",
+    description:
+      "Compares headline/title clarity, promise, and local click-potential signals for the active ToraSEO article_compare context.",
+    inputSchema: emptyInputSchema,
+  },
+  compareTitleCtrHandler,
+);
+
+server.registerTool(
+  "compare_platform_fit",
+  {
+    title: "Сравнение под платформу",
+    description:
+      "Compares which text better fits the selected platform or resource in the active ToraSEO article_compare context.",
+    inputSchema: emptyInputSchema,
+  },
+  comparePlatformFitHandler,
+);
+
+server.registerTool(
+  "compare_strengths_weaknesses",
+  {
+    title: "Сильные и слабые стороны",
+    description:
+      "Summarizes side-by-side strengths and weaknesses for Text A and Text B in the active ToraSEO article_compare context.",
+    inputSchema: emptyInputSchema,
+  },
+  compareStrengthsWeaknessesHandler,
+);
+
+server.registerTool(
+  "compare_improvement_plan",
+  {
+    title: "Что улучшить дальше",
+    description:
+      "Builds a text-only improvement plan from comparison evidence without copying the other text.",
+    inputSchema: emptyInputSchema,
+  },
+  compareImprovementPlanHandler,
 );
 
 // --- Transport & startup --------------------------------------------------

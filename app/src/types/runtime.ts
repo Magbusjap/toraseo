@@ -26,7 +26,7 @@ import type { ToolId } from "../config/tools";
  */
 export type RuntimePolicyMode = "strict_audit" | "audit_plus_ideas";
 export type AuditExecutionMode = "bridge" | "native";
-export type RuntimeAnalysisType = "site" | "article_text";
+export type RuntimeAnalysisType = "site" | "article_text" | "article_compare";
 
 /**
  * A single rule the policy layer enforces. Keep this minimal in
@@ -196,6 +196,30 @@ export interface RuntimeArticleTextContext {
   selectedTools: string[];
 }
 
+export type RuntimeArticleCompareRole = "auto" | "own" | "competitor";
+export type RuntimeArticleCompareGoalMode =
+  | "standard_comparison"
+  | "focus_text_a"
+  | "focus_text_b"
+  | "beat_competitor"
+  | "style_match"
+  | "similarity_check"
+  | "version_compare"
+  | "ab_post";
+
+export interface RuntimeArticleCompareContext {
+  runId?: string;
+  goal: string;
+  goalMode?: RuntimeArticleCompareGoalMode;
+  textA: string;
+  textB: string;
+  roleA: RuntimeArticleCompareRole;
+  roleB: RuntimeArticleCompareRole;
+  textPlatform: string;
+  customPlatform?: string;
+  selectedTools: string[];
+}
+
 export interface RuntimeConfirmedFact {
   title: string;
   detail: string;
@@ -331,6 +355,72 @@ export interface RuntimeArticleTextSummary {
   nextActions: string[];
 }
 
+export interface RuntimeArticleCompareMetric {
+  id: string;
+  label: string;
+  textA: number | null;
+  textB: number | null;
+  delta: number | null;
+  suffix: string;
+  winner: "textA" | "textB" | "tie" | "risk" | "pending";
+  description: string;
+}
+
+export interface RuntimeArticleCompareTextSide {
+  id: "textA" | "textB";
+  label: string;
+  role: RuntimeArticleCompareRole;
+  title: string;
+  text: string;
+  wordCount: number;
+  paragraphCount: number;
+  headingCount: number;
+  sentenceCount: number;
+  averageSentenceWords: number | null;
+  strengths: RuntimeArticleTextInsight[];
+  weaknesses: RuntimeArticleTextInsight[];
+}
+
+export interface RuntimeArticleCompareGap {
+  title: string;
+  detail: string;
+  side: "missing_in_a" | "missing_in_b" | "missing_in_both" | "shared";
+  sourceToolIds: string[];
+}
+
+export interface RuntimeArticleCompareSummary {
+  verdict: {
+    winner: "textA" | "textB" | "tie" | "unclear";
+    label: string;
+    detail: string;
+    mainGap: string;
+  };
+  goal: string;
+  goalMode: RuntimeArticleCompareGoalMode;
+  goalLabel: string;
+  goalDescription: string;
+  focusSide: "textA" | "textB" | null;
+  platform: RuntimeArticleTextPlatform;
+  coverage: {
+    completed: number;
+    total: number;
+    percent: number;
+  };
+  textA: RuntimeArticleCompareTextSide;
+  textB: RuntimeArticleCompareTextSide;
+  metrics: RuntimeArticleCompareMetric[];
+  gaps: RuntimeArticleCompareGap[];
+  priorities: RuntimeArticleTextPriority[];
+  similarity: {
+    exactOverlap: number | null;
+    semanticSimilarity: number | null;
+    copyRisk: "low" | "medium" | "high" | "unknown";
+    detail: string;
+  };
+  actionPlan: RuntimeArticleTextPriority[];
+  limitations: string[];
+}
+
 export interface RuntimeAuditReport {
   mode: RuntimePolicyMode;
   providerId: ProviderId;
@@ -341,6 +431,7 @@ export interface RuntimeAuditReport {
   confirmedFacts: RuntimeConfirmedFact[];
   expertHypotheses: RuntimeExpertHypothesis[];
   articleText?: RuntimeArticleTextSummary;
+  articleCompare?: RuntimeArticleCompareSummary;
 }
 
 export interface ProviderUsage {
@@ -357,6 +448,7 @@ export interface RuntimeChatWindowSession {
   selectedModelProfile: ProviderModelProfile | null;
   scanContext: RuntimeScanContext | null;
   articleTextContext?: RuntimeArticleTextContext | null;
+  articleCompareContext?: RuntimeArticleCompareContext | null;
   articleTextRunState?: "idle" | "running" | "complete" | "failed";
   articleTextRunError?: string;
   report: RuntimeAuditReport | null;
@@ -421,6 +513,8 @@ export interface OrchestratorMessageInput {
   scanContext?: RuntimeScanContext | null;
   /** Current article text context for API + AI Chat text workflows. */
   articleTextContext?: RuntimeArticleTextContext | null;
+  /** Current two-text comparison context for API + AI Chat workflows. */
+  articleCompareContext?: RuntimeArticleCompareContext | null;
 }
 
 /**

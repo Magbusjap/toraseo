@@ -52,6 +52,35 @@
       "added": "Added",
       "moved": "Moved",
       "removed": "Removed"
+    },
+    "compare": {
+      "goalMode": "Analysis goal mode",
+      "goalModes": {
+        "standard": "Standard comparison",
+        "focusA": "Focus on Text A",
+        "focusB": "Focus on Text B",
+        "beatCompetitor": "Competitor comparison",
+        "styleMatch": "Style matching",
+        "similarity": "Similarity check",
+        "version": "Version comparison",
+        "abPost": "A/B post analysis"
+      },
+      "goalDescriptions": {
+        "standard": "No goal was provided: the report shows both texts, key gaps, similarity risk, and an improvement plan.",
+        "focusA": "The report focuses on Text A: the second text is used as comparison context and a source of reference points.",
+        "focusB": "The report focuses on Text B: the second text is used as comparison context and a source of reference points.",
+        "beatCompetitor": "The report looks for competitor text advantages, gaps in your text, and a plan to strengthen it without copying.",
+        "styleMatch": "The report emphasizes tone, rhythm, clarity, example density, and transferable style techniques without copying phrases.",
+        "similarity": "The report prioritizes exact overlap, semantic closeness, and copying risk.",
+        "version": "The report shows what became stronger or weaker between two text versions.",
+        "abPost": "The report evaluates hook, clarity, brevity, platform fit, and reaction potential."
+      },
+      "focusVerdictA": "Report focused on Text A",
+      "focusVerdictB": "Report focused on Text B",
+      "similarityVerdict": "Main finding: similarity and copying risk",
+      "styleVerdict": "Main finding: style and delivery differences",
+      "versionVerdict": "Main finding: changes between versions",
+      "competitorVerdict": "Main finding: competitor text gaps"
     }
   },
   "about": {
@@ -577,6 +606,8 @@
       "aiDraftAgainAction": "Suggest solution again",
       "scanReadyTextAction": "Scan text",
       "scanReadyTextAgainAction": "Scan text again",
+      "compareRun": "Compare texts",
+      "compareRunAgain": "Compare texts again",
       "scanCancelled": "Analysis cancelled.",
       "aiDraftPromptCopied": "Prompt copied. Paste it into {{appName}} chat so AI can provide a solution.",
       "scanPromptCopied": "Prompt copied. Paste it into {{appName}} chat so AI can continue this analysis.",
@@ -584,6 +615,10 @@
       "scanSentToApiChat": "Report formed, and the text was sent to API + AI Chat for a short explanation.",
       "aiChatOpenFailed": "Could not open API + AI Chat. Check the provider and try again.",
       "bridgeRunFailed": "Could not start analysis. Check MCP + Instructions mode and try again.",
+      "compareNeedTexts": "Add both texts before starting comparison.",
+      "compareSentToApiChat": "Comparison started in API + AI Chat. The report will appear here after the model responds.",
+      "compareBridgeUnavailable": "Two-text comparison started through MCP + Instructions. Results will appear here after the tools finish.",
+      "compareSkillFallbackPromptCopied": "Prompt copied. Paste it into {{appName}} chat: the Skill will compare the two texts directly in chat while MCP or the app is unavailable.",
       "aiDraftNeedContext": "Add at least a topic, query, or short text draft so AI can suggest a useful solution.",
       "aiDraftNeedMore": "Write a bit more: at least two short paragraphs, so AI has enough context for a useful solution.",
       "aiDraftPrepared": "This looks like enough context for a solution. Full execution will connect with text analysis.",
@@ -686,9 +721,37 @@
       "label": "Structure comparison",
       "tooltip": "Compare how two texts organize the same idea"
     },
+    "compare_intent_gap": {
+      "label": "Intent comparison",
+      "tooltip": "Check whether both texts answer the same user request"
+    },
+    "compare_content_gap": {
+      "label": "Content Gap",
+      "tooltip": "Find important topics and sections present in one text and missing in the other"
+    },
+    "compare_semantic_gap": {
+      "label": "Semantic coverage",
+      "tooltip": "Compare entities, concepts, and subtopics in both texts"
+    },
+    "compare_specificity_gap": {
+      "label": "Specificity comparison",
+      "tooltip": "Compare examples, numbers, steps, scenarios, and practical usefulness"
+    },
+    "compare_trust_gap": {
+      "label": "Trust comparison",
+      "tooltip": "Compare sources, caveats, warnings, and risky claims"
+    },
     "compare_article_style": {
       "label": "Style comparison",
       "tooltip": "Compare tone, clarity, rhythm, and platform fit"
+    },
+    "similarity_risk": {
+      "label": "Similarity risk",
+      "tooltip": "Estimate local exact phrase overlap and copying risk between the two texts"
+    },
+    "compare_title_ctr": {
+      "label": "Title and click",
+      "tooltip": "Compare headline clarity, promise, intent fit, and click potential"
     },
     "compare_platform_fit": {
       "label": "Platform fit comparison",
@@ -697,6 +760,10 @@
     "compare_strengths_weaknesses": {
       "label": "Strengths and weaknesses",
       "tooltip": "Show strong and weak sides side by side"
+    },
+    "compare_improvement_plan": {
+      "label": "Improvement plan",
+      "tooltip": "Build a plan for strengthening the target text without copying the other text"
     },
     "compare_site_positioning": {
       "label": "Positioning comparison",
@@ -854,6 +921,7 @@
     "modelMissing": "Choose the AI provider model before starting analysis.",
     "nativeUnavailable": "API + AI Chat is unavailable in this build.",
     "articleTextBridgeRequired": "Text analysis through Codex or Claude Desktop requires MCP + Instructions mode.",
+    "skillFallbackCopyFailed": "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
     "codexClosedTitle": "Codex unavailable",
     "codexNeedsConfirmation": "Open Codex before starting the Codex bridge path.",
     "codexSetupMissing": "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",

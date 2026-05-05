@@ -26,6 +26,33 @@ const COPY = {
     noteTitle: "Текущий статус",
     note:
       "Публичная документация уже остается в репозитории, но приложение постепенно получит собственные страницы для пользователей, которым удобнее читать справку внутри ToraSEO.",
+    fallbackNoteTitle: "Если MCP или приложение недоступны",
+    fallbackNote:
+      "Если Claude Bridge Instructions установлены, но MCP или активный запуск приложения недоступны, ToraSEO копирует отдельный fallback-промпт. В этом режиме Claude анализирует текст по SKILL прямо в чате, честно пишет, что приложение не будет обновлено, и не утверждает, что MCP-инструменты были выполнены.",
+    commandsTitle: "Команды MCP + Instructions",
+    commandsLead:
+      "Для API + AI Chat команды не нужны: приложение открывает встроенный чат само. Команды ниже нужны только для Claude Desktop и Codex в режиме MCP + Instructions.",
+    commandHeaders: ["Codex", "Claude Desktop", "Описание"],
+    commands: [
+      {
+        codex: "/toraseo codex-bridge-mode setup-check",
+        claude: "/toraseobridge setup-check",
+        description:
+          "Проверка работоспособности: ИИ должен подтвердить доступ к ToraSEO MCP, активные инструкции и то, что приложение ToraSEO запущено.",
+      },
+      {
+        codex: "/toraseo codex-bridge-mode article-text",
+        claude: "/toraseobridge article-text",
+        description:
+          "Анализ текста: текст уже лежит во временной папке ToraSEO, ИИ не должен просить вставлять его в чат и запускает выбранные MCP-инструменты.",
+      },
+      {
+        codex: "/toraseo codex-bridge-mode article-compare",
+        claude: "/toraseobridge article-compare",
+        description:
+          "Сравнение двух текстов: Text A и Text B уже лежат в ToraSEO, ИИ запускает выбранные проверки сравнения и оценивает только текстовые признаки.",
+      },
+    ],
   },
   en: {
     back: "Back home",
@@ -45,6 +72,33 @@ const COPY = {
     noteTitle: "Current status",
     note:
       "Public documentation still lives in the repository, but the app will gradually get its own user-facing help pages for people who prefer reading inside ToraSEO.",
+    fallbackNoteTitle: "When MCP or the app is unavailable",
+    fallbackNote:
+      "If Claude Bridge Instructions are installed but MCP or an active app scan is unavailable, ToraSEO copies a separate fallback prompt. In this mode Claude analyzes the text through the Skill directly in chat, clearly says the app will not be updated, and does not claim MCP tools ran.",
+    commandsTitle: "MCP + Instructions commands",
+    commandsLead:
+      "API + AI Chat does not need commands: the app opens the built-in chat itself. The commands below are only for Claude Desktop and Codex in MCP + Instructions mode.",
+    commandHeaders: ["Codex", "Claude Desktop", "Description"],
+    commands: [
+      {
+        codex: "/toraseo codex-bridge-mode setup-check",
+        claude: "/toraseobridge setup-check",
+        description:
+          "Setup check: AI should confirm access to ToraSEO MCP, active instructions, and the running ToraSEO app.",
+      },
+      {
+        codex: "/toraseo codex-bridge-mode article-text",
+        claude: "/toraseobridge article-text",
+        description:
+          "Article text analysis: the text is already in the temporary ToraSEO workspace, so AI should not ask for it again and should run selected MCP tools.",
+      },
+      {
+        codex: "/toraseo codex-bridge-mode article-compare",
+        claude: "/toraseobridge article-compare",
+        description:
+          "Two-text comparison: Text A and Text B are already in ToraSEO, so AI runs the selected comparison checks and compares text evidence only.",
+      },
+    ],
   },
 } as const;
 
@@ -111,6 +165,56 @@ export default function DocumentationView({
             <p className="mt-2 text-sm leading-relaxed text-outline-900/70">
               {copy.note}
             </p>
+          </section>
+
+          <section className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 px-5 py-4">
+            <h3 className="font-display text-base font-semibold text-outline-900">
+              {copy.fallbackNoteTitle}
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-outline-900/70">
+              {copy.fallbackNote}
+            </p>
+          </section>
+
+          <section className="mt-6 border-t border-outline/10 pt-7">
+            <h3 className="font-display text-xl font-semibold text-outline-900">
+              {copy.commandsTitle}
+            </h3>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-outline-900/65">
+              {copy.commandsLead}
+            </p>
+            <div className="mt-4 overflow-hidden rounded-lg border border-outline/10">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead className="bg-orange-50/70 text-xs uppercase tracking-wider text-outline-900/50">
+                  <tr>
+                    {copy.commandHeaders.map((header) => (
+                      <th key={header} className="px-4 py-3 font-semibold">
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline/10">
+                  {copy.commands.map((command) => (
+                    <tr key={command.codex} className="align-top">
+                      <td className="w-[28%] px-4 py-3">
+                        <code className="rounded bg-orange-50 px-2 py-1 text-xs text-outline-900">
+                          {command.codex}
+                        </code>
+                      </td>
+                      <td className="w-[28%] px-4 py-3">
+                        <code className="rounded bg-orange-50 px-2 py-1 text-xs text-outline-900">
+                          {command.claude}
+                        </code>
+                      </td>
+                      <td className="px-4 py-3 leading-relaxed text-outline-900/70">
+                        {command.description}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         </article>
       </main>

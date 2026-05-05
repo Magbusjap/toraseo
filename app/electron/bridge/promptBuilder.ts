@@ -126,6 +126,97 @@ function articleTextRunLabel(state?: Pick<CurrentScanState, "input">): {
   };
 }
 
+function compareGoalLabel(
+  state: Pick<CurrentScanState, "input"> | undefined,
+  fallback: string,
+): string {
+  return state?.input?.goal?.trim() || fallback;
+}
+
+function compareGoalModeLabel(
+  state: Pick<CurrentScanState, "input"> | undefined,
+  locale: SupportedLocale,
+): string {
+  const mode = state?.input?.goalMode ?? "standard_comparison";
+  const labels: Record<string, { en: string; ru: string }> = {
+    standard_comparison: {
+      en: "standard comparison",
+      ru: "стандартное сравнение",
+    },
+    focus_text_a: { en: "focus on Text A", ru: "фокус на тексте A" },
+    focus_text_b: { en: "focus on Text B", ru: "фокус на тексте B" },
+    beat_competitor: {
+      en: "competitor comparison",
+      ru: "сравнение с конкурентом",
+    },
+    style_match: { en: "style matching", ru: "подражание стилю" },
+    similarity_check: {
+      en: "similarity check",
+      ru: "проверка похожести",
+    },
+    version_compare: {
+      en: "version comparison",
+      ru: "сравнение версий",
+    },
+    ab_post: { en: "A/B post comparison", ru: "A/B-анализ поста" },
+  };
+  return labels[mode]?.[locale] ?? labels.standard_comparison[locale];
+}
+
+const COMPARE_TEMPLATE_EN = (
+  _tools: string,
+  state?: Pick<CurrentScanState, "input">,
+): string =>
+  `/toraseobridge article-compare
+
+ToraSEO is waiting for two-text comparison.
+Goal: ${compareGoalLabel(state, "standard comparison report")}.
+Goal mode: ${compareGoalModeLabel(state, "en")}.
+Texts, roles, selected tools, and boundaries are already inside ToraSEO MCP + Instructions.
+Use the required ToraSEO connection check, then run the comparison checks.
+In the final chat answer, do not mention service details of the connection check, scan identifiers, tool ids, aggregate comparison tools, or result files. Write a normal user-facing comparison summary.`;
+
+const COMPARE_TEMPLATE_RU = (
+  _tools: string,
+  state?: Pick<CurrentScanState, "input">,
+): string =>
+  `/toraseobridge article-compare
+
+ToraSEO ожидает сравнение двух текстов.
+Цель: ${compareGoalLabel(state, "стандартный отчет сравнения")}.
+Режим отчета по цели: ${compareGoalModeLabel(state, "ru")}.
+Тексты, роли, выбранные инструменты и границы анализа уже внутри ToraSEO MCP + Instructions.
+Сделай обязательную проверку подключения ToraSEO, затем запусти проверки сравнения.
+В финальном ответе в чате не упоминай служебные детали проверки подключения, идентификаторы запуска, технические id инструментов, агрегатор сравнения или файлы результатов. Напиши обычную пользовательскую сводку сравнения.`;
+
+const CODEX_COMPARE_TEMPLATE_EN = (
+  state?: Pick<CurrentScanState, "input">,
+): string =>
+  `Use $toraseo-codex-workflow.
+
+/toraseo codex-bridge-mode article-compare
+
+ToraSEO is waiting for two-text comparison.
+Goal: ${compareGoalLabel(state, "standard comparison report")}.
+Goal mode: ${compareGoalModeLabel(state, "en")}.
+Texts, roles, selected tools, and boundaries are already inside the app, SKILL, and MCP.
+Use the required ToraSEO connection check, then run the comparison checks.
+In the final chat answer, do not mention service details of the connection check, scan identifiers, tool ids, aggregate comparison tools, or result files. Write a normal user-facing comparison summary.`;
+
+const CODEX_COMPARE_TEMPLATE_RU = (
+  state?: Pick<CurrentScanState, "input">,
+): string =>
+  `Используй $toraseo-codex-workflow.
+
+/toraseo codex-bridge-mode article-compare
+
+ToraSEO ожидает сравнение двух текстов.
+Цель: ${compareGoalLabel(state, "стандартный отчет сравнения")}.
+Режим отчета по цели: ${compareGoalModeLabel(state, "ru")}.
+Тексты, роли, выбранные инструменты и границы анализа уже внутри приложения, SKILL и MCP.
+Сделай обязательную проверку подключения ToraSEO, затем запусти проверки сравнения.
+В финальном ответе в чате не упоминай служебные детали проверки подключения, идентификаторы запуска, технические id инструментов, агрегатор сравнения или файлы результатов. Напиши обычную пользовательскую сводку сравнения.`;
+
 const TEXT_TEMPLATE_EN = (
   tools: string,
   state?: Pick<CurrentScanState, "input">,
@@ -176,7 +267,7 @@ const CODEX_TEXT_TEMPLATE_EN = (
   const run = articleTextRunLabel(state);
   return `Use $toraseo-codex-workflow.
 
-/toraseo codex-bridge-mode
+/toraseo codex-bridge-mode article-text
 
 ToraSEO is waiting for ${run.labelEn}.
 ${run.isSolution ? "This was started from Suggest solution: after the handshake and all selected MCP tools complete, propose the solution or draft direction directly in chat using the tool evidence. If the input is only a topic or too thin, ask the minimum necessary clarifying question or give a bounded outline instead of pretending there is a full article." : "After the handshake and all selected MCP tools complete, summarize recommendations in chat using the tool evidence."}
@@ -189,7 +280,7 @@ const CODEX_TEXT_TEMPLATE_RU = (
   const run = articleTextRunLabel(state);
   return `Используй $toraseo-codex-workflow.
 
-/toraseo codex-bridge-mode
+/toraseo codex-bridge-mode article-text
 
 ToraSEO ожидает: ${run.labelRu}.
 ${run.isSolution ? "Запуск сделан кнопкой «Предложить решение»: после handshake и завершения всех выбранных MCP-инструментов предложи решение или направление черновика прямо в чате, опираясь на результаты инструментов. Если в input.md только тема или контекста мало, задай минимальный уточняющий вопрос или дай ограниченный план, не имитируя полноценную готовую статью." : "После handshake и завершения всех выбранных MCP-инструментов дай рекомендации в чате на основе результатов инструментов."}
@@ -241,6 +332,16 @@ export function buildScanPrompt(
     return locale === "ru"
       ? `${TEXT_TEMPLATE_RU(toolsList, state)}\n${TEXT_EVIDENCE_BOUNDARY}`
       : TEXT_TEMPLATE_EN(toolsList, state);
+  }
+  if (state?.analysisType === "article_compare") {
+    if (bridgeClient === "codex") {
+      return locale === "ru"
+        ? CODEX_COMPARE_TEMPLATE_RU(state)
+        : CODEX_COMPARE_TEMPLATE_EN(state);
+    }
+    return locale === "ru"
+      ? COMPARE_TEMPLATE_RU(toolsList, state)
+      : COMPARE_TEMPLATE_EN(toolsList, state);
   }
   const template =
     bridgeClient === "codex"

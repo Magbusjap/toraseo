@@ -11,10 +11,11 @@ Claude-side package turns a single user intent ("audit this site") into
 a coordinated sequence of MCP tool calls and produces a clear,
 prioritized report.
 
-> **Status: Mode A (Site Audit) + Mode B (Article Text) + Bridge Mode handshake.**
-> The `0.0.9` expansion adds article-text MCP tools. In Bridge Mode the
-> app stores the temporary text context in workspace `input.md`; Claude
-> must not ask the user to paste the article into chat.
+> **Status: Mode A (Site Audit) + Mode B (Article Text) + Mode C (Two-Text Comparison) + Bridge Mode handshake.**
+> The `0.0.9` expansion adds article-text and two-text comparison MCP
+> tools. In Bridge Mode the app stores the temporary text context in
+> workspace `input.md`; Claude must not ask the user to paste the article
+> or comparison texts into chat.
 
 Bridge Mode has two command families:
 
@@ -28,8 +29,11 @@ keep the conversation anchored to that task. If they ask for broad or
 unrelated research, redirect gently: offer to collect material for the
 article or prepare a draft/recommendation set instead of drifting into a
 general-purpose chat. If ToraSEO Desktop App or MCP is unavailable,
-produce the best possible chat-only answer and make that limitation
-clear.
+load `references/chat-only-fallback.md`, produce the best possible
+chat-only answer, and make that limitation clear. Do not load the
+fallback reference during a healthy Bridge Mode run: when Skill, MCP,
+and the Desktop App scan are all available, the handshake response and
+selected MCP tools are the source of truth.
 
 When you propose to rewrite or substantially rework an article, ask
 immediately whether the user wants ToraSEO to mark recommended image
@@ -107,6 +111,14 @@ Treat any of the following as a Bridge Mode signal:
   literal command the Desktop App copies to the clipboard).
 - The pasted message starts with `/toraseobridge article-text` (the
   article-text bridge command copied by the Desktop App).
+- The pasted message starts with `/toraseobridge article-compare` (the
+  two-text comparison bridge command copied by the Desktop App).
+- The pasted message starts with `/toraseo chat-only-fallback` (the
+  Desktop App copied a fallback prompt because the Skill is installed but
+  MCP and/or the app scan is unavailable). In this case load
+  `references/chat-only-fallback.md` and answer in chat from the pasted
+  content; do not call Bridge Mode tools unless the user later restarts a
+  live scan.
 - The user types `/toraseo` followed by any SEO-related request
   (e.g. `/toraseo проверь example.com`).
 - The user mentions the **Desktop App / приложение / программу**
@@ -115,7 +127,8 @@ Treat any of the following as a Bridge Mode signal:
 - The user mentions ToraSEO by name in any spelling (see §1
   trigger list) AND a URL.
 
-In **all** of these, your **first action** is to call:
+In **all** Bridge Mode triggers except `/toraseo chat-only-fallback`,
+your **first action** is to call:
 
 ```
 verify_skill_loaded(token="bridge-v1-2026-04-27")
@@ -130,6 +143,11 @@ mismatch.
 `verify_skill_loaded` is **non-destructive and cheap**. It only
 reads disk state and reports back. Always call it before
 attempting any other tool when a Bridge Mode trigger fires.
+
+For `/toraseo chat-only-fallback`, do not call the handshake first. The
+app has already determined that the live bridge is not available and has
+pasted the needed text into chat. Load `references/chat-only-fallback.md`,
+state the limitation, and produce the bounded chat-only analysis.
 
 ### 2.2 Interpreting the response — successful handshake
 
@@ -156,6 +174,32 @@ to paste the article into Claude. Call the selected article-text MCP
 tools directly; those tools read `input.md` and write results back to
 the app state and `results/*.json`.
 
+If `analysisType` is `article_compare`, Text A and Text B are already
+stored in the temporary ToraSEO workspace as `input.md`. Do **not** ask
+the user to paste either text into Claude. Call the selected MCP tools
+directly; comparison runs may include the same tool IDs as article-text
+analysis, but in this mode they mean "analyze A and B side by side."
+The response may include `input.goal` and `input.goalMode`. If the user
+did not specify a goal, write the standard comparison report for both
+texts. If the user specified a goal, adapt the final answer to that
+purpose:
+
+- `focus_text_a` / `focus_text_b`: focus strengths, weaknesses, and
+  fixes on that side; use the other text only as comparison context.
+- `beat_competitor`: show textual advantages, content gaps, and a
+  non-copying improvement plan.
+- `style_match`: compare transferable style techniques without copying
+  phrases.
+- `similarity_check`: prioritize exact overlap, semantic closeness, and
+  copying risk.
+- `version_compare`: show what improved, worsened, was fixed, or
+  appeared.
+- `ab_post`: focus on hook, clarity, brevity, CTA, platform fit, and
+  reaction potential.
+
+Compare text evidence only; do not claim ranking causes from text alone
+and do not rewrite the full article unless the user asks later.
+
 Call each tool in `selectedTools` (in any order, but matching the
 listed order makes the app's UI feel linear). Each tool writes
 its result to the state file; the app polls and updates its UI
@@ -174,6 +218,15 @@ react based on the `error` code. User-facing replies must be
 in the **user's language** — the templates below are reference
 English; translate on the fly.
 
+If the Skill is loaded but the Desktop App scan is unavailable, load
+`references/chat-only-fallback.md`. When the user has provided enough
+content in chat, produce a bounded chat-only ToraSEO analysis instead
+of stopping at setup instructions. When the pasted Desktop App prompt
+does not include the article text, comparison texts, or URL content,
+explain that the app cannot be updated and ask for the needed text or
+for the user to start the scan again in the app. Do not load the
+fallback reference when `verify_skill_loaded` returns `ok: true`.
+
 #### 2.3.1 `app_not_running`
 
 The Desktop App is not running (no alive-file, or its PID is
@@ -183,7 +236,9 @@ dead).
 { "ok": false, "error": "app_not_running", "reason": "...", "message": "..." }
 ```
 
-If the user **mentioned the app** in their message, tell them:
+If the user **mentioned the app** in their message, tell them and then
+continue in chat-only fallback if they provided enough text or URL
+details:
 
 > "Похоже, что приложение ToraSEO не запущено. Запустите его,
 > нажмите Сканировать с нужным URL и инструментами, затем
@@ -194,7 +249,9 @@ If the user **mentioned the app** in their message, tell them:
 If the user **did not** mention the app (e.g. they typed
 `/toraseo проверь example.com` without referencing the desktop
 app explicitly), proceed silently with the regular Mode A
-workflow (§3) — the app is just not part of their flow.
+workflow (§3) when MCP tools are available — the app is just not part
+of their flow. If MCP tools are unavailable, use the chat-only fallback
+and state that no tool results will be written to the app.
 
 #### 2.3.2 `app_running_no_scan`
 
@@ -205,8 +262,10 @@ yet.
 { "ok": false, "error": "app_running_no_scan", "appPid": ..., "appVersion": "...", "message": "..." }
 ```
 
-This is an explicit **branch point** — the user must choose.
-Use `ask_user_input_v0` with two options:
+This is an explicit **branch point**. If the user pasted enough text,
+comparison input, or URL details for a useful chat-only analysis, load
+`references/chat-only-fallback.md` and proceed in chat. If not, use
+`ask_user_input_v0` with two options:
 
 - **Option A:** "Хочу получить результат прямо в чате" /
   "I want results in chat" — fall back to the regular Mode A
@@ -285,6 +344,9 @@ in a different way:
   connected. If those tools are missing entirely, tell the user:
   *"MCP-сервер ToraSEO не подключён. Проверьте подключение в
   настройках Claude Desktop (Settings → Connectors → toraseo)."*
+  Then, if the user provided enough text or page details, load
+  `references/chat-only-fallback.md` and give a bounded chat-only
+  analysis instead of claiming the app was updated.
 - **Desktop App** — call `verify_skill_loaded`. The response's
   `error` code tells you `app_not_running`, `app_running_no_scan`,
   or success.
@@ -339,7 +401,28 @@ plus the Bridge Mode handshake tool described in §2:
 | `analyze_tone_fit` | Tone fit for topic risk and intended platform |
 | `language_audience_fit` | Language clarity and audience fit |
 | `media_placeholder_review` | Image/video/audio placeholder placement in the text |
+| `article_uniqueness` | Local uniqueness and overlap signals |
+| `language_syntax` | Syntax and punctuation signals |
+| `ai_writing_probability` | AI-writing style/rhythm probability signals |
 | `naturalness_indicators` | Repetition and mechanical phrasing indicators |
+| `fact_distortion_check` | Optional claim-risk and fact-distortion review |
+| `logic_consistency_check` | Logic and cause-effect consistency signals |
+| `ai_hallucination_check` | Optional vague-source and invented-detail risk review |
+| `intent_seo_forecast` | Text intent, title/meta, hook, and CTR direction |
+| `safety_science_review` | Sensitive-topic, safety, science, legal, financial, and expert-review flags |
+| `article_compare_internal` | Aggregate two-text comparison package for Bridge Mode |
+| `compare_intent_gap` | Two-text intent comparison |
+| `compare_article_structure` | Two-text structure comparison |
+| `compare_content_gap` | Content Gap between Text A and Text B |
+| `compare_semantic_gap` | Semantic coverage comparison |
+| `compare_specificity_gap` | Specificity and practical-detail comparison |
+| `compare_trust_gap` | Trust, source, warning, and caution comparison |
+| `compare_article_style` | Style comparison |
+| `similarity_risk` | Exact and semantic similarity-risk check |
+| `compare_title_ctr` | Title, intent, and click-potential comparison |
+| `compare_platform_fit` | Platform-fit comparison |
+| `compare_strengths_weaknesses` | A/B strengths and weaknesses |
+| `compare_improvement_plan` | Non-copying improvement plan |
 
 Every analyzer tool returns a JSON object with an `issues[]` array
 of severity-tagged verdicts (`critical` / `warning` / `info`),
