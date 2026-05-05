@@ -19,6 +19,7 @@ import type {
   ProviderUsage,
   ProviderCapabilities,
   ProviderConfig,
+  RuntimeArticleCompareGoalMode,
   RuntimeAuditReport,
 } from "../../../src/types/runtime.js";
 
@@ -261,6 +262,121 @@ function hasArticleTextContext(request: ProviderChatRequest): boolean {
   return Boolean(request.articleTextContext?.body.trim());
 }
 
+function hasArticleCompareContext(request: ProviderChatRequest): boolean {
+  return Boolean(
+    request.articleCompareContext?.textA.trim() &&
+      request.articleCompareContext?.textB.trim(),
+  );
+}
+
+function isStructuredArticleCompareScan(request: ProviderChatRequest): boolean {
+  return (
+    hasArticleCompareContext(request) &&
+    request.analysisType === "article_compare"
+  );
+}
+
+function inferArticleCompareGoalMode(goal: string): RuntimeArticleCompareGoalMode {
+  const normalized = goal.trim().toLowerCase();
+  if (!normalized) return "standard_comparison";
+  const mentionsA =
+    /(?:\ba\b|text\s*a|article\s*a|текст\s*a|стать[яиею]\s*a)/iu.test(
+      normalized,
+    );
+  const mentionsB =
+    /(?:\bb\b|text\s*b|article\s*b|текст\s*b|стать[яиею]\s*b)/iu.test(
+      normalized,
+    );
+  if (/похож|копир|плагиат|уникальн|заимств|similar|copy|plagiar|overlap/iu.test(normalized)) {
+    return "similarity_check";
+  }
+  if (/стил|тон|ритм|подраж|style|tone|voice|imitat/iu.test(normalized)) {
+    return "style_match";
+  }
+  if (/верс|вариант|до\s+и\s+после|что\s+стало|version|variant|before|after/iu.test(normalized)) {
+    return "version_compare";
+  }
+  if (/\bab\b|a\/b|пост|хук|hook|cta|соцсет|social/iu.test(normalized)) {
+    return "ab_post";
+  }
+  if (/конкур|обогн|лучше\s+конкур|топ|top|competitor|beat|outrank/iu.test(normalized)) {
+    return "beat_competitor";
+  }
+  if (mentionsB && !mentionsA) return "focus_text_b";
+  if (mentionsA && !mentionsB) return "focus_text_a";
+  return "standard_comparison";
+}
+
+function compareGoalModeLabel(
+  mode: RuntimeArticleCompareGoalMode,
+  locale: "en" | "ru",
+): string {
+  const ru: Record<RuntimeArticleCompareGoalMode, string> = {
+    standard_comparison: "стандартное сравнение",
+    focus_text_a: "фокус на тексте A",
+    focus_text_b: "фокус на тексте B",
+    beat_competitor: "сравнение с конкурентом",
+    style_match: "подражание стилю",
+    similarity_check: "проверка похожести",
+    version_compare: "сравнение версий",
+    ab_post: "A/B-анализ поста",
+  };
+  const en: Record<RuntimeArticleCompareGoalMode, string> = {
+    standard_comparison: "standard comparison",
+    focus_text_a: "focus on Text A",
+    focus_text_b: "focus on Text B",
+    beat_competitor: "competitor comparison",
+    style_match: "style matching",
+    similarity_check: "similarity check",
+    version_compare: "version comparison",
+    ab_post: "A/B post comparison",
+  };
+  return locale === "ru" ? ru[mode] : en[mode];
+}
+
+function compareGoalModeInstruction(
+  mode: RuntimeArticleCompareGoalMode,
+  locale: "en" | "ru",
+): string {
+  const ru: Record<RuntimeArticleCompareGoalMode, string> = {
+    standard_comparison:
+      "Если цель не указана, дай стандартный отчет по двум текстам: интент, структура, полнота, конкретика, доверие, стиль, похожесть и план улучшения.",
+    focus_text_a:
+      "Сфокусируй отчет на тексте A: сильные и слабые стороны, что улучшить, а текст B используй только как сравнительный ориентир.",
+    focus_text_b:
+      "Сфокусируй отчет на тексте B: сильные и слабые стороны, что улучшить, а текст A используй только как сравнительный ориентир.",
+    beat_competitor:
+      "Покажи текстовые преимущества конкурента, разрывы пользовательского текста и план усиления без копирования чужих формулировок.",
+    style_match:
+      "Сравни тон, ритм, длину предложений, плотность примеров и формальность; объясни, какие приемы можно перенять без копирования фраз.",
+    similarity_check:
+      "Поставь на первое место дословные совпадения, смысловую похожесть и риск копирования; дай рекомендации по снижению похожести.",
+    version_compare:
+      "Покажи, что стало лучше, что стало хуже, какие ошибки исправлены и какие появились между двумя версиями.",
+    ab_post:
+      "Оцени хук, ясность, краткость, реакционный потенциал, CTA и соответствие выбранной платформе.",
+  };
+  const en: Record<RuntimeArticleCompareGoalMode, string> = {
+    standard_comparison:
+      "If no goal is provided, produce a standard two-text report: intent, structure, coverage, specificity, trust, style, similarity, and improvement plan.",
+    focus_text_a:
+      "Focus the report on Text A: strengths, weaknesses, and improvements; use Text B only as comparison context.",
+    focus_text_b:
+      "Focus the report on Text B: strengths, weaknesses, and improvements; use Text A only as comparison context.",
+    beat_competitor:
+      "Show competitor text advantages, user-text gaps, and a non-copying improvement plan.",
+    style_match:
+      "Compare tone, rhythm, sentence length, examples, and formality; explain transferable style techniques without copying phrases.",
+    similarity_check:
+      "Prioritize exact overlap, semantic similarity, and copying risk; recommend ways to reduce similarity.",
+    version_compare:
+      "Show what improved, what worsened, which issues were fixed, and which appeared between versions.",
+    ab_post:
+      "Evaluate hook, clarity, brevity, reaction potential, CTA, and platform fit.",
+  };
+  return locale === "ru" ? ru[mode] : en[mode];
+}
+
 function articleTextAutoRunAction(
   request: ProviderChatRequest,
 ): "scan" | "solution" | null {
@@ -279,6 +395,9 @@ function isStructuredArticleTextScan(request: ProviderChatRequest): boolean {
 }
 
 function expectedConfirmedFactCount(request: ProviderChatRequest): number {
+  if (isStructuredArticleCompareScan(request)) {
+    return request.articleCompareContext?.selectedTools.length || 1;
+  }
   if (isStructuredArticleTextScan(request)) {
     return request.articleTextContext?.selectedTools.length || 1;
   }
@@ -329,9 +448,17 @@ function toolLabelForPrompt(value: string, locale: "en" | "ru"): string {
       ru: "естественность текста",
       en: "naturalness indicators",
     },
+    fact_distortion_check: {
+      ru: "искажение фактов",
+      en: "fact distortion",
+    },
     logic_consistency_check: {
       ru: "логическая согласованность",
       en: "logic consistency",
+    },
+    ai_hallucination_check: {
+      ru: "ИИ и галлюцинации",
+      en: "AI and hallucination check",
     },
     intent_seo_forecast: {
       ru: "SEO-интент и метаданные",
@@ -340,6 +467,54 @@ function toolLabelForPrompt(value: string, locale: "en" | "ru"): string {
     safety_science_review: {
       ru: "риск-флаги и экспертная проверка",
       en: "risk flags and expert review",
+    },
+    compare_intent_gap: {
+      ru: "сравнение интента",
+      en: "intent gap",
+    },
+    compare_article_structure: {
+      ru: "сравнение структуры",
+      en: "structure comparison",
+    },
+    compare_content_gap: {
+      ru: "разрывы по содержанию",
+      en: "content gap",
+    },
+    compare_semantic_gap: {
+      ru: "смысловое покрытие",
+      en: "semantic gap",
+    },
+    compare_specificity_gap: {
+      ru: "сравнение конкретики",
+      en: "specificity gap",
+    },
+    compare_trust_gap: {
+      ru: "сравнение доверия",
+      en: "trust gap",
+    },
+    compare_article_style: {
+      ru: "сравнение стиля",
+      en: "style comparison",
+    },
+    compare_title_ctr: {
+      ru: "заголовок и клик",
+      en: "title and CTR comparison",
+    },
+    compare_platform_fit: {
+      ru: "сравнение под платформу",
+      en: "platform fit comparison",
+    },
+    compare_strengths_weaknesses: {
+      ru: "сильные и слабые стороны",
+      en: "strengths and weaknesses",
+    },
+    similarity_risk: {
+      ru: "риск похожести",
+      en: "similarity risk",
+    },
+    compare_improvement_plan: {
+      ru: "план улучшения",
+      en: "improvement plan",
     },
   };
   return labels[value]?.[locale] ?? value;
@@ -396,6 +571,8 @@ function fallbackToolId(
   return (
     request.articleTextContext?.selectedTools[index] ??
     request.articleTextContext?.selectedTools[0] ??
+    request.articleCompareContext?.selectedTools[index] ??
+    request.articleCompareContext?.selectedTools[0] ??
     request.scanContext?.selectedTools[index] ??
     request.scanContext?.selectedTools[0] ??
     "api_article_text"
@@ -444,6 +621,15 @@ function mapToolLabelToId(value: string): string | null {
     "expert check": "safety_science_review",
     "fact distortion": "fact_distortion_check",
     "hallucination check": "ai_hallucination_check",
+    "intent gap": "compare_intent_gap",
+    "content gap": "compare_content_gap",
+    "semantic gap": "compare_semantic_gap",
+    "specificity gap": "compare_specificity_gap",
+    "trust gap": "compare_trust_gap",
+    "title and ctr comparison": "compare_title_ctr",
+    "title ctr comparison": "compare_title_ctr",
+    "similarity risk": "similarity_risk",
+    "improvement plan": "compare_improvement_plan",
   };
   return aliases[normalized] ?? null;
 }
@@ -455,6 +641,7 @@ function normalizeSourceToolIds(
 ): string[] {
   const expected = new Set([
     ...(request.articleTextContext?.selectedTools ?? []),
+    ...(request.articleCompareContext?.selectedTools ?? []),
     ...(request.scanContext?.selectedTools ?? []),
   ]);
   const raw = normaliseToolIds(input);
@@ -680,6 +867,70 @@ export class OpenRouterAdapter implements ProviderAdapter {
   }
 
   private buildUserPrompt(request: ProviderChatRequest): string {
+    if (hasArticleCompareContext(request)) {
+      const context = request.articleCompareContext!;
+      const languageInstruction =
+        request.policy.locale === "ru"
+          ? "Reply in Russian. Keep fixed product terms such as Content Gap, CTR, SERP, and SEO when that is the normal term."
+          : "Reply in English.";
+      const platform =
+        context.customPlatform?.trim() ||
+        platformLabelForPrompt(context.textPlatform, request.policy.locale);
+      const goalMode =
+        context.goalMode ?? inferArticleCompareGoalMode(context.goal);
+      const selectedChecks = context.selectedTools.map((toolId) =>
+        toolLabelForPrompt(toolId, request.policy.locale),
+      );
+
+      return [
+        "The user clicked Compare two texts in ToraSEO API + AI Chat.",
+        "Return JSON that satisfies the required audit schema only; do not wrap it in markdown fences. Do not translate JSON property names.",
+        "Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses.",
+        "Each confirmedFacts item must use exactly: title, detail, priority, sourceToolIds. Priority values must be exactly high, medium, or low.",
+        "Return one confirmedFacts item for every selected comparison check, in the same order as selectedToolIds. sourceToolIds must contain the exact backend id for the current check.",
+        "Use title for the finding headline, not the tool name; the app renders the tool name separately. Write detail in two or three short paragraphs when possible: key evidence, what was found, what to do.",
+        "If this request contains only one selected check, treat it as one step of a larger multi-check comparison: evaluate the two texts for that check, but do not write that only one check was selected and do not mention scan mechanics.",
+        languageInstruction,
+        `Goal report mode: ${compareGoalModeLabel(goalMode, request.policy.locale)}.`,
+        compareGoalModeInstruction(goalMode, request.policy.locale),
+        "Compare text A and text B as text-only evidence. Do not claim that one page ranks higher in search because of the text alone. Use wording such as text advantage, textual strengths, or textual gap.",
+        "First evaluate each text separately, then compare them by intent match, structure, content coverage, semantic coverage, specificity, trust, style, similarity risk, title/CTR, platform fit, and improvement plan when those checks are selected.",
+        "For similarity, distinguish exact overlap from semantic similarity. Warn against copying phrasing; suggest adding original examples, conclusions, and structure improvements.",
+        "For competitor-style goals, explain what can be borrowed as an approach and what must not be copied.",
+        "Stay within local text comparison. Do not pretend live SERP, backlinks, domain authority, plagiarism database, fact-checking, or expert review ran.",
+        "Use human-readable wording, not backend IDs. Do not create findings about JSON, selected checks, sourceToolIds, API mode, or orchestration details.",
+        request.policy.mode === "strict_audit"
+          ? "Strict mode: expertHypotheses must be an empty array. Tie every recommendation to visible text evidence or clearly marked local heuristics."
+          : "Ideas mode: expert hypotheses are allowed, but label them as hypotheses and keep them bounded by the two texts.",
+        "",
+        "Comparison context:",
+        JSON.stringify(
+          {
+            runId: context.runId ?? "not specified",
+            goal: context.goal || "neutral comparison",
+            goalMode,
+            goalModeLabel: compareGoalModeLabel(goalMode, request.policy.locale),
+            roleA: context.roleA,
+            roleB: context.roleB,
+            platform,
+            selectedToolIds: context.selectedTools,
+            selectedChecks,
+          },
+          null,
+          2,
+        ),
+        "",
+        "User request:",
+        request.userText,
+        "",
+        "Text A:",
+        context.textA,
+        "",
+        "Text B:",
+        context.textB,
+      ].join("\n");
+    }
+
     if (hasArticleTextContext(request)) {
       const context = request.articleTextContext!;
       const structuredScan = isStructuredArticleTextScan(request);
@@ -810,7 +1061,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
     const requestBody: Record<string, unknown> = {
       model,
       temperature: request.policy.mode === "strict_audit" ? 0.1 : 0.35,
-      max_tokens: hasArticleTextContext(request)
+      max_tokens: hasArticleTextContext(request) || hasArticleCompareContext(request)
         ? 3600
         : hasScanEvidence(request)
           ? 1800
@@ -1008,7 +1259,9 @@ export class OpenRouterAdapter implements ProviderAdapter {
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
         const initialContractMode: OutputContractMode =
-          hasScanEvidence(request) || isStructuredArticleTextScan(request)
+          hasScanEvidence(request) ||
+          isStructuredArticleTextScan(request) ||
+          isStructuredArticleCompareScan(request)
             ? "json_schema"
             : "prompt_only";
         const result = await this.executeAttempt(

@@ -86,11 +86,25 @@ export interface CurrentScanState {
   schemaVersion: 1;
   scanId: string;
   bridgeClient?: BridgeClient;
-  analysisType?: "site_by_url" | "article_text";
+  analysisType?: "site_by_url" | "article_text" | "article_compare";
   input?: {
     action?: "scan" | "solution";
     topic?: string;
     text?: string;
+    goal?: string;
+    goalMode?:
+      | "standard_comparison"
+      | "focus_text_a"
+      | "focus_text_b"
+      | "beat_competitor"
+      | "style_match"
+      | "similarity_check"
+      | "version_compare"
+      | "ab_post";
+    textA?: string;
+    textB?: string;
+    roleA?: "auto" | "own" | "competitor";
+    roleB?: "auto" | "own" | "competitor";
     analysisRole?: string;
     textPlatform?: string;
     customPlatform?: string;

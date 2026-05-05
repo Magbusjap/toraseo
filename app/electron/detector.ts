@@ -110,7 +110,7 @@ export interface DetectorStatus {
    */
   skillInstalled: boolean;
   skillSource: "filesystem" | "manual" | null;
-  /** All three above true. UI uses this to enable scanning. */
+  /** Full Claude Bridge path is ready. Text flows can still use Skill-only fallback. */
   allGreen: boolean;
   /** ISO-8601 timestamp; for staleness checks if needed. */
   checkedAt: string;

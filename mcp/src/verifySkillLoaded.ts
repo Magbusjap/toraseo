@@ -238,6 +238,8 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               ? {
                   action: state!.input.action,
                   topic: state!.input.topic,
+                  goal: state!.input.goal,
+                  goalMode: state!.input.goalMode,
                   analysisRole: state!.input.analysisRole || "default",
                   hasText: Boolean(
                     workspaceText?.trim() || state!.input.text?.trim(),
@@ -255,14 +257,36 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                   expiresAt: state!.workspace.expiresAt,
                 }
               : undefined,
-            selectedTools: state!.selectedTools,
+            selectedTools:
+              state!.analysisType === "article_compare"
+                ? ["article_compare_internal"]
+                : state!.selectedTools,
+            internalSelectedTools:
+              state!.analysisType === "article_compare"
+                ? state!.selectedTools
+                : undefined,
             message:
-              "Handshake verified. Now call each tool in selectedTools " +
-              "(in any order, but typically in the order listed). " +
+              "ToraSEO connection verified. Now call each tool from the tool list " +
+              "returned in this response, in the usual order. For two-text comparison runs, the listed " +
+              "tool starts the full comparison package and writes the individual check " +
+              "results to the ToraSEO app. Do not call separate comparison checks unless " +
+              "the user explicitly asks. For two-text comparison, use input.goalMode " +
+              "to shape the final report: standard comparison, focus on Text A/B, " +
+              "competitor, style, similarity, version, or A/B post. When answering the user, use " +
+              "human-readable Russian check names and avoid backend ids such as " +
+              "trustSignals, syntaxRiskSignals, tool ids, or result file paths unless " +
+              "the user asks for debugging details. Do not mention connection handshakes, scan ids, " +
+              "MCP internals, or aggregate tool names in the final user-facing answer; " +
+              "write a normal comparison report summary. " +
               "Each tool's results will be displayed in the ToraSEO app " +
-              "automatically. If analysisType is article_text, do not ask " +
+              "automatically. For text-analysis runs, do not ask " +
               "the user to paste the article into chat; the selected MCP " +
               "tools read input.md from the temporary ToraSEO workspace. " +
+              "For two-text comparison runs, do not ask the user to paste " +
+              "either text into chat; the selected MCP comparison tools read " +
+              "Text A and Text B from the temporary ToraSEO workspace. Keep " +
+              "the comparison text-evidence only: do not claim ranking causes " +
+              "from text alone and do not rewrite the full article. " +
               "After all tools complete, provide " +
               "recommendations to the user in chat based on the data. " +
               "If input.action is solution, run the tools first, then propose " +

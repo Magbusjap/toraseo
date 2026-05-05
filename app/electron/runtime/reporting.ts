@@ -315,7 +315,7 @@ const PDF_EXPORT_PREPARE_SCRIPT = `
       el.textContent = el.getAttribute("data-count") || "0";
     });
     document.getElementById("article-scroll")?.classList.add("expanded");
-    document.querySelectorAll(".toggle-wrap, #export-report, #toraseo-viewport-size").forEach((el) => {
+    document.querySelectorAll(".toggle-wrap, #export-report, .report-window-action, #toraseo-viewport-size").forEach((el) => {
       el.remove();
     });
     const style = document.createElement("style");
@@ -3194,6 +3194,10 @@ function viewportSizeOverlayMarkup(): string {
 }
 
 function renderReportHtml(report: RuntimeAuditReport): string {
+  if (report.articleCompare) {
+    return renderArticleCompareReportDashboardHtml(report);
+  }
+
   if (report.articleText) {
     return renderArticleTextReportDashboardHtml(report);
   }
@@ -3363,6 +3367,794 @@ function renderReportHtml(report: RuntimeAuditReport): string {
   </html>`;
 }
 
+function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): string {
+  const compare = report.articleCompare!;
+  const visualRows = compare.metrics.map(renderArticleCompareVisualMetricHtml).join("");
+  const metricCards = compare.metrics.map(renderArticleCompareMetricCardHtml).join("");
+  const facts = report.confirmedFacts.map(renderArticleCompareToolCardHtml).join("");
+  const findingColumns =
+    compare.focusSide === "textA"
+      ? renderCompareInsightColumn("Текст A", compare.textA.strengths, compare.textA.weaknesses)
+      : compare.focusSide === "textB"
+        ? renderCompareInsightColumn("Текст B", compare.textB.strengths, compare.textB.weaknesses)
+        : [
+            renderCompareInsightColumn("Текст A", compare.textA.strengths, compare.textA.weaknesses),
+            renderCompareInsightColumn("Текст B", compare.textB.strengths, compare.textB.weaknesses),
+          ].join("");
+  const findingsTitle =
+    compare.focusSide === "textA"
+      ? "Фокус по цели анализа: текст A"
+      : compare.focusSide === "textB"
+        ? "Фокус по цели анализа: текст B"
+        : "Сильные и слабые стороны A/B";
+  const gapRows = compare.gaps
+    .slice(0, 8)
+    .map(
+      (gap) => `
+        <article class="compact-note soft-note">
+          <h3>${escapeHtml(compareGapSideLabel(gap.side))}: ${escapeHtml(compareReportTitle(gap.title))}</h3>
+          <p>${escapeHtml(gap.detail)}</p>
+        </article>`,
+    )
+    .join("");
+  const actionRows = compare.actionPlan
+    .slice(0, 8)
+    .map(
+      (item, index) => `
+        <article class="compact-note">
+          <h3>${index + 1}. ${escapeHtml(item.title)}</h3>
+          <p>${escapeHtml(item.detail)}</p>
+        </article>`,
+    )
+    .join("");
+  return `<!doctype html>
+  <html lang="ru">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>ToraSEO: сравнение текстов</title>
+      <style>
+        :root {
+          --bg:#fff7f0;
+          --surface:#ffffff;
+          --panel:#fffaf6;
+          --border:#efd9ca;
+          --border-soft:rgba(239,217,202,.72);
+          --text:#1a0f08;
+          --muted:rgba(26,15,8,.58);
+          --muted-strong:rgba(26,15,8,.72);
+          --accent:#ff6b35;
+          --accent-2:#f6b36d;
+          --soft:#fff2e9;
+          --good:#ecfdf3;
+          --good-border:#bdeccc;
+          --warn:#fff8e8;
+          --warn-border:#f4d58d;
+        }
+        * { box-sizing:border-box; }
+        body {
+          margin:0;
+          padding:28px;
+          font-family:Inter,"Segoe UI",system-ui,sans-serif;
+          color:var(--text);
+          background:var(--bg);
+          letter-spacing:0;
+        }
+        h1,h2,h3,p,ol,ul { margin:0; }
+        p,li { line-height:1.55; }
+        button { font:inherit; }
+        .dashboard { width:min(1480px,100%); margin:0 auto; display:grid; gap:18px; }
+        .panel {
+          border:1px solid var(--border);
+          border-radius:8px;
+          background:var(--surface);
+          padding:20px;
+        }
+        .report-summary-header {
+          display:flex;
+          align-items:flex-start;
+          justify-content:space-between;
+          gap:16px;
+          margin-bottom:16px;
+        }
+        .report-summary-header h1 {
+          font-size:19px;
+          font-weight:750;
+          line-height:1.2;
+        }
+        .report-summary-header p {
+          margin-top:5px;
+          color:var(--muted);
+          font-size:13px;
+        }
+        .report-actions {
+          display:flex;
+          flex-wrap:wrap;
+          align-items:center;
+          justify-content:flex-end;
+          gap:8px;
+        }
+        .report-actions span {
+          border:1px solid rgba(255,107,53,.28);
+          border-radius:999px;
+          background:#fffaf7;
+          padding:6px 10px;
+          color:var(--muted-strong);
+          font:700 12px ui-monospace,SFMono-Regular,Consolas,monospace;
+        }
+        .report-actions button {
+          border:1px solid rgba(26,15,8,.14);
+          border-radius:6px;
+          background:#fff;
+          color:var(--muted-strong);
+          padding:7px 11px;
+          font-size:12px;
+          font-weight:700;
+          cursor:pointer;
+        }
+        .report-actions #export-report {
+          border-color:var(--accent);
+          background:var(--accent);
+          color:#fff;
+        }
+        .status-line {
+          min-height:17px;
+          color:#b45528;
+          font-size:12px;
+          font-weight:650;
+        }
+        .eyebrow {
+          color:rgba(26,15,8,.48);
+          font-size:11px;
+          font-weight:750;
+          letter-spacing:.04em;
+          text-transform:uppercase;
+        }
+        .top-grid {
+          display:grid;
+          grid-template-columns:minmax(0,1fr) 320px;
+          gap:14px;
+        }
+        .hero, .risk-card {
+          border:1px solid rgba(255,107,53,.32);
+          border-radius:8px;
+          padding:16px;
+        }
+        .hero {
+          background:var(--soft);
+        }
+        .hero h2, .risk-card h2 {
+          margin-top:8px;
+          font-size:24px;
+          line-height:1.18;
+          font-weight:760;
+        }
+        .hero p, .risk-card p {
+          margin-top:8px;
+          color:var(--muted-strong);
+          font-size:13px;
+        }
+        .verdict-detail {
+          border:1px solid rgba(255,107,53,.24);
+          border-radius:6px;
+          background:#fffaf7;
+          padding:10px;
+        }
+        .section-heading {
+          display:flex;
+          align-items:flex-end;
+          justify-content:space-between;
+          gap:14px;
+          margin-bottom:14px;
+        }
+        .section-heading h2 {
+          font-size:16px;
+          font-weight:760;
+        }
+        .section-heading p {
+          margin-top:4px;
+          color:var(--muted);
+          font-size:12px;
+        }
+        .legend {
+          display:flex;
+          gap:12px;
+          color:var(--muted);
+          font-size:12px;
+          font-weight:700;
+        }
+        .legend span { display:inline-flex; align-items:center; gap:5px; }
+        .legend i { width:20px; height:7px; border-radius:999px; background:var(--accent); }
+        .legend .b { background:var(--accent-2); }
+        .visual-grid {
+          display:grid;
+          grid-template-columns:repeat(2,minmax(0,1fr));
+          gap:12px;
+        }
+        .visual-card, .metric-card, .compact-note {
+          border:1px solid var(--border-soft);
+          border-radius:7px;
+          background:#fffdfb;
+          padding:13px;
+        }
+        .visual-card-header, .metric-card-header {
+          display:flex;
+          align-items:flex-start;
+          justify-content:space-between;
+          gap:10px;
+        }
+        .visual-card h3, .metric-card h3, .compact-note h3 {
+          font-size:12px;
+          font-weight:750;
+          color:rgba(26,15,8,.66);
+          text-transform:uppercase;
+        }
+        .winner-chip {
+          border-radius:999px;
+          background:#fff;
+          padding:3px 8px;
+          color:rgba(26,15,8,.46);
+          font-size:11px;
+          font-weight:750;
+          white-space:nowrap;
+        }
+        .bar-row {
+          display:grid;
+          grid-template-columns:18px minmax(0,1fr) 56px;
+          align-items:center;
+          gap:8px;
+          margin-top:9px;
+          font-size:12px;
+        }
+        .bar-row span { color:rgba(26,15,8,.5); font-weight:750; }
+        .bar-row div { height:8px; overflow:hidden; border-radius:999px; background:#fff5ed; }
+        .bar-row i { display:block; height:100%; border-radius:999px; background:var(--accent); }
+        .bar-row i.b { background:var(--accent-2); }
+        .bar-row b { color:rgba(26,15,8,.62); text-align:right; font-weight:760; }
+        .metric-grid {
+          display:grid;
+          grid-template-columns:repeat(4,minmax(0,1fr));
+          gap:12px;
+        }
+        .metric-values {
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:8px;
+          margin-top:13px;
+          text-align:center;
+        }
+        .metric-value {
+          border-radius:6px;
+          background:#fff;
+          padding:12px 8px;
+        }
+        .metric-value strong {
+          display:block;
+          font-size:20px;
+          line-height:1;
+        }
+        .metric-value span {
+          display:block;
+          margin-top:5px;
+          color:rgba(26,15,8,.42);
+          font-size:10px;
+          font-weight:760;
+          text-transform:uppercase;
+        }
+        .metric-card p, .compact-note p {
+          margin-top:9px;
+          color:var(--muted-strong);
+          font-size:12px;
+        }
+        .text-grid, .findings-grid, .split-grid {
+          display:grid;
+          grid-template-columns:repeat(2,minmax(0,1fr));
+          gap:16px;
+        }
+        .text-card {
+          border:1px solid var(--border-soft);
+          border-radius:8px;
+          background:#fff;
+          overflow:hidden;
+        }
+        .text-card header {
+          border-bottom:1px solid var(--border-soft);
+          padding:14px;
+        }
+        .text-card h3 {
+          margin-top:4px;
+          font-size:16px;
+          line-height:1.25;
+          font-weight:750;
+        }
+        .chips {
+          display:grid;
+          grid-template-columns:repeat(3,minmax(0,1fr));
+          gap:8px;
+          margin-top:12px;
+          text-align:center;
+        }
+        .chip {
+          border-radius:6px;
+          background:#fff3e9;
+          padding:7px 8px;
+          color:rgba(26,15,8,.52);
+          font-size:11px;
+          font-weight:650;
+        }
+        .preview {
+          max-height:560px;
+          overflow:auto;
+          padding:15px;
+          color:rgba(26,15,8,.72);
+          font-size:13px;
+          line-height:1.65;
+          white-space:pre-wrap;
+        }
+        .finding-side {
+          border:1px solid var(--border-soft);
+          border-radius:8px;
+          background:#fff8f1;
+          padding:14px;
+        }
+        .finding-side h3 {
+          font-size:14px;
+          font-weight:760;
+        }
+        .finding-list {
+          display:grid;
+          gap:10px;
+          margin-top:12px;
+        }
+        .finding-list strong {
+          font-size:12px;
+        }
+        .insight {
+          border:1px solid var(--border-soft);
+          border-radius:7px;
+          background:#fffdfb;
+          padding:12px;
+        }
+        .insight.good { background:var(--good); border-color:var(--good-border); }
+        .insight.warn { background:var(--warn); border-color:var(--warn-border); }
+        .insight h4 {
+          margin:0;
+          font-size:13px;
+          font-weight:760;
+        }
+        .insight p {
+          margin-top:7px;
+          color:rgba(26,15,8,.66);
+          font-size:12px;
+        }
+        .soft-note { background:#fff8f1; }
+        .tool-data-grid {
+          display:grid;
+          grid-template-columns:repeat(2,minmax(0,1fr));
+          gap:14px;
+        }
+        .tool-card {
+          border:1px solid var(--border-soft);
+          border-radius:8px;
+          background:#fff;
+          padding:14px;
+        }
+        .tool-card-head {
+          display:grid;
+          grid-template-columns:28px minmax(0,1fr) auto;
+          gap:10px;
+          align-items:start;
+        }
+        .tool-icon {
+          width:26px;
+          height:26px;
+          border-radius:7px;
+          display:grid;
+          place-items:center;
+          background:#fff2e9;
+          color:var(--accent);
+          font-weight:900;
+        }
+        .tool-card h3 {
+          font-size:13px;
+          font-weight:760;
+        }
+        .tool-card small {
+          display:block;
+          margin-top:2px;
+          color:var(--muted);
+          font-size:11px;
+        }
+        .done-pill {
+          border-radius:999px;
+          background:#dff8e9;
+          color:#239b5d;
+          padding:4px 8px;
+          font-size:11px;
+          font-weight:760;
+        }
+        .tool-note-block {
+          margin-top:12px;
+          border:1px solid rgba(255,107,53,.22);
+          border-radius:7px;
+          background:#fff4e8;
+          padding:10px 11px;
+        }
+        .tool-note-block h4 {
+          margin:0;
+          color:#b66c3a;
+          font-size:11px;
+          font-weight:760;
+          text-transform:uppercase;
+        }
+        .tool-note-block p {
+          margin-top:5px;
+          color:rgba(26,15,8,.66);
+          font-size:12px;
+        }
+        .limit-box {
+          border-color:#f3cf77;
+          background:#fff9e8;
+        }
+        .limit-box ul {
+          display:grid;
+          gap:5px;
+          margin-top:9px;
+          padding-left:0;
+          list-style:none;
+          color:#8a5c17;
+          font-size:12px;
+        }
+        .next-step {
+          color:rgba(26,15,8,.82);
+          font-size:14px;
+          font-weight:650;
+        }
+        @media (max-width:1100px) {
+          .top-grid, .visual-grid, .metric-grid, .text-grid, .findings-grid, .split-grid, .tool-data-grid { grid-template-columns:1fr; }
+        }
+        @media (max-width:700px) {
+          body { padding:14px; }
+          .report-summary-header { display:grid; }
+          .report-actions { justify-content:flex-start; }
+          .chips { grid-template-columns:1fr; }
+        }
+        @media print {
+          body { background:white; padding:0; }
+          .panel, .visual-card, .metric-card, .text-card, .finding-side, .tool-card, .compact-note { break-inside:avoid; }
+          .preview { max-height:none; overflow:visible; }
+        }
+        ${viewportSizeOverlayStyle()}
+      </style>
+    </head>
+    <body>
+      <main class="dashboard">
+        <section class="panel report-summary-panel">
+          <div class="report-summary-header">
+            <div>
+              <p class="eyebrow">ToraSEO</p>
+              <h1>Результат сравнения</h1>
+              <p>Структурированное сравнение двух текстов по данным ToraSEO.</p>
+              <p><strong>Режим по цели:</strong> ${escapeHtml(compare.goalLabel)}. ${escapeHtml(compare.goalDescription)}</p>
+            </div>
+            <div class="report-actions">
+              <span>${compare.coverage.completed} / ${compare.coverage.total}</span>
+              <button class="report-window-action" id="copy-text-a" type="button">Копировать статью A</button>
+              <button class="report-window-action" id="copy-text-b" type="button">Копировать статью B</button>
+              <button id="export-report" type="button">Экспортировать</button>
+            </div>
+          </div>
+          <p class="status-line" id="copy-status"></p>
+          <div class="top-grid">
+            <div class="hero">
+              <p class="eyebrow">Текстовое преимущество</p>
+              <h2>${escapeHtml(compare.verdict.label)}</h2>
+              <p>${escapeHtml(compare.goalDescription)}</p>
+              <p class="verdict-detail">${escapeHtml(compare.verdict.detail)}</p>
+              <p>${escapeHtml(compare.verdict.mainGap)}</p>
+            </div>
+            <aside class="risk-card">
+              <p class="eyebrow">Риск похожести</p>
+              <h2>${escapeHtml(copyRiskLabelForReport(compare.similarity.copyRisk))}</h2>
+              <p><strong>Дословные совпадения:</strong> ${escapeHtml(String(compare.similarity.exactOverlap ?? "—"))}%</p>
+              <p>${escapeHtml(compare.similarity.detail)}</p>
+            </aside>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <h2>Визуальное сравнение A/B</h2>
+              <p>Графы показывают относительные локальные признаки. Это не итоговый SEO-скор, а быстрый способ увидеть разрывы.</p>
+            </div>
+            <div class="legend"><span><i></i>A</span><span><i class="b"></i>B</span></div>
+          </div>
+          <div class="visual-grid">${visualRows}</div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <h2>Два текста</h2>
+              <p>Третий отчет показывает исходные тексты рядом, чтобы сверять выводы A/B в одном окне.</p>
+            </div>
+          </div>
+          <div class="text-grid">
+            ${renderArticleCompareTextSideHtml(compare.textA)}
+            ${renderArticleCompareTextSideHtml(compare.textB)}
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="metric-grid">${metricCards}</div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <h2>${findingsTitle}</h2>
+              <p>${escapeHtml(compare.goalDescription)}</p>
+            </div>
+          </div>
+          <div class="findings-grid">
+            ${findingColumns}
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="split-grid">
+            <div>
+              <div class="section-heading">
+                <div>
+                  <h2>Разрывы по содержанию</h2>
+                  <p>Какие темы, смысловые блоки и полезные элементы отличаются между текстами A и B.</p>
+                </div>
+              </div>
+              <div class="finding-list">${gapRows}</div>
+            </div>
+            <div>
+              <div class="section-heading">
+                <div>
+                  <h2>Что улучшить дальше</h2>
+                  <p>Приоритеты правки: усиливаем нужный текст, не копируя второй.</p>
+                </div>
+              </div>
+              <div class="finding-list">${actionRows}</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <h2>Данные инструментов</h2>
+              <p>Каждый блок показывает, что нашел конкретный MCP-инструмент и что с этим делать дальше.</p>
+            </div>
+          </div>
+          <div class="tool-data-grid">${facts}</div>
+        </section>
+
+        <section class="panel limit-box">
+          <p class="eyebrow">Граница текстового сравнения</p>
+          <ul>
+            ${compare.limitations.map((item) => `<li>• ${escapeHtml(item)}</li>`).join("")}
+          </ul>
+        </section>
+
+        <section class="panel">
+          <p class="next-step">${escapeHtml(report.nextStep)}</p>
+        </section>
+      </main>
+      <script>
+        (() => {
+          const textA = ${jsonScriptString(stripMediaPlaceholderLines(compare.textA.text))};
+          const textB = ${jsonScriptString(stripMediaPlaceholderLines(compare.textB.text))};
+          const status = document.getElementById("copy-status");
+          const setStatus = (message) => {
+            if (!status) return;
+            status.textContent = message;
+          };
+          const copyText = async (value, successMessage) => {
+            try {
+              if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(value);
+              } else {
+                const area = document.createElement("textarea");
+                area.value = value;
+                area.style.position = "fixed";
+                area.style.opacity = "0";
+                document.body.appendChild(area);
+                area.focus();
+                area.select();
+                document.execCommand("copy");
+                area.remove();
+              }
+              setStatus(successMessage);
+            } catch {
+              setStatus("Не удалось скопировать текст.");
+            }
+          };
+          document.getElementById("copy-text-a")?.addEventListener("click", () => {
+            void copyText(textA, "Статья A скопирована без служебных медиа-меток.");
+          });
+          document.getElementById("copy-text-b")?.addEventListener("click", () => {
+            void copyText(textB, "Статья B скопирована без служебных медиа-меток.");
+          });
+          document.getElementById("export-report")?.addEventListener("click", () => {
+            window.location.href = "toraseo://export-report-pdf";
+          });
+        })();
+      </script>
+      ${viewportSizeOverlayMarkup()}
+    </body>
+  </html>`;
+}
+
+function copyRiskLabelForReport(risk: NonNullable<RuntimeAuditReport["articleCompare"]>["similarity"]["copyRisk"]): string {
+  if (risk === "high") return "Высокий риск";
+  if (risk === "medium") return "Средний риск";
+  if (risk === "low") return "Низкий риск";
+  return "Нужна проверка";
+}
+
+function jsonScriptString(value: string): string {
+  return JSON.stringify(value).replaceAll("<", "\\u003c");
+}
+
+function renderArticleCompareVisualMetricHtml(
+  metric: NonNullable<RuntimeAuditReport["articleCompare"]>["metrics"][number],
+): string {
+  const a = typeof metric.textA === "number" ? Math.abs(metric.textA) : 0;
+  const b = typeof metric.textB === "number" ? Math.abs(metric.textB) : 0;
+  const max = Math.max(1, a, b);
+  const widthA = Math.max(4, Math.round((a / max) * 100));
+  const widthB = Math.max(4, Math.round((b / max) * 100));
+  return `
+    <article class="visual-card">
+      <div class="visual-card-header">
+        <h3>${escapeHtml(metric.label)}</h3>
+        <span class="winner-chip">${escapeHtml(compareMetricWinnerLabelForReport(metric.winner))}</span>
+      </div>
+      <div class="bar-row"><span>A</span><div><i style="width:${widthA}%"></i></div><b>${escapeHtml(String(metric.textA ?? "—"))}${escapeHtml(metric.textA !== null ? metric.suffix : "")}</b></div>
+      <div class="bar-row"><span>B</span><div><i class="b" style="width:${widthB}%"></i></div><b>${escapeHtml(String(metric.textB ?? "—"))}${escapeHtml(metric.textB !== null ? metric.suffix : "")}</b></div>
+    </article>`;
+}
+
+function renderArticleCompareMetricCardHtml(
+  metric: NonNullable<RuntimeAuditReport["articleCompare"]>["metrics"][number],
+): string {
+  return `
+    <article class="metric-card">
+      <div class="metric-card-header">
+        <h3>${escapeHtml(metric.label)}</h3>
+        <span class="winner-chip">${escapeHtml(compareMetricShortWinnerLabelForReport(metric.winner))}</span>
+      </div>
+      <div class="metric-values">
+        <div class="metric-value"><strong>${escapeHtml(String(metric.textA ?? "—"))}${escapeHtml(metric.textA !== null ? metric.suffix : "")}</strong><span>A</span></div>
+        <div class="metric-value"><strong>${escapeHtml(String(metric.textB ?? "—"))}${escapeHtml(metric.textB !== null ? metric.suffix : "")}</strong><span>B</span></div>
+      </div>
+      <p>${escapeHtml(metric.description)}</p>
+    </article>`;
+}
+
+function compareMetricWinnerLabelForReport(
+  winner: NonNullable<RuntimeAuditReport["articleCompare"]>["metrics"][number]["winner"],
+): string {
+  if (winner === "textA") return "лучше A";
+  if (winner === "textB") return "лучше B";
+  if (winner === "risk") return "риск";
+  if (winner === "tie") return "примерно равно";
+  return "ожидаем";
+}
+
+function compareMetricShortWinnerLabelForReport(
+  winner: NonNullable<RuntimeAuditReport["articleCompare"]>["metrics"][number]["winner"],
+): string {
+  if (winner === "textA") return "A";
+  if (winner === "textB") return "B";
+  if (winner === "risk") return "риск";
+  if (winner === "tie") return "равно";
+  return "—";
+}
+
+function renderArticleCompareTextSideHtml(side: NonNullable<RuntimeAuditReport["articleCompare"]>["textA"]): string {
+  return `
+    <article class="text-card">
+      <header>
+        <p class="eyebrow">${escapeHtml(side.role === "own" ? "Ваш текст" : side.role === "competitor" ? "Текст конкурента" : side.label)}</p>
+        <h3>${escapeHtml(side.title)}</h3>
+        <div class="chips">
+          <span class="chip">${escapeHtml(String(side.wordCount))} слов</span>
+          <span class="chip">${escapeHtml(String(side.paragraphCount))} абзацев</span>
+          <span class="chip">${escapeHtml(String(side.headingCount))} заголовков</span>
+        </div>
+      </header>
+      <div class="preview">${escapeHtml(side.text)}</div>
+    </article>`;
+}
+
+function renderCompareInsightColumn(
+  title: string,
+  strengths: NonNullable<RuntimeAuditReport["articleCompare"]>["textA"]["strengths"],
+  weaknesses: NonNullable<RuntimeAuditReport["articleCompare"]>["textA"]["weaknesses"],
+): string {
+  const render = (items: typeof strengths, fallback: string) =>
+    items.length
+      ? items
+          .map(
+            (item) => `
+              <article class="insight">
+                <h4>${escapeHtml(compareReportTitle(item.title))}</h4>
+                <p>${escapeHtml(item.detail)}</p>
+              </article>`,
+          )
+          .join("")
+      : `<article class="insight"><p class="muted">${escapeHtml(fallback)}</p></article>`;
+  return `
+    <div class="finding-side">
+      <h3>${escapeHtml(title)}</h3>
+      <div class="finding-list">
+        <strong>Сильные стороны</strong>
+        ${render(strengths, "Явные сильные стороны не выделены.").replaceAll('class="insight"', 'class="insight good"')}
+        <strong>Слабые стороны</strong>
+        ${render(weaknesses, "Явные слабые стороны не выделены.").replaceAll('class="insight"', 'class="insight warn"')}
+      </div>
+    </div>`;
+}
+
+function renderArticleCompareToolCardHtml(
+  fact: RuntimeAuditReport["confirmedFacts"][number],
+): string {
+  const title = compareReportTitle(fact.title);
+  return `
+    <article class="tool-card">
+      <div class="tool-card-head">
+        <span class="tool-icon">≡</span>
+        <div>
+          <h3>${escapeHtml(title)}</h3>
+          <small>Проверка текста ToraSEO.</small>
+        </div>
+        <span class="done-pill">Готово</span>
+      </div>
+      <div class="tool-note-block">
+        <h4>Что найдено</h4>
+        <p>${escapeHtml(fact.detail)}</p>
+      </div>
+      <div class="tool-note-block">
+        <h4>Источник</h4>
+        <p>${escapeHtml(fact.sourceToolIds.join(", "))}</p>
+      </div>
+    </article>`;
+}
+
+function compareReportTitle(title: string): string {
+  const normalized = title.trim().toLowerCase();
+  const map: Record<string, string> = {
+    "intent gap": "Сравнение интента",
+    "content gap": "Разрывы по содержанию",
+    "semantic gap": "Смысловое покрытие",
+    "specificity gap": "Сравнение конкретики",
+    "trust gap": "Сравнение доверия",
+    "similarity risk": "Риск похожести",
+    "title / ctr": "Заголовок и клик",
+    "platform fit": "Сравнение под платформу",
+    "improvement plan": "Что улучшить дальше",
+    "text advantage": "Текстовое преимущество",
+    "confirmed facts": "Подтвержденные факты",
+  };
+  return map[normalized] ?? title;
+}
+
+function compareGapSideLabel(
+  side: NonNullable<RuntimeAuditReport["articleCompare"]>["gaps"][number]["side"],
+): string {
+  if (side === "missing_in_a") return "Нет в A";
+  if (side === "missing_in_b") return "Нет в B";
+  if (side === "missing_in_both") return "Нет в обоих";
+  return "Есть в обоих";
+}
+
 function renderProcessingHtml(): string {
   return `<!doctype html>
   <html lang="en">
@@ -3497,6 +4289,63 @@ function renderEndedHtml(locale: SupportedLocale): string {
 }
 
 function renderReportMarkdown(report: RuntimeAuditReport): string {
+  if (report.articleCompare) {
+    const compare = report.articleCompare;
+    const metrics = compare.metrics
+      .map(
+        (metric) =>
+          `- ${metric.label}: A ${metric.textA ?? "—"}${metric.textA !== null ? metric.suffix : ""} / B ${metric.textB ?? "—"}${metric.textB !== null ? metric.suffix : ""}`,
+      )
+      .join("\n");
+    const side = (label: string, items: typeof compare.textA.strengths) =>
+      [
+        `### ${label}`,
+        "",
+        items.map((item) => `- ${item.title}: ${item.detail}`).join("\n") ||
+          "Явных пунктов нет.",
+      ].join("\n");
+
+    return [
+      "# ToraSEO: сравнение двух текстов",
+      "",
+      `Вердикт: ${compare.verdict.label}`,
+      "",
+      compare.verdict.detail,
+      "",
+      `Главный разрыв: ${compare.verdict.mainGap}`,
+      "",
+      `Риск похожести: ${copyRiskLabelForReport(compare.similarity.copyRisk)}`,
+      "",
+      `Дословные совпадения: ${compare.similarity.exactOverlap ?? "—"}%`,
+      "",
+      "## Метрики",
+      "",
+      metrics,
+      "",
+      "## Сильные стороны",
+      "",
+      side("Текст A", compare.textA.strengths),
+      "",
+      side("Текст B", compare.textB.strengths),
+      "",
+      "## Слабые стороны",
+      "",
+      side("Текст A", compare.textA.weaknesses),
+      "",
+      side("Текст B", compare.textB.weaknesses),
+      "",
+      "## План улучшения",
+      "",
+      compare.actionPlan.map((item) => `- ${item.title}: ${item.detail}`).join("\n") ||
+        "План появится после выполнения инструментов.",
+      "",
+      "## Ограничения",
+      "",
+      compare.limitations.map((item) => `- ${item}`).join("\n"),
+      "",
+    ].join("\n");
+  }
+
   if (report.articleText) {
     const article = report.articleText;
     const metrics = article.metrics

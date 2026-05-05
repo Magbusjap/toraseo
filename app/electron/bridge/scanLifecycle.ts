@@ -86,7 +86,11 @@ function usesAutomaticTimeouts(
   bridgeClient: BridgeClient,
   analysisType?: CurrentScanState["analysisType"],
 ): boolean {
-  return bridgeClient === "claude" && analysisType !== "article_text";
+  return (
+    bridgeClient === "claude" &&
+    analysisType !== "article_text" &&
+    analysisType !== "article_compare"
+  );
 }
 
 function expectedHandshakeToken(bridgeClient: BridgeClient): string {
@@ -178,7 +182,11 @@ export async function startScan(
   const scanId = randomUUID();
   const now = new Date().toISOString();
   const analysisType =
-    input || url === "toraseo://article-text" ? "article_text" : "site_by_url";
+    url === "toraseo://article-compare"
+      ? "article_compare"
+      : input || url === "toraseo://article-text"
+        ? "article_text"
+        : "site_by_url";
   const workspace = await createBridgeWorkspace({
     scanId,
     bridgeClient,
@@ -198,6 +206,8 @@ export async function startScan(
       ? {
           ...input,
           text: undefined,
+          textA: undefined,
+          textB: undefined,
         }
       : undefined,
     workspace,

@@ -14,12 +14,27 @@ export type AnalysisToolId =
   | "analyze_tone_fit"
   | "language_audience_fit"
   | "media_placeholder_review"
+  | "article_uniqueness"
+  | "language_syntax"
+  | "ai_writing_probability"
+  | "naturalness_indicators"
   | "fact_distortion_check"
+  | "logic_consistency_check"
   | "ai_hallucination_check"
+  | "intent_seo_forecast"
+  | "safety_science_review"
   | "compare_article_structure"
   | "compare_article_style"
   | "compare_platform_fit"
   | "compare_strengths_weaknesses"
+  | "compare_intent_gap"
+  | "compare_content_gap"
+  | "compare_semantic_gap"
+  | "compare_specificity_gap"
+  | "compare_trust_gap"
+  | "compare_title_ctr"
+  | "similarity_risk"
+  | "compare_improvement_plan"
   | "compare_site_positioning"
   | "compare_site_content_depth"
   | "compare_site_technical_basics"
@@ -79,12 +94,10 @@ export const ANALYSIS_TOOLS: Record<AnalysisTypeId, AnalysisToolMeta[]> = {
     analysisTool("ai_hallucination_check", { defaultSelected: false }),
   ],
   article_compare: [
-    analysisTool("compare_article_structure"),
-    analysisTool("compare_article_style"),
-    analysisTool("compare_platform_fit"),
-    analysisTool("compare_strengths_weaknesses"),
+    analysisTool("detect_text_platform"),
     analysisTool("language_audience_fit"),
-    analysisTool("media_placeholder_review"),
+    analysisTool("fact_distortion_check", { defaultSelected: false }),
+    analysisTool("ai_hallucination_check", { defaultSelected: false }),
   ],
   site_compare: [
     siteTool("analyze_meta"),

@@ -304,16 +304,214 @@ const pageByUrlCurrent: CatalogToolRow[] = [
 
 const articleCompareCurrent: CatalogToolRow[] = [
   {
+    name: text("Определение платформы", "Platform detection"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Определяет площадку и формат двух текстов, чтобы сравнение не было оторвано от контекста публикации.",
+      "Detects the platform and text format so the comparison stays tied to publishing context.",
+    ),
+  },
+  {
+    name: text("Язык и аудитория", "Language and audience"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Проверяет, совпадают ли язык, ясность и ожидаемая аудитория у обоих текстов.",
+      "Checks whether language, clarity, and expected audience match across both texts.",
+    ),
+  },
+  {
+    name: text("Структура текста", "Text structure"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Сравнивает заголовки, абзацы, списки и каркас каждого текста как в обычном анализе текста.",
+      "Compares headings, paragraphs, lists, and each text's article skeleton as in regular text analysis.",
+    ),
+  },
+  {
+    name: text("Стиль текста", "Text style"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Сравнивает тон, ритм, ясность, формальность и плотность примеров.",
+      "Compares tone, rhythm, clarity, formality, and example density.",
+    ),
+  },
+  {
+    name: text("Соответствие тона", "Tone fit"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Проверяет, подходит ли тон каждого текста теме, риску и выбранной площадке.",
+      "Checks whether each text's tone fits the topic, risk level, and selected platform.",
+    ),
+  },
+  {
+    name: text("Размещение медиа", "Media placement"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Сравнивает, где в текстах нужны изображения, видео, анимации или аудио-маркеры.",
+      "Compares where images, videos, animations, or audio markers may be needed.",
+    ),
+  },
+  {
+    name: text("Уникальность статьи", "Article uniqueness"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Проверяет локальные совпадения и сигналы риска копирования между двумя текстами.",
+      "Checks local overlap and copying-risk signals between the two texts.",
+    ),
+  },
+  {
+    name: text("Синтаксис языка", "Language syntax"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Сравнивает локальные синтаксические и пунктуационные риски в обоих текстах.",
+      "Compares local syntax and punctuation risks across both texts.",
+    ),
+  },
+  {
+    name: text("Вероятность написания ИИ", "AI writing probability"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Сравнивает механичность, повторяемость и универсальные служебные обороты.",
+      "Compares mechanical phrasing, repetition, and generic filler signals.",
+    ),
+  },
+  {
+    name: text("Естественность", "Naturalness"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Проверяет, какой текст звучит естественнее и где нужны живые примеры или авторский опыт.",
+      "Checks which text sounds more natural and where real examples or author experience are needed.",
+    ),
+  },
+  {
+    name: text("Проверка логики", "Logic check"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Сравнивает причинно-следственные связки и места, где утверждения требуют ручной проверки.",
+      "Compares cause-effect links and claims that need manual review.",
+    ),
+  },
+  {
+    name: text("Искажение фактов", "Fact distortion"),
+    group: "additional",
+    change: "added",
+    description: text(
+      "Дополнительная проверка рискованных утверждений, цифр и категоричных формулировок.",
+      "Additional check for risky claims, numbers, and absolute wording.",
+    ),
+  },
+  {
+    name: text("Проверка наличия ИИ и его галлюцинаций", "AI and hallucination check"),
+    group: "additional",
+    change: "added",
+    description: text(
+      "Дополнительная проверка расплывчатых источников, выдуманных деталей и AI-следов.",
+      "Additional check for vague authorities, invented details, and AI traces.",
+    ),
+  },
+  {
+    name: text("Прогноз интента и продвижения", "Intent and promotion forecast"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Сравнивает соответствие интенту, SEO-направление, заголовок и мета-пакет как текстовые сигналы.",
+      "Compares intent fit, SEO direction, headline, and metadata package as text signals.",
+    ),
+  },
+  {
+    name: text("Проверка рисков", "Risk review"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Отмечает чувствительные темы, где нужны источники, осторожные формулировки или экспертная проверка.",
+      "Flags sensitive topics where sources, caveats, or expert review are needed.",
+    ),
+  },
+  {
+    name: text("Сравнение интента", "Intent comparison"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Проверяет, отвечают ли оба текста на один и тот же запрос или сравниваются разные задачи.",
+      "Checks whether both texts answer the same request or compare different tasks.",
+    ),
+  },
+  {
     name: text("Сравнение структуры", "Structure comparison"),
     group: "primary",
     change: "added",
-    description: text("Сравнивает, как два текста раскрывают идею.", "Compares how two texts develop the idea."),
+    description: text("Сравнивает путь читателя: вступление, объяснение, шаги, примеры, FAQ и вывод.", "Compares the reader path: intro, explanation, steps, examples, FAQ, and conclusion."),
+  },
+  {
+    name: text("Разрывы по содержанию", "Content Gap"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Находит темы, разделы и полезные блоки, которые есть в одном тексте и отсутствуют в другом.",
+      "Finds topics, sections, and useful blocks present in one text and missing in the other.",
+    ),
+  },
+  {
+    name: text("Смысловое покрытие", "Semantic coverage"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Сравнивает сущности, понятия, подтемы и смысловые связи двух текстов.",
+      "Compares entities, concepts, subtopics, and semantic links across both texts.",
+    ),
+  },
+  {
+    name: text("Сравнение конкретики", "Specificity comparison"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Сравнивает примеры, цифры, шаги, сценарии и практическую пользу.",
+      "Compares examples, numbers, steps, scenarios, and practical usefulness.",
+    ),
+  },
+  {
+    name: text("Сравнение доверия", "Trust comparison"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Сравнивает источники, осторожные формулировки, предупреждения и опасные советы.",
+      "Compares sources, caveats, warnings, and risky advice.",
+    ),
   },
   {
     name: text("Сравнение стиля", "Style comparison"),
     group: "primary",
     change: "added",
-    description: text("Сравнивает тон, ритм и ясность двух текстов.", "Compares tone, rhythm, and clarity of two texts."),
+    description: text("Сравнивает стиль без копирования фраз: длину предложений, обращение к читателю и формальность.", "Compares style without copying phrasing: sentence length, reader address, and formality."),
+  },
+  {
+    name: text("Риск похожести", "Similarity risk"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Разделяет дословные совпадения, смысловую близость и риск копирования.",
+      "Separates exact overlap, semantic closeness, and copying risk.",
+    ),
+  },
+  {
+    name: text("Заголовок и клик", "Title and click"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Сравнивает точность заголовка, обещание пользы, интент и потенциальную кликабельность.",
+      "Compares headline precision, benefit promise, intent fit, and click potential.",
+    ),
   },
   {
     name: text("Сравнение под платформу", "Platform fit comparison"),
@@ -326,9 +524,18 @@ const articleCompareCurrent: CatalogToolRow[] = [
   },
   {
     name: text("Сильные и слабые стороны", "Strengths and weaknesses"),
-    group: "secondary",
+    group: "primary",
     change: "added",
-    description: text("Выводит преимущества и слабые места рядом.", "Shows strengths and weak spots side by side."),
+    description: text("Выводит сильные и слабые стороны A/B или фокусируется на нужном тексте по цели анализа.", "Shows A/B strengths and weaknesses or focuses on the target text by analysis goal."),
+  },
+  {
+    name: text("План улучшения", "Improvement plan"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Собирает план усиления нужного текста без копирования второго.",
+      "Builds a plan to strengthen the target text without copying the other one.",
+    ),
   },
   {
     name: text("Роль текста A/B", "Text A/B role"),

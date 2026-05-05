@@ -122,6 +122,7 @@ export default function ChatWindow() {
         analysisType={session.analysisType}
         scanContext={session.scanContext}
         articleTextContext={session.articleTextContext}
+        articleCompareContext={session.articleCompareContext}
         selectedModelProfile={session.selectedModelProfile}
         bridgeState={null}
         bridgePrompt={null}

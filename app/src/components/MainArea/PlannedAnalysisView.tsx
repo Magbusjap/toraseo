@@ -22,6 +22,11 @@ import type { AnalysisToolId } from "../../config/analysisTools";
 import type {
   AuditExecutionMode,
   RuntimeArticleTextAnnotation,
+  RuntimeArticleCompareGoalMode,
+  RuntimeArticleCompareMetric,
+  RuntimeArticleCompareRole,
+  RuntimeArticleCompareSummary,
+  RuntimeArticleCompareTextSide,
   RuntimeArticleTextDimension,
   RuntimeArticleTextDimensionStatus,
   RuntimeArticleTextMetric,
@@ -45,7 +50,9 @@ interface PlannedAnalysisViewProps {
   bridgeState: CurrentScanState | null;
   articleTextState: CurrentScanState | null;
   runtimeReport: RuntimeAuditReport | null;
+  articleCompareInput: ArticleComparePromptData | null;
   scanStartedOnce: boolean;
+  compareStartedOnce: boolean;
   solutionProvidedOnce: boolean;
   bridgeUnavailable: boolean;
   bridgeUnavailableAppName: string;
@@ -55,6 +62,10 @@ interface PlannedAnalysisViewProps {
     data: ArticleTextPromptData,
   ) => Promise<boolean>;
   onArticleTextCancel: () => void;
+  onArticleCompareRun: (
+    data: ArticleComparePromptData,
+  ) => Promise<boolean | "fallback">;
+  onArticleCompareCancel: () => void;
 }
 
 export default function PlannedAnalysisView({
@@ -68,13 +79,17 @@ export default function PlannedAnalysisView({
   bridgeState,
   articleTextState,
   runtimeReport,
+  articleCompareInput,
   scanStartedOnce,
+  compareStartedOnce,
   solutionProvidedOnce,
   bridgeUnavailable,
   bridgeUnavailableAppName,
   bridgeTargetAppName,
   onArticleTextRun,
   onArticleTextCancel,
+  onArticleCompareRun,
+  onArticleCompareCancel,
 }: PlannedAnalysisViewProps) {
   const { t } = useTranslation();
   const meta = ANALYSIS_TYPES.find((item) => item.id === analysisType);
@@ -126,9 +141,12 @@ export default function PlannedAnalysisView({
               executionMode,
               onArticleTextRun,
               onArticleTextCancel,
+              onArticleCompareRun,
+              onArticleCompareCancel,
               activeRun,
               bridgeState,
               scanStartedOnce,
+              compareStartedOnce,
               solutionProvidedOnce,
               bridgeUnavailable,
               bridgeUnavailableAppName,
@@ -180,6 +198,19 @@ export default function PlannedAnalysisView({
                 totalTools={totalTools}
               />
             )}
+          </section>
+        )}
+
+        {analysisType === "article_compare" &&
+          (runtimeReport || activeRun === "scan" || compareStartedOnce) && (
+          <section className="pb-8">
+            <ArticleCompareResultsDashboard
+              report={runtimeReport}
+              bridgeState={bridgeState}
+              input={articleCompareInput}
+              completedTools={completedTools}
+              totalTools={totalTools}
+            />
           </section>
         )}
       </div>
@@ -282,9 +313,12 @@ function renderInputSurface(
     data: ArticleTextPromptData,
   ) => Promise<boolean>,
   onArticleTextCancel: () => void,
+  onArticleCompareRun: (data: ArticleComparePromptData) => Promise<boolean>,
+  onArticleCompareCancel: () => void,
   activeRun: ArticleTextAction | null,
   bridgeState: CurrentScanState | null,
   scanStartedOnce: boolean,
+  compareStartedOnce: boolean,
   solutionProvidedOnce: boolean,
   bridgeUnavailable: boolean,
   bridgeUnavailableAppName: string,
@@ -339,47 +373,15 @@ function renderInputSurface(
       );
     case "article_compare":
       return (
-        <InputPanel
-          title={t("plannedAnalysis.forms.articleCompare.title", {
-            defaultValue: "Two article versions",
-          })}
-          actionLabel={t("plannedAnalysis.actionLocked", {
-            defaultValue: "Execution is being prepared",
-          })}
-        >
-          <TextArea
-            label={t("plannedAnalysis.forms.compareGoal", {
-              defaultValue: "Analysis goal",
-            })}
-            placeholder={t("plannedAnalysis.forms.compareGoalPlaceholder", {
-              defaultValue:
-                "For example: find weaknesses in article B, explain how to improve my text, or compare both versions neutrally.",
-            })}
-            rows={4}
-          />
-          <CompareRoleSelect label={t("plannedAnalysis.forms.articleARole")} />
-          <TextArea
-            label={t("plannedAnalysis.forms.articleA", {
-              defaultValue: "Article A",
-            })}
-            placeholder={t("plannedAnalysis.forms.articlePlaceholder", {
-              defaultValue: "Paste the article text here",
-            })}
-            rows={9}
-            mediaToolbar
-          />
-          <CompareRoleSelect label={t("plannedAnalysis.forms.articleBRole")} />
-          <TextArea
-            label={t("plannedAnalysis.forms.articleB", {
-              defaultValue: "Article B",
-            })}
-            placeholder={t("plannedAnalysis.forms.articlePlaceholder", {
-              defaultValue: "Paste the article text here",
-            })}
-            rows={9}
-            mediaToolbar
-          />
-        </InputPanel>
+        <ArticleComparePanel
+          onRun={onArticleCompareRun}
+          onCancel={onArticleCompareCancel}
+          active={activeRun === "scan"}
+          executionMode={executionMode}
+          compareStartedOnce={compareStartedOnce}
+          bridgeUnavailable={bridgeUnavailable}
+          bridgeUnavailableAppName={bridgeUnavailableAppName}
+        />
       );
     case "site_compare":
       return (
@@ -464,6 +466,279 @@ export type ArticleTextAction = "scan" | "solution";
 export interface ArticleTextPromptData {
   topic: string;
   body: string;
+}
+
+export interface ArticleComparePromptData {
+  goal: string;
+  goalMode: RuntimeArticleCompareGoalMode;
+  roleA: RuntimeArticleCompareRole;
+  roleB: RuntimeArticleCompareRole;
+  textA: string;
+  textB: string;
+}
+
+export function inferArticleCompareGoalMode(
+  goal: string,
+): RuntimeArticleCompareGoalMode {
+  const normalized = goal.trim().toLowerCase();
+  if (!normalized) return "standard_comparison";
+
+  const mentionsA =
+    /(?:\ba\b|text\s*a|article\s*a|текст\s*a|стать[яиею]\s*a)/iu.test(
+      normalized,
+    );
+  const mentionsB =
+    /(?:\bb\b|text\s*b|article\s*b|текст\s*b|стать[яиею]\s*b)/iu.test(
+      normalized,
+    );
+
+  if (
+    /похож|копир|плагиат|уникальн|заимств|similar|copy|plagiar|overlap/iu.test(
+      normalized,
+    )
+  ) {
+    return "similarity_check";
+  }
+  if (/стил|тон|ритм|подраж|похожим стил|style|tone|voice|imitat/iu.test(normalized)) {
+    return "style_match";
+  }
+  if (
+    /верс|вариант|до\s+и\s+после|что\s+стало|version|variant|before|after/iu.test(
+      normalized,
+    )
+  ) {
+    return "version_compare";
+  }
+  if (/\bab\b|a\/b|пост|хук|hook|cta|соцсет|social/iu.test(normalized)) {
+    return "ab_post";
+  }
+  if (
+    /конкур|обогн|лучше\s+конкур|топ|top|competitor|beat|outrank/iu.test(
+      normalized,
+    )
+  ) {
+    return "beat_competitor";
+  }
+  if (mentionsB && !mentionsA) return "focus_text_b";
+  if (mentionsA && !mentionsB) return "focus_text_a";
+  return "standard_comparison";
+}
+
+function ArticleComparePanel({
+  onRun,
+  onCancel,
+  active,
+  executionMode,
+  compareStartedOnce,
+  bridgeUnavailable,
+  bridgeUnavailableAppName,
+}: {
+  onRun: (data: ArticleComparePromptData) => Promise<boolean | "fallback">;
+  onCancel: () => void;
+  active: boolean;
+  executionMode: AuditExecutionMode;
+  compareStartedOnce: boolean;
+  bridgeUnavailable: boolean;
+  bridgeUnavailableAppName: string;
+}) {
+  const { t } = useTranslation();
+  const goalRef = useRef("");
+  const textARef = useRef("");
+  const textBRef = useRef("");
+  const [roleA, setRoleA] = useState<RuntimeArticleCompareRole>("own");
+  const [roleB, setRoleB] = useState<RuntimeArticleCompareRole>("competitor");
+  const [textAStats, setTextAStats] = useState("");
+  const [textBStats, setTextBStats] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    if (active) {
+      onCancel();
+      setNotice(
+        t("plannedAnalysis.forms.scanCancelled", {
+          defaultValue: "Analysis cancelled.",
+        }),
+      );
+      return;
+    }
+
+    if (bridgeUnavailable) {
+      setNotice(
+        t("plannedAnalysis.forms.bridgeUnavailable", {
+          defaultValue:
+            "{{appName}} is closed. Start it again or choose API + AI Chat on the home screen.",
+          appName: bridgeUnavailableAppName,
+        }),
+      );
+      return;
+    }
+
+    const goal = goalRef.current.trim();
+    const data: ArticleComparePromptData = {
+      goal,
+      goalMode: inferArticleCompareGoalMode(goal),
+      roleA,
+      roleB,
+      textA: textARef.current,
+      textB: textBRef.current,
+    };
+
+    if (!data.textA.trim() || !data.textB.trim()) {
+      setNotice(
+        t("plannedAnalysis.forms.compareNeedTexts", {
+          defaultValue: "Add both texts before starting comparison.",
+        }),
+      );
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const ok = await onRun(data);
+      if (ok) {
+        setNotice(
+          executionMode === "native"
+            ? t("plannedAnalysis.forms.compareSentToApiChat", {
+                defaultValue:
+                  "Comparison started in API + AI Chat. The report will appear here after the model responds.",
+              })
+            : ok === "fallback"
+            ? t("plannedAnalysis.forms.compareSkillFallbackPromptCopied", {
+                appName: bridgeUnavailableAppName,
+                defaultValue:
+                  "Prompt copied. Paste it into {{appName}} chat so AI can compare the two texts directly in chat while MCP or the app is unavailable.",
+              })
+            : t("plannedAnalysis.forms.compareBridgeUnavailable", {
+                defaultValue:
+                  "Сравнение двух текстов запущено через MCP + Instructions. Результаты появятся здесь после выполнения инструментов.",
+              }),
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="rounded-lg border border-outline/10 bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-semibold text-outline-900">
+            {t("plannedAnalysis.forms.articleCompare.title", {
+              defaultValue: "Две версии статьи",
+            })}
+          </h2>
+          <p className="mt-1 text-sm leading-relaxed text-outline-900/60">
+            {t("plannedAnalysis.forms.articleCompare.body", {
+              defaultValue:
+                "Сравните два текста по интенту, структуре, полноте, стилю, доверию, риску похожести и плану улучшения.",
+            })}
+          </p>
+        </div>
+        <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-outline-900/55">
+          {executionMode === "native" ? "API + AI Chat" : "MCP + Instructions"}
+        </span>
+      </div>
+
+      <div className="mt-4">
+        <TextArea
+          label={t("plannedAnalysis.forms.compareGoal", {
+            defaultValue: "Цель анализа",
+          })}
+          placeholder={t("plannedAnalysis.forms.compareGoalPlaceholder", {
+            defaultValue:
+              "Например: найти слабые стороны статьи B, улучшить мой текст или нейтрально сравнить обе версии.",
+          })}
+          rows={3}
+          onValueChange={(value) => {
+            goalRef.current = value;
+          }}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <div className="rounded-lg border border-outline/10 bg-orange-50/35 p-4">
+          <CompareRoleSelect
+            label={t("plannedAnalysis.forms.articleARole")}
+            value={roleA}
+            onValueChange={setRoleA}
+          />
+          <div className="mt-3">
+            <TextArea
+              label={t("plannedAnalysis.forms.articleA", {
+                defaultValue: "Статья A",
+              })}
+              placeholder={t("plannedAnalysis.forms.articlePlaceholder", {
+                defaultValue: "Вставьте текст статьи сюда",
+              })}
+              rows={14}
+              mediaToolbar
+              onValueChange={(value) => {
+                textARef.current = value;
+                setTextAStats(formatTextStats(value));
+              }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-outline-900/50">{textAStats}</p>
+        </div>
+
+        <div className="rounded-lg border border-outline/10 bg-orange-50/35 p-4">
+          <CompareRoleSelect
+            label={t("plannedAnalysis.forms.articleBRole")}
+            value={roleB}
+            onValueChange={setRoleB}
+          />
+          <div className="mt-3">
+            <TextArea
+              label={t("plannedAnalysis.forms.articleB", {
+                defaultValue: "Статья B",
+              })}
+              placeholder={t("plannedAnalysis.forms.articlePlaceholder", {
+                defaultValue: "Вставьте текст статьи сюда",
+              })}
+              rows={14}
+              mediaToolbar
+              onValueChange={(value) => {
+                textBRef.current = value;
+                setTextBStats(formatTextStats(value));
+              }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-outline-900/50">{textBStats}</p>
+        </div>
+      </div>
+
+      {notice && (
+        <p className="mt-4 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800">
+          {notice}
+        </p>
+      )}
+
+      <div className="mt-5 flex justify-end">
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={busy}
+          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+            active
+              ? "border border-orange-300 bg-white text-orange-800 hover:bg-orange-50"
+              : "bg-primary text-white hover:bg-primary-600 disabled:bg-outline-900/15 disabled:text-outline-900/45"
+          }`}
+        >
+          {active
+            ? t("sidebar.cancel", { defaultValue: "Отменить" })
+            : compareStartedOnce
+              ? t("plannedAnalysis.forms.compareRunAgain", {
+                  defaultValue: "Сравнить тексты повторно",
+                })
+              : t("plannedAnalysis.forms.compareRun", {
+                  defaultValue: "Сравнить тексты",
+                })}
+        </button>
+      </div>
+    </section>
+  );
 }
 
 function ArticleTextPanel({
@@ -1070,6 +1345,1399 @@ function ApiArticleTextReportPanel({
       <p className="mt-5 text-sm font-medium text-outline-900">
         {report.nextStep}
       </p>
+    </section>
+  );
+}
+
+interface LocalTextStats {
+  wordCount: number;
+  paragraphCount: number;
+  headingCount: number;
+  sentenceCount: number;
+  averageSentenceWords: number | null;
+  questionCount: number;
+  listMarkerCount: number;
+  numberCount: number;
+}
+
+function splitParagraphs(text: string): string[] {
+  return text
+    .split(/\n{2,}/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function wordTokens(text: string): string[] {
+  return Array.from(text.toLowerCase().matchAll(/[\p{L}\p{N}]+/gu)).map(
+    (match) => match[0],
+  );
+}
+
+function computeTextStats(text: string): LocalTextStats {
+  const paragraphs = splitParagraphs(text);
+  const words = wordTokens(text);
+  const sentences = text
+    .split(/[.!?…]+/u)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const headingCount = text
+    .split(/\n/)
+    .filter((line) => /^(#{1,6}\s+|[А-ЯA-Z0-9][^.!?]{2,80}:?$)/u.test(line.trim()))
+    .length;
+  return {
+    wordCount: words.length,
+    paragraphCount: paragraphs.length,
+    headingCount,
+    sentenceCount: sentences.length,
+    averageSentenceWords:
+      sentences.length > 0 ? Math.round(words.length / sentences.length) : null,
+    questionCount: (text.match(/\?/g) ?? []).length,
+    listMarkerCount: text
+      .split(/\n/)
+      .filter((line) => /^\s*(?:[-*•]|\d+[.)])\s+/.test(line))
+      .length,
+    numberCount: (text.match(/\b\d+(?:[.,]\d+)?\b/g) ?? []).length,
+  };
+}
+
+function exactOverlapPercent(textA: string, textB: string): number {
+  const buildShingles = (tokens: string[]) => {
+    const shingles = new Set<string>();
+    for (let index = 0; index <= tokens.length - 4; index += 1) {
+      shingles.add(tokens.slice(index, index + 4).join(" "));
+    }
+    return shingles;
+  };
+  const a = buildShingles(wordTokens(textA));
+  const b = buildShingles(wordTokens(textB));
+  if (a.size === 0 || b.size === 0) return 0;
+  let shared = 0;
+  for (const item of a) {
+    if (b.has(item)) shared += 1;
+  }
+  return Math.round((shared / Math.min(a.size, b.size)) * 100);
+}
+
+function copyRiskFromOverlap(overlap: number): "low" | "medium" | "high" {
+  if (overlap >= 35) return "high";
+  if (overlap >= 15) return "medium";
+  return "low";
+}
+
+function copyRiskLabel(risk: RuntimeArticleCompareSummary["similarity"]["copyRisk"]): string {
+  if (risk === "high") return "Высокий риск";
+  if (risk === "medium") return "Средний риск";
+  if (risk === "low") return "Низкий риск";
+  return "Нужна проверка";
+}
+
+function parseCompareToolResult(data: unknown): {
+  summary?: Record<string, unknown>;
+  issues?: Array<{ severity?: string; message?: string }>;
+  recommendations?: string[];
+} | null {
+  return data && typeof data === "object"
+    ? (data as {
+        summary?: Record<string, unknown>;
+        issues?: Array<{ severity?: string; message?: string }>;
+        recommendations?: string[];
+      })
+    : null;
+}
+
+function compareSummarySentence(
+  toolId: string,
+  summary: Record<string, unknown> | undefined,
+): string {
+  if (!summary) return "";
+  const value = (key: string) => summary[key];
+  switch (toolId) {
+    case "article_uniqueness":
+    case "similarity_risk":
+      return `Локальное дословное совпадение: ${value("exactPhraseOverlap") ?? value("exactOverlap") ?? "—"}%. Риск копирования: ${value("copyRisk") ?? "нужна проверка"}.`;
+    case "analyze_text_structure":
+    case "compare_article_structure":
+      return `Структура: A — ${value("headingsA") ?? "—"} заголовков, ${value("paragraphsA") ?? "—"} абзацев; B — ${value("headingsB") ?? "—"} заголовков, ${value("paragraphsB") ?? "—"} абзацев.`;
+    case "compare_content_gap":
+      return `Что есть у B и может отсутствовать в A: ${formatListValue(value("missingInA"))}. Что есть у A и может отсутствовать в B: ${formatListValue(value("missingInB"))}.`;
+    case "compare_semantic_gap":
+      return `Пересечение ключевых понятий: ${value("semanticOverlap") ?? "—"}%.`;
+    case "compare_specificity_gap":
+      return `Конкретика: A — ${value("numbersA") ?? "—"} числовых сигналов, B — ${value("numbersB") ?? "—"} числовых сигналов.`;
+    case "compare_trust_gap":
+      return `Сигналы доверия: A — ${value("trustSignalsA") ?? "—"}, B — ${value("trustSignalsB") ?? "—"}.`;
+    case "analyze_text_style":
+    case "compare_article_style":
+      return `Средняя длина предложения: A — ${value("avgSentenceWordsA") ?? "—"} слов, B — ${value("avgSentenceWordsB") ?? "—"} слов.`;
+    case "compare_title_ctr":
+      return `Черновая оценка заголовка: A — ${value("ctrDraftA") ?? "—"}, B — ${value("ctrDraftB") ?? "—"}.`;
+    case "detect_text_platform":
+    case "compare_platform_fit":
+      return `Площадка: ${value("platform") ?? "авто"}. Объём: A — ${value("textAWordCount") ?? "—"} слов, B — ${value("textBWordCount") ?? "—"} слов.`;
+    default:
+      return "";
+  }
+}
+
+function formatListValue(value: unknown): string {
+  if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : "не выявлено";
+  if (typeof value === "string") return value || "не выявлено";
+  return "не выявлено";
+}
+
+function buildArticleCompareBridgeReport(
+  state: CurrentScanState | null,
+  t: ReturnType<typeof useTranslation>["t"],
+): RuntimeAuditReport | null {
+  if (state?.analysisType !== "article_compare") return null;
+  const entries = Array.from(
+    new Set([...state.selectedTools, ...Object.keys(state.buffer)]),
+  )
+    .filter((toolId) => toolId !== "article_compare_internal")
+    .map((toolId) => [toolId, state.buffer[toolId]] as const)
+    .filter(([, entry]) => entry);
+  if (entries.length === 0) return null;
+
+  const confirmedFacts = entries.map(([toolId, entry]) => {
+    const result = parseCompareToolResult(entry!.data);
+    const summaryText = compareSummarySentence(toolId, result?.summary);
+    const issueText = (result?.issues ?? [])
+      .map((issue) => issue.message)
+      .filter(Boolean)
+      .join(" ");
+    const recommendationText = (result?.recommendations ?? []).slice(0, 2).join(" ");
+    return {
+      title: textToolLabel(t, toolId),
+      detail:
+        [issueText, summaryText, recommendationText].filter(Boolean).join("\n\n") ||
+        (entry!.errorMessage ?? "Проверка сравнения завершена."),
+      priority:
+        entry!.status === "error" || entry!.verdict === "critical"
+          ? "high" as const
+          : entry!.verdict === "warning"
+            ? "medium" as const
+            : "low" as const,
+      sourceToolIds: [toolId],
+    };
+  });
+
+  return {
+    mode: "strict_audit",
+    providerId: "local",
+    model: "ToraSEO MCP + Instructions",
+    generatedAt: new Date().toISOString(),
+    summary: t("plannedAnalysis.compare.bridgeSummary", {
+      defaultValue:
+        "Структурированное сравнение двух текстов по данным MCP-инструментов ToraSEO.",
+    }),
+    nextStep: t("plannedAnalysis.compare.bridgeNextStep", {
+      defaultValue:
+        "Проверьте разрывы, риск похожести и план улучшения, затем усиливайте нужный текст без копирования второго.",
+    }),
+    confirmedFacts,
+    expertHypotheses: [],
+  };
+}
+
+function topCompareTerms(text: string): string[] {
+  const stopWords = new Set([
+    "это",
+    "как",
+    "что",
+    "для",
+    "или",
+    "если",
+    "при",
+    "они",
+    "она",
+    "его",
+    "the",
+    "and",
+    "for",
+    "that",
+    "with",
+  ]);
+  const counts = new Map<string, number>();
+  for (const word of wordTokens(text)) {
+    if (word.length < 4 || stopWords.has(word)) continue;
+    counts.set(word, (counts.get(word) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 8)
+    .map(([word]) => word);
+}
+
+function buildLocalArticleCompareFacts(
+  input: ArticleComparePromptData,
+  t: ReturnType<typeof useTranslation>["t"],
+): RuntimeConfirmedFact[] {
+  const statsA = computeTextStats(input.textA);
+  const statsB = computeTextStats(input.textB);
+  const overlap = exactOverlapPercent(input.textA, input.textB);
+  const termsA = topCompareTerms(input.textA);
+  const termsB = topCompareTerms(input.textB);
+  return [
+    {
+      title: t("analysisTools.analyze_text_structure.label", {
+        defaultValue: "Структура текста",
+      }),
+      detail: `Структура: A — ${statsA.headingCount} заголовков, ${statsA.paragraphCount} абзацев; B — ${statsB.headingCount} заголовков, ${statsB.paragraphCount} абзацев. Сравнивайте не только количество заголовков, а путь читателя: проблема, объяснение, шаги, примеры, FAQ и вывод.`,
+      priority: "low",
+      sourceToolIds: ["analyze_text_structure", "compare_article_structure"],
+    },
+    {
+      title: t("analysisTools.compare_content_gap.label", {
+        defaultValue: "Разрывы по содержанию",
+      }),
+      detail: `Локальные ключевые понятия A: ${formatListValue(termsA)}. Локальные ключевые понятия B: ${formatListValue(termsB)}. Перед правкой проверьте, какие важные темы есть только в одном тексте, и добавляйте недостающие блоки своими формулировками.`,
+      priority: "medium",
+      sourceToolIds: ["compare_content_gap", "compare_semantic_gap"],
+    },
+    {
+      title: t("analysisTools.compare_specificity_gap.label", {
+        defaultValue: "Сравнение конкретики",
+      }),
+      detail: `Сигналы конкретики: A — ${statsA.numberCount + statsA.listMarkerCount}, B — ${statsB.numberCount + statsB.listMarkerCount}. Учитываются числа, списки и шаги. Конкретику стоит добавлять только там, где она точна и полезна.`,
+      priority: "low",
+      sourceToolIds: ["compare_specificity_gap"],
+    },
+    {
+      title: t("analysisTools.analyze_text_style.label", {
+        defaultValue: "Стиль текста",
+      }),
+      detail: `Средняя длина предложения: A — ${statsA.averageSentenceWords ?? "—"} слов, B — ${statsB.averageSentenceWords ?? "—"} слов. Если нужно приблизиться к стилю, переносите уровень ясности, ритм и плотность примеров, а не фразы и порядок абзацев.`,
+      priority: "low",
+      sourceToolIds: ["analyze_text_style", "compare_article_style"],
+    },
+    {
+      title: t("analysisTools.similarity_risk.label", {
+        defaultValue: "Риск похожести",
+      }),
+      detail: `Локальное дословное совпадение: ${overlap}%. Это проверка совпавших 4-словных фрагментов внутри ToraSEO, а не внешняя база плагиата. Смысловую похожесть нужно оценивать по разрывам и данным инструментов ниже.`,
+      priority: overlap >= 15 ? "medium" : "low",
+      sourceToolIds: ["article_uniqueness", "similarity_risk"],
+    },
+  ];
+}
+
+function withLocalArticleCompareFacts(
+  report: RuntimeAuditReport,
+  input: ArticleComparePromptData,
+  t: ReturnType<typeof useTranslation>["t"],
+): RuntimeAuditReport {
+  const existingSources = new Set(
+    report.confirmedFacts.flatMap((fact) => fact.sourceToolIds),
+  );
+  const localFacts = buildLocalArticleCompareFacts(input, t).filter((fact) =>
+    fact.sourceToolIds.every((toolId) => !existingSources.has(toolId)),
+  );
+  if (localFacts.length === 0) return report;
+  return {
+    ...report,
+    confirmedFacts: [...report.confirmedFacts, ...localFacts],
+  };
+}
+
+function inferCompareTitle(text: string, fallback: string): string {
+  const line = text
+    .split(/\n/)
+    .map((item) => item.trim().replace(/^#{1,6}\s+/, ""))
+    .find((item) => item.length > 0);
+  if (!line) return fallback;
+  return line.length > 90 ? `${line.slice(0, 87)}...` : line;
+}
+
+function factMatchesTool(fact: RuntimeConfirmedFact, toolIds: string[]): boolean {
+  return fact.sourceToolIds.some((toolId) => toolIds.includes(toolId));
+}
+
+function factsForSide(
+  report: RuntimeAuditReport,
+  side: "A" | "B",
+): RuntimeArticleCompareTextSide["strengths"] {
+  const marker = side === "A" ? /\b(A|textA|text A|текст A)\b/i : /\b(B|textB|text B|текст B)\b/i;
+  return report.confirmedFacts
+    .filter((fact) => marker.test(`${fact.title} ${fact.detail}`))
+    .slice(0, 4)
+    .map((fact) => ({
+      title: fact.title,
+      detail: fact.detail,
+      sourceToolIds: fact.sourceToolIds,
+    }));
+}
+
+function generatedSideWeaknesses(
+  t: ReturnType<typeof useTranslation>["t"],
+  side: "A" | "B",
+  statsA: ReturnType<typeof computeTextStats>,
+  statsB: ReturnType<typeof computeTextStats>,
+): RuntimeArticleTextInsight[] {
+  const own = side === "A" ? statsA : statsB;
+  const other = side === "A" ? statsB : statsA;
+  const label = side === "A" ? "A" : "B";
+  const items: RuntimeArticleTextInsight[] = [];
+  if (own.headingCount + own.listMarkerCount + 2 < other.headingCount + other.listMarkerCount) {
+    items.push({
+      title: t("plannedAnalysis.compare.weakStructure", {
+        defaultValue: `Текст ${label}: слабее структура`,
+      }),
+      detail: t("plannedAnalysis.compare.weakStructureDetail", {
+        defaultValue:
+          "Меньше видимых разделов, списков или опорных блоков. Проверьте путь читателя от проблемы к решению.",
+      }),
+      sourceToolIds: ["analyze_text_structure", "compare_article_structure"],
+    });
+  }
+  if (
+    own.averageSentenceWords !== null &&
+    other.averageSentenceWords !== null &&
+    own.averageSentenceWords > other.averageSentenceWords + 3
+  ) {
+    items.push({
+      title: t("plannedAnalysis.compare.weakReadability", {
+        defaultValue: `Текст ${label}: тяжелее читается`,
+      }),
+      detail: t("plannedAnalysis.compare.weakReadabilityDetail", {
+        defaultValue:
+          "Средняя длина предложения выше. Это не всегда ошибка, но длинные фразы стоит проверить на перегруз.",
+      }),
+      sourceToolIds: ["analyze_text_style", "language_audience_fit"],
+    });
+  }
+  if (own.numberCount + own.listMarkerCount + 2 < other.numberCount + other.listMarkerCount) {
+    items.push({
+      title: t("plannedAnalysis.compare.weakSpecificity", {
+        defaultValue: `Текст ${label}: меньше конкретики`,
+      }),
+      detail: t("plannedAnalysis.compare.weakSpecificityDetail", {
+        defaultValue:
+          "Меньше чисел, списков, шагов или практических сигналов. Добавляйте их только там, где они точны и полезны.",
+      }),
+      sourceToolIds: ["compare_specificity_gap"],
+    });
+  }
+  return items;
+}
+
+function compareWinner(
+  left: number | null,
+  right: number | null,
+  inverse = false,
+): RuntimeArticleCompareMetric["winner"] {
+  if (left === null || right === null) return "pending";
+  if (Math.abs(left - right) <= 2) return "tie";
+  if (inverse) return left < right ? "textA" : "textB";
+  return left > right ? "textA" : "textB";
+}
+
+function compareGoalModeLabel(
+  mode: RuntimeArticleCompareGoalMode,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  const labels: Record<RuntimeArticleCompareGoalMode, string> = {
+    standard_comparison: t("plannedAnalysis.compare.goalModes.standard", {
+      defaultValue: "Стандартное сравнение",
+    }),
+    focus_text_a: t("plannedAnalysis.compare.goalModes.focusA", {
+      defaultValue: "Фокус на тексте A",
+    }),
+    focus_text_b: t("plannedAnalysis.compare.goalModes.focusB", {
+      defaultValue: "Фокус на тексте B",
+    }),
+    beat_competitor: t("plannedAnalysis.compare.goalModes.beatCompetitor", {
+      defaultValue: "Сравнение с конкурентом",
+    }),
+    style_match: t("plannedAnalysis.compare.goalModes.styleMatch", {
+      defaultValue: "Подражание стилю",
+    }),
+    similarity_check: t("plannedAnalysis.compare.goalModes.similarity", {
+      defaultValue: "Проверка похожести",
+    }),
+    version_compare: t("plannedAnalysis.compare.goalModes.version", {
+      defaultValue: "Сравнение версий",
+    }),
+    ab_post: t("plannedAnalysis.compare.goalModes.abPost", {
+      defaultValue: "A/B-анализ поста",
+    }),
+  };
+  return labels[mode];
+}
+
+function compareGoalModeDescription(
+  mode: RuntimeArticleCompareGoalMode,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  const descriptions: Record<RuntimeArticleCompareGoalMode, string> = {
+    standard_comparison: t("plannedAnalysis.compare.goalDescriptions.standard", {
+      defaultValue:
+        "Цель не указана: отчет показывает оба текста, ключевые разрывы, риск похожести и план улучшения.",
+    }),
+    focus_text_a: t("plannedAnalysis.compare.goalDescriptions.focusA", {
+      defaultValue:
+        "Отчет сфокусирован на тексте A: второй текст используется как контекст сравнения и источник ориентиров.",
+    }),
+    focus_text_b: t("plannedAnalysis.compare.goalDescriptions.focusB", {
+      defaultValue:
+        "Отчет сфокусирован на тексте B: второй текст используется как контекст сравнения и источник ориентиров.",
+    }),
+    beat_competitor: t("plannedAnalysis.compare.goalDescriptions.beatCompetitor", {
+      defaultValue:
+        "Отчет ищет текстовые преимущества конкурента, разрывы вашего текста и план, как усилить материал без копирования.",
+    }),
+    style_match: t("plannedAnalysis.compare.goalDescriptions.styleMatch", {
+      defaultValue:
+        "Отчет делает акцент на тоне, ритме, ясности, плотности примеров и переносимых стилевых приемах без копирования фраз.",
+    }),
+    similarity_check: t("plannedAnalysis.compare.goalDescriptions.similarity", {
+      defaultValue:
+        "Отчет ставит на первое место дословные совпадения, смысловую близость и риск копирования.",
+    }),
+    version_compare: t("plannedAnalysis.compare.goalDescriptions.version", {
+      defaultValue:
+        "Отчет показывает, что стало сильнее или слабее между двумя версиями текста.",
+    }),
+    ab_post: t("plannedAnalysis.compare.goalDescriptions.abPost", {
+      defaultValue:
+        "Отчет оценивает хук, ясность, краткость, платформенность и потенциал реакции.",
+    }),
+  };
+  return descriptions[mode];
+}
+
+function compareGoalModeFocus(
+  mode: RuntimeArticleCompareGoalMode,
+): "textA" | "textB" | null {
+  if (mode === "focus_text_a") return "textA";
+  if (mode === "focus_text_b") return "textB";
+  return null;
+}
+
+function buildArticleCompareSummary(
+  report: RuntimeAuditReport,
+  input: ArticleComparePromptData,
+  t: ReturnType<typeof useTranslation>["t"],
+  completedTools: number,
+  totalTools: number,
+): RuntimeArticleCompareSummary {
+  const statsA = computeTextStats(input.textA);
+  const statsB = computeTextStats(input.textB);
+  const overlap = exactOverlapPercent(input.textA, input.textB);
+  const copyRisk = copyRiskFromOverlap(overlap);
+  const completed = Math.max(completedTools, report.confirmedFacts.length);
+  const total = Math.max(1, totalTools);
+  const coveragePercent = Math.min(100, Math.round((completed / total) * 100));
+  const goalMode = input.goalMode ?? inferArticleCompareGoalMode(input.goal);
+  const focusSide = compareGoalModeFocus(goalMode);
+  const gapFact =
+    report.confirmedFacts.find((fact) =>
+      factMatchesTool(fact, [
+        "compare_content_gap",
+        "compare_semantic_gap",
+        "compare_intent_gap",
+      ]),
+    ) ?? report.confirmedFacts[0];
+  const planFacts = report.confirmedFacts.filter((fact) =>
+    factMatchesTool(fact, ["compare_improvement_plan"]),
+  );
+  const priorityFacts =
+    planFacts.length > 0
+      ? planFacts
+      : report.confirmedFacts.filter((fact) => fact.priority !== "low");
+  const textAAdvantage =
+    report.confirmedFacts.filter((fact) => /\b(A|text A|textA|текст A)\b/i.test(fact.detail))
+      .length + (statsA.headingCount > statsB.headingCount ? 1 : 0);
+  const textBAdvantage =
+    report.confirmedFacts.filter((fact) => /\b(B|text B|textB|текст B)\b/i.test(fact.detail))
+      .length + (statsB.headingCount > statsA.headingCount ? 1 : 0);
+  const winner =
+    Math.abs(textAAdvantage - textBAdvantage) <= 1
+      ? "tie"
+      : textAAdvantage > textBAdvantage
+        ? "textA"
+        : "textB";
+
+  return {
+    verdict: {
+      winner,
+      label:
+        focusSide === "textA"
+          ? t("plannedAnalysis.compare.focusVerdictA", {
+              defaultValue: "Отчет сфокусирован на тексте A",
+            })
+          : focusSide === "textB"
+            ? t("plannedAnalysis.compare.focusVerdictB", {
+                defaultValue: "Отчет сфокусирован на тексте B",
+              })
+            : goalMode === "similarity_check"
+              ? t("plannedAnalysis.compare.similarityVerdict", {
+                  defaultValue: "Главный вывод: риск похожести и заимствований",
+                })
+              : goalMode === "style_match"
+                ? t("plannedAnalysis.compare.styleVerdict", {
+                    defaultValue: "Главный вывод: различия стиля и подачи",
+                  })
+                : goalMode === "version_compare"
+                  ? t("plannedAnalysis.compare.versionVerdict", {
+                      defaultValue: "Главный вывод: что изменилось между версиями",
+                    })
+                  : goalMode === "beat_competitor"
+                    ? t("plannedAnalysis.compare.competitorVerdict", {
+                        defaultValue: "Главный вывод: текстовые разрывы с конкурентом",
+                      })
+                    : winner === "textA"
+          ? t("plannedAnalysis.compare.winnerA", { defaultValue: "Текст A сильнее по текстовым признакам" })
+          : winner === "textB"
+            ? t("plannedAnalysis.compare.winnerB", { defaultValue: "Текст B сильнее по текстовым признакам" })
+            : t("plannedAnalysis.compare.winnerTie", { defaultValue: "Тексты близки: важнее разрывы по категориям" }),
+      detail: report.summary,
+      mainGap:
+        gapFact?.detail ??
+        t("plannedAnalysis.compare.defaultGap", {
+          defaultValue:
+            "Главный разрыв может быть в интенте, полноте, структуре, конкретике или доверии. Перед правкой проверьте категории ниже.",
+        }),
+    },
+    goal: input.goal,
+    goalMode,
+    goalLabel: compareGoalModeLabel(goalMode, t),
+    goalDescription: compareGoalModeDescription(goalMode, t),
+    focusSide,
+    platform: {
+      key: "compare",
+      label: t("plannedAnalysis.compare.platform", {
+        defaultValue: "Сравнение текстов",
+      }),
+      detail: t("plannedAnalysis.compare.platformDetail", {
+        defaultValue:
+          "Результат сравнивает только текстовую часть: без домена, ссылок, технического SEO и живой выдачи.",
+      }),
+    },
+    coverage: { completed, total, percent: coveragePercent },
+    textA: {
+      id: "textA",
+      label: "Текст A",
+      role: input.roleA,
+      title: inferCompareTitle(input.textA, "Текст A"),
+      text: input.textA,
+      ...statsA,
+      strengths: factsForSide(report, "A"),
+      weaknesses: generatedSideWeaknesses(t, "A", statsA, statsB),
+    },
+    textB: {
+      id: "textB",
+      label: "Текст B",
+      role: input.roleB,
+      title: inferCompareTitle(input.textB, "Текст B"),
+      text: input.textB,
+      ...statsB,
+      strengths: factsForSide(report, "B"),
+      weaknesses: generatedSideWeaknesses(t, "B", statsA, statsB),
+    },
+    metrics: [
+      {
+        id: "structure",
+        label: t("plannedAnalysis.compare.metrics.structure", {
+          defaultValue: "Структура",
+        }),
+        textA: statsA.headingCount + statsA.listMarkerCount,
+        textB: statsB.headingCount + statsB.listMarkerCount,
+        delta: statsA.headingCount + statsA.listMarkerCount - statsB.headingCount - statsB.listMarkerCount,
+        suffix: "",
+        winner: compareWinner(
+          statsA.headingCount + statsA.listMarkerCount,
+          statsB.headingCount + statsB.listMarkerCount,
+        ),
+        description: t("plannedAnalysis.compare.metrics.structureDetail", {
+          defaultValue:
+            "Учитывает заголовки и списки как локальные признаки структуры. Качество структуры важнее одного количества.",
+        }),
+      },
+      {
+        id: "specificity",
+        label: t("plannedAnalysis.compare.metrics.specificity", {
+          defaultValue: "Конкретика",
+        }),
+        textA: statsA.numberCount + statsA.listMarkerCount,
+        textB: statsB.numberCount + statsB.listMarkerCount,
+        delta: statsA.numberCount + statsA.listMarkerCount - statsB.numberCount - statsB.listMarkerCount,
+        suffix: "",
+        winner: compareWinner(
+          statsA.numberCount + statsA.listMarkerCount,
+          statsB.numberCount + statsB.listMarkerCount,
+        ),
+        description: t("plannedAnalysis.compare.metrics.specificityDetail", {
+          defaultValue:
+            "Локальный сигнал по цифрам, примерам и шагам. Конкретика полезна только при точных формулировках.",
+        }),
+      },
+      {
+        id: "readability",
+        label: t("plannedAnalysis.compare.metrics.readability", {
+          defaultValue: "Читаемость",
+        }),
+        textA: statsA.averageSentenceWords,
+        textB: statsB.averageSentenceWords,
+        delta:
+          statsA.averageSentenceWords !== null && statsB.averageSentenceWords !== null
+            ? statsA.averageSentenceWords - statsB.averageSentenceWords
+            : null,
+        suffix: "",
+        winner: compareWinner(
+          statsA.averageSentenceWords,
+          statsB.averageSentenceWords,
+          true,
+        ),
+        description: t("plannedAnalysis.compare.metrics.readabilityDetail", {
+          defaultValue:
+            "Более короткие предложения обычно легче сканировать, но экспертный текст иногда требует длинных объяснений.",
+        }),
+      },
+      {
+        id: "similarity",
+        label: t("plannedAnalysis.compare.metrics.similarity", {
+          defaultValue: "Дословные совпадения",
+        }),
+        textA: overlap,
+        textB: overlap,
+        delta: 0,
+        suffix: "%",
+        winner: copyRisk === "high" ? "risk" : copyRisk === "medium" ? "risk" : "tie",
+        description: t("plannedAnalysis.compare.metrics.similarityDetail", {
+          defaultValue:
+            "Локальная проверка совпавших фраз в двух текстах. Это не внешняя база плагиата.",
+        }),
+      },
+    ],
+    gaps: report.confirmedFacts
+      .filter((fact) =>
+        factMatchesTool(fact, [
+          "compare_content_gap",
+          "compare_semantic_gap",
+          "compare_intent_gap",
+          "compare_specificity_gap",
+          "compare_trust_gap",
+        ]),
+      )
+      .slice(0, 6)
+      .map((fact) => ({
+        title: fact.title,
+        detail: fact.detail,
+        side: "missing_in_a",
+        sourceToolIds: fact.sourceToolIds,
+      })),
+    priorities: priorityFacts.map((fact) => ({
+      title: fact.title,
+      detail: fact.detail,
+      priority: fact.priority,
+      sourceToolIds: fact.sourceToolIds,
+    })),
+    similarity: {
+      exactOverlap: overlap,
+      semanticSimilarity: null,
+      copyRisk,
+      detail:
+        copyRisk === "high"
+          ? t("plannedAnalysis.compare.copyRiskHigh", {
+              defaultValue:
+                "Дословных совпадений много. Используйте сильный текст как ориентир, но независимо перепишите структуру, примеры и формулировки.",
+            })
+          : copyRisk === "medium"
+            ? t("plannedAnalysis.compare.copyRiskMedium", {
+                defaultValue:
+                  "Есть часть дословных совпадений. Сохраняйте полезные идеи, но добавляйте собственные примеры и не повторяйте формулировки.",
+              })
+            : t("plannedAnalysis.compare.copyRiskLow", {
+                defaultValue:
+                  "В локальной проверке мало точных совпадений фраз. Это не гарантия уникальности: смысловую похожесть всё равно нужно оценивать по выводам ниже.",
+              }),
+    },
+    actionPlan: (priorityFacts.length > 0 ? priorityFacts : report.confirmedFacts)
+      .slice(0, 6)
+      .map((fact) => ({
+        title: fact.title,
+        detail: fact.detail,
+        priority: fact.priority,
+        sourceToolIds: fact.sourceToolIds,
+      })),
+    limitations: [
+      t("plannedAnalysis.compare.limitTextOnly", {
+        defaultValue:
+          "Это сравнение только текста: возраст домена, ссылки, техническое SEO, скорость и поведенческие сигналы не учитываются.",
+      }),
+      t("plannedAnalysis.compare.limitSimilarity", {
+        defaultValue:
+          "Риск похожести — локальная эвристика, а не интернет-проверка плагиата.",
+      }),
+      t("plannedAnalysis.compare.limitFacts", {
+        defaultValue:
+          "Фактически чувствительные, юридические, медицинские, финансовые и технические утверждения всё равно требуют источников или экспертной проверки.",
+      }),
+    ],
+  };
+}
+
+function ArticleCompareResultsDashboard({
+  report,
+  bridgeState,
+  input,
+  completedTools,
+  totalTools,
+}: {
+  report: RuntimeAuditReport | null;
+  bridgeState: CurrentScanState | null;
+  input: ArticleComparePromptData | null;
+  completedTools: number;
+  totalTools: number;
+}) {
+  const { t } = useTranslation();
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
+
+  if (!input || !input.textA.trim() || !input.textB.trim()) {
+    return (
+      <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
+        <h2 className="font-display text-lg font-semibold text-outline-900">
+          {t("plannedAnalysis.compare.waitingInputTitle", {
+            defaultValue: "Ожидаем два текста",
+          })}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
+          {t("plannedAnalysis.compare.waitingInputBody", {
+            defaultValue:
+              "Добавьте текст A и текст B, затем запустите сравнение. Отчёт будет показан в двух колонках.",
+          })}
+        </p>
+      </section>
+    );
+  }
+
+  const bridgeReport = buildArticleCompareBridgeReport(bridgeState, t);
+  const effectiveReport = report ?? bridgeReport;
+
+  if (!effectiveReport) {
+    return (
+      <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
+        <h2 className="font-display text-lg font-semibold text-outline-900">
+          {t("plannedAnalysis.compare.waitingReportTitle", {
+            defaultValue: "Ожидаем отчет сравнения",
+          })}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
+          {t("plannedAnalysis.compare.waitingReportBody", {
+            defaultValue:
+              "Выбранный режим сравнивает оба текста. ToraSEO покажет результат здесь после появления структурированных данных.",
+          })}
+        </p>
+      </section>
+    );
+  }
+
+  const enrichedReport = withLocalArticleCompareFacts(effectiveReport, input, t);
+  const summary = buildArticleCompareSummary(enrichedReport, input, t, completedTools, totalTools);
+  const goalFocus = compareGoalFocus(summary.goalMode, summary.goal);
+  const reportComplete = completedTools >= totalTools;
+  const openDetails = () => {
+    if (!reportComplete) return;
+    void window.toraseo.runtime.openReportWindow({
+      ...enrichedReport,
+      articleCompare: summary,
+    });
+  };
+  const exportReport = async () => {
+    if (!reportComplete) return;
+    setExportStatus(null);
+    setCopyStatus(null);
+    const result = await window.toraseo.runtime.exportReportPdf({
+      ...enrichedReport,
+      articleCompare: summary,
+    });
+    if (result.ok) {
+      setExportStatus(
+        t("plannedAnalysis.results.exportReady", {
+          defaultValue: "Отчет экспортирован.",
+        }),
+      );
+      return;
+    }
+    if (result.error === "cancelled") {
+      setExportStatus(
+        t("plannedAnalysis.results.exportCancelled", {
+          defaultValue: "Экспорт отменён.",
+        }),
+      );
+      return;
+    }
+    setExportStatus(
+      result.error ||
+        t("plannedAnalysis.results.exportFailed", {
+          defaultValue: "Не удалось экспортировать отчет.",
+        }),
+    );
+  };
+  const copyCompareText = async (
+    side: RuntimeArticleCompareSummary["textA"] | RuntimeArticleCompareSummary["textB"],
+  ) => {
+    setExportStatus(null);
+    setCopyStatus(null);
+    try {
+      await navigator.clipboard.writeText(stripMediaPlaceholderLines(side.text));
+      setCopyStatus(
+        side.id === "textA"
+          ? t("plannedAnalysis.compare.copyAReady", {
+              defaultValue: "Статья A скопирована.",
+            })
+          : t("plannedAnalysis.compare.copyBReady", {
+              defaultValue: "Статья B скопирована.",
+            }),
+      );
+    } catch {
+      setCopyStatus(
+        t("plannedAnalysis.compare.copyFailed", {
+          defaultValue: "Не удалось скопировать статью.",
+        }),
+      );
+    }
+  };
+
+  return (
+    <section className="rounded-lg border border-outline/10 bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-semibold text-outline-900">
+            {t("plannedAnalysis.compare.title", {
+              defaultValue: "Результат сравнения",
+            })}
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-outline-900/60">
+            {enrichedReport.summary}
+          </p>
+          <div className="mt-3 max-w-3xl rounded-md border border-orange-200 bg-orange-50/60 px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
+              {t("plannedAnalysis.compare.goalMode", {
+                defaultValue: "Режим по цели анализа",
+              })}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-outline-900">
+              {summary.goalLabel}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-outline-900/60">
+              {summary.goalDescription}
+            </p>
+            {summary.goal.trim() && (
+              <p className="mt-2 text-xs leading-relaxed text-outline-900/50">
+                {summary.goal}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
+            {completedTools} / {totalTools}
+          </span>
+          <button
+            type="button"
+            onClick={openDetails}
+            disabled={!reportComplete}
+            className="rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-semibold text-outline-900/70 transition hover:border-primary/40 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {t("analysisPanel.actions.details", { defaultValue: "Подробнее" })}
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportReport()}
+            disabled={!reportComplete}
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
+          >
+            {t("plannedAnalysis.results.export", {
+              defaultValue: "Экспортировать",
+            })}
+          </button>
+          <button
+            type="button"
+            onClick={() => void copyCompareText(summary.textA)}
+            disabled={!reportComplete}
+            className="rounded-md border border-primary/25 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/45 hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-outline/10 disabled:bg-outline-900/5 disabled:text-outline-900/35"
+          >
+            {t("plannedAnalysis.compare.copyA", {
+              defaultValue: "Копировать статью A",
+            })}
+          </button>
+          <button
+            type="button"
+            onClick={() => void copyCompareText(summary.textB)}
+            disabled={!reportComplete}
+            className="rounded-md border border-primary/25 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/45 hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-outline/10 disabled:bg-outline-900/5 disabled:text-outline-900/35"
+          >
+            {t("plannedAnalysis.compare.copyB", {
+              defaultValue: "Копировать статью B",
+            })}
+          </button>
+        </div>
+      </div>
+      {(exportStatus || copyStatus) && (
+        <p className="mt-3 text-xs font-medium text-orange-700/75">
+          {copyStatus ?? exportStatus}
+        </p>
+      )}
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="rounded-lg border border-orange-200 bg-orange-50/65 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
+            {t("plannedAnalysis.compare.verdict", {
+              defaultValue: "Текстовое преимущество",
+            })}
+          </p>
+          <h3 className="mt-2 font-display text-2xl font-semibold text-outline-900">
+            {summary.verdict.label}
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-outline-900/65">
+            {summary.verdict.detail}
+          </p>
+          <p className="mt-3 rounded-md border border-orange-200 bg-white px-3 py-2 text-xs leading-relaxed text-outline-900/60">
+            {summary.verdict.mainGap}
+          </p>
+        </div>
+        <div className="rounded-lg border border-outline/10 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
+            {t("plannedAnalysis.compare.similarity", {
+              defaultValue: "Риск похожести",
+            })}
+          </p>
+          <p className="mt-3 text-3xl font-semibold text-outline-900">
+            {copyRiskLabel(summary.similarity.copyRisk)}
+          </p>
+          <p className="mt-2 text-sm font-semibold text-outline-900/70">
+            {t("plannedAnalysis.compare.exactOverlap", {
+              value: summary.similarity.exactOverlap ?? "—",
+              defaultValue: "Дословные совпадения: {{value}}%",
+            })}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-outline-900/55">
+            {summary.similarity.detail}
+          </p>
+        </div>
+      </div>
+
+      <CompareVisualGraph summary={summary} />
+
+      <div className="mt-5 grid gap-3 xl:grid-cols-4">
+        {summary.metrics.map((metric) => (
+          <CompareMetricCard key={metric.id} metric={metric} />
+        ))}
+      </div>
+
+      <CompareSideFindingsBlock summary={summary} goalFocus={goalFocus} />
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <CompareGapList
+          title={t("plannedAnalysis.compare.gaps", {
+            defaultValue: "Разрывы по содержанию",
+          })}
+          description={t("plannedAnalysis.compare.gapsDescription", {
+            defaultValue:
+              "Какие темы, смысловые блоки и полезные элементы отличаются между текстами A и B.",
+          })}
+          gaps={summary.gaps}
+        />
+        <CompareActionPlan items={summary.actionPlan} />
+      </div>
+
+      <section className="mt-5 rounded-lg border border-outline/10 bg-white p-4">
+        <h3 className="text-center text-sm font-semibold text-outline-900">
+          {t("plannedAnalysis.results.toolEvidenceTitle", {
+            defaultValue: "Данные инструментов",
+          })}
+        </h3>
+        <div className="mt-4 grid gap-3 xl:grid-cols-2">
+          {enrichedReport.confirmedFacts.map((fact, index) => (
+            <ApiFactRow
+              key={`${fact.sourceToolIds.join(",")}-${fact.title}-${index}`}
+              fact={fact}
+            />
+          ))}
+        </div>
+      </section>
+
+      <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50/80 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-amber-800/70">
+          {t("plannedAnalysis.compare.limitationsTitle", {
+            defaultValue: "Граница текстового сравнения",
+          })}
+        </p>
+        <ul className="mt-2 grid gap-1 text-xs leading-relaxed text-amber-900/75">
+          {summary.limitations.map((item) => (
+            <li key={item}>• {item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <p className="mt-5 text-sm font-medium text-outline-900">
+        {enrichedReport.nextStep}
+      </p>
+    </section>
+  );
+}
+
+function compareGoalFocus(
+  mode: RuntimeArticleCompareGoalMode,
+  goal: string,
+): "both" | "textA" | "textB" {
+  const modeFocus = compareGoalModeFocus(mode);
+  if (modeFocus === "textA") return "textA";
+  if (modeFocus === "textB") return "textB";
+  const normalized = goal.trim().toLowerCase();
+  if (!normalized) return "both";
+  const mentionsA = /(?:\ba\b|текст\s*a|стать[ьяи]\s*a|article\s*a)/i.test(normalized);
+  const mentionsB = /(?:\bb\b|текст\s*b|стать[ьяи]\s*b|article\s*b)/i.test(normalized);
+  if (mentionsB && !mentionsA) return "textB";
+  if (mentionsA && !mentionsB) return "textA";
+  return "both";
+}
+
+function CompareVisualGraph({ summary }: { summary: RuntimeArticleCompareSummary }) {
+  const { t } = useTranslation();
+  const maxValue = Math.max(
+    1,
+    ...summary.metrics.flatMap((metric) => [
+      typeof metric.textA === "number" ? Math.abs(metric.textA) : 0,
+      typeof metric.textB === "number" ? Math.abs(metric.textB) : 0,
+    ]),
+  );
+  return (
+    <section className="mt-5 rounded-lg border border-outline/10 bg-white p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-outline-900">
+            {t("plannedAnalysis.compare.visualGraphTitle", {
+              defaultValue: "Визуальное сравнение A/B",
+            })}
+          </h3>
+          <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
+            {t("plannedAnalysis.compare.visualGraphBody", {
+              defaultValue:
+                "Графы показывают относительные локальные признаки. Это не итоговый SEO-скор, а быстрый способ увидеть разрывы.",
+            })}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 text-xs font-semibold text-outline-900/55">
+          <span className="inline-flex items-center gap-1">
+            <span className="h-2 w-5 rounded-full bg-primary" /> A
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="h-2 w-5 rounded-full bg-orange-300" /> B
+          </span>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {summary.metrics.map((metric) => {
+          const valueA = typeof metric.textA === "number" ? Math.abs(metric.textA) : 0;
+          const valueB = typeof metric.textB === "number" ? Math.abs(metric.textB) : 0;
+          const widthA = Math.max(4, Math.round((valueA / maxValue) * 100));
+          const widthB = Math.max(4, Math.round((valueB / maxValue) * 100));
+          return (
+            <div key={metric.id} className="rounded-md border border-orange-100 bg-orange-50/40 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/60">
+                  {metric.label}
+                </p>
+                <span className="text-[11px] font-semibold text-outline-900/45">
+                  {compareMetricWinnerLabel(metric.winner)}
+                </span>
+              </div>
+              <div className="mt-3 space-y-2">
+                <CompareBar label="A" value={metric.textA} suffix={metric.suffix} width={widthA} tone="a" />
+                <CompareBar label="B" value={metric.textB} suffix={metric.suffix} width={widthB} tone="b" />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function CompareBar({
+  label,
+  value,
+  suffix,
+  width,
+  tone,
+}: {
+  label: string;
+  value: number | null;
+  suffix: string;
+  width: number;
+  tone: "a" | "b";
+}) {
+  return (
+    <div className="grid grid-cols-[18px_minmax(0,1fr)_56px] items-center gap-2 text-xs">
+      <span className="font-semibold text-outline-900/50">{label}</span>
+      <div className="h-2 overflow-hidden rounded-full bg-white">
+        <div
+          className={`h-full rounded-full ${tone === "a" ? "bg-primary" : "bg-orange-300"}`}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+      <span className="text-right font-semibold text-outline-900/60">
+        {value ?? "—"}
+        {value !== null ? suffix : ""}
+      </span>
+    </div>
+  );
+}
+
+function compareMetricWinnerLabel(metricWinner: RuntimeArticleCompareMetric["winner"]): string {
+  if (metricWinner === "textA") return "лучше A";
+  if (metricWinner === "textB") return "лучше B";
+  if (metricWinner === "risk") return "риск";
+  if (metricWinner === "tie") return "примерно равно";
+  return "ожидаем";
+}
+
+function CompareSideFindingsBlock({
+  summary,
+  goalFocus,
+}: {
+  summary: RuntimeArticleCompareSummary;
+  goalFocus: "both" | "textA" | "textB";
+}) {
+  const { t } = useTranslation();
+  const sides =
+    goalFocus === "textA"
+      ? [summary.textA]
+      : goalFocus === "textB"
+        ? [summary.textB]
+        : [summary.textA, summary.textB];
+  return (
+    <section className="mt-5 rounded-lg border border-outline/10 bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-outline-900">
+            {goalFocus === "both"
+              ? t("plannedAnalysis.compare.sideFindingsTitle", {
+                  defaultValue: "Сильные и слабые стороны A/B",
+                })
+              : t("plannedAnalysis.compare.focusedFindingsTitle", {
+                  label: goalFocus === "textA" ? "A" : "B",
+                  defaultValue: "Фокус по цели анализа: текст {{label}}",
+                })}
+          </h3>
+          <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
+            {goalFocus === "both"
+              ? t("plannedAnalysis.compare.sideFindingsBody", {
+                  defaultValue:
+                    "Если цель анализа не указана, ToraSEO показывает стандартный сравнительный отчёт по двум текстам.",
+                })
+              : t("plannedAnalysis.compare.focusedFindingsBody", {
+                  defaultValue:
+                    "Поскольку цель явно указывает на один текст, блок ниже показывает выводы прежде всего по нему.",
+                })}
+          </p>
+        </div>
+      </div>
+      <div className={`mt-4 grid gap-4 ${sides.length === 2 ? "lg:grid-cols-2" : ""}`}>
+        {sides.map((side) => (
+          <div key={side.id} className="rounded-md border border-orange-100 bg-orange-50/35 p-3">
+            <h4 className="text-sm font-semibold text-outline-900">{side.label}</h4>
+            <div className="mt-3 grid gap-3">
+              <InsightList
+                title={t("plannedAnalysis.compare.strengths", {
+                  defaultValue: "Сильные стороны",
+                })}
+                items={side.strengths}
+                emptyText={t("plannedAnalysis.compare.noStrengths", {
+                  defaultValue: "Явные сильные стороны появятся после завершения проверок.",
+                })}
+                tone="good"
+              />
+              <InsightList
+                title={t("plannedAnalysis.compare.weaknesses", {
+                  defaultValue: "Слабые стороны",
+                })}
+                items={side.weaknesses}
+                emptyText={t("plannedAnalysis.compare.noWeaknesses", {
+                  defaultValue: "Явных слабых сторон по текущим локальным сигналам не найдено.",
+                })}
+                tone="warn"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CompareTextColumn({ side }: { side: RuntimeArticleCompareTextSide }) {
+  const { t } = useTranslation();
+  return (
+    <article className="rounded-lg border border-outline/10 bg-white">
+      <header className="border-b border-outline/10 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
+              {side.role === "own"
+                ? t("plannedAnalysis.compare.yourText", { defaultValue: "Ваш текст" })
+                : side.role === "competitor"
+                  ? t("plannedAnalysis.compare.competitorText", { defaultValue: "Текст конкурента" })
+                  : side.id === "textA"
+                    ? "Текст A"
+                    : "Текст B"}
+            </p>
+            <h3 className="mt-1 text-lg font-semibold text-outline-900">
+              {side.title}
+            </h3>
+          </div>
+          <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-outline-900/55">
+            {t("plannedAnalysis.compare.words", {
+              count: side.wordCount,
+              defaultValue: "{{count}} слов",
+            })}
+          </span>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs text-outline-900/55">
+          <span className="rounded-md bg-orange-50 px-2 py-1">
+            {t("plannedAnalysis.compare.paragraphs", {
+              count: side.paragraphCount,
+              defaultValue: "{{count}} абзацев",
+            })}
+          </span>
+          <span className="rounded-md bg-orange-50 px-2 py-1">
+            {t("plannedAnalysis.compare.headings", {
+              count: side.headingCount,
+              defaultValue: "{{count}} заголовков",
+            })}
+          </span>
+          <span className="rounded-md bg-orange-50 px-2 py-1">
+            {t("plannedAnalysis.compare.wordsPerSentence", {
+              count: side.averageSentenceWords ?? "—",
+              defaultValue: "{{count}} слов/предл.",
+            })}
+          </span>
+        </div>
+      </header>
+      <div className="max-h-[520px] overflow-auto p-4 text-sm leading-relaxed text-outline-900/75">
+        {splitParagraphs(side.text).map((paragraph, index) => (
+          <p key={`${side.id}-${index}`} className="mb-3 last:mb-0">
+            {paragraph}
+          </p>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function CompareMetricCard({ metric }: { metric: RuntimeArticleCompareMetric }) {
+  const winnerLabel =
+    metric.winner === "textA"
+      ? "A"
+      : metric.winner === "textB"
+        ? "B"
+        : metric.winner === "tie"
+          ? "равно"
+          : metric.winner === "risk"
+            ? "риск"
+            : "—";
+  return (
+    <div className="rounded-lg border border-orange-200/80 bg-orange-50/70 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/65">
+          {metric.label}
+        </p>
+        <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-outline-900/60">
+          {winnerLabel}
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 text-center">
+        <div className="rounded-md bg-white p-3">
+          <div className="text-xl font-semibold text-outline-900">
+            {metric.textA ?? "—"}
+            {metric.textA !== null && metric.suffix}
+          </div>
+          <div className="text-[10px] font-semibold uppercase text-outline-900/45">
+            A
+          </div>
+        </div>
+        <div className="rounded-md bg-white p-3">
+          <div className="text-xl font-semibold text-outline-900">
+            {metric.textB ?? "—"}
+            {metric.textB !== null && metric.suffix}
+          </div>
+          <div className="text-[10px] font-semibold uppercase text-outline-900/45">
+            B
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-xs leading-relaxed text-outline-900/65">
+        {metric.description}
+      </p>
+    </div>
+  );
+}
+
+function CompareGapList({
+  title,
+  description,
+  gaps,
+}: {
+  title: string;
+  description: string;
+  gaps: RuntimeArticleCompareSummary["gaps"];
+}) {
+  return (
+    <section className="rounded-lg border border-outline/10 bg-white p-4">
+      <h3 className="text-sm font-semibold text-outline-900">{title}</h3>
+      <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
+        {description}
+      </p>
+      <ul className="mt-3 grid gap-2">
+        {gaps.slice(0, 6).map((gap) => (
+          <li
+            key={`${gap.side}-${gap.title}`}
+            className="rounded-md border border-outline/10 bg-orange-50/45 px-3 py-2"
+          >
+            <p className="text-sm font-semibold text-outline-900">{gap.title}</p>
+            <p className="mt-1 text-xs leading-relaxed text-outline-900/60">
+              {gap.detail}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function CompareActionPlan({ items }: { items: RuntimeArticleTextPriority[] }) {
+  const { t } = useTranslation();
+  return (
+    <section className="rounded-lg border border-outline/10 bg-white p-4">
+      <h3 className="text-sm font-semibold text-outline-900">
+        {t("plannedAnalysis.compare.actionPlan", {
+          defaultValue: "Что улучшить дальше",
+        })}
+      </h3>
+      <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
+        {t("plannedAnalysis.compare.actionPlanDescription", {
+          defaultValue:
+            "Приоритеты правки: усиливаем нужный текст, не копируя второй.",
+        })}
+      </p>
+      <ol className="mt-3 grid gap-2">
+        {items.slice(0, 6).map((item, index) => (
+          <li
+            key={`${item.title}-${index}`}
+            className="rounded-md border border-outline/10 bg-white px-3 py-2"
+          >
+            <p className="text-sm font-semibold text-outline-900">
+              {index + 1}. {item.title}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-outline-900/60">
+              {item.detail}
+            </p>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
@@ -4205,6 +5873,25 @@ function textToolLabel(
   t: ReturnType<typeof useTranslation>["t"],
   toolId: string,
 ): string {
+  const compareLabels: Record<string, string> = {
+    compare_intent_gap: "Сравнение интента",
+    compare_article_structure: "Сравнение структуры",
+    compare_content_gap: "Разрывы по содержанию",
+    compare_semantic_gap: "Смысловое покрытие",
+    compare_specificity_gap: "Сравнение конкретики",
+    compare_trust_gap: "Сравнение доверия",
+    compare_article_style: "Сравнение стиля",
+    similarity_risk: "Риск похожести",
+    compare_title_ctr: "Заголовок и клик",
+    compare_platform_fit: "Сравнение под платформу",
+    compare_strengths_weaknesses: "Сильные и слабые стороны",
+    compare_improvement_plan: "Что улучшить дальше",
+  };
+  if (compareLabels[toolId]) {
+    return t(`analysisTools.${toolId}.label`, {
+      defaultValue: compareLabels[toolId],
+    });
+  }
   const labels: Record<string, string> = {
     article_uniqueness: t("analysisTools.article_uniqueness.label", {
       defaultValue: "Уникальность статьи",
@@ -4389,14 +6076,28 @@ function TextArea({
   );
 }
 
-function CompareRoleSelect({ label }: { label: string }) {
+function CompareRoleSelect({
+  label,
+  value,
+  onValueChange,
+}: {
+  label: string;
+  value?: RuntimeArticleCompareRole;
+  onValueChange?: (value: RuntimeArticleCompareRole) => void;
+}) {
   const { t } = useTranslation();
   return (
     <label className="block">
       <span className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
         {label}
       </span>
-      <select className="mt-2 w-full rounded-md border border-outline/15 bg-white px-3 py-2 text-sm text-outline-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15">
+      <select
+        value={value ?? "auto"}
+        onChange={(event) =>
+          onValueChange?.(event.target.value as RuntimeArticleCompareRole)
+        }
+        className="mt-2 w-full rounded-md border border-outline/15 bg-white px-3 py-2 text-sm text-outline-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+      >
         <option value="auto">{t("plannedAnalysis.forms.articleRoleAuto")}</option>
         <option value="own">{t("plannedAnalysis.forms.articleRoleOwn")}</option>
         <option value="competitor">
@@ -4551,6 +6252,12 @@ function normalizePastedContent(text: string): string {
     .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function formatTextStats(text: string): string {
+  const stats = computeTextStats(text);
+  if (stats.wordCount === 0) return "";
+  return `${stats.wordCount} слов · ${stats.paragraphCount} абзацев · ${stats.headingCount} заголовков`;
 }
 
 function MediaButton({

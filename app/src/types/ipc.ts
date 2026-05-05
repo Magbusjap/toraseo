@@ -157,8 +157,10 @@ export interface UpdaterApi {
 /**
  * Aggregated status of the three hard dependencies.
  *
- * `allGreen` is the only field the UI needs to gate the scan button;
- * the individual booleans drive the per-row checkboxes in the
+ * `allGreen` gates the full Bridge path. For Claude text workflows the
+ * UI may also allow a chat-only fallback when `skillInstalled` is true
+ * but MCP or the active Desktop App scan is unavailable.
+ * The individual booleans drive the per-row checkboxes in the
  * onboarding screen.
  *
  * Skill detection is hybrid — see detector.ts header for rationale.
@@ -451,13 +453,32 @@ export interface BridgeScanError {
  * MCP and App both check the version on read — mismatch is fatal
  * (signals coordinated-release went wrong).
  */
-export type BridgeAnalysisType = "site_by_url" | "article_text";
+export type BridgeAnalysisType =
+  | "site_by_url"
+  | "article_text"
+  | "article_compare";
 export type BridgeRunAction = "scan" | "solution";
+export type BridgeArticleCompareRole = "auto" | "own" | "competitor";
+export type BridgeArticleCompareGoalMode =
+  | "standard_comparison"
+  | "focus_text_a"
+  | "focus_text_b"
+  | "beat_competitor"
+  | "style_match"
+  | "similarity_check"
+  | "version_compare"
+  | "ab_post";
 
 export interface BridgeAnalysisInput {
   action?: BridgeRunAction;
   topic?: string;
   text?: string;
+  goal?: string;
+  goalMode?: BridgeArticleCompareGoalMode;
+  textA?: string;
+  textB?: string;
+  roleA?: BridgeArticleCompareRole;
+  roleB?: BridgeArticleCompareRole;
   analysisRole?: string;
   textPlatform?: string;
   customPlatform?: string;

@@ -26,6 +26,10 @@ knowledge base. Load the reference files only when the task needs them.
    groundwork, read `references/analysis-policy.md`.
 5. If the task is future-facing strategy work, read
    `references/future-direction.md`.
+6. If the live ToraSEO bridge cannot run because MCP and/or the Desktop
+   App is unavailable, read `references/chat-only-fallback.md`. Do not
+   read that fallback file when the bridge handshake succeeds and all
+   selected MCP tools are available.
 
 ## Required Bridge Behavior
 
@@ -40,6 +44,14 @@ When the pasted prompt says `Use $toraseo-codex-workflow` and contains
 ```text
 verify_codex_workflow_loaded(token="codex-workflow-v1-2026-04-29")
 ```
+
+Recognized Codex trigger variants:
+
+| Command | Meaning |
+|---|---|
+| `/toraseo codex-bridge-mode setup-check` | Verify that Codex can reach ToraSEO MCP and that Codex Workflow Instructions are active. |
+| `/toraseo codex-bridge-mode article-text` | Analyze one article text from the temporary ToraSEO workspace. |
+| `/toraseo codex-bridge-mode article-compare` | Compare Text A and Text B from the temporary ToraSEO workspace. |
 
 Also run this same check when the user manually asks whether Codex can
 see, access, or connect to ToraSEO, ToraSEO MCP, the ToraSEO SKILL, or
@@ -89,6 +101,19 @@ shorter structure pass, whether media markers are useful, and which role
 you would use for the rewrite. If the user stays silent or declines, do
 not push; respond politely and keep the analysis available for later.
 
+For `article_compare`, Text A and Text B are already stored in the
+temporary ToraSEO workspace as `input.md`. Do not ask the user to paste
+either text into chat and do not copy both full texts back into the
+answer. Run every selected tool. The selected tool list may include the
+same tool IDs used by `article_text`; in comparison mode they mean
+"analyze A and B side by side." If the user did not specify a goal,
+write the standard comparison report for both texts. If the user did
+specify a goal, adapt the answer to that goal: for example, if the user
+asks for strengths and weaknesses of text B, focus the final answer on
+text B instead of forcing a symmetrical report. Keep the boundary
+text-only: do not claim ranking causes from text alone, and do not
+rewrite the full article unless the user asks in a later message.
+
 Do not confuse `ai_writing_probability` with
 `ai_hallucination_check`. The first is a style/rhythm probability. The
 second is an optional claim-safety review for vague sources, fabricated
@@ -100,15 +125,13 @@ The prompt command is only a trigger. The real bridge protocol is:
 Codex Workflow Instructions -> `verify_codex_workflow_loaded` -> MCP
 selected tools -> app state updates.
 
-If the user asks for article-text analysis while ToraSEO Desktop App or
-the live MCP bridge is unavailable, stay in chat-only ToraSEO mode
-instead of pretending the app was updated. Analyze the pasted chat text
-with the same conceptual checks where possible: platform/use-case,
-structure, style, tone, language/audience, media placeholders, local
-repetition, AI-writing style risk, logic, SEO intent/metadata draft, and
-safety/science/legal-sensitive risk flags. Make clear that this does not
-write structured results into ToraSEO and is not live SERP, plagiarism,
-legal, medical, investment, engineering, or scientific verification.
+If the user asks for article-text or two-text comparison analysis while
+ToraSEO Desktop App or the live MCP bridge is unavailable, switch to the
+chat-only fallback in `references/chat-only-fallback.md`. Make clear that
+the app will not be updated and that no MCP tools, live SERP, external
+plagiarism, legal, medical, investment, engineering, or scientific expert
+verification ran. Do not read the fallback file during a healthy bridge
+run; the handshake response and selected MCP tools are authoritative then.
 
 If Codex asks the user to approve ToraSEO MCP tools, prefer the
 one-time chat/session approval option when the platform offers it. Tell
