@@ -19,7 +19,7 @@ function normalizePdfPath(filePath: string): string {
     : `${filePath}.pdf`;
 }
 
-function defaultExportPath(extension: "pdf" | "md" | "html"): string {
+function defaultExportPath(extension: "pdf" | "md" | "html" | "json"): string {
   const directory =
     app.isReady() && typeof app.getPath === "function"
       ? app.getPath("documents")
@@ -4063,6 +4063,36 @@ export async function exportReportPresentation(
         error instanceof Error
           ? error.message
           : "Failed to export report presentation.",
+    };
+  }
+}
+
+export async function exportReportJson(
+  report: RuntimeAuditReport,
+): Promise<{ ok: boolean; filePath?: string; error?: string }> {
+  const hydratedReport = await hydrateArticleReport(report);
+  const defaultPath = defaultExportPath("json");
+  const result = await dialog.showSaveDialog({
+    title: "Export ToraSEO report JSON",
+    defaultPath,
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+  if (result.canceled || !result.filePath) {
+    return { ok: false, error: "cancelled" };
+  }
+
+  try {
+    await fs.writeFile(
+      result.filePath,
+      `${JSON.stringify(hydratedReport, null, 2)}\n`,
+      "utf8",
+    );
+    return { ok: true, filePath: result.filePath };
+  } catch (error) {
+    log.error("[runtime:reporting] JSON export failed", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }

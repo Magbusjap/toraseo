@@ -35,6 +35,7 @@ import {
   copyArticleSourceText,
   endReportWindowSession,
   exportReportDocument,
+  exportReportJson,
   exportReportPdf,
   exportReportPresentation,
   openReportWindow,
@@ -78,6 +79,7 @@ export const RUNTIME_CHANNELS = {
   exportReportPdf: "toraseo:runtime:export-report-pdf",
   exportReportDocument: "toraseo:runtime:export-report-document",
   exportReportPresentation: "toraseo:runtime:export-report-presentation",
+  exportReportJson: "toraseo:runtime:export-report-json",
   testProviderConnection: "toraseo:runtime:test-provider-connection",
   openChatWindow: "toraseo:runtime:open-chat-window",
   updateChatWindowSession: "toraseo:runtime:update-chat-window-session",
@@ -312,6 +314,16 @@ export async function setupRuntime(): Promise<void> {
       report: RuntimeAuditReport,
     ): Promise<{ ok: boolean; filePath?: string; error?: string }> => {
       return exportReportPresentation(report);
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.exportReportJson,
+    async (
+      _event,
+      report: RuntimeAuditReport,
+    ): Promise<{ ok: boolean; filePath?: string; error?: string }> => {
+      return exportReportJson(report);
     },
   );
 

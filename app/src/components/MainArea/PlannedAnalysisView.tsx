@@ -737,6 +737,14 @@ function orderArticleMetrics(
   );
 }
 
+function isEvalLabEnabled(): boolean {
+  try {
+    return window.localStorage.getItem("toraseo.evalLab") === "1";
+  } catch {
+    return false;
+  }
+}
+
 function ApiArticleTextReportPanel({
   report,
   completedTools,
@@ -749,6 +757,7 @@ function ApiArticleTextReportPanel({
   const { t } = useTranslation();
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const evalLabEnabled = isEvalLabEnabled();
 
   if (!report) {
     return (
@@ -838,6 +847,33 @@ function ApiArticleTextReportPanel({
     setCopyStatus(result.error ? `${fallback} ${result.error}` : fallback);
   };
 
+  const exportQaJson = async () => {
+    if (!reportComplete) return;
+    setExportStatus(null);
+    setCopyStatus(null);
+    const result = await window.toraseo.runtime.exportReportJson(report);
+    if (result.ok) {
+      setExportStatus(
+        t("plannedAnalysis.results.exportJsonReady", {
+          defaultValue: "QA JSON экспортирован.",
+        }),
+      );
+      return;
+    }
+    if (result.error === "cancelled") {
+      setExportStatus(
+        t("plannedAnalysis.results.exportCancelled", {
+          defaultValue: "Экспорт отменен.",
+        }),
+      );
+      return;
+    }
+    const fallback = t("plannedAnalysis.results.exportFailed", {
+      defaultValue: "Не удалось экспортировать отчет.",
+    });
+    setExportStatus(result.error ? `${fallback} ${result.error}` : fallback);
+  };
+
   return (
     <section className="rounded-lg border border-outline/10 bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -883,6 +919,16 @@ function ApiArticleTextReportPanel({
               defaultValue: "Копировать исходный текст",
             })}
           </button>
+          {evalLabEnabled && (
+            <button
+              type="button"
+              onClick={() => void exportQaJson()}
+              disabled={!reportComplete}
+              className="rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-semibold text-outline-900/60 transition hover:border-primary/40 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              QA JSON
+            </button>
+          )}
         </div>
       </div>
       {(exportStatus || copyStatus) && (
@@ -1036,6 +1082,7 @@ function ArticleTextResultsDashboard({
   const { t } = useTranslation();
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const evalLabEnabled = isEvalLabEnabled();
   if (state?.analysisType !== "article_text") return null;
 
   const entries = state.selectedTools
@@ -1117,6 +1164,33 @@ function ArticleTextResultsDashboard({
     setCopyStatus(result.error ? `${fallback} ${result.error}` : fallback);
   };
 
+  const exportQaJson = async () => {
+    if (!report) return;
+    setExportStatus(null);
+    setCopyStatus(null);
+    const result = await window.toraseo.runtime.exportReportJson(report);
+    if (result.ok) {
+      setExportStatus(
+        t("plannedAnalysis.results.exportJsonReady", {
+          defaultValue: "QA JSON экспортирован.",
+        }),
+      );
+      return;
+    }
+    if (result.error === "cancelled") {
+      setExportStatus(
+        t("plannedAnalysis.results.exportCancelled", {
+          defaultValue: "Экспорт отменён.",
+        }),
+      );
+      return;
+    }
+    const fallback = t("plannedAnalysis.results.exportFailed", {
+      defaultValue: "Не удалось экспортировать отчет.",
+    });
+    setExportStatus(result.error ? `${fallback} ${result.error}` : fallback);
+  };
+
   return (
     <section className="rounded-lg border border-outline/10 bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1165,6 +1239,16 @@ function ArticleTextResultsDashboard({
               defaultValue: "Копировать исходный текст",
             })}
           </button>
+          {evalLabEnabled && (
+            <button
+              type="button"
+              onClick={() => void exportQaJson()}
+              disabled={!canUseReport}
+              className="rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-semibold text-outline-900/60 transition hover:border-primary/40 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              QA JSON
+            </button>
+          )}
         </div>
       </div>
       {(exportStatus || copyStatus) && (

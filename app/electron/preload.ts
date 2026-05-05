@@ -129,6 +129,7 @@ const RUNTIME = {
   exportReportPdf: "toraseo:runtime:export-report-pdf",
   exportReportDocument: "toraseo:runtime:export-report-document",
   exportReportPresentation: "toraseo:runtime:export-report-presentation",
+  exportReportJson: "toraseo:runtime:export-report-json",
   testProviderConnection: "toraseo:runtime:test-provider-connection",
   openChatWindow: "toraseo:runtime:open-chat-window",
   updateChatWindowSession: "toraseo:runtime:update-chat-window-session",
@@ -456,6 +457,13 @@ const api: ToraseoApi = {
     exportReportPresentation: (report: RuntimeAuditReport) => {
       return ipcRenderer.invoke(
         RUNTIME.exportReportPresentation,
+        report,
+      ) as Promise<{ ok: boolean; filePath?: string; error?: string }>;
+    },
+
+    exportReportJson: (report: RuntimeAuditReport) => {
+      return ipcRenderer.invoke(
+        RUNTIME.exportReportJson,
         report,
       ) as Promise<{ ok: boolean; filePath?: string; error?: string }>;
     },

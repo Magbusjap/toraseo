@@ -25,6 +25,9 @@ that plan, including any deviations and the tester's verdict.
 
 - `bridge-mode/` — Bridge Mode handshake (App + MCP + Skill
   three-component coordination), introduced in v0.0.7.
+- `eval-lab/` — public docs and runners for the internal quality lab.
+  Private cases, raw outputs, and formula-test data stay in
+  `private/eval-lab/`.
 
 ## How to run a test plan
 
