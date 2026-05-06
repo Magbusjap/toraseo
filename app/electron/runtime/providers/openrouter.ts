@@ -423,6 +423,27 @@ function platformLabelForPrompt(value: string, locale: "en" | "ru"): string {
 
 function toolLabelForPrompt(value: string, locale: "en" | "ru"): string {
   const labels: Record<string, { ru: string; en: string }> = {
+    page_url_article_internal: {
+      ru: "пакет анализа страницы по URL",
+      en: "page URL analysis package",
+    },
+    extract_main_text: {
+      ru: "извлечение основного текста",
+      en: "main text extraction",
+    },
+    check_robots_txt: { ru: "проверка robots.txt", en: "robots.txt check" },
+    analyze_meta: { ru: "мета-теги страницы", en: "page meta tags" },
+    analyze_headings: { ru: "заголовки страницы", en: "page headings" },
+    analyze_content: { ru: "контент страницы", en: "page content" },
+    detect_stack: { ru: "стек сайта", en: "site stack" },
+    analyze_google_page_search: {
+      ru: "проверка страницы в Google",
+      en: "Google page search check",
+    },
+    analyze_yandex_page_search: {
+      ru: "проверка страницы в Яндекс",
+      en: "Yandex page search check",
+    },
     detect_text_platform: { ru: "платформа текста", en: "text platform" },
     analyze_text_structure: { ru: "структура текста", en: "text structure" },
     analyze_text_style: { ru: "стиль текста", en: "text style" },
@@ -443,6 +464,19 @@ function toolLabelForPrompt(value: string, locale: "en" | "ru"): string {
     ai_writing_probability: {
       ru: "вероятность ИИ-стиля",
       en: "AI-writing probability",
+    },
+    ai_trace_map: { ru: "карта AI-фрагментов", en: "AI trace map" },
+    genericness_water_check: {
+      ru: "водность и шаблонность",
+      en: "genericness and watery text",
+    },
+    readability_complexity: {
+      ru: "читаемость и сложность",
+      en: "readability and complexity",
+    },
+    claim_source_queue: {
+      ru: "очередь фактов на проверку",
+      en: "claim source queue",
     },
     naturalness_indicators: {
       ru: "естественность текста",
@@ -582,6 +616,19 @@ function fallbackToolId(
 function mapToolLabelToId(value: string): string | null {
   const normalized = value.toLowerCase().replace(/[_-]+/g, " ").trim();
   const aliases: Record<string, string> = {
+    "page url analysis package": "page_url_article_internal",
+    "page by url analysis": "page_url_article_internal",
+    "main text extraction": "extract_main_text",
+    "robots txt check": "check_robots_txt",
+    "robots.txt check": "check_robots_txt",
+    "page meta tags": "analyze_meta",
+    "meta tags": "analyze_meta",
+    "page headings": "analyze_headings",
+    headings: "analyze_headings",
+    "page content": "analyze_content",
+    "site stack": "detect_stack",
+    "google page search check": "analyze_google_page_search",
+    "yandex page search check": "analyze_yandex_page_search",
     "platform text": "detect_text_platform",
     "text platform": "detect_text_platform",
     platform: "detect_text_platform",
@@ -608,6 +655,15 @@ function mapToolLabelToId(value: string): string | null {
     "ai style probability": "ai_writing_probability",
     "ai writing probability": "ai_writing_probability",
     "ai-writing probability": "ai_writing_probability",
+    "ai trace map": "ai_trace_map",
+    "genericness and watery text": "genericness_water_check",
+    genericness: "genericness_water_check",
+    "watery text": "genericness_water_check",
+    "readability and complexity": "readability_complexity",
+    readability: "readability_complexity",
+    complexity: "readability_complexity",
+    "claim source queue": "claim_source_queue",
+    "source queue": "claim_source_queue",
     "naturalness indicators": "naturalness_indicators",
     naturalness: "naturalness_indicators",
     logic: "logic_consistency_check",
@@ -935,6 +991,9 @@ export class OpenRouterAdapter implements ProviderAdapter {
       const context = request.articleTextContext!;
       const structuredScan = isStructuredArticleTextScan(request);
       const autoRunAction = articleTextAutoRunAction(request);
+      const isPageByUrl =
+        /^https?:\/\//i.test(context.topic.trim()) &&
+        context.selectedTools.includes("extract_main_text");
       const languageInstruction =
         request.policy.locale === "ru"
           ? "Ответь по-русски."
@@ -942,9 +1001,11 @@ export class OpenRouterAdapter implements ProviderAdapter {
       const actionInstruction =
         !autoRunAction
           ? "Answer the user's current message inside the active ToraSEO article-text workflow. Use the article text as context, and do not claim you can see the user's screen."
-          : context.action === "solution"
+        : context.action === "solution"
           ? "The user clicked Suggest solution. First reason through the selected ToraSEO text-analysis checks, then provide a concrete solution, rewrite plan, or draft direction. If there is enough context and the user expects a rewrite, write the rewritten article directly in chat as a separate copyable block."
-          : "The user clicked Scan text in API + AI Chat. Analyze the article text and provide prioritized recommendations in chat.";
+          : isPageByUrl
+            ? "The user clicked Analyze page by URL in API + AI Chat. The app fetched the URL and extracted the main article text before sending it here. Analyze the extracted article text and page-level context; do not treat ads, navigation, comments, or service UI as article content unless they clearly remain in the provided text."
+            : "The user clicked Scan text in API + AI Chat. Analyze the article text and provide prioritized recommendations in chat.";
       const modeInstruction =
         request.policy.mode === "strict_audit"
           ? "Strict mode: do not include an Expert hypotheses section. Do not invent hidden tool scores. List only observations that are directly visible in the article text or explicitly described as local heuristics, and tie every recommendation to a visible observation."
@@ -957,7 +1018,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
       );
 
       const outputInstruction = structuredScan
-        ? "The user clicked Scan text. The API model must form the structured ToraSEO report. Return JSON that satisfies the required audit schema only; do not wrap it in markdown fences. Do not translate JSON property names. Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses. Each confirmedFacts item must use exactly: title, detail, priority, sourceToolIds. Priority values must be exactly high, medium, or low. User-facing string values should still be written in the user's language. Return one confirmedFacts item for every selected check, in the same order as selectedToolIds. sourceToolIds must contain the exact backend id for the current check from selectedToolIds, not the translated label. Use title for the finding headline, not the tool name; the app will render the tool name itself. Write detail in three short paragraphs when possible: key evidence, what was found, what to do. Use high only for blocking or publication-critical problems; use medium for normal editing issues; use low for healthy or informational findings. If this request contains only one selected check, treat it as the current step of a larger multi-tool scan: evaluate the article for that check, but do not write that only one check was selected, and do not turn scan mechanics into a content finding."
+        ? `${isPageByUrl ? "The user clicked Analyze page by URL." : "The user clicked Scan text."} The API model must form the structured ToraSEO report. Return JSON that satisfies the required audit schema only; do not wrap it in markdown fences. Do not translate JSON property names. Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses. Each confirmedFacts item must use exactly: title, detail, priority, sourceToolIds. Priority values must be exactly high, medium, or low. User-facing string values should still be written in the user's language. Return one confirmedFacts item for every selected check, in the same order as selectedToolIds. sourceToolIds must contain the exact backend id for the current check from selectedToolIds, not the translated label. Use title for the finding headline, not the tool name; the app will render the tool name itself. Write detail in three short paragraphs when possible: key evidence, what was found, what to do. Use high only for blocking or publication-critical problems; use medium for normal editing issues; use low for healthy or informational findings. If this request contains only one selected check, treat it as the current step of a larger multi-tool scan: evaluate the article for that check, but do not write that only one check was selected, and do not turn scan mechanics into a content finding.`
         : "This is a ToraSEO API + AI Chat article-text workflow. Do not return JSON.";
 
       return [
@@ -973,7 +1034,14 @@ export class OpenRouterAdapter implements ProviderAdapter {
         structuredScan
           ? "For structured scan output, every confirmed fact must describe the article itself or a clearly labeled local heuristic. Do not create findings about selectedChecks, runId, JSON schema, API mode, or other orchestration details."
           : "Keep orchestration details out of the answer unless the user asks how the workflow works.",
-        "Relevant checks may include platform/use-case, structure, style, tone, language/audience, media placeholders, local repetition/uniqueness, syntax, AI-writing style probability, naturalness, logic, local SEO intent/metadata, and safety/science/legal-sensitive risk flags.",
+        "When selectedToolIds includes ai_writing_probability, evaluate AI-like style probability only; do not claim proof of authorship.",
+        "When selectedToolIds includes ai_trace_map, map local AI-like editing targets: generic transitions, formal wording, repeated terms, and overly even rhythm.",
+        "When selectedToolIds includes genericness_water_check, evaluate broad/watery phrasing, repeated generic concepts, weak concrete evidence, and missing examples, numbers, sources, cases, or reader actions.",
+        "When selectedToolIds includes readability_complexity, evaluate sentence density, long sentences, heavy paragraphs, and scan friction.",
+        "When selectedToolIds includes claim_source_queue, list claims, numbers, absolute wording, vague authorities, and sensitive statements that need manual source verification, softer wording, or removal.",
+        isPageByUrl
+          ? "Relevant checks may include URL extraction, robots/meta/headings/content/page stack, platform/use-case, structure, style, tone, language/audience, media placement, local repetition/uniqueness, syntax, AI-writing style probability, AI trace map, genericness/watery text, readability/complexity, claim source queue, naturalness, logic, local SEO intent/metadata, and safety/science/legal-sensitive risk flags."
+          : "Relevant checks may include platform/use-case, structure, style, tone, language/audience, media placeholders, local repetition/uniqueness, syntax, AI-writing style probability, AI trace map, genericness/watery text, readability/complexity, claim source queue, naturalness, logic, local SEO intent/metadata, and safety/science/legal-sensitive risk flags.",
         "If rewriting or substantially reworking, preserve necessary caveats and do not strengthen unverified claims. Ask about media placeholder positions before adding them unless the user already requested media placement.",
         "",
         "User message:",
@@ -985,6 +1053,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
             action: context.action,
             runId: context.runId ?? "not specified",
             topic: context.topic,
+            sourceType: isPageByUrl ? "page_by_url" : "article_text",
             analysisRole: context.analysisRole ?? "default",
             platform,
             selectedToolIds: context.selectedTools,

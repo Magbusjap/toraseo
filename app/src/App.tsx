@@ -21,6 +21,7 @@ import PlannedAnalysisView, {
   type ArticleComparePromptData,
   type ArticleTextAction,
   type ArticleTextPromptData,
+  type PageByUrlPromptData,
 } from "./components/MainArea/PlannedAnalysisView";
 import ChangelogView from "./components/Changelog/ChangelogView";
 import DocumentationView from "./components/Documentation/DocumentationView";
@@ -90,6 +91,8 @@ const BUILT_IN_ARTICLE_TEXT_TOOLS = [
   "article_uniqueness",
   "language_syntax",
   "ai_writing_probability",
+  "genericness_water_check",
+  "readability_complexity",
   "naturalness_indicators",
   "logic_consistency_check",
   "intent_seo_forecast",
@@ -120,6 +123,23 @@ const BUILT_IN_ARTICLE_COMPARE_TOOLS = [
   "compare_strengths_weaknesses",
   "compare_improvement_plan",
 ] as const;
+const BUILT_IN_PAGE_BY_URL_TOOLS = [
+  "check_robots_txt",
+  "analyze_meta",
+  "analyze_headings",
+  "analyze_content",
+  "detect_stack",
+  "extract_main_text",
+  "article_uniqueness",
+  "language_syntax",
+  "ai_writing_probability",
+  "genericness_water_check",
+  "readability_complexity",
+  "naturalness_indicators",
+  "logic_consistency_check",
+  "intent_seo_forecast",
+  "safety_science_review",
+] as const;
 
 function effectiveArticleTextToolIds(
   selectedToolIds: Iterable<AnalysisToolId>,
@@ -141,6 +161,86 @@ function effectiveArticleCompareToolIds(
   return result;
 }
 
+function effectivePageByUrlToolIds(
+  selectedToolIds: Iterable<AnalysisToolId>,
+): string[] {
+  const result = Array.from(selectedToolIds, String);
+  for (const toolId of BUILT_IN_PAGE_BY_URL_TOOLS) {
+    if (!result.includes(toolId)) result.push(toolId);
+  }
+  return result;
+}
+
+function siteToolIdsFromAnalysisTools(toolIds: string[]): ToolId[] {
+  const siteIds = new Set(TOOLS.map((tool) => tool.id));
+  const result = toolIds.filter((toolId): toolId is ToolId =>
+    siteIds.has(toolId as ToolId),
+  );
+  if (!result.includes("analyze_content")) result.push("analyze_content");
+  return result;
+}
+
+function extractedMainTextFromAnalyzeContent(result: unknown): string {
+  const data = result as {
+    main_text?: unknown;
+    text_blocks?: unknown;
+    summary?: { word_count?: unknown };
+  };
+  if (typeof data.main_text === "string" && data.main_text.trim()) {
+    return data.main_text.trim();
+  }
+  if (Array.isArray(data.text_blocks)) {
+    return data.text_blocks
+      .filter((block): block is string => typeof block === "string")
+      .join("\n\n")
+      .trim();
+  }
+  return "";
+}
+
+function normalizePageAnalysisUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim();
+  try {
+    const url = new URL(trimmed);
+    const unwrapParams = [
+      "url",
+      "u",
+      "target",
+      "to",
+      "redirect",
+      "redirect_url",
+      "redirectUrl",
+      "amp_url",
+      "ampUrl",
+    ];
+    for (const key of unwrapParams) {
+      const nested = url.searchParams.get(key);
+      if (nested && /^https?:\/\//i.test(nested)) {
+        return normalizePageAnalysisUrl(nested);
+      }
+    }
+
+    for (const key of Array.from(url.searchParams.keys())) {
+      if (
+        /^(utm_|fbclid$|gclid$|yclid$|mc_|_hs|igshid$|ref$|referrer$|spm$|feature$|source$)/i.test(
+          key,
+        )
+      ) {
+        url.searchParams.delete(key);
+      }
+    }
+    url.hash = "";
+    const cleaned = url.toString();
+    try {
+      return decodeURI(cleaned);
+    } catch {
+      return cleaned;
+    }
+  } catch {
+    return trimmed;
+  }
+}
+
 function countCoveredReportTools(
   report: RuntimeAuditReport | null,
   expectedToolIds: string[],
@@ -158,6 +258,32 @@ function countCoveredReportTools(
 
 function joinPromptLines(lines: Array<string | null | undefined>): string {
   return lines.filter((line): line is string => Boolean(line)).join("\n");
+}
+
+function fallbackToolNames(toolIds: string[], locale: SupportedLocale): string {
+  const defaults: Record<string, { ru: string; en: string }> = {
+    ai_trace_map: { ru: "Карта AI-фрагментов", en: "AI trace map" },
+    genericness_water_check: {
+      ru: "Водность и шаблонность",
+      en: "Genericness and watery text",
+    },
+    readability_complexity: {
+      ru: "Читаемость и сложность",
+      en: "Readability and complexity",
+    },
+    claim_source_queue: {
+      ru: "Очередь фактов на проверку",
+      en: "Claim source queue",
+    },
+  };
+  return toolIds
+    .map((toolId) =>
+      i18n.t(`analysisTools.${toolId}.label`, {
+        lng: locale,
+        defaultValue: defaults[toolId]?.[locale] ?? toolId,
+      }),
+    )
+    .join(", ");
 }
 
 function buildClaudeSkillFallbackArticleTextPrompt(options: {
@@ -185,7 +311,8 @@ function buildClaudeSkillFallbackArticleTextPrompt(options: {
     `Платформа: ${options.textPlatform}`,
     options.customPlatform ? `Своя платформа: ${options.customPlatform}` : null,
     options.analysisRole ? `Роль/цель анализа: ${options.analysisRole}` : null,
-    `Выбранные проверки ToraSEO: ${options.selectedTools.join(", ")}`,
+    `Выбранные проверки ToraSEO: ${fallbackToolNames(options.selectedTools, options.locale)}`,
+    "Проверки ИИ-стиля, карты AI-фрагментов, водности/шаблонности, читаемости/сложности и очереди фактов разделяй в отчёте: это разные редакторские сигналы, а не один детектор.",
     "",
     "Тема/заголовок:",
     options.data.topic.trim() || "Не указано.",
@@ -222,7 +349,7 @@ function buildClaudeSkillFallbackArticleComparePrompt(options: {
     options.customPlatform ? `Своя платформа: ${options.customPlatform}` : null,
     `Роль текста A: ${options.data.roleA}`,
     `Роль текста B: ${options.data.roleB}`,
-    `Выбранные проверки ToraSEO: ${options.selectedTools.join(", ")}`,
+    `Выбранные проверки ToraSEO: ${fallbackToolNames(options.selectedTools, options.locale)}`,
     "",
     "Обязательные блоки отчёта:",
     "1. Краткая сводка под цель анализа.",
@@ -237,6 +364,40 @@ function buildClaudeSkillFallbackArticleComparePrompt(options: {
     "",
     "Текст B:",
     options.data.textB,
+  ]);
+}
+
+function buildClaudeSkillFallbackPageByUrlPrompt(options: {
+  data: PageByUrlPromptData;
+  locale: SupportedLocale;
+  textPlatform: string;
+  customPlatform?: string;
+  analysisRole?: string;
+  selectedTools: string[];
+}): string {
+  return joinPromptLines([
+    "Используй ToraSEO Claude Bridge Instructions.",
+    "",
+    "/toraseo chat-only-fallback page-by-url",
+    "",
+    "ToraSEO Desktop App и/или MCP сейчас недоступны, но SKILL подключен.",
+    "Сделай анализ страницы по URL прямо в чате по правилам анализа текста ToraSEO.",
+    "Если выделенный фрагмент ниже заполнен, анализируй его как главный текст страницы. Если есть только URL и нет доступного текста, не притворяйся, что страница была загружена: попроси вставить текст, title/meta или фрагмент страницы.",
+    "Если текст страницы доступен пользователем, игнорируй рекламу, навигацию, комментарии, похожие материалы и служебные блоки. Не обходи авторизацию, paywall, CAPTCHA или robots.txt.",
+    "Не утверждай, что результаты записаны в приложение или results/*.json. Используй нормальные названия проверок, а не технические id инструментов.",
+    "Если публичная выдача Google/Яндекса, клики, показы или частотность недоступны без Search Console/Яндекс Вебмастер/официального SEO-провайдера, честно укажи это как ограничение.",
+    "",
+    `Локаль интерфейса: ${options.locale}`,
+    `URL: ${options.data.url}`,
+    `Платформа: ${options.textPlatform}`,
+    options.customPlatform ? `Своя платформа: ${options.customPlatform}` : null,
+    options.analysisRole ? `Роль/цель анализа: ${options.analysisRole}` : null,
+    `Выбранные проверки ToraSEO: ${fallbackToolNames(options.selectedTools, options.locale)}`,
+    "Проверки ИИ-стиля, карты AI-фрагментов, водности/шаблонности, читаемости/сложности и очереди фактов разделяй в отчёте: это разные редакторские сигналы, а не один детектор.",
+    "",
+    "Если пользовательский фрагмент ниже заполнен, анализируй именно его как главный текст страницы:",
+    options.data.textBlock.trim() ||
+      "Фрагмент не указан. Без доступного текста не заявляй, что страница проанализирована; дай чек-лист, что вставить для чатового разбора.",
   ]);
 }
 
@@ -339,6 +500,11 @@ function MainApp() {
     useState<CurrentScanState | null>(null);
   const [nativeArticleTextActiveRun, setNativeArticleTextActiveRun] =
     useState<ArticleTextAction | null>(null);
+  const [pageByUrlStartedOnce, setPageByUrlStartedOnce] = useState(false);
+  const [pageByUrlInput, setPageByUrlInput] =
+    useState<PageByUrlPromptData | null>(null);
+  const [nativePageByUrlActiveRun, setNativePageByUrlActiveRun] =
+    useState<"scan" | null>(null);
   const [articleCompareStartedOnce, setArticleCompareStartedOnce] =
     useState(false);
   const [nativeArticleCompareActiveRun, setNativeArticleCompareActiveRun] =
@@ -392,6 +558,7 @@ function MainApp() {
   const codexClosedNoticeShakeTimer = useRef<
     ReturnType<typeof window.setTimeout> | null
   >(null);
+  const pageByUrlChatRunRef = useRef<string | null>(null);
   const lastCodexRunningRef = useRef<boolean | null>(null);
   const backShortcutTimerRef = useRef(0);
 
@@ -759,6 +926,10 @@ function MainApp() {
     setArticleTextSolutionProvidedOnce(false);
     setNativeArticleTextState(null);
     setNativeArticleTextActiveRun(null);
+    setPageByUrlStartedOnce(false);
+    setPageByUrlInput(null);
+    setNativePageByUrlActiveRun(null);
+    pageByUrlChatRunRef.current = null;
     setArticleCompareStartedOnce(false);
     setNativeArticleCompareActiveRun(null);
     setArticleCompareInput(null);
@@ -1209,6 +1380,8 @@ function MainApp() {
   const activeArticleTextRun =
     executionMode === "native" && selectedAnalysisType === "article_compare"
       ? nativeArticleCompareActiveRun
+      : executionMode === "native" && selectedAnalysisType === "page_by_url"
+        ? nativePageByUrlActiveRun
       : executionMode === "native"
       ? nativeArticleTextActiveRun
       : bridge.state?.analysisType === "article_compare" &&
@@ -1219,10 +1392,15 @@ function MainApp() {
           (bridge.state.status === "awaiting_handshake" ||
             bridge.state.status === "in_progress")
         ? bridge.state.input?.action ?? "scan"
+        : bridge.state?.analysisType === "page_by_url" &&
+            (bridge.state.status === "awaiting_handshake" ||
+              bridge.state.status === "in_progress")
+          ? "scan"
         : null;
   const completedArticleTextAction =
     (bridge.state?.analysisType === "article_text" ||
-      bridge.state?.analysisType === "article_compare") &&
+      bridge.state?.analysisType === "article_compare" ||
+      bridge.state?.analysisType === "page_by_url") &&
     bridge.state.status === "complete"
       ? bridge.state.input?.action ?? "scan"
       : null;
@@ -1232,6 +1410,8 @@ function MainApp() {
         ? "solution"
         : runtimeReport && selectedAnalysisType === "article_text"
           ? "scan"
+          : runtimeReport && selectedAnalysisType === "page_by_url"
+            ? "scan"
           : runtimeReport && selectedAnalysisType === "article_compare"
             ? "scan"
           : null
@@ -1246,11 +1426,19 @@ function MainApp() {
     selectedAnalysisType === "article_compare"
       ? effectiveArticleCompareToolIds(selectedAnalysisToolsByType.article_compare)
       : [];
+  const effectivePageByUrlTools =
+    selectedAnalysisType === "page_by_url"
+      ? effectivePageByUrlToolIds(selectedAnalysisToolsByType.page_by_url)
+      : [];
   const plannedCompletedTools =
     executionMode === "native" &&
     selectedAnalysisType === "article_text" &&
     runtimeReport
       ? countCoveredReportTools(runtimeReport, effectiveArticleTextTools)
+      : executionMode === "native" &&
+          selectedAnalysisType === "page_by_url" &&
+          runtimeReport
+        ? countCoveredReportTools(runtimeReport, effectivePageByUrlTools)
       : executionMode === "native" &&
           selectedAnalysisType === "article_compare" &&
           runtimeReport
@@ -1260,7 +1448,8 @@ function MainApp() {
             const entry = displayedArticleTextState.buffer[toolId];
             return entry?.status === "complete" || entry?.status === "error";
           }).length
-      : displayedArticleTextState?.analysisType === "article_text"
+      : displayedArticleTextState?.analysisType === "article_text" ||
+          displayedArticleTextState?.analysisType === "page_by_url"
         ? Object.values(displayedArticleTextState.buffer).filter(
             (entry) => entry.status === "complete" || entry.status === "error",
           ).length
@@ -1268,10 +1457,13 @@ function MainApp() {
   const plannedTotalTools =
     executionMode === "native" && selectedAnalysisType === "article_text"
       ? effectiveArticleTextTools.length
+      : executionMode === "native" && selectedAnalysisType === "page_by_url"
+        ? effectivePageByUrlTools.length
       : executionMode === "native" && selectedAnalysisType === "article_compare"
         ? effectiveArticleCompareTools.length
       : displayedArticleTextState?.analysisType === "article_text" ||
-          displayedArticleTextState?.analysisType === "article_compare"
+          displayedArticleTextState?.analysisType === "article_compare" ||
+          displayedArticleTextState?.analysisType === "page_by_url"
       ? displayedArticleTextState.selectedTools.length
       : selectedAnalysisType
         ? selectedAnalysisToolsByType[selectedAnalysisType].size
@@ -1290,6 +1482,15 @@ function MainApp() {
       return;
     }
     setArticleTextSolutionProvidedOnce(true);
+  }, [bridge.state]);
+
+  useEffect(() => {
+    if (
+      bridge.state?.analysisType === "page_by_url" &&
+      bridge.state.status === "complete"
+    ) {
+      setPageByUrlStartedOnce(true);
+    }
   }, [bridge.state]);
 
   const handleRunArticleTextBridge = async (
@@ -1457,7 +1658,7 @@ function MainApp() {
       analysisRole: analysisRole.trim() || undefined,
       textPlatform,
       customPlatform: customPlatform.trim() || undefined,
-      selectedAnalysisTools: visibleToolIds,
+      selectedAnalysisTools: toolIds,
     });
     return true;
   };
@@ -1479,6 +1680,144 @@ function MainApp() {
       return;
     }
     void bridge.cancelScan();
+  };
+
+  const handleRunPageByUrl = async (
+    data: PageByUrlPromptData,
+  ): Promise<boolean | "fallback"> => {
+    const normalizedData = {
+      ...data,
+      url: normalizePageAnalysisUrl(data.url),
+    };
+    const visibleToolIds = Array.from(
+      selectedAnalysisToolsByType.page_by_url,
+      String,
+    );
+    const toolIds = effectivePageByUrlToolIds(
+      selectedAnalysisToolsByType.page_by_url,
+    );
+
+    setPreflightError(null);
+    setPageByUrlInput(normalizedData);
+
+    if (executionMode === "bridge") {
+      if (bridgeProgram === "codex") {
+        const fresh = await checkNow();
+        if (!fresh.codexRunning) {
+          showCodexClosedNotice(
+            t("preflight.codexNeedsConfirmation", {
+              defaultValue: "Open Codex before starting the Codex bridge path.",
+            }),
+          );
+          return false;
+        }
+        if (!fresh.codexSetupVerified) {
+          setPreflightError(
+            t("preflight.codexSetupMissing", {
+              defaultValue:
+                "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
+            }),
+          );
+          return false;
+        }
+      } else if (detectorStatus && !detectorStatus.allGreen) {
+        if (detectorStatus.skillInstalled) {
+          const copied = await copyTextToClipboard(
+            buildClaudeSkillFallbackPageByUrlPrompt({
+              data: normalizedData,
+              locale: currentLocale,
+              textPlatform,
+              customPlatform: customPlatform.trim() || undefined,
+              analysisRole: analysisRole.trim() || undefined,
+              selectedTools: toolIds,
+            }),
+          );
+          if (!copied) {
+            setPreflightError(
+              t("preflight.skillFallbackCopyFailed", {
+                defaultValue:
+                  "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+              }),
+            );
+            return false;
+          }
+          setPageByUrlStartedOnce(true);
+          showPromptCopiedToast();
+          return "fallback";
+        }
+        setPreflightError(t("preflight.depsFailed"));
+        return false;
+      }
+
+      setPageByUrlStartedOnce(true);
+      void window.toraseo.runtime.showReportWindowProcessing();
+      await bridge.startScan(normalizedData.url, toolIds, bridgeProgram, {
+        action: "scan",
+        sourceType: "page_by_url",
+        topic: normalizedData.url,
+        text: normalizedData.textBlock,
+        pageTextBlock: normalizedData.textBlock,
+        analysisRole: analysisRole.trim() || undefined,
+        textPlatform,
+        customPlatform: customPlatform.trim() || undefined,
+        selectedAnalysisTools: toolIds,
+      });
+      return true;
+    }
+
+    if (!nativeRuntimeEnabled || !window.toraseo?.runtime?.openChatWindow) {
+      setPreflightError(
+        t("preflight.nativeUnavailable", {
+          defaultValue: "API + AI Chat is unavailable in this build.",
+        }),
+      );
+      return false;
+    }
+    if (!providerConfigured) {
+      setPreflightError(
+        t("preflight.providerMissing", {
+          defaultValue: "Add an AI provider before using API + AI Chat.",
+        }),
+      );
+      handleOpenProviderSettings();
+      return false;
+    }
+    if (!selectedModelProfile) {
+      setPreflightError(
+        t("preflight.modelMissing", {
+          defaultValue: "Choose the AI provider model before starting analysis.",
+        }),
+      );
+      return false;
+    }
+
+    setRuntimeReport(null);
+    setNativeArticleTextState(null);
+    setNativePageByUrlActiveRun("scan");
+    setPageByUrlStartedOnce(true);
+    pageByUrlChatRunRef.current = null;
+    void window.toraseo.runtime.showReportWindowProcessing();
+    await startScan(normalizedData.url, siteToolIdsFromAnalysisTools(toolIds));
+    return true;
+  };
+
+  const handleCancelPageByUrl = () => {
+    if (executionMode !== "native") {
+      void bridge.cancelScan();
+      return;
+    }
+    setNativePageByUrlActiveRun(null);
+    void window.toraseo.runtime.updateChatWindowSession({
+      status: "active",
+      locale: currentLocale,
+      analysisType: "article_text",
+      selectedModelProfile,
+      scanContext: nativeScanContext,
+      articleTextContext: null,
+      articleCompareContext: null,
+      articleTextRunState: "idle",
+      report: runtimeReport,
+    });
   };
 
   const handleRunArticleCompare = async (
@@ -1675,6 +2014,75 @@ function MainApp() {
   }, [executionMode, mode]);
 
   useEffect(() => {
+    if (
+      mode !== "analysis" ||
+      selectedAnalysisType !== "page_by_url" ||
+      executionMode !== "native" ||
+      nativePageByUrlActiveRun !== "scan" ||
+      scanState !== "complete" ||
+      !pageByUrlInput
+    ) {
+      return;
+    }
+    const runKey = `${pageByUrlInput.url}|${pageByUrlInput.textBlock.length}`;
+    if (pageByUrlChatRunRef.current === runKey) return;
+
+    const body =
+      pageByUrlInput.textBlock.trim() ||
+      extractedMainTextFromAnalyzeContent(stages.analyze_content?.result);
+    if (!body) {
+      setNativePageByUrlActiveRun(null);
+      setPreflightError(
+        t("preflight.pageByUrlExtractionFailed", {
+          defaultValue:
+            "Не удалось выделить основной текст страницы. Вставьте нужный фрагмент в поле текста и запустите анализ повторно.",
+        }),
+      );
+      return;
+    }
+
+    const toolIds = effectivePageByUrlToolIds(
+      selectedAnalysisToolsByType.page_by_url,
+    );
+    pageByUrlChatRunRef.current = runKey;
+    void window.toraseo.runtime.openChatWindow({
+      status: "active",
+      locale: currentLocale,
+      analysisType: "article_text",
+      selectedModelProfile,
+      scanContext: nativeScanContext,
+      articleTextContext: {
+        action: "scan",
+        runId: `page-url-${Date.now()}`,
+        topic: pageByUrlInput.url,
+        body,
+        analysisRole: analysisRole.trim() || undefined,
+        textPlatform,
+        customPlatform: customPlatform.trim() || undefined,
+        selectedTools: toolIds,
+      },
+      report: null,
+      articleTextRunState: "running",
+    });
+  }, [
+    analysisRole,
+    currentLocale,
+    customPlatform,
+    executionMode,
+    mode,
+    nativePageByUrlActiveRun,
+    nativeScanContext,
+    pageByUrlInput,
+    scanState,
+    selectedAnalysisToolsByType.page_by_url,
+    selectedAnalysisType,
+    selectedModelProfile,
+    stages.analyze_content?.result,
+    t,
+    textPlatform,
+  ]);
+
+  useEffect(() => {
     if (mode !== "idle") return;
     void window.toraseo.runtime.endReportWindowSession();
   }, [mode]);
@@ -1744,7 +2152,11 @@ function MainApp() {
               : session.report,
           );
           if (session.analysisType === "article_text") {
-            setArticleTextScanStartedOnce(true);
+            if (selectedAnalysisType === "page_by_url") {
+              setPageByUrlStartedOnce(true);
+            } else {
+              setArticleTextScanStartedOnce(true);
+            }
           }
           if (session.analysisType === "article_compare") {
             setArticleCompareStartedOnce(true);
@@ -1758,7 +2170,11 @@ function MainApp() {
             session.articleTextRunState === "failed")
         ) {
           if (session.analysisType === "article_text") {
-            setNativeArticleTextActiveRun(null);
+            if (selectedAnalysisType === "page_by_url") {
+              setNativePageByUrlActiveRun(null);
+            } else {
+              setNativeArticleTextActiveRun(null);
+            }
           } else {
             setNativeArticleCompareActiveRun(null);
           }
@@ -1775,7 +2191,7 @@ function MainApp() {
       },
     );
     return unsubscribe;
-  }, [t]);
+  }, [selectedAnalysisType, t]);
 
   const isBusy =
     executionMode === "native"
@@ -1898,6 +2314,10 @@ function MainApp() {
               setArticleTextSolutionProvidedOnce(false);
               setNativeArticleTextState(null);
               setNativeArticleTextActiveRun(null);
+              setPageByUrlStartedOnce(false);
+              setPageByUrlInput(null);
+              setNativePageByUrlActiveRun(null);
+              pageByUrlChatRunRef.current = null;
               void refreshProviders();
               void window.toraseo.runtime.endChatWindowSession();
               void window.toraseo.runtime.endReportWindowSession();
@@ -2115,6 +2535,7 @@ function MainApp() {
               runtimeReport={runtimeReport}
               articleCompareInput={articleCompareInput}
               scanStartedOnce={articleTextScanStartedOnce}
+              pageByUrlStartedOnce={pageByUrlStartedOnce}
               compareStartedOnce={articleCompareStartedOnce}
               solutionProvidedOnce={articleTextSolutionProvidedOnce}
               bridgeUnavailable={
@@ -2126,6 +2547,8 @@ function MainApp() {
               bridgeTargetAppName={bridgeExternalAppName}
               onArticleTextRun={handleRunArticleTextBridge}
               onArticleTextCancel={handleCancelArticleTextBridge}
+              onPageByUrlRun={handleRunPageByUrl}
+              onPageByUrlCancel={handleCancelPageByUrl}
               onArticleCompareRun={handleRunArticleCompare}
               onArticleCompareCancel={handleCancelArticleCompare}
             />

@@ -52,6 +52,7 @@ interface PlannedAnalysisViewProps {
   runtimeReport: RuntimeAuditReport | null;
   articleCompareInput: ArticleComparePromptData | null;
   scanStartedOnce: boolean;
+  pageByUrlStartedOnce: boolean;
   compareStartedOnce: boolean;
   solutionProvidedOnce: boolean;
   bridgeUnavailable: boolean;
@@ -62,6 +63,8 @@ interface PlannedAnalysisViewProps {
     data: ArticleTextPromptData,
   ) => Promise<boolean>;
   onArticleTextCancel: () => void;
+  onPageByUrlRun: (data: PageByUrlPromptData) => Promise<boolean | "fallback">;
+  onPageByUrlCancel: () => void;
   onArticleCompareRun: (
     data: ArticleComparePromptData,
   ) => Promise<boolean | "fallback">;
@@ -81,6 +84,7 @@ export default function PlannedAnalysisView({
   runtimeReport,
   articleCompareInput,
   scanStartedOnce,
+  pageByUrlStartedOnce,
   compareStartedOnce,
   solutionProvidedOnce,
   bridgeUnavailable,
@@ -88,6 +92,8 @@ export default function PlannedAnalysisView({
   bridgeTargetAppName,
   onArticleTextRun,
   onArticleTextCancel,
+  onPageByUrlRun,
+  onPageByUrlCancel,
   onArticleCompareRun,
   onArticleCompareCancel,
 }: PlannedAnalysisViewProps) {
@@ -141,11 +147,14 @@ export default function PlannedAnalysisView({
               executionMode,
               onArticleTextRun,
               onArticleTextCancel,
+              onPageByUrlRun,
+              onPageByUrlCancel,
               onArticleCompareRun,
               onArticleCompareCancel,
               activeRun,
               bridgeState,
               scanStartedOnce,
+              pageByUrlStartedOnce,
               compareStartedOnce,
               solutionProvidedOnce,
               bridgeUnavailable,
@@ -188,6 +197,21 @@ export default function PlannedAnalysisView({
         {analysisType === "article_text" &&
           (articleTextState || runtimeReport || activeRun === "scan") &&
           articleTextState?.input?.action !== "solution" && (
+          <section className="pb-8">
+            {articleTextState ? (
+              <ArticleTextResultsDashboard state={articleTextState} />
+            ) : (
+              <ApiArticleTextReportPanel
+                report={runtimeReport}
+                completedTools={completedTools}
+                totalTools={totalTools}
+              />
+            )}
+          </section>
+        )}
+
+        {analysisType === "page_by_url" &&
+          (articleTextState || runtimeReport || activeRun === "scan" || pageByUrlStartedOnce) && (
           <section className="pb-8">
             {articleTextState ? (
               <ArticleTextResultsDashboard state={articleTextState} />
@@ -313,11 +337,14 @@ function renderInputSurface(
     data: ArticleTextPromptData,
   ) => Promise<boolean>,
   onArticleTextCancel: () => void,
+  onPageByUrlRun: (data: PageByUrlPromptData) => Promise<boolean | "fallback">,
+  onPageByUrlCancel: () => void,
   onArticleCompareRun: (data: ArticleComparePromptData) => Promise<boolean>,
   onArticleCompareCancel: () => void,
   activeRun: ArticleTextAction | null,
   bridgeState: CurrentScanState | null,
   scanStartedOnce: boolean,
+  pageByUrlStartedOnce: boolean,
   compareStartedOnce: boolean,
   solutionProvidedOnce: boolean,
   bridgeUnavailable: boolean,
@@ -327,35 +354,15 @@ function renderInputSurface(
   switch (analysisType) {
     case "page_by_url":
       return (
-        <InputPanel
-          title={t("plannedAnalysis.forms.pageByUrl.title", {
-            defaultValue: "Page source",
-          })}
-          actionLabel={t("plannedAnalysis.actionLocked", {
-            defaultValue: "Execution is being prepared",
-          })}
-        >
-          <TextInput
-            label={t("plannedAnalysis.forms.url", { defaultValue: "URL" })}
-            placeholder="https://example.com/article"
-          />
-          <TextArea
-            label={t("plannedAnalysis.forms.optionalTextBlock", {
-              defaultValue: "Optional text block",
-            })}
-            placeholder={t("plannedAnalysis.forms.optionalTextBlockPlaceholder", {
-              defaultValue:
-                "Paste a specific fragment if only part of the page should be analyzed.",
-            })}
-            rows={7}
-            actionLabel={t("plannedAnalysis.forms.textBlockAction", {
-              defaultValue: "Text block",
-            })}
-            actionMarker={t("plannedAnalysis.forms.textBlockMarker", {
-              defaultValue: "------------------------- text block -------------------------",
-            })}
-          />
-        </InputPanel>
+        <PageByUrlPanel
+          onRun={onPageByUrlRun}
+          onCancel={onPageByUrlCancel}
+          active={activeRun === "scan"}
+          executionMode={executionMode}
+          startedOnce={pageByUrlStartedOnce}
+          bridgeUnavailable={bridgeUnavailable}
+          bridgeUnavailableAppName={bridgeUnavailableAppName}
+        />
       );
     case "article_text":
       return (
@@ -468,6 +475,11 @@ export interface ArticleTextPromptData {
   body: string;
 }
 
+export interface PageByUrlPromptData {
+  url: string;
+  textBlock: string;
+}
+
 export interface ArticleComparePromptData {
   goal: string;
   goalMode: RuntimeArticleCompareGoalMode;
@@ -522,6 +534,179 @@ export function inferArticleCompareGoalMode(
   if (mentionsB && !mentionsA) return "focus_text_b";
   if (mentionsA && !mentionsB) return "focus_text_a";
   return "standard_comparison";
+}
+
+function PageByUrlPanel({
+  onRun,
+  onCancel,
+  active,
+  executionMode,
+  startedOnce,
+  bridgeUnavailable,
+  bridgeUnavailableAppName,
+}: {
+  onRun: (data: PageByUrlPromptData) => Promise<boolean | "fallback">;
+  onCancel: () => void;
+  active: boolean;
+  executionMode: AuditExecutionMode;
+  startedOnce: boolean;
+  bridgeUnavailable: boolean;
+  bridgeUnavailableAppName: string;
+}) {
+  const { t } = useTranslation();
+  const urlRef = useRef("");
+  const textBlockRef = useRef("");
+  const [stats, setStats] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    if (active) {
+      onCancel();
+      setNotice(
+        t("plannedAnalysis.forms.scanCancelled", {
+          defaultValue: "Analysis cancelled.",
+        }),
+      );
+      return;
+    }
+
+    if (bridgeUnavailable) {
+      setNotice(
+        t("plannedAnalysis.forms.bridgeUnavailable", {
+          defaultValue:
+            "{{appName}} is closed. Start it again or choose API + AI Chat on the home screen.",
+          appName: bridgeUnavailableAppName,
+        }),
+      );
+      return;
+    }
+
+    const data: PageByUrlPromptData = {
+      url: urlRef.current.trim(),
+      textBlock: textBlockRef.current,
+    };
+    if (!/^https?:\/\//i.test(data.url)) {
+      setNotice(
+        t("plannedAnalysis.forms.pageByUrlNeedUrl", {
+          defaultValue: "Введите полный URL страницы: https://...",
+        }),
+      );
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const ok = await onRun(data);
+      if (ok) {
+        setNotice(
+          executionMode === "native"
+            ? t("plannedAnalysis.forms.pageByUrlSentToApiChat", {
+                defaultValue:
+                  "Анализ страницы по URL запущен в API + AI Chat. Отчет появится здесь после ответа модели.",
+              })
+            : ok === "fallback"
+            ? t("plannedAnalysis.forms.pageByUrlSkillFallbackPromptCopied", {
+                appName: bridgeUnavailableAppName,
+                defaultValue:
+                  "Промпт скопирован. Вставьте его в {{appName}}, чтобы ИИ проанализировал страницу по Skill, пока MCP или приложение недоступны.",
+              })
+            : t("plannedAnalysis.forms.pageByUrlPromptCopied", {
+                defaultValue:
+                  "Анализ страницы по URL запущен через MCP + Instructions. Результаты появятся здесь после выполнения инструментов.",
+              }),
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="rounded-lg border border-outline/10 bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-semibold text-outline-900">
+            {t("plannedAnalysis.forms.pageByUrl.title", {
+              defaultValue: "Источник страницы",
+            })}
+          </h2>
+          <p className="mt-1 text-sm leading-relaxed text-outline-900/60">
+            {t("plannedAnalysis.forms.pageByUrl.body", {
+              defaultValue:
+                "ToraSEO выделит основной текст статьи из HTML, пропустит рекламные и служебные блоки, затем запустит проверки как в анализе текста.",
+            })}
+          </p>
+        </div>
+        <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-outline-900/55">
+          {executionMode === "native" ? "API + AI Chat" : "MCP + Instructions"}
+        </span>
+      </div>
+
+      <div className="mt-4">
+        <TextInput
+          label={t("plannedAnalysis.forms.url", { defaultValue: "URL" })}
+          placeholder="https://example.com/article"
+          onValueChange={(value) => {
+            urlRef.current = value;
+          }}
+        />
+      </div>
+
+      <div className="mt-4">
+        <TextArea
+          label={t("plannedAnalysis.forms.optionalTextBlock", {
+            defaultValue: "Необязательный фрагмент текста",
+          })}
+          placeholder={t("plannedAnalysis.forms.optionalTextBlockPlaceholder", {
+            defaultValue:
+              "Вставьте конкретный фрагмент, если нужно анализировать только часть страницы.",
+          })}
+          rows={8}
+          actionLabel={t("plannedAnalysis.forms.textBlockAction", {
+            defaultValue: "Фрагмент",
+          })}
+          actionMarker={t("plannedAnalysis.forms.textBlockMarker", {
+            defaultValue: "------------------------- текстовый фрагмент -------------------------",
+          })}
+          onValueChange={(value) => {
+            textBlockRef.current = value;
+            setStats(formatTextStats(value));
+          }}
+        />
+        <p className="mt-2 text-xs text-outline-900/50">{stats}</p>
+      </div>
+
+      {notice && (
+        <p className="mt-4 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800">
+          {notice}
+        </p>
+      )}
+
+      <div className="mt-5 flex justify-end">
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={busy}
+          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+            active
+              ? "border border-orange-300 bg-white text-orange-800 hover:bg-orange-50"
+              : "bg-primary text-white hover:bg-primary-600 disabled:bg-outline-900/15 disabled:text-outline-900/45"
+          }`}
+        >
+          {active
+            ? t("sidebar.cancel", { defaultValue: "Отменить" })
+            : startedOnce
+              ? t("plannedAnalysis.forms.pageByUrlRunAgain", {
+                  defaultValue: "Анализировать страницу повторно",
+                })
+              : t("plannedAnalysis.forms.pageByUrlRun", {
+                  defaultValue: "Анализировать страницу",
+                })}
+        </button>
+      </div>
+    </section>
+  );
 }
 
 function ArticleComparePanel({
@@ -2751,7 +2936,10 @@ function ArticleTextResultsDashboard({
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const evalLabEnabled = isEvalLabEnabled();
-  if (state?.analysisType !== "article_text") return null;
+  if (
+    state?.analysisType !== "article_text" &&
+    state?.analysisType !== "page_by_url"
+  ) return null;
 
   const entries = state.selectedTools
     .map((toolId) => [toolId, state.buffer[toolId]] as const)
@@ -3252,6 +3440,10 @@ function ArticleTextResultsDashboard({
         </div>
       </section>
 
+      {state.analysisType === "page_by_url" && (
+        <PageSearchMentionsAccordion state={state} />
+      )}
+
       <div className="mt-5">
         <h3 className="text-center text-sm font-semibold text-outline-900">
           {t("plannedAnalysis.results.toolEvidenceTitle", {
@@ -3425,6 +3617,103 @@ function IntentForecastPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+function PageSearchMentionsAccordion({
+  state,
+}: {
+  state: CurrentScanState;
+}) {
+  const { t } = useTranslation();
+  const searchEntries = [
+    state.buffer.analyze_google_page_search,
+    state.buffer.analyze_yandex_page_search,
+  ].filter(Boolean);
+  if (searchEntries.length === 0) return null;
+
+  const mentionItems = searchEntries.flatMap((entry) => {
+    const data = entry?.data as
+      | {
+          engine?: string;
+          mentions?: {
+            count?: number | null;
+            note?: string;
+            items?: Array<{
+              source?: string;
+              title?: string;
+              url?: string;
+              mention_context?: string;
+            }>;
+          };
+        }
+      | undefined;
+    return (data?.mentions?.items ?? []).map((item) => ({
+      ...item,
+      engine: data?.engine,
+    }));
+  });
+  const notes = searchEntries
+    .map((entry) => {
+      const data = entry?.data as
+        | {
+            engine?: string;
+            mentions?: { count?: number | null; note?: string };
+            owner_metrics?: { note?: string };
+          }
+        | undefined;
+      const engine = data?.engine === "yandex" ? "Яндекс" : "Google";
+      return `${engine}: ${
+        data?.mentions?.count ?? "н/д"
+      } упоминаний. ${data?.mentions?.note ?? data?.owner_metrics?.note ?? ""}`;
+    })
+    .filter(Boolean);
+
+  return (
+    <details className="mt-4 rounded-lg border border-outline/10 bg-white p-4">
+      <summary className="cursor-pointer text-sm font-semibold text-outline-900">
+        {t("plannedAnalysis.results.pageMentionsTitle", {
+          defaultValue: "Упоминания страницы в поиске и на ресурсах",
+        })}
+      </summary>
+      <div className="mt-3 space-y-2 text-sm leading-relaxed text-outline-900/65">
+        {notes.map((note) => (
+          <p key={note}>{note}</p>
+        ))}
+        {mentionItems.length > 0 ? (
+          <div className="grid gap-2">
+            {mentionItems.map((item, index) => (
+              <a
+                key={`${item.url ?? index}-${index}`}
+                href={item.url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md border border-outline/10 bg-orange-50/40 p-3 transition hover:border-primary/30"
+              >
+                <span className="block text-xs font-semibold uppercase tracking-wider text-outline-900/45">
+                  {item.engine ?? item.source ?? "source"}
+                </span>
+                <span className="mt-1 block font-semibold text-outline-900">
+                  {item.title || item.url}
+                </span>
+                {item.mention_context && (
+                  <span className="mt-1 block text-xs text-outline-900/55">
+                    {item.mention_context}
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p>
+            {t("plannedAnalysis.results.pageMentionsEmpty", {
+              defaultValue:
+                "Список ссылок пуст, потому что публичные поисковые упоминания требуют подключенного поискового индекса, SERP API или владелецких данных.",
+            })}
+          </p>
+        )}
+      </div>
+    </details>
   );
 }
 
@@ -4140,6 +4429,67 @@ function summaryLabel(
     probability: t("plannedAnalysis.results.summary.probability", {
       defaultValue: "Вероятность",
     }),
+    traceScore: t("plannedAnalysis.results.summary.traceScore", {
+      defaultValue: "AI-сигналы",
+    }),
+    genericSignals: t("plannedAnalysis.results.summary.genericSignals", {
+      defaultValue: "Общие фразы",
+    }),
+    formalSignals: t("plannedAnalysis.results.summary.formalSignals", {
+      defaultValue: "Формальность",
+    }),
+    repeatedTerms: t("plannedAnalysis.results.summary.repeatedTerms", {
+      defaultValue: "Повторы",
+    }),
+    sentenceLengthVariance: t(
+      "plannedAnalysis.results.summary.sentenceLengthVariance",
+      { defaultValue: "Разброс фраз" },
+    ),
+    genericnessScore: t("plannedAnalysis.results.summary.genericnessScore", {
+      defaultValue: "Шаблонность",
+    }),
+    waterySignals: t("plannedAnalysis.results.summary.waterySignals", {
+      defaultValue: "Водные фразы",
+    }),
+    concreteSignals: t("plannedAnalysis.results.summary.concreteSignals", {
+      defaultValue: "Конкретика",
+    }),
+    authorialSignals: t("plannedAnalysis.results.summary.authorialSignals", {
+      defaultValue: "Авторский опыт",
+    }),
+    avgSentenceWords: t("plannedAnalysis.results.summary.avgSentenceWords", {
+      defaultValue: "Слов в фразе",
+    }),
+    longSentences: t("plannedAnalysis.results.summary.longSentences", {
+      defaultValue: "Длинные фразы",
+    }),
+    heavyParagraphs: t("plannedAnalysis.results.summary.heavyParagraphs", {
+      defaultValue: "Тяжёлые абзацы",
+    }),
+    sentenceCount: t("plannedAnalysis.results.summary.sentenceCount", {
+      defaultValue: "Фраз",
+    }),
+    risk: t("plannedAnalysis.results.summary.risk", {
+      defaultValue: "Риск",
+    }),
+    queueSize: t("plannedAnalysis.results.summary.queueSize", {
+      defaultValue: "В очереди",
+    }),
+    exactNumbers: t("plannedAnalysis.results.summary.exactNumbers", {
+      defaultValue: "Числа",
+    }),
+    absoluteClaims: t("plannedAnalysis.results.summary.absoluteClaims", {
+      defaultValue: "Категоричность",
+    }),
+    vagueAuthorities: t("plannedAnalysis.results.summary.vagueAuthorities", {
+      defaultValue: "Размытые источники",
+    }),
+    sensitiveClaims: t("plannedAnalysis.results.summary.sensitiveClaims", {
+      defaultValue: "Чувствительные тезисы",
+    }),
+    sourceSignals: t("plannedAnalysis.results.summary.sourceSignals", {
+      defaultValue: "Источники",
+    }),
     uniqueWordRatio: t("plannedAnalysis.results.summary.uniqueWordRatio", {
       defaultValue: "Уникальные слова",
     }),
@@ -4564,6 +4914,33 @@ function textIssueMessage(
       defaultValue:
         "Есть признаки, что фактические детали, созданные или обработанные ИИ, нужно перепроверить.",
     }),
+    ai_trace_map_risk: t("plannedAnalysis.results.issueMessages.ai_trace_map_risk", {
+      defaultValue:
+        "Несколько фрагментов выглядят как AI-черновик: служебные переходы, формальность, повторы или слишком ровный ритм.",
+    }),
+    generic_watery_text: t("plannedAnalysis.results.issueMessages.generic_watery_text", {
+      defaultValue:
+        "Текст может звучать водянисто: много общих мыслей и служебных фраз, мало конкретики.",
+    }),
+    low_concrete_evidence: t("plannedAnalysis.results.issueMessages.low_concrete_evidence", {
+      defaultValue:
+        "Для такого объёма в тексте мало примеров, цифр, источников, кейсов или практических деталей.",
+    }),
+    readability_complexity_risk: t(
+      "plannedAnalysis.results.issueMessages.readability_complexity_risk",
+      {
+        defaultValue:
+          "Плотные предложения или тяжёлые абзацы мешают быстро понять текст.",
+      },
+    ),
+    heavy_paragraphs: t("plannedAnalysis.results.issueMessages.heavy_paragraphs", {
+      defaultValue:
+        "Один или несколько абзацев слишком тяжёлые для быстрого сканирования.",
+    }),
+    claim_source_queue: t("plannedAnalysis.results.issueMessages.claim_source_queue", {
+      defaultValue:
+        "Часть утверждений стоит вынести в редакторскую очередь проверки источников.",
+    }),
     vague_authorities: t("plannedAnalysis.results.issueMessages.vague_authorities", {
       defaultValue:
         "Фразы вроде «эксперты считают» или «исследования показывают» лучше привязать к конкретному источнику.",
@@ -4686,6 +5063,25 @@ function textRecommendation(
       defaultValue:
         "Чтобы текст звучал авторски, добавьте специфичные примеры, контекст и разнообразьте ритм фраз.",
     }),
+    ai_trace_map: t("plannedAnalysis.results.recommendations.aiTrace", {
+      defaultValue:
+        "Используйте карту AI-фрагментов как редакторский маршрут: замените шаблонные переходы примерами, источниками или авторским суждением.",
+    }),
+    genericness_water_check: t("plannedAnalysis.results.recommendations.genericness", {
+      defaultValue:
+        "Превратите общие абзацы в полезные: добавьте пример, источник, цифру или действие для читателя.",
+    }),
+    readability_complexity: t(
+      "plannedAnalysis.results.recommendations.readabilityComplexity",
+      {
+        defaultValue:
+          "Сначала укоротите плотные предложения и разбейте тяжёлые абзацы, потом полируйте стиль.",
+      },
+    ),
+    claim_source_queue: t("plannedAnalysis.results.recommendations.claimQueue", {
+      defaultValue:
+        "Проверьте все утверждения из очереди по источникам; если источник слабый, смягчите или уберите тезис.",
+    }),
     naturalness_indicators: t("plannedAnalysis.results.recommendations.naturalness", {
       defaultValue:
         "Разнообразьте начала предложений и уберите служебные фразы, которые не добавляют смысла.",
@@ -4806,7 +5202,7 @@ function inferArticleTitle(
   topic: string | undefined,
   platformKey: string,
 ): { title: string; titleNote: string | null } {
-  if (topic?.trim()) {
+  if (topic?.trim() && !/^https?:\/\//i.test(topic.trim())) {
     return { title: topic.trim(), titleNote: null };
   }
   const titleCandidate = firstExplicitArticleTitleLine(text, 120);
@@ -4947,6 +5343,22 @@ function resultDescription(
     ai_writing_probability: t("plannedAnalysis.results.descriptions.ai", {
       defaultValue: "Оценивает признаки ИИ-стиля в тексте.",
     }),
+    ai_trace_map: t("plannedAnalysis.results.descriptions.aiTrace", {
+      defaultValue:
+        "Показывает локальные AI-похожие фрагменты без вердикта об авторстве.",
+    }),
+    genericness_water_check: t("plannedAnalysis.results.descriptions.genericness", {
+      defaultValue:
+        "Проверяет, не слишком ли текст общий, водянистый и шаблонный.",
+    }),
+    readability_complexity: t("plannedAnalysis.results.descriptions.readabilityComplexity", {
+      defaultValue:
+        "Проверяет плотность фраз и тяжёлые абзацы.",
+    }),
+    claim_source_queue: t("plannedAnalysis.results.descriptions.claimQueue", {
+      defaultValue:
+        "Собирает утверждения, которые нужно перепроверить по источникам.",
+    }),
     naturalness_indicators: t("plannedAnalysis.results.descriptions.naturalness", {
       defaultValue: "Ищет механические формулировки и повторы.",
     }),
@@ -5011,7 +5423,9 @@ function inferCategoryFromKeywords(keywords: string[]): string {
 
 function inferSeoTitleFromInput(text: string, topic?: string): string {
   const topicTitle = topic?.trim() ?? "";
-  if (topicTitle && !isServiceSeoValue(topicTitle)) return topicTitle;
+  if (topicTitle && !/^https?:\/\//i.test(topicTitle) && !isServiceSeoValue(topicTitle)) {
+    return topicTitle;
+  }
   return firstExplicitArticleTitleLine(text, 90);
 }
 
@@ -5272,6 +5686,14 @@ function buildArticleTextSummary(
     "ai_writing_probability",
     "probability",
   );
+  const aiTraceScore = metricValue(state, "ai_trace_map", "traceScore");
+  const genericnessScore = metricValue(
+    state,
+    "genericness_water_check",
+    "genericnessScore",
+  );
+  const readabilityScore = metricValue(state, "readability_complexity", "score");
+  const claimQueueRisk = metricValue(state, "claim_source_queue", "risk");
   const logicScore = metricValue(state, "logic_consistency_check", "score");
   const naturalnessWarnings =
     state.buffer.naturalness_indicators?.summary?.warning ?? 0;
@@ -5369,6 +5791,8 @@ function buildArticleTextSummary(
       status: dimensionStatus([
         scoreStatus(uniqueness, false),
         scoreStatus(aiProbability, true),
+        scoreStatus(aiTraceScore, true),
+        scoreStatus(genericnessScore, true),
         naturalnessWarnings >= 2
           ? "problem"
           : naturalnessWarnings >= 1
@@ -5392,6 +5816,8 @@ function buildArticleTextSummary(
       sourceToolIds: [
         "article_uniqueness",
         "ai_writing_probability",
+        "ai_trace_map",
+        "genericness_water_check",
         "naturalness_indicators",
       ],
     },
@@ -5402,6 +5828,7 @@ function buildArticleTextSummary(
       }),
       status: dimensionStatus([
         scoreStatus(syntax, false),
+        scoreStatus(readabilityScore, false),
         entryStatus(state, "analyze_text_structure"),
         entryStatus(state, "analyze_text_style"),
       ]),
@@ -5421,6 +5848,7 @@ function buildArticleTextSummary(
             }),
       sourceToolIds: [
         "language_syntax",
+        "readability_complexity",
         "analyze_text_structure",
         "analyze_text_style",
       ],
@@ -5462,6 +5890,7 @@ function buildArticleTextSummary(
         ),
         entryStatus(state, "fact_distortion_check"),
         entryStatus(state, "ai_hallucination_check"),
+        scoreStatus(claimQueueRisk, true),
       ]),
       detail: t("plannedAnalysis.results.dimensions.trustDetail", {
         defaultValue:
@@ -5477,7 +5906,11 @@ function buildArticleTextSummary(
               defaultValue:
                 "Run optional trust checks for claim-heavy medical, legal, finance, or technical articles.",
             }),
-      sourceToolIds: ["fact_distortion_check", "ai_hallucination_check"],
+      sourceToolIds: [
+        "fact_distortion_check",
+        "ai_hallucination_check",
+        "claim_source_queue",
+      ],
     },
     {
       id: "platform",
@@ -5901,6 +6334,18 @@ function textToolLabel(
     }),
     ai_writing_probability: t("analysisTools.ai_writing_probability.label", {
       defaultValue: "Вероятность написания ИИ",
+    }),
+    ai_trace_map: t("analysisTools.ai_trace_map.label", {
+      defaultValue: "Карта AI-фрагментов",
+    }),
+    genericness_water_check: t("analysisTools.genericness_water_check.label", {
+      defaultValue: "Водность и шаблонность",
+    }),
+    readability_complexity: t("analysisTools.readability_complexity.label", {
+      defaultValue: "Читаемость и сложность",
+    }),
+    claim_source_queue: t("analysisTools.claim_source_queue.label", {
+      defaultValue: "Очередь фактов на проверку",
     }),
     fact_distortion_check: t("analysisTools.fact_distortion_check.label", {
       defaultValue: "Искажение фактов",

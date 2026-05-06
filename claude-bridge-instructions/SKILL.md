@@ -11,11 +11,11 @@ Claude-side package turns a single user intent ("audit this site") into
 a coordinated sequence of MCP tool calls and produces a clear,
 prioritized report.
 
-> **Status: Mode A (Site Audit) + Mode B (Article Text) + Mode C (Two-Text Comparison) + Bridge Mode handshake.**
-> The `0.0.9` expansion adds article-text and two-text comparison MCP
-> tools. In Bridge Mode the app stores the temporary text context in
-> workspace `input.md`; Claude must not ask the user to paste the article
-> or comparison texts into chat.
+> **Status: Mode A (Site Audit) + Mode B (Article Text) + Mode C (Two-Text Comparison) + Mode D (Page by URL) + Bridge Mode handshake.**
+> The `0.0.9` expansion adds article-text, two-text comparison, and
+> page-by-URL MCP tools. In Bridge Mode the app stores the temporary text
+> context in workspace `input.md`; Claude must not ask the user to paste
+> the article, URL page text, or comparison texts into chat.
 
 Bridge Mode has two command families:
 
@@ -113,6 +113,8 @@ Treat any of the following as a Bridge Mode signal:
   article-text bridge command copied by the Desktop App).
 - The pasted message starts with `/toraseobridge article-compare` (the
   two-text comparison bridge command copied by the Desktop App).
+- The pasted message starts with `/toraseobridge page-by-url` (the
+  page/article by URL bridge command copied by the Desktop App).
 - The pasted message starts with `/toraseo chat-only-fallback` (the
   Desktop App copied a fallback prompt because the Skill is installed but
   MCP and/or the app scan is unavailable). In this case load
@@ -199,6 +201,20 @@ purpose:
 
 Compare text evidence only; do not claim ranking causes from text alone
 and do not rewrite the full article unless the user asks later.
+
+If `analysisType` is `page_by_url`, the URL and optional highlighted text
+block are already stored in the active ToraSEO app state. Do **not** ask
+the user to paste the page text into Claude. Call `page_url_article_internal`
+when it is returned in `selectedTools`; that single MCP call performs the
+page-level checks, extracts the main article text, runs the selected
+article-text checks, and writes individual results back to the app under
+normal check names. If Google or Yandex page search checks are also
+returned in `selectedTools`, call them after the internal package. Treat
+search clicks, impressions, daily/monthly views, external mentions, and
+index visibility as unavailable unless a real connected search provider
+or evidence is present. In the final chat answer, use normal user-facing
+check names and do not mention handshake details, scan IDs, backend tool
+IDs, selectedTools, sourceToolIds, or result file paths.
 
 Call each tool in `selectedTools` (in any order, but matching the
 listed order makes the app's UI feel linear). Each tool writes
@@ -653,6 +669,17 @@ When the bridge handshake returns `analysisType: "article_text"`:
   CTR/trend-potential, and WordPress/Laravel CMS metadata suggestions.
   Treat it as a local forecast unless a real SERP, Search Console, or
   social-platform data source is explicitly connected.
+- Treat the newer text checks as separate editorial questions, not as
+  one generic "AI detector":
+  `ai_writing_probability` estimates AI-like style/rhythm probability
+  and is not proof of authorship; `ai_trace_map` highlights local
+  AI-like editing targets such as generic transitions, formal wording,
+  repeated terms, or overly even rhythm; `genericness_water_check`
+  flags broad/watery phrasing and weak concrete evidence;
+  `readability_complexity` flags dense sentences and heavy paragraphs;
+  `claim_source_queue` collects claims, numbers, absolute wording,
+  vague authorities, and sensitive statements that need manual source
+  verification, softer wording, or removal.
 - If `safety_science_review` is present, surface critical warnings
   clearly and do not help with illegal activity, platform-rule evasion,
   or dangerous instructions. For legal, scientific, medical, investment,
@@ -684,11 +711,12 @@ when ToraSEO Desktop App is unavailable, analyze the pasted chat text
 through this SKILL in chat-only mode. Use the same article-text logic as
 the bridge path where possible: platform/use-case, structure, style,
 tone, language/audience, media placeholders, local repetition,
-AI-writing style risk, logic, SEO intent/metadata draft, and
-safety/science/legal-sensitive risk flags. Make clear that no structured
-results are written into the ToraSEO app and that local/chat-only review
-is not live SERP, plagiarism, legal, medical, investment, engineering,
-or scientific verification.
+AI-writing style risk, AI trace map, genericness/watery text,
+readability/complexity, claim source queue, logic, SEO intent/metadata
+draft, and safety/science/legal-sensitive risk flags. Make clear that no
+structured results are written into the ToraSEO app and that local/chat-only
+review is not live SERP, plagiarism, legal, medical, investment,
+engineering, scientific, or external source verification.
 
 If the standalone user asks to rewrite or draft the article, write the
 article directly in chat as a separate copyable block. Keep the rewrite

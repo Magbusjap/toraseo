@@ -28,6 +28,12 @@ If the user provided a URL only and MCP/network tools are unavailable, do
 not pretend the page was fetched. Ask for the page text, title/meta, or a
 brief extract, or provide a checklist of what to collect.
 
+If the user provided a URL plus a copied/highlighted page fragment, treat
+that fragment as the intended article evidence and analyze it as a page
+article excerpt. Make clear that URL-level fetching, robots/meta/headings,
+index visibility, search clicks/impressions, and mention discovery did not
+run in chat-only fallback mode.
+
 If the user provided one article text, analyze conceptually:
 
 - platform/use-case fit
@@ -36,7 +42,16 @@ If the user provided one article text, analyze conceptually:
 - language and audience
 - media placeholders
 - local uniqueness and repetition risk
-- AI-writing style signals
+- AI-writing style probability, explicitly not proof of authorship
+- AI trace map: local AI-like editing targets such as generic transitions,
+  formal wording, repeated terms, or overly even rhythm
+- genericness/watery text: broad filler, repeated generic concepts, and
+  missing concrete examples, numbers, sources, cases, or reader actions
+- readability/complexity: dense sentences, long phrases, heavy paragraphs,
+  and scan friction
+- claim source queue: claims, numbers, absolute wording, vague authorities,
+  and sensitive statements that need manual source verification, softer
+  wording, or removal
 - logic and claim-risk markers
 - SEO intent/title/meta draft when enough context exists
 - safety/science/legal-sensitive risk flags

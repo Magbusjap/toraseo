@@ -33,7 +33,16 @@ categories as ToraSEO text analysis:
 - language and audience
 - media placeholders
 - local uniqueness and repetition risk
-- AI-writing style signals
+- AI-writing style probability, explicitly not proof of authorship
+- AI trace map: local AI-like editing targets such as generic transitions,
+  formal wording, repeated terms, or overly even rhythm
+- genericness/watery text: broad filler, repeated generic concepts, and
+  missing concrete examples, numbers, sources, cases, or reader actions
+- readability/complexity: dense sentences, long phrases, heavy paragraphs,
+  and scan friction
+- claim source queue: claims, numbers, absolute wording, vague authorities,
+  and sensitive statements that need manual source verification, softer
+  wording, or removal
 - logic and claim-risk markers
 - SEO intent/title/meta draft when enough context exists
 - safety/science/legal-sensitive risk flags

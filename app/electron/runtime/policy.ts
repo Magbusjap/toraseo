@@ -75,7 +75,7 @@ const STAGE1_RULES: RuntimePolicyRule[] = [
   },
   {
     id: "text.native-tool-scope",
-    text: "In API + AI Chat mode, article-text work must stay within the active analysis scope. Use only the text-analysis checks relevant to the user's request instead of pretending every possible tool ran. Core checks are platform/use-case, structure, style, tone, language/audience, media placeholders, local uniqueness/repetition, syntax, AI-writing style probability, naturalness, logic consistency, local SEO intent/metadata forecast, and safety/science/legal-sensitive risk flags. Optional claim checks are fact distortion and AI hallucination review.",
+    text: "In API + AI Chat mode, article-text work must stay within the active analysis scope. Use only the text-analysis checks relevant to the user's request instead of pretending every possible tool ran. Core checks are platform/use-case, structure, style, tone, language/audience, media placeholders, local uniqueness/repetition, syntax, AI-writing style probability, AI trace map, genericness/watery text, readability/complexity, claim source queue, naturalness, logic consistency, local SEO intent/metadata forecast, and safety/science/legal-sensitive risk flags. Keep these separate: AI-writing probability is not authorship proof; AI trace map is an editing map; genericness/watery text is about broad filler and weak concrete evidence; readability/complexity is about dense sentences and heavy paragraphs; claim source queue is for manual source verification. Optional claim checks are fact distortion and AI hallucination review.",
   },
   {
     id: "text.media-placement-before-rewrite",

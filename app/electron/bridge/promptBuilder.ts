@@ -107,7 +107,7 @@ ToraSEO ожидает анализ сайта: ${url}.
 Детали возьми из SKILL + MCP.`;
 
 const TEXT_EVIDENCE_BOUNDARY =
-  "Base recommendations only on selected MCP tool evidence. Use intent_seo_forecast for intent, hook, CTR, and CMS metadata suggestions when present. Keep backend IDs out of user-facing wording: translate platform/tool/issue keys into human-readable language and show raw IDs only in parentheses when useful for debugging. If the CMS metadata looks copied from a service line such as Part 1, Download PDF, or a numeric navigation line, call it a weak draft and suggest a clearer title, description, keywords, category, tags, and slug from the article topic. Use safety_science_review warnings for unsafe, legal-sensitive, scientific, or calculation-heavy content, while noting that AI can be wrong and does not replace expert review. Do not claim live SERP/social demand unless an external data source explicitly provides it. Do not rewrite, rank, or add editorial claims outside that evidence. If the user later asks to rewrite or improve the analyzed article, call article_rewrite_context instead of reading input.md directly or asking the user to paste the article again. Write the rewritten article directly in chat as a separate copyable article block; the user will copy it into ToraSEO and run a new scan. Keep rewrite choices aligned with the active workflow instructions, selected tools, platform/style/audience fit, SEO intent, media-marker policy, and risk warnings.";
+  "Base recommendations only on selected MCP tool evidence. Treat ai_writing_probability, ai_trace_map, genericness_water_check, readability_complexity, claim_source_queue, and ai_hallucination_check as separate checks: AI-writing probability is a style/rhythm heuristic, AI trace map is an editing map of local AI-like fragments rather than authorship proof, genericness/watery text flags broad filler and weak concrete evidence, readability/complexity flags dense sentences and heavy paragraphs, claim source queue lists claims needing source review, and hallucination review is an optional claim-safety signal. Use intent_seo_forecast for intent, hook, CTR, and CMS metadata suggestions when present. Keep backend IDs out of user-facing wording: translate platform/tool/issue keys into human-readable language and show raw IDs only in parentheses when useful for debugging. If the CMS metadata looks copied from a service line such as Part 1, Download PDF, or a numeric navigation line, call it a weak draft and suggest a clearer title, description, keywords, category, tags, and slug from the article topic. Use safety_science_review warnings for unsafe, legal-sensitive, scientific, or calculation-heavy content, while noting that AI can be wrong and does not replace expert review. Do not claim live SERP/social demand unless an external data source explicitly provides it. Do not rewrite, rank, or add editorial claims outside that evidence. If the user later asks to rewrite or improve the analyzed article, call article_rewrite_context instead of reading input.md directly or asking the user to paste the article again. Write the rewritten article directly in chat as a separate copyable article block; the user will copy it into ToraSEO and run a new scan. Keep rewrite choices aligned with the active workflow instructions, selected tools, platform/style/audience fit, SEO intent, media-marker policy, and risk warnings.";
 
 function articleTextRunLabel(state?: Pick<CurrentScanState, "input">): {
   isSolution: boolean;
@@ -217,6 +217,38 @@ ToraSEO ожидает сравнение двух текстов.
 Сделай обязательную проверку подключения ToraSEO, затем запусти проверки сравнения.
 В финальном ответе в чате не упоминай служебные детали проверки подключения, идентификаторы запуска, технические id инструментов, агрегатор сравнения или файлы результатов. Напиши обычную пользовательскую сводку сравнения.`;
 
+const PAGE_URL_TEMPLATE_EN = (_url: string, _tools: string): string =>
+  `/toraseobridge page-by-url
+
+ToraSEO is waiting for page article analysis by URL.
+After handshake and all selected MCP tools, give recommendations in chat based on tool results.
+Use SKILL + MCP for the URL, selected tools, extracted article text, and page URL cleanup details.`;
+
+const PAGE_URL_TEMPLATE_RU = (_url: string, _tools: string): string =>
+  `/toraseobridge page-by-url
+
+ToraSEO ожидает: анализ статьи по URL.
+После handshake и завершения всех выбранных MCP-инструментов дай рекомендации в чате на основе результатов инструментов.
+Детали URL, выбранные инструменты, извлечение текста статьи и очистку длинной ссылки возьми из SKILL + MCP.`;
+
+const CODEX_PAGE_URL_TEMPLATE_EN = (_url: string): string =>
+  `Use $toraseo-codex-workflow.
+
+/toraseo codex-bridge-mode page-by-url
+
+ToraSEO is waiting for page article analysis by URL.
+After handshake and all selected MCP tools, give recommendations in chat based on tool results.
+Use SKILL + MCP for the URL, selected tools, extracted article text, and page URL cleanup details.`;
+
+const CODEX_PAGE_URL_TEMPLATE_RU = (_url: string): string =>
+  `Используй $toraseo-codex-workflow.
+
+/toraseo codex-bridge-mode page-by-url
+
+ToraSEO ожидает: анализ статьи по URL.
+После handshake и завершения всех выбранных MCP-инструментов дай рекомендации в чате на основе результатов инструментов.
+Детали URL, выбранные инструменты, извлечение текста статьи и очистку длинной ссылки возьми из SKILL + MCP.`;
+
 const TEXT_TEMPLATE_EN = (
   tools: string,
   state?: Pick<CurrentScanState, "input">,
@@ -230,6 +262,7 @@ The ToraSEO Desktop App is running and waiting for ${run.labelEn}.
 Do not ask the user to paste the article here. Use ToraSEO MCP tools; they read input.md from the temporary ToraSEO workspace.
 Use these tools: ${tools}.
 Base recommendations only on selected MCP tool evidence.
+Treat AI-writing probability, AI trace map, genericness/watery text, readability/complexity, claim source queue, and hallucination review as separate signals. Do not present any of them as proof of authorship or external fact-checking.
 Use intent_seo_forecast for intent, hook, CTR, and CMS metadata suggestions when present.
 Use safety_science_review warnings for unsafe, legal-sensitive, scientific, or calculation-heavy content. Note that AI can be wrong and does not replace expert review.
 Do not claim live SERP/social demand unless an external data source explicitly provides it.
@@ -255,6 +288,7 @@ const TEXT_TEMPLATE_RU = (
 
 Не проси пользователя вставлять статью в чат. Используй инструменты ToraSEO MCP; они читают input.md из временной рабочей папки ToraSEO.
 Используй инструменты: ${tools}.
+Разделяй проверки: вероятность ИИ-стиля, карта AI-фрагментов, водность/шаблонность, читаемость/сложность, очередь фактов на проверку и проверка галлюцинаций — это разные сигналы. Не выдавай их за доказательство авторства, внешнюю проверку фактов или проверку плагиата.
 ${run.isSolution ? "\nЭтот запуск сделан через кнопку «Предложить решение». Сначала выполни все выбранные MCP-инструменты, затем предложи конкретное решение в чате на основе их результатов. Если в input.md только тема или слишком мало контекста для готовой статьи, честно скажи, чего не хватает, и дай краткий план/направление черновика вместо имитации полноценного анализа.\n" : ""}
 
 Результаты будут отображены в приложении ToraSEO Desktop App.
@@ -342,6 +376,16 @@ export function buildScanPrompt(
     return locale === "ru"
       ? COMPARE_TEMPLATE_RU(toolsList, state)
       : COMPARE_TEMPLATE_EN(toolsList, state);
+  }
+  if (state?.analysisType === "page_by_url") {
+    if (bridgeClient === "codex") {
+      return locale === "ru"
+        ? CODEX_PAGE_URL_TEMPLATE_RU(url)
+        : CODEX_PAGE_URL_TEMPLATE_EN(url);
+    }
+    return locale === "ru"
+      ? PAGE_URL_TEMPLATE_RU(url, toolsList)
+      : PAGE_URL_TEMPLATE_EN(url, toolsList);
   }
   const template =
     bridgeClient === "codex"

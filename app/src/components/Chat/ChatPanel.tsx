@@ -294,7 +294,8 @@ function buildArticleTextPrompt(
       `Роль анализа: ${context.analysisRole || "стандартная"}`,
       `Выбранные проверки: ${selectedTools || "стандартные проверки текста"}`,
       "",
-      "Сначала оцени текст по релевантным проверкам: платформа, структура, стиль, тон, язык/аудитория, медиа-метки, локальные повторы/уникальность, синтаксис, вероятность ИИ-стиля, естественность, логика, локальный SEO-интент/метаданные и риск-флаги.",
+      "Сначала оцени текст по релевантным проверкам: платформа, структура, стиль, тон, язык/аудитория, медиа-метки, локальные повторы/уникальность, синтаксис, вероятность ИИ-стиля, карта AI-фрагментов, водность/шаблонность, читаемость/сложность, очередь фактов на проверку, естественность, логика, локальный SEO-интент/метаданные и риск-флаги.",
+      "Разделяй эти проверки: вероятность ИИ-стиля не доказывает авторство, карта AI-фрагментов показывает редакторские места, водность ищет общие фразы и слабую конкретику, читаемость ищет плотные предложения и тяжёлые абзацы, очередь фактов собирает утверждения для ручной сверки с источниками.",
       context.action === "solution"
         ? "Затем дай конкретное решение или направление черновика. Если уместен рерайт и контекста достаточно, напиши готовую версию прямо в чате отдельным копируемым блоком."
         : "Затем дай приоритетные рекомендации и следующий шаг. Не переписывай всю статью без запроса.",
@@ -313,7 +314,8 @@ function buildArticleTextPrompt(
     `Analysis role: ${context.analysisRole || "standard"}`,
     `Selected checks: ${selectedTools || "standard text checks"}`,
     "",
-    "First evaluate the text using relevant checks: platform, structure, style, tone, language/audience, media markers, local repetition/uniqueness, syntax, AI-style probability, naturalness, logic, local SEO intent/metadata, and risk flags.",
+    "First evaluate the text using relevant checks: platform, structure, style, tone, language/audience, media markers, local repetition/uniqueness, syntax, AI-style probability, AI trace map, genericness/watery text, readability/complexity, claim source queue, naturalness, logic, local SEO intent/metadata, and risk flags.",
+    "Keep those checks separate: AI-style probability is not authorship proof, AI trace map is an editing map, genericness/watery text is about broad filler and weak concrete evidence, readability/complexity is about dense sentences and heavy paragraphs, and claim source queue is for manual source verification.",
     context.action === "solution"
       ? "Then provide a concrete solution or draft direction. If a rewrite is appropriate and context is sufficient, write the ready version directly in chat as a separate copyable block."
       : "Then provide prioritized recommendations and the next step. Do not rewrite the whole article unless asked.",
@@ -340,6 +342,27 @@ function platformLabelForChat(value: string, locale: SupportedLocale): string {
 
 function toolLabelForChat(value: string, locale: SupportedLocale): string {
   const labels: Record<string, { ru: string; en: string }> = {
+    page_url_article_internal: {
+      ru: "пакет анализа страницы по URL",
+      en: "page URL analysis package",
+    },
+    extract_main_text: {
+      ru: "извлечение основного текста",
+      en: "main text extraction",
+    },
+    check_robots_txt: { ru: "проверка robots.txt", en: "robots.txt check" },
+    analyze_meta: { ru: "мета-теги страницы", en: "page meta tags" },
+    analyze_headings: { ru: "заголовки страницы", en: "page headings" },
+    analyze_content: { ru: "контент страницы", en: "page content" },
+    detect_stack: { ru: "стек сайта", en: "site stack" },
+    analyze_google_page_search: {
+      ru: "проверка страницы в Google",
+      en: "Google page search check",
+    },
+    analyze_yandex_page_search: {
+      ru: "проверка страницы в Яндекс",
+      en: "Yandex page search check",
+    },
     detect_text_platform: { ru: "платформа текста", en: "text platform" },
     analyze_text_structure: { ru: "структура текста", en: "text structure" },
     analyze_text_style: { ru: "стиль текста", en: "text style" },
@@ -360,6 +383,19 @@ function toolLabelForChat(value: string, locale: SupportedLocale): string {
     ai_writing_probability: {
       ru: "вероятность ИИ-стиля",
       en: "AI-writing probability",
+    },
+    ai_trace_map: { ru: "карта AI-фрагментов", en: "AI trace map" },
+    genericness_water_check: {
+      ru: "водность и шаблонность",
+      en: "genericness and watery text",
+    },
+    readability_complexity: {
+      ru: "читаемость и сложность",
+      en: "readability and complexity",
+    },
+    claim_source_queue: {
+      ru: "очередь фактов на проверку",
+      en: "claim source queue",
     },
     naturalness_indicators: {
       ru: "естественность текста",
@@ -1214,6 +1250,42 @@ function articleTextToolLabelForLocale(
   locale: SupportedLocale,
 ): string {
   const labels: Record<string, { ru: string; en: string }> = {
+    page_url_article_internal: {
+      ru: "Анализ страницы по URL",
+      en: "Page by URL analysis",
+    },
+    extract_main_text: {
+      ru: "Извлечение основного текста",
+      en: "Main text extraction",
+    },
+    check_robots_txt: {
+      ru: "Проверка robots.txt",
+      en: "Robots.txt check",
+    },
+    analyze_meta: {
+      ru: "Мета-теги страницы",
+      en: "Page meta tags",
+    },
+    analyze_headings: {
+      ru: "Заголовки страницы",
+      en: "Page headings",
+    },
+    analyze_content: {
+      ru: "Контент страницы",
+      en: "Page content",
+    },
+    detect_stack: {
+      ru: "Стек сайта",
+      en: "Site stack",
+    },
+    analyze_google_page_search: {
+      ru: "Проверка страницы в Google",
+      en: "Google page search check",
+    },
+    analyze_yandex_page_search: {
+      ru: "Проверка страницы в Яндекс",
+      en: "Yandex page search check",
+    },
     detect_text_platform: {
       ru: "Определение платформы",
       en: "Platform detection",
@@ -1249,6 +1321,19 @@ function articleTextToolLabelForLocale(
     ai_writing_probability: {
       ru: "Вероятность написания ИИ",
       en: "AI writing probability",
+    },
+    ai_trace_map: { ru: "Карта AI-фрагментов", en: "AI trace map" },
+    genericness_water_check: {
+      ru: "Водность и шаблонность",
+      en: "Genericness and watery text",
+    },
+    readability_complexity: {
+      ru: "Читаемость и сложность",
+      en: "Readability and complexity",
+    },
+    claim_source_queue: {
+      ru: "Очередь фактов на проверку",
+      en: "Claim source queue",
     },
     naturalness_indicators: {
       ru: "Естественность",
@@ -1495,16 +1580,76 @@ function apiTopRepeatedTerms(text: string, limit = 5): string[] {
     .map(([word]) => word);
 }
 
+function apiRepeatedTermCounts(text: string): Record<string, number> {
+  return apiWords(text)
+    .map((word) => word.toLowerCase())
+    .reduce<Record<string, number>>((acc, word) => {
+      acc[word] = (acc[word] ?? 0) + 1;
+      return acc;
+    }, {});
+}
+
+function apiIsSingleLetter(value: string): boolean {
+  return /^\p{L}$/u.test(value);
+}
+
+function apiIsSingleDigit(value: string): boolean {
+  return /^\d$/u.test(value);
+}
+
+function apiWordBeforeIndex(text: string, index: number): string {
+  return text.slice(0, index).match(/[\p{L}\p{N}]+$/u)?.[0] ?? "";
+}
+
+function apiWordAfterIndex(text: string, index: number): string {
+  return text.slice(index + 1).match(/^[\p{L}\p{N}]+/u)?.[0] ?? "";
+}
+
+function apiShouldIgnoreTightPunctuation(
+  text: string,
+  index: number,
+  punctuation: string,
+): boolean {
+  const prev = text[index - 1] ?? "";
+  const next = text[index + 1] ?? "";
+  if (!next) return true;
+  if ((punctuation === ":" || punctuation === ".") && next === "/") return true;
+  if (apiIsSingleDigit(prev) && apiIsSingleDigit(next)) return true;
+  if (punctuation === "." && apiIsSingleLetter(prev) && apiIsSingleLetter(next)) {
+    const left = apiWordBeforeIndex(text, index);
+    const right = apiWordAfterIndex(text, index);
+    return left.length <= 3 || right.length <= 3;
+  }
+  return false;
+}
+
+function apiPunctuationSpacingIssueCount(text: string): number {
+  const before = (text.match(/\s+[,.!?;:]/g) ?? []).length;
+  let after = 0;
+  for (const match of text.matchAll(/[,.!?;:](?=[^\s\n)"»\]\}])/gu)) {
+    const index = match.index ?? 0;
+    if (apiShouldIgnoreTightPunctuation(text, index, match[0])) continue;
+    after += 1;
+  }
+  return before + after;
+}
+
+function apiLowercaseSentenceStartCount(text: string): number {
+  return (text.match(/[.!?…]\s+\p{Ll}/gu) ?? []).length;
+}
+
 function apiLocalTextMetrics(text: string): {
   uniquenessScore: number;
   syntaxScore: number;
   aiProbability: number;
+  aiTraceScore: number;
+  genericnessScore: number;
+  readabilityScore: number;
+  claimQueueRisk: number;
   logicScore: number;
   naturalnessScore: number;
 } {
   const allWords = apiWords(text).map((word) => word.toLowerCase());
-  const uniqueWordRatio =
-    allWords.length > 0 ? new Set(allWords).size / allWords.length : 0;
   const normalizedSentences = apiSentences(text).map((sentence) =>
     sentence.toLowerCase().replace(/\s+/g, " ").trim(),
   );
@@ -1515,9 +1660,8 @@ function apiLocalTextMetrics(text: string): {
       ? duplicateSentences / normalizedSentences.length
       : 0;
   const stats = apiSentenceStats(text);
-  const spacingIssues =
-    (text.match(/\s+[,.!?;:]/g) ?? []).length +
-    (text.match(/[,.!?;:][^\s\n)"»]/g) ?? []).length;
+  const spacingIssues = apiPunctuationSpacingIssueCount(text);
+  const lowercaseStarts = apiLowercaseSentenceStartCount(text);
   const repeatedPunctuation = (text.match(/[!?.,]{3,}/g) ?? []).length;
   const genericSignals = (
     text.match(
@@ -1529,6 +1673,20 @@ function apiLocalTextMetrics(text: string): {
     []
   ).length;
   const lowVarianceSignal = stats.variance > 0 && stats.variance < 18 ? 18 : 0;
+  const waterySignals = (
+    text.match(
+      /важно понимать|играет важную роль|имеет большое значение|ключевой аспект|широкий спектр|различные факторы|множество возможностей|plays a key role|wide range|various factors|many opportunities/giu,
+    ) ?? []
+  ).length;
+  const concreteSignals = (
+    text.match(
+      /\b\d+(?:[.,]\d+)?\b|например|кейс|исследован|источник|по данным|https?:\/\/|example|case study|source|according to|data/giu,
+    ) ?? []
+  ).length;
+  const authorialSignals = (
+    text.match(/я видел|мы проверили|наш опыт|по моей практике|we tested|in our experience|I found/giu) ??
+    []
+  ).length;
   const lowerText = text.toLowerCase();
   const contradictionPairs = [
     ["всегда", "иногда"],
@@ -1557,20 +1715,92 @@ function apiLocalTextMetrics(text: string): {
     []
   ).length;
   const repeatedTerms = apiTopRepeatedTerms(text, 5);
+  const repeatedCounts = apiRepeatedTermCounts(text);
+  const maxRepeatedTermCount = repeatedTerms.reduce(
+    (max, term) => Math.max(max, repeatedCounts[term] ?? 0),
+    0,
+  );
+  const maxRepeatedTermDensity =
+    allWords.length > 0 ? maxRepeatedTermCount / allWords.length : 0;
+  const paragraphs = text
+    .split(/\n\s*\n/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const longSentences = apiSentences(text).filter(
+    (sentence) => wordsInText(sentence) >= 28,
+  ).length;
+  const heavyParagraphs = paragraphs.filter((paragraph) => wordsInText(paragraph) >= 120)
+    .length;
+  const readabilityScore = clampMetricScore(
+    94 -
+      Math.max(0, stats.avg - 16) * 3 -
+      longSentences * 5 -
+      heavyParagraphs * 6,
+  );
+  const genericnessScore = clampMetricScore(
+    28 +
+      waterySignals * 11 +
+      repeatedTerms.length * 3 -
+      concreteSignals * 4 -
+      authorialSignals * 5,
+  );
+  const exactNumbers = (
+    text.match(
+      /\b\d+(?:[.,]\d+)?\s?%|\b\d{4}\b|\b\d+(?:[.,]\d+)?\s?(?:кг|мг|г|км|мл|час|мин|day|days|kg|mg|km)\b/giu,
+    ) ?? []
+  ).length;
+  const absoluteClaims = (
+    text.match(
+      /всегда|никогда|доказано|гарантирует|без исключений|единственный|точно|100%|always|never|proven|guarantees|only|without exception/giu,
+    ) ?? []
+  ).length;
+  const vagueAuthorities = (
+    text.match(
+      /эксперты считают|исследования показывают|многие специалисты|по мнению экспертов|according to experts|studies show|researchers say/giu,
+    ) ?? []
+  ).length;
+  const sensitiveClaims = (
+    text.match(
+      /врач|болезн|диабет|лекарств|лечение|беремен|инвестици|налог|закон|doctor|disease|treatment|medicine|investment|tax|law/giu,
+    ) ?? []
+  ).length;
+  const sourceSignals = (
+    text.match(/https?:\/\/|\[[0-9]+\]|источник|исследован|study|source|doi\.org/giu) ??
+    []
+  ).length;
+  const claimQueueSize = Math.max(
+    0,
+    exactNumbers + absoluteClaims + vagueAuthorities + sensitiveClaims - sourceSignals,
+  );
 
   return {
     uniquenessScore: clampMetricScore(
-      92 -
+      96 -
         duplicateSentenceRate * 80 -
-        Math.max(0, 0.42 - uniqueWordRatio) * 80,
+        Math.max(0, maxRepeatedTermDensity - 0.035) * 520 -
+        Math.max(0, repeatedTerms.length - 6) * 2,
     ),
     syntaxScore: clampMetricScore(
       96 -
-        (spacingIssues + repeatedPunctuation) * 5 -
-        Math.max(0, stats.avg - 26) * 1.5,
+        spacingIssues * 2.5 -
+        lowercaseStarts * 4 -
+        repeatedPunctuation * 3 -
+        Math.max(0, stats.avg - 28) * 1.2,
     ),
     aiProbability: clampMetricScore(
       18 + genericSignals * 10 + formalSignals * 5 + lowVarianceSignal,
+    ),
+    aiTraceScore: clampMetricScore(
+      12 +
+        genericSignals * 9 +
+        formalSignals * 4 +
+        repeatedTerms.length * 4 +
+        (lowVarianceSignal > 0 ? 16 : 0),
+    ),
+    genericnessScore,
+    readabilityScore,
+    claimQueueRisk: clampMetricScore(
+      claimQueueSize * 9 + absoluteClaims * 5 + vagueAuthorities * 6,
     ),
     logicScore: clampMetricScore(
       94 -
@@ -1783,6 +2013,10 @@ function buildArticleTextSummaryForApi(
   const logicScore = localMetrics.logicScore;
   const naturalnessScore = localMetrics.naturalnessScore;
   const aiProbability = localMetrics.aiProbability;
+  const aiTraceScore = localMetrics.aiTraceScore;
+  const genericnessScore = localMetrics.genericnessScore;
+  const readabilityScore = localMetrics.readabilityScore;
+  const claimQueueRisk = localMetrics.claimQueueRisk;
   const safetyFacts = normalizedFacts.filter((fact) =>
     fact.sourceToolIds.includes("safety_science_review"),
   );
@@ -1842,14 +2076,29 @@ function buildArticleTextSummaryForApi(
   const originalityStatus = combineDimensionStatus([
     scoreStatusForApi(uniquenessScore, false),
     scoreStatusForApi(aiProbability, true),
+    expectedToolIds.includes("ai_trace_map")
+      ? scoreStatusForApi(aiTraceScore, true)
+      : "healthy",
+    scoreStatusForApi(genericnessScore, true),
     scoreStatusForApi(naturalnessScore, false),
     toolStatusFromFacts(normalizedFacts, [
       "article_uniqueness",
       "ai_writing_probability",
+      "ai_trace_map",
+      "genericness_water_check",
       "naturalness_indicators",
     ]),
   ]);
-  const clarityStatus = scoreStatusForApi(syntaxScore, false);
+  const clarityStatus = combineDimensionStatus([
+    scoreStatusForApi(syntaxScore, false),
+    scoreStatusForApi(readabilityScore, false),
+    toolStatusFromFacts(normalizedFacts, [
+      "language_syntax",
+      "readability_complexity",
+      "analyze_text_structure",
+      "analyze_text_style",
+    ]),
+  ]);
   const logicStatus = scoreStatusForApi(logicScore, false);
   const platformStatus = apiPlatformStatusFromFacts(normalizedFacts);
   const dimensions = [
@@ -1896,6 +2145,8 @@ function buildArticleTextSummaryForApi(
           ? factForTools(normalizedFacts, [
               "article_uniqueness",
               "ai_writing_probability",
+              "ai_trace_map",
+              "genericness_water_check",
               "naturalness_indicators",
             ])?.detail ??
             (isRu
@@ -1907,6 +2158,8 @@ function buildArticleTextSummaryForApi(
       sourceToolIds: [
         "article_uniqueness",
         "ai_writing_probability",
+        "ai_trace_map",
+        "genericness_water_check",
         "naturalness_indicators",
       ],
     },
@@ -1921,6 +2174,7 @@ function buildArticleTextSummaryForApi(
         clarityStatus !== "healthy"
           ? factForTools(normalizedFacts, [
               "language_syntax",
+              "readability_complexity",
               "analyze_text_structure",
               "analyze_text_style",
             ])?.detail ??
@@ -1932,6 +2186,7 @@ function buildArticleTextSummaryForApi(
             : "Use the current structure as the base and polish only weak spots.",
       sourceToolIds: [
         "language_syntax",
+        "readability_complexity",
         "analyze_text_structure",
         "analyze_text_style",
       ],
@@ -1958,6 +2213,10 @@ function buildArticleTextSummaryForApi(
       id: "trust",
       label: isRu ? "Риск доверия" : "Trust risk",
       status: combineDimensionStatus([
+        expectedToolIds.includes("claim_source_queue")
+          ? scoreStatusForApi(claimQueueRisk, true)
+          : "healthy",
+        toolStatusFromFacts(normalizedFacts, ["claim_source_queue"]),
         toolStatusFromFacts(normalizedFacts, ["fact_distortion_check"]),
         toolStatusFromFacts(normalizedFacts, ["ai_hallucination_check"]),
       ]),
@@ -1966,13 +2225,18 @@ function buildArticleTextSummaryForApi(
         : "Fact-sensitive claims, vague authorities, exact numbers, and hallucination risk.",
       recommendation:
         factForTools(normalizedFacts, [
+          "claim_source_queue",
           "fact_distortion_check",
           "ai_hallucination_check",
         ])?.detail ??
         (isRu
           ? "Для медицинских, юридических, финансовых и технических материалов отдельно проверьте источники."
           : "For medical, legal, finance, and technical material, verify sources separately."),
-      sourceToolIds: ["fact_distortion_check", "ai_hallucination_check"],
+      sourceToolIds: [
+        "claim_source_queue",
+        "fact_distortion_check",
+        "ai_hallucination_check",
+      ],
     },
     {
       id: "platform",

@@ -240,6 +240,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                   topic: state!.input.topic,
                   goal: state!.input.goal,
                   goalMode: state!.input.goalMode,
+                  sourceType: state!.input.sourceType,
                   analysisRole: state!.input.analysisRole || "default",
                   hasText: Boolean(
                     workspaceText?.trim() || state!.input.text?.trim(),
@@ -247,6 +248,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                   textLength:
                     workspaceText?.length ?? state!.input.text?.length ?? 0,
                   selectedAnalysisTools: state!.input.selectedAnalysisTools,
+                  hasPageTextBlock: Boolean(state!.input.pageTextBlock),
                 }
               : undefined,
             workspace: state!.workspace
@@ -260,9 +262,20 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
             selectedTools:
               state!.analysisType === "article_compare"
                 ? ["article_compare_internal"]
+                : state!.analysisType === "page_by_url"
+                  ? [
+                      "page_url_article_internal",
+                      ...state!.selectedTools.filter((toolId) =>
+                        [
+                          "analyze_google_page_search",
+                          "analyze_yandex_page_search",
+                        ].includes(toolId),
+                      ),
+                    ]
                 : state!.selectedTools,
             internalSelectedTools:
-              state!.analysisType === "article_compare"
+              state!.analysisType === "article_compare" ||
+              state!.analysisType === "page_by_url"
                 ? state!.selectedTools
                 : undefined,
             message:
@@ -287,6 +300,24 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               "Text A and Text B from the temporary ToraSEO workspace. Keep " +
               "the comparison text-evidence only: do not claim ranking causes " +
               "from text alone and do not rewrite the full article. " +
+              "For page-by-URL runs, call page_url_article_internal; it runs " +
+              "the internal URL/page extraction and article text checks as MCP " +
+              "checks and writes individual results under normal user-facing " +
+              "tool names. If the app provided a page text block, use " +
+              "that block as the article focus. Ignore ads/navigation/comments " +
+              "and respect robots.txt; do not bypass auth, paywalls, CAPTCHA, " +
+              "or private content. Do not invent Google/Yandex clicks, impressions, " +
+              "views, or indexed phrases without an official connected source. " +
+              "For text analysis, treat ai_writing_probability, ai_trace_map, " +
+              "genericness_water_check, readability_complexity, claim_source_queue, " +
+              "fact_distortion_check, and ai_hallucination_check as separate " +
+              "questions. The first is an AI-style probability heuristic; " +
+              "ai_trace_map is an editing map, not authorship proof; " +
+              "genericness_water_check is about broad/watery phrasing and weak " +
+              "concrete evidence; readability_complexity is about dense sentences " +
+              "and heavy paragraphs; claim_source_queue lists claims needing " +
+              "source review; optional fact and hallucination checks are not " +
+              "external fact-checking. Use human-readable names in the final answer. " +
               "After all tools complete, provide " +
               "recommendations to the user in chat based on the data. " +
               "If input.action is solution, run the tools first, then propose " +

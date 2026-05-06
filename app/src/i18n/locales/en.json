@@ -530,7 +530,28 @@
         "suspectedIssues": "Suspected issues",
         "warning": "Warnings",
         "markers": "Media markers",
-        "markerTypes": "Media types"
+        "markerTypes": "Media types",
+        "traceScore": "Trace score",
+        "genericSignals": "Generic phrases",
+        "formalSignals": "Formal phrasing",
+        "repeatedTerms": "Repeated terms",
+        "sentenceLengthVariance": "Phrase variance",
+        "genericnessScore": "Genericness",
+        "waterySignals": "Watery phrases",
+        "concreteSignals": "Concrete details",
+        "authorialSignals": "Authorial signals",
+        "readabilityScore": "Readability",
+        "avgSentenceWords": "Words per sentence",
+        "longSentences": "Long sentences",
+        "heavyParagraphs": "Heavy paragraphs",
+        "sentenceCount": "Sentences",
+        "risk": "Risk",
+        "queueSize": "Claims queued",
+        "exactNumbers": "Numbers",
+        "absoluteClaims": "Absolute claims",
+        "vagueAuthorities": "Vague authorities",
+        "sensitiveClaims": "Sensitive claims",
+        "sourceSignals": "Sources"
       },
       "descriptions": {
         "platform": "Detects the publishing platform and context.",
@@ -542,6 +563,10 @@
         "uniqueness": "Estimates local repetition and template risk.",
         "syntax": "Checks syntax and clear language risks.",
         "ai": "Estimates AI-style signals in the text.",
+        "aiTrace": "Maps local AI-like fragments without claiming authorship proof.",
+        "genericness": "Checks whether the text is too broad, watery, or template-like.",
+        "readabilityComplexity": "Checks sentence density and heavy paragraphs.",
+        "claimQueue": "Queues claims that need source verification.",
         "naturalness": "Looks for mechanical phrasing and repetition.",
         "logic": "Checks contradictions and reasoning jumps.",
         "facts": "Looks for disputed facts and overconfident claims.",
@@ -563,6 +588,12 @@
         "syntax_risk": "The text has visible syntax or punctuation risks that should be checked before publishing.",
         "dense_sentences": "Several sentences are dense; grammar may be correct, but readability suffers.",
         "ai_style_probability": "The text has AI-style signals: generic transitions, uniform rhythm, or repeated words.",
+        "ai_trace_map_risk": "Several fragments look AI-assisted: generic transitions, formal wording, repetition, or overly even rhythm.",
+        "generic_watery_text": "The text may feel watery: it uses broad statements or service phrases instead of concrete evidence.",
+        "low_concrete_evidence": "The article has few examples, numbers, sources, cases, or practical details for its length.",
+        "readability_complexity_risk": "Dense sentences or heavy paragraphs make the text harder to read than it needs to be.",
+        "heavy_paragraphs": "One or more paragraphs are heavy enough to slow scanning.",
+        "claim_source_queue": "Some claims should enter an editor's source-check queue before publication.",
         "fact_distortion_risk": "The text contains fact-sensitive claims that may need source verification before publication.",
         "absolute_claims": "Absolute wording can distort meaning when the text does not prove the claim.",
         "sensitive_claims_without_sources": "Medical, legal, financial, or technical claims should be supported by sources or cautious wording.",
@@ -581,6 +612,10 @@
         "uniqueness": "Rewrite repeated fragments with new examples, narrower claims, or clearer transitions.",
         "syntax": "Run a final human pass for punctuation, sentence boundaries, and overloaded phrases.",
         "ai": "To sound more authorial, add specific examples, context, and more varied sentence rhythm.",
+        "aiTrace": "Use the trace map as an editing guide: replace generic transitions with examples, sources, or sharper author judgment.",
+        "genericness": "Turn broad paragraphs into useful ones by adding a concrete example, source, number, or reader action.",
+        "readabilityComplexity": "Shorten dense sentences and split heavy paragraphs before polishing style.",
+        "claimQueue": "Verify queued claims against sources; if a source is weak, soften or remove the claim.",
         "naturalness": "Vary sentence openings and remove service phrases that do not add meaning.",
         "logic": "Check places with “therefore”, “because”, “always”, and “never”; they need enough support.",
         "facts": "Verify numbers, names, and sensitive claims; soften statements that cannot be supported confidently.",
@@ -665,6 +700,14 @@
       "label": "Extract main text",
       "tooltip": "Find the main article, post, or content block on the page"
     },
+    "analyze_google_page_search": {
+      "label": "Google page check",
+      "tooltip": "Check what can be known about the page in Google; clicks and impressions require Search Console or an official SEO provider"
+    },
+    "analyze_yandex_page_search": {
+      "label": "Yandex page check",
+      "tooltip": "Check what can be known about the page in Yandex; clicks and impressions require Yandex Webmaster/Metrica or an official SEO provider"
+    },
     "detect_text_platform": {
       "label": "Platform detection",
       "tooltip": "Adapt the analysis to site articles, X, Facebook, LinkedIn, Habr, Reddit, or a custom resource"
@@ -704,6 +747,22 @@
     "ai_writing_probability": {
       "label": "AI writing probability",
       "tooltip": "Estimate AI-style signals from rhythm, repetition, and generic phrasing"
+    },
+    "ai_trace_map": {
+      "label": "AI trace map",
+      "tooltip": "Map AI-like fragments by generic transitions, formal wording, repetition, and uniform rhythm"
+    },
+    "genericness_water_check": {
+      "label": "Genericness and watery text",
+      "tooltip": "Find broad phrasing, weak specificity, repeated concepts, and places that need concrete evidence"
+    },
+    "readability_complexity": {
+      "label": "Readability and complexity",
+      "tooltip": "Review sentence density, long sentences, and heavy paragraphs"
+    },
+    "claim_source_queue": {
+      "label": "Claim source queue",
+      "tooltip": "Collect claims, numbers, and absolute wording that should be source-checked before publication"
     },
     "fact_distortion_check": {
       "label": "Fact distortion",

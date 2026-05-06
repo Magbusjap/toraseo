@@ -114,9 +114,27 @@ text B instead of forcing a symmetrical report. Keep the boundary
 text-only: do not claim ranking causes from text alone, and do not
 rewrite the full article unless the user asks in a later message.
 
+For `page_by_url`, the URL and optional user-highlighted text block are
+already stored in the app state/workspace. Do not ask the user to paste
+the page text into chat. Call `page_url_article_internal` when it is
+returned by the handshake; it extracts the article text, cleans local
+URL/page noise, runs the internal page/text checks, and writes individual
+results back under their normal tool names. If the returned tool list
+also includes Google or Yandex page checks, call those after the
+internal package. Keep the final answer user-facing: do not mention
+handshake details, scan ids, tool ids, or result files unless the user
+asks for debugging.
+
 Do not confuse `ai_writing_probability` with
-`ai_hallucination_check`. The first is a style/rhythm probability. The
-second is an optional claim-safety review for vague sources, fabricated
+`ai_trace_map`, `genericness_water_check`, `readability_complexity`,
+`claim_source_queue`, or `ai_hallucination_check`.
+The first is a style/rhythm probability. `ai_trace_map` is an editing
+map of local AI-like fragments, not authorship proof.
+`genericness_water_check` flags broad or watery phrasing and weak
+concrete evidence. `readability_complexity` flags dense sentences and
+heavy paragraphs. `claim_source_queue` collects statements that need
+source review, softer wording, or removal. `ai_hallucination_check`
+is an optional claim-safety review for vague sources, fabricated
 citations, or factual details that may have been invented during
 AI-assisted drafting. `fact_distortion_check` is also optional and is a
 claim-risk review, not a complete internet fact-check.

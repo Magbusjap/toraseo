@@ -10,7 +10,7 @@ First-wave analysis types for `0.0.9`:
 | ID | User-facing shape | Status |
 |---|---|---|
 | `site_by_url` | Site by URL | implemented baseline |
-| `page_by_url` | Page/article by URL | approved, planned |
+| `page_by_url` | Page/article by URL | implemented bridge/API baseline |
 | `article_text` | Pasted article text | bridge MVP implemented |
 | `article_compare` | Compare 2 article inputs | approved, planned |
 | `site_compare` | Compare up to 3 site URLs | approved, planned |
@@ -57,7 +57,9 @@ Current planning direction:
   medical, investment, technical/engineering, jurisdiction, source-context
   risk flags, and scientific/calculation review signals. Built-in
   checks also include article uniqueness, language syntax, AI-writing
-  probability, logic consistency, and the intent/SEO forecast layer.
+  probability, AI trace mapping, genericness/watery-text review,
+  readability/complexity review, claim source queue, logic consistency,
+  and the intent/SEO forecast layer.
   The intent/SEO layer may suggest hooks, CTR/trend potential, and CMS
   metadata, but must not claim live search, platform rules, likes/dislikes,
   SERP demand, jurisdiction rules, or social demand unless a real external
