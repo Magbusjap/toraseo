@@ -71,6 +71,12 @@ The handshake response can describe different bridge workloads:
   not ask the user to paste it into chat. The selected MCP tools read
   that file and write their structured results back into the app state
   and `results/*.json`.
+- `page_by_url`: call `page_url_article_internal` when returned by the
+  handshake. It extracts the article from the URL or the optional
+  user-highlighted text block, cleans local URL/page noise, and writes
+  individual page/text check results back into the app. If Google or
+  Yandex page checks are returned separately, call them after the
+  internal package. Do not ask the user to paste the page text into chat.
 - `article_compare`: call the selected comparison tools. Text A and
   Text B are stored in the temporary ToraSEO workspace as `input.md`, so
   Codex must not ask the user to paste either text into chat. Some
@@ -168,15 +174,20 @@ the analysis as-is.
 Some article-text checks are built in and may be present in
 `selectedTools` even when the user did not see them as sidebar
 checkboxes: `article_uniqueness`, `language_syntax`,
-`ai_writing_probability`, `naturalness_indicators`, and
+`ai_writing_probability`, `ai_trace_map`,
+`genericness_water_check`, `readability_complexity`,
+`claim_source_queue`, `naturalness_indicators`, and
 `logic_consistency_check`, `intent_seo_forecast`, and
 `safety_science_review`. Optional sidebar checks can include
 `fact_distortion_check` and `ai_hallucination_check`.
 
-Treat `ai_writing_probability` and `ai_hallucination_check` as separate
-questions. The former estimates AI-like style; the latter reviews claim
-safety around vague authorities, fabricated citation placeholders, and
-possibly invented factual details.
+Treat `ai_writing_probability`, `ai_trace_map`,
+`claim_source_queue`, and `ai_hallucination_check` as separate
+questions. The first estimates AI-like style. `ai_trace_map` highlights
+local editing targets, not authorship proof. `claim_source_queue`
+collects claims for source review. `ai_hallucination_check` reviews
+claim safety around vague authorities, fabricated citation placeholders,
+and possibly invented factual details.
 
 The slash command in the copied prompt is only the trigger. It must not
 encode fake versioned text-analysis subcommands; the source of truth is

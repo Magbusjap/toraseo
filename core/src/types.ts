@@ -660,7 +660,24 @@ export interface AnalyzeContentResult {
      * < 0.10 is a common "thin" threshold; < 0.03 is alarming.
      */
     text_to_code_ratio: number;
+
+    /**
+     * Short reason for the extraction path. Helps explain when ToraSEO
+     * skipped ads, nav/sidebar blocks, embeds, or fallback body text.
+     */
+    extraction_note?: string;
   };
+
+  /**
+   * Normalized text extracted from the main article/page body. This is
+   * intentionally the visible article text after removing scripts,
+   * styles, navigation, common advertising widgets, embeds, and social
+   * chrome. It is used by Page by URL text-analysis flows.
+   */
+  main_text?: string;
+
+  /** First meaningful text blocks from the extracted article body. */
+  text_blocks?: string[];
 
   /** Link inventory within the extracted content. */
   links: {

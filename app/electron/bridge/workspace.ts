@@ -78,6 +78,10 @@ function buildInputMarkdown(options: CreateWorkspaceOptions): string {
     return "";
   }
 
+  if (options.analysisType === "page_by_url") {
+    return options.input?.pageTextBlock?.trim() || options.input?.text?.trim() || "";
+  }
+
   return [
     "# ToraSEO Site Analysis Input",
     "",
@@ -171,6 +175,7 @@ export async function createBridgeWorkspace(
       ? {
           action: options.input.action,
           topic: options.input.topic,
+          sourceType: options.input.sourceType,
           goal: options.input.goal,
           goalMode: options.input.goalMode,
           roleA: options.input.roleA,
@@ -181,6 +186,8 @@ export async function createBridgeWorkspace(
           selectedAnalysisTools: options.input.selectedAnalysisTools,
           hasText: Boolean(options.input.text?.trim()),
           textLength: options.input.text?.length ?? 0,
+          hasPageTextBlock: Boolean(options.input.pageTextBlock?.trim()),
+          pageTextBlockLength: options.input.pageTextBlock?.length ?? 0,
           hasTextA: Boolean(options.input.textA?.trim()),
           hasTextB: Boolean(options.input.textB?.trim()),
           textALength: options.input.textA?.length ?? 0,

@@ -184,7 +184,9 @@ export async function startScan(
   const analysisType =
     url === "toraseo://article-compare"
       ? "article_compare"
-      : input || url === "toraseo://article-text"
+      : input?.sourceType === "page_by_url"
+        ? "page_by_url"
+        : input || url === "toraseo://article-text"
         ? "article_text"
         : "site_by_url";
   const workspace = await createBridgeWorkspace({
@@ -206,6 +208,7 @@ export async function startScan(
       ? {
           ...input,
           text: undefined,
+          pageTextBlock: undefined,
           textA: undefined,
           textB: undefined,
         }

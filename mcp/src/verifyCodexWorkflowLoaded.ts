@@ -187,6 +187,7 @@ export async function verifyCodexWorkflowLoadedHandler({
                   topic: state!.input.topic,
                   goal: state!.input.goal,
                   goalMode: state!.input.goalMode,
+                  sourceType: state!.input.sourceType,
                   analysisRole: state!.input.analysisRole || "default",
                   hasText: Boolean(
                     workspaceText?.trim() || state!.input.text?.trim(),
@@ -194,6 +195,7 @@ export async function verifyCodexWorkflowLoadedHandler({
                   textLength:
                     workspaceText?.length ?? state!.input.text?.length ?? 0,
                   selectedAnalysisTools: state!.input.selectedAnalysisTools,
+                  hasPageTextBlock: Boolean(state!.input.pageTextBlock),
                 }
               : undefined,
             workspace: state!.workspace
@@ -207,9 +209,20 @@ export async function verifyCodexWorkflowLoadedHandler({
             selectedTools:
               state!.analysisType === "article_compare"
                 ? ["article_compare_internal"]
+                : state!.analysisType === "page_by_url"
+                  ? [
+                      "page_url_article_internal",
+                      ...state!.selectedTools.filter((toolId) =>
+                        [
+                          "analyze_google_page_search",
+                          "analyze_yandex_page_search",
+                        ].includes(toolId),
+                      ),
+                    ]
                 : state!.selectedTools,
             internalSelectedTools:
-              state!.analysisType === "article_compare"
+              state!.analysisType === "article_compare" ||
+              state!.analysisType === "page_by_url"
                 ? state!.selectedTools
                 : undefined,
             message:
@@ -232,7 +245,15 @@ export async function verifyCodexWorkflowLoadedHandler({
               "either text into chat; the selected MCP comparison tools read " +
               "Text A and Text B from the temporary ToraSEO workspace. Keep " +
               "the comparison text-evidence only: do not claim ranking causes " +
-              "from text alone and do not rewrite the full article. Results will be displayed " +
+              "from text alone and do not rewrite the full article. " +
+              "For page-by-URL runs, call page_url_article_internal; it runs " +
+              "the internal URL/page extraction and article text checks as MCP " +
+              "checks and writes individual results under normal user-facing " +
+              "tool names. If the app provided a page text block, use " +
+              "that block as the article focus. Ignore ads/navigation/comments " +
+              "and respect robots.txt; do not bypass auth, paywalls, CAPTCHA, " +
+              "or private content. Do not invent Google/Yandex clicks, impressions, " +
+              "views, or indexed phrases without an official connected source. Results will be displayed " +
               "in the ToraSEO app. If input.action is solution, run the tools first, " +
               "then propose a concrete solution or draft direction in chat from the tool evidence. " +
               "If the input is only a topic or too thin for a complete article, be explicit about " +
