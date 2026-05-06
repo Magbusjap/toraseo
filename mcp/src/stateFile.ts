@@ -86,11 +86,13 @@ export interface CurrentScanState {
   schemaVersion: 1;
   scanId: string;
   bridgeClient?: BridgeClient;
-  analysisType?: "site_by_url" | "article_text" | "article_compare";
+  analysisType?: "site_by_url" | "page_by_url" | "article_text" | "article_compare";
   input?: {
     action?: "scan" | "solution";
     topic?: string;
     text?: string;
+    sourceType?: "page_by_url";
+    pageTextBlock?: string;
     goal?: string;
     goalMode?:
       | "standard_comparison"

@@ -83,6 +83,10 @@ import {
   articleUniquenessHandler,
   languageSyntaxHandler,
   aiWritingProbabilityHandler,
+  aiTraceMapHandler,
+  genericnessWaterCheckHandler,
+  readabilityComplexityHandler,
+  claimSourceQueueHandler,
   naturalnessIndicatorsHandler,
   intentSeoForecastHandler,
   safetyScienceReviewHandler,
@@ -106,6 +110,12 @@ import {
   compareStrengthsWeaknessesHandler,
   compareImprovementPlanHandler,
 } from "./articleCompareTools.js";
+import {
+  pageUrlArticleInternalHandler,
+  extractMainTextHandler,
+  analyzeGooglePageSearchHandler,
+  analyzeYandexPageSearchHandler,
+} from "./pageUrlTools.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -321,6 +331,50 @@ server.registerTool(
   bridgeWrap("detect_stack", detectStack, DetectStackError),
 );
 
+server.registerTool(
+  "page_url_article_internal",
+  {
+    title: "Page URL Article Internal Checks",
+    description:
+      "For an active page_by_url bridge run, runs the internal page/article analysis package in one MCP call: URL page checks, main article extraction, and selected article-text checks. Writes individual check results into the ToraSEO app under their normal tool names.",
+    inputSchema: emptyInputSchema,
+  },
+  pageUrlArticleInternalHandler,
+);
+
+server.registerTool(
+  "extract_main_text",
+  {
+    title: "Extract Main Article Text From URL",
+    description:
+      "For an active page_by_url bridge run, extracts the main article text from the provided URL, removes local HTML noise such as ads/navigation/social/comment blocks, respects robots.txt, and writes the extracted text into the ToraSEO workspace so the regular article_text tools can analyze it.",
+    inputSchema: emptyInputSchema,
+  },
+  extractMainTextHandler,
+);
+
+server.registerTool(
+  "analyze_google_page_search",
+  {
+    title: "Analyze Page in Google",
+    description:
+      "For an active page_by_url bridge run, prepares the Google-side page search report. Owner metrics such as clicks, impressions, and day/week/month dynamics require Google Search Console or an official search provider.",
+    inputSchema: emptyInputSchema,
+  },
+  analyzeGooglePageSearchHandler,
+);
+
+server.registerTool(
+  "analyze_yandex_page_search",
+  {
+    title: "Analyze Page in Yandex",
+    description:
+      "For an active page_by_url bridge run, prepares the Yandex-side page search report. Owner metrics such as clicks, impressions, and day/week/month dynamics require Yandex Webmaster/Metricа or an official search provider.",
+    inputSchema: emptyInputSchema,
+  },
+  analyzeYandexPageSearchHandler,
+);
+
 // --- Tools: Content/Text analysis ----------------------------------------
 
 server.registerTool(
@@ -420,6 +474,50 @@ server.registerTool(
     inputSchema: emptyInputSchema,
   },
   aiWritingProbabilityHandler,
+);
+
+server.registerTool(
+  "ai_trace_map",
+  {
+    title: "AI Trace Map",
+    description:
+      "Built-in text check for article_text/page_by_url. Maps local AI-like fragments by generic transitions, formal passives, repetition, and uniform rhythm. This is not proof of authorship.",
+    inputSchema: emptyInputSchema,
+  },
+  aiTraceMapHandler,
+);
+
+server.registerTool(
+  "genericness_water_check",
+  {
+    title: "Genericness and Watery Text",
+    description:
+      "Built-in text check for article_text/page_by_url. Finds watery phrasing, broad claims, repeated concepts, and weak concrete evidence.",
+    inputSchema: emptyInputSchema,
+  },
+  genericnessWaterCheckHandler,
+);
+
+server.registerTool(
+  "readability_complexity",
+  {
+    title: "Readability and Complexity",
+    description:
+      "Built-in text check for article_text/page_by_url. Reviews sentence density, long sentences, and heavy paragraphs.",
+    inputSchema: emptyInputSchema,
+  },
+  readabilityComplexityHandler,
+);
+
+server.registerTool(
+  "claim_source_queue",
+  {
+    title: "Claim Source Queue",
+    description:
+      "Built-in text check for article_text/page_by_url. Lists claims that need source verification, softer wording, or removal before publication.",
+    inputSchema: emptyInputSchema,
+  },
+  claimSourceQueueHandler,
 );
 
 server.registerTool(

@@ -455,6 +455,7 @@ export interface BridgeScanError {
  */
 export type BridgeAnalysisType =
   | "site_by_url"
+  | "page_by_url"
   | "article_text"
   | "article_compare";
 export type BridgeRunAction = "scan" | "solution";
@@ -473,6 +474,8 @@ export interface BridgeAnalysisInput {
   action?: BridgeRunAction;
   topic?: string;
   text?: string;
+  sourceType?: "page_by_url";
+  pageTextBlock?: string;
   goal?: string;
   goalMode?: BridgeArticleCompareGoalMode;
   textA?: string;

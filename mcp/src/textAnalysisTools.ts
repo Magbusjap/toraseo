@@ -12,6 +12,10 @@ type TextToolId =
   | "article_uniqueness"
   | "language_syntax"
   | "ai_writing_probability"
+  | "ai_trace_map"
+  | "genericness_water_check"
+  | "readability_complexity"
+  | "claim_source_queue"
   | "naturalness_indicators"
   | "intent_seo_forecast"
   | "safety_science_review"
@@ -61,6 +65,24 @@ type McpHandlerResult = {
 };
 
 export const emptyInputSchema = {};
+
+const ARTICLE_COMPARE_TEXT_TOOL_IDS = new Set<string>([
+  "detect_text_platform",
+  "analyze_text_structure",
+  "analyze_text_style",
+  "analyze_tone_fit",
+  "language_audience_fit",
+  "media_placeholder_review",
+  "article_uniqueness",
+  "language_syntax",
+  "ai_writing_probability",
+  "naturalness_indicators",
+  "fact_distortion_check",
+  "logic_consistency_check",
+  "ai_hallucination_check",
+  "intent_seo_forecast",
+  "safety_science_review",
+]);
 
 function words(text: string): string[] {
   return text.match(/[\p{L}\p{N}]+(?:[-'][\p{L}\p{N}]+)?/gu) ?? [];
@@ -146,6 +168,51 @@ function firstDuplicateSentenceAnnotation(
 
 function clampScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function isSingleLetter(value: string): boolean {
+  return /^\p{L}$/u.test(value);
+}
+
+function isSingleDigit(value: string): boolean {
+  return /^\d$/u.test(value);
+}
+
+function wordBeforeIndex(text: string, index: number): string {
+  return text.slice(0, index).match(/[\p{L}\p{N}]+$/u)?.[0] ?? "";
+}
+
+function wordAfterIndex(text: string, index: number): string {
+  return text.slice(index + 1).match(/^[\p{L}\p{N}]+/u)?.[0] ?? "";
+}
+
+function shouldIgnoreTightPunctuation(
+  text: string,
+  index: number,
+  punctuation: string,
+): boolean {
+  const prev = text[index - 1] ?? "";
+  const next = text[index + 1] ?? "";
+  if (!next) return true;
+  if ((punctuation === ":" || punctuation === ".") && next === "/") return true;
+  if (isSingleDigit(prev) && isSingleDigit(next)) return true;
+  if (punctuation === "." && isSingleLetter(prev) && isSingleLetter(next)) {
+    const left = wordBeforeIndex(text, index);
+    const right = wordAfterIndex(text, index);
+    return left.length <= 3 || right.length <= 3;
+  }
+  return false;
+}
+
+function punctuationSpacingIssueCount(text: string): number {
+  const before = (text.match(/\s+[,.!?;:]/g) ?? []).length;
+  let after = 0;
+  for (const match of text.matchAll(/[,.!?;:](?=[^\s\n)"»\]\}])/gu)) {
+    const index = match.index ?? 0;
+    if (shouldIgnoreTightPunctuation(text, index, match[0])) continue;
+    after += 1;
+  }
+  return before + after;
 }
 
 function repeatedTermCounts(text: string): Record<string, number> {
@@ -534,6 +601,51 @@ function countMatches(text: string, pattern: RegExp): number {
   return (text.match(pattern) ?? []).length;
 }
 
+function genericAiPhraseCount(text: string): number {
+  return countMatches(
+    text,
+    /важно отметить|следует учитывать|необходимо понимать|стоит отметить|таким образом|в заключение|в современном мире|на сегодняшний день|можно сказать|it is important to note|it should be noted|it is worth noting|in today's world|in conclusion|overall|moreover/giu,
+  );
+}
+
+function formalPassivePhraseCount(text: string): number {
+  return countMatches(
+    text,
+    /является|осуществляется|производится|обеспечивает|представляет собой|позволяет осуществлять|utilize|leverage|facilitate|robust|comprehensive/giu,
+  );
+}
+
+function wateryPhraseCount(text: string): number {
+  return countMatches(
+    text,
+    /важно понимать|играет важную роль|имеет большое значение|ключевой аспект|широкий спектр|различные факторы|множество возможностей|в современном мире|безусловно|стоит отметить|plays a key role|wide range|various factors|many opportunities|it is worth noting/giu,
+  );
+}
+
+function concreteEvidenceCount(text: string): number {
+  return countMatches(
+    text,
+    /\b\d+(?:[.,]\d+)?\b|например|пример|кейс|по данным|исследование|источник|https?:\/\/|study|source|example|case study|according to/giu,
+  );
+}
+
+function authorialSignalCount(text: string): number {
+  return countMatches(
+    text,
+    /я\s|мы\s|мой|наш|личный опыт|на практике|в моем опыте|мы видели|я заметил|I\s|we\s|my\s|our\s|in my experience|we found|we saw/giu,
+  );
+}
+
+function firstSentenceMatching(text: string, pattern: RegExp): string {
+  return sentences(text).find((sentence) => pattern.test(sentence)) ?? "";
+}
+
+function sentenceDensity(text: string): number {
+  const list = sentences(text);
+  if (list.length === 0) return 0;
+  return Math.round(words(text).length / list.length);
+}
+
 function hasCyrillicText(text: string): boolean {
   return /[А-Яа-яЁё]/u.test(text);
 }
@@ -693,11 +805,17 @@ async function getContext(): Promise<TextContext> {
   const state = await readState();
   const workspaceText = await readActiveInputMarkdown(state);
   const text = (workspaceText ?? state?.input?.text ?? "").trim();
-  if (state && state.analysisType !== "article_text") {
-    throw new Error("The active ToraSEO context is not article_text.");
+  if (
+    state &&
+    state.analysisType !== "article_text" &&
+    state.analysisType !== "page_by_url"
+  ) {
+    throw new Error("The active ToraSEO context is not article_text or page_by_url.");
   }
   if (!text) {
-    throw new Error("No active ToraSEO article_text context is available.");
+    throw new Error(
+      "No active ToraSEO article_text/page_by_url context is available. For page_by_url, run extract_main_text first.",
+    );
   }
   return {
     action: state?.input?.action === "solution" ? "solution" : "scan",
@@ -715,7 +833,18 @@ async function runTextTool(
 ): Promise<McpHandlerResult> {
   const activeState = await readState();
   if (activeState?.analysisType === "article_compare") {
-    return runCompareTool(toolId);
+    if (!ARTICLE_COMPARE_TEXT_TOOL_IDS.has(toolId)) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: `[text_context_error] Tool ${toolId} is currently available for article_text/page_by_url, not article_compare.`,
+          },
+        ],
+      };
+    }
+    return runCompareTool(toolId as Parameters<typeof runCompareTool>[0]);
   }
 
   const startedAt = new Date().toISOString();
@@ -1141,10 +1270,18 @@ export const articleUniquenessHandler = () =>
         ? duplicateSentences / normalizedSentences.length
         : 0;
     const repeated = topRepeatedTerms(context.text, 5);
+    const counts = repeatedTermCounts(context.text);
+    const maxRepeatedTermCount = repeated.reduce(
+      (max, term) => Math.max(max, counts[term] ?? 0),
+      0,
+    );
+    const maxRepeatedTermDensity =
+      allWords.length > 0 ? maxRepeatedTermCount / allWords.length : 0;
     const score = clampScore(
-      92 -
+      96 -
         duplicateSentenceRate * 80 -
-        Math.max(0, 0.42 - uniqueWordRatio) * 80,
+        Math.max(0, maxRepeatedTermDensity - 0.035) * 520 -
+        Math.max(0, repeated.length - 6) * 2,
     );
     const issues: TextIssue[] = [];
     const annotations: TextAnnotation[] = [];
@@ -1194,6 +1331,7 @@ export const articleUniquenessHandler = () =>
         score,
         uniqueWordRatio,
         duplicateSentenceRate,
+        maxRepeatedTermDensity,
         repeatedTerms: repeated,
         method: "local_repetition_risk",
       },
@@ -1208,14 +1346,16 @@ export const articleUniquenessHandler = () =>
 export const languageSyntaxHandler = () =>
   runTextTool("language_syntax", (context) => {
     const stats = sentenceLengthStats(context.text);
-    const spacingIssues =
-      (context.text.match(/\s+[,.!?;:]/g) ?? []).length +
-      (context.text.match(/[,.!?;:][^\s\n)"»]/g) ?? []).length;
+    const spacingIssues = punctuationSpacingIssueCount(context.text);
     const lowercaseStarts = lowercaseSentenceStartCount(context.text);
     const repeatedPunctuation = (context.text.match(/[!?.,]{3,}/g) ?? []).length;
     const issueTotal = spacingIssues + lowercaseStarts + repeatedPunctuation;
     const score = clampScore(
-      96 - issueTotal * 5 - Math.max(0, stats.avg - 26) * 1.5,
+      96 -
+        spacingIssues * 2.5 -
+        lowercaseStarts * 4 -
+        repeatedPunctuation * 3 -
+        Math.max(0, stats.avg - 28) * 1.2,
     );
     const issues: TextIssue[] = [];
     const annotations: TextAnnotation[] = [];
@@ -1226,7 +1366,7 @@ export const languageSyntaxHandler = () =>
         message:
           "The text has visible syntax or punctuation risks that should be checked before publishing.",
       });
-      const syntaxAnnotation = firstPatternAnnotation(context.text, /\s+[,.!?;:]|[,.!?;:][^\s\n)"»]/u, {
+      const syntaxAnnotation = firstPatternAnnotation(context.text, /\s+[,.!?;:]|[,.!?;:](?=[^\s\n)"»\]\}])/u, {
         category: "syntax",
         severity: "warning",
         marker: "underline",
@@ -1334,6 +1474,288 @@ export const aiWritingProbabilityHandler = () =>
       issues,
       recommendations: [
         "Add specific lived examples, clearer author intent, and less uniform sentence rhythm where the topic allows it.",
+      ],
+      annotations,
+    };
+  });
+
+export const aiTraceMapHandler = () =>
+  runTextTool("ai_trace_map", (context) => {
+    const stats = sentenceLengthStats(context.text);
+    const repeated = topRepeatedTerms(context.text, 5);
+    const genericSignals = genericAiPhraseCount(context.text);
+    const formalSignals = formalPassivePhraseCount(context.text);
+    const lowVariance = stats.variance > 0 && stats.variance < 18;
+    const traceScore = clampScore(
+      12 + genericSignals * 9 + formalSignals * 4 + repeated.length * 4 + (lowVariance ? 16 : 0),
+    );
+    const annotations: TextAnnotation[] = [];
+    const genericQuote = firstSentenceMatching(
+      context.text,
+      /важно отметить|следует учитывать|необходимо понимать|стоит отметить|таким образом|в заключение|it is important to note|it should be noted|it is worth noting|in conclusion|overall|moreover/iu,
+    );
+    if (genericQuote) {
+      const target = findParagraphForQuote(context.text, genericQuote);
+      if (target) {
+        annotations.push({
+          ...target,
+          category: "ai_trace",
+          severity: "warning",
+          marker: "outline",
+          title: "AI-like sentence",
+          shortMessage:
+            "This sentence uses a generic transition or service phrase often seen in AI-assisted drafts.",
+          recommendation:
+            "Replace the transition with a concrete author move: example, contrast, source, or specific next step.",
+          confidence: 0.72,
+        });
+      }
+    }
+    if (lowVariance) {
+      annotations.push({
+        category: "ai_trace",
+        severity: "info",
+        marker: "note",
+        paragraphId: "p001",
+        title: "Uniform rhythm",
+        shortMessage:
+          "Sentence rhythm is unusually even, which can make the text feel generated or over-smoothed.",
+        recommendation:
+          "Mix shorter and longer sentences only where it clarifies the reader path.",
+        confidence: 0.62,
+        global: true,
+      });
+    }
+    const issues: TextIssue[] = [];
+    if (traceScore >= 55) {
+      issues.push({
+        severity: "warning",
+        code: "ai_trace_map_risk",
+        message:
+          "Several fragments look like AI-assisted drafting: generic transitions, formal passives, repeated terms, or overly even rhythm.",
+      });
+    }
+    return {
+      tool: "ai_trace_map",
+      summary: {
+        traceScore,
+        genericSignals,
+        formalSignals,
+        repeatedTerms: repeated,
+        sentenceLengthVariance: stats.variance,
+        method: "local_ai_trace_heuristic",
+      },
+      issues,
+      recommendations: [
+        "Treat this as an editing map, not authorship proof: replace generic transitions with examples, sources, author judgment, or sharper reader-facing steps.",
+      ],
+      annotations,
+    };
+  });
+
+export const genericnessWaterCheckHandler = () =>
+  runTextTool("genericness_water_check", (context) => {
+    const wordCount = words(context.text).length;
+    const waterySignals = wateryPhraseCount(context.text);
+    const concreteSignals = concreteEvidenceCount(context.text);
+    const authorialSignals = authorialSignalCount(context.text);
+    const repeated = topRepeatedTerms(context.text, 6);
+    const genericnessScore = clampScore(
+      28 + waterySignals * 11 + repeated.length * 3 - concreteSignals * 4 - authorialSignals * 5,
+    );
+    const issues: TextIssue[] = [];
+    const annotations: TextAnnotation[] = [];
+    if (genericnessScore >= 55) {
+      issues.push({
+        severity: "warning",
+        code: "generic_watery_text",
+        message:
+          "The text may feel watery: it relies on broad statements, repeated concepts, or service phrases more than concrete evidence.",
+      });
+    }
+    if (wordCount > 250 && concreteSignals < 2) {
+      issues.push({
+        severity: "info",
+        code: "low_concrete_evidence",
+        message:
+          "The article has few examples, numbers, sources, cases, or practical details for its length.",
+      });
+    }
+    const wateryQuote = firstSentenceMatching(
+      context.text,
+      /важно понимать|играет важную роль|имеет большое значение|ключевой аспект|широкий спектр|различные факторы|множество возможностей|plays a key role|wide range|various factors|many opportunities/iu,
+    );
+    if (wateryQuote) {
+      const target = findParagraphForQuote(context.text, wateryQuote);
+      if (target) {
+        annotations.push({
+          ...target,
+          category: "genericness",
+          severity: "warning",
+          marker: "underline",
+          title: "Watery phrasing",
+          shortMessage:
+            "This phrase sounds broad but does not add much usable information.",
+          recommendation:
+            "Swap it for a specific consequence, example, number, or reader action.",
+          confidence: 0.74,
+        });
+      }
+    }
+    return {
+      tool: "genericness_water_check",
+      summary: {
+        score: 100 - genericnessScore,
+        genericnessScore,
+        waterySignals,
+        concreteSignals,
+        authorialSignals,
+        repeatedTerms: repeated,
+        method: "local_genericness_heuristic",
+      },
+      issues,
+      recommendations: [
+        "For each broad paragraph, add one of four anchors: a concrete example, a source, a number, or a practical reader decision.",
+      ],
+      annotations,
+    };
+  });
+
+export const readabilityComplexityHandler = () =>
+  runTextTool("readability_complexity", (context) => {
+    const allSentences = sentences(context.text);
+    const allParagraphs = paragraphs(context.text);
+    const avgSentenceWords = sentenceDensity(context.text);
+    const longSentences = allSentences.filter((sentence) => words(sentence).length >= 28);
+    const heavyParagraphs = allParagraphs.filter((paragraph) => words(paragraph).length >= 120);
+    const readabilityScore = clampScore(
+      94 - Math.max(0, avgSentenceWords - 16) * 3 - longSentences.length * 5 - heavyParagraphs.length * 6,
+    );
+    const issues: TextIssue[] = [];
+    const annotations: TextAnnotation[] = [];
+    if (readabilityScore < 70) {
+      issues.push({
+        severity: "warning",
+        code: "readability_complexity_risk",
+        message:
+          "The text is harder to read than it needs to be: dense sentences or heavy paragraphs create friction.",
+      });
+    }
+    if (heavyParagraphs.length > 0) {
+      issues.push({
+        severity: "info",
+        code: "heavy_paragraphs",
+        message:
+          "One or more paragraphs are heavy enough to slow scanning.",
+      });
+    }
+    const denseQuote = longSentences[0];
+    if (denseQuote) {
+      const target = findParagraphForQuote(context.text, denseQuote);
+      if (target) {
+        annotations.push({
+          ...target,
+          category: "readability",
+          severity: "warning",
+          marker: "underline",
+          title: "Dense sentence",
+          shortMessage:
+            "This sentence carries many ideas at once and may need splitting.",
+          recommendation:
+            "Split it into two sentences or turn part of it into a short list.",
+          confidence: 0.76,
+        });
+      }
+    }
+    return {
+      tool: "readability_complexity",
+      summary: {
+        score: readabilityScore,
+        avgSentenceWords,
+        longSentences: longSentences.length,
+        heavyParagraphs: heavyParagraphs.length,
+        sentenceCount: allSentences.length,
+        paragraphCount: allParagraphs.length,
+        method: "local_readability_complexity_heuristic",
+      },
+      issues,
+      recommendations: [
+        "Shorten dense sentences first, then split heavy paragraphs so the reader can scan the argument without losing the thread.",
+      ],
+      annotations,
+    };
+  });
+
+export const claimSourceQueueHandler = () =>
+  runTextTool("claim_source_queue", (context) => {
+    const exactNumbers = countMatches(
+      context.text,
+      /\b\d+(?:[.,]\d+)?\s?%|\b\d{4}\b|\b\d+(?:[.,]\d+)?\s?(?:кг|мг|г|км|мл|час|мин|day|days|kg|mg|km)\b/giu,
+    );
+    const absoluteClaims = countMatches(
+      context.text,
+      /всегда|никогда|доказано|гарантирует|без исключений|единственный|точно|100%|always|never|proven|guarantees|only|without exception/giu,
+    );
+    const vagueAuthorities = countMatches(
+      context.text,
+      /эксперты считают|исследования показывают|многие специалисты|по мнению экспертов|according to experts|studies show|researchers say/giu,
+    );
+    const sensitiveClaims = countMatches(
+      context.text,
+      /врач|болезн|диабет|лекарств|лечение|беремен|инвестици|налог|закон|doctor|disease|treatment|medicine|investment|tax|law/giu,
+    );
+    const sourceSignals = countMatches(
+      context.text,
+      /https?:\/\/|\[[0-9]+\]|источник|исследован|study|source|doi\.org/giu,
+    );
+    const queueSize = Math.max(0, exactNumbers + absoluteClaims + vagueAuthorities + sensitiveClaims - sourceSignals);
+    const risk = clampScore(queueSize * 9 + absoluteClaims * 5 + vagueAuthorities * 6);
+    const issues: TextIssue[] = [];
+    const annotations: TextAnnotation[] = [];
+    if (queueSize > 0) {
+      issues.push({
+        severity: risk >= 55 ? "warning" : "info",
+        code: "claim_source_queue",
+        message:
+          "Some claims should enter an editor's source-check queue before publication.",
+      });
+    }
+    const claimQuote = firstSentenceMatching(
+      context.text,
+      /\b\d+(?:[.,]\d+)?\s?%|\b\d{4}\b|всегда|никогда|доказано|гарантирует|эксперты считают|исследования показывают|always|never|proven|guarantees|studies show/iu,
+    );
+    if (claimQuote) {
+      const target = findParagraphForQuote(context.text, claimQuote);
+      if (target) {
+        annotations.push({
+          ...target,
+          category: "claim_queue",
+          severity: risk >= 55 ? "warning" : "info",
+          marker: "note",
+          title: "Claim needs a source",
+          shortMessage:
+            "This claim may need a concrete source, softer wording, or removal.",
+          recommendation:
+            "Verify the claim against a source the editor is willing to cite.",
+          confidence: 0.74,
+        });
+      }
+    }
+    return {
+      tool: "claim_source_queue",
+      summary: {
+        risk,
+        queueSize,
+        exactNumbers,
+        absoluteClaims,
+        vagueAuthorities,
+        sensitiveClaims,
+        sourceSignals,
+        method: "local_claim_source_queue",
+      },
+      issues,
+      recommendations: [
+        "Before publishing, verify queued claims against sources; if a source is weak or unavailable, soften the wording or remove the detail.",
       ],
       annotations,
     };

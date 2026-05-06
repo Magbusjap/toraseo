@@ -234,6 +234,14 @@ function analysisToolFallback(toolId: AnalysisToolId): {
   tooltip: string;
 } {
   const labels: Partial<Record<AnalysisToolId, { label: string; tooltip: string }>> = {
+    analyze_google_page_search: {
+      label: "Проверка страницы в Google",
+      tooltip: "Подготовить Google-отчет по странице; клики и показы доступны только через Search Console или официальный SEO-провайдер.",
+    },
+    analyze_yandex_page_search: {
+      label: "Проверка страницы в Яндексе",
+      tooltip: "Подготовить Яндекс-отчет по странице; клики и показы доступны только через Вебмастер/Метрику или официальный SEO-провайдер.",
+    },
     compare_intent_gap: {
       label: "Сравнение интента",
       tooltip: "Проверить, отвечают ли оба текста на один и тот же запрос.",

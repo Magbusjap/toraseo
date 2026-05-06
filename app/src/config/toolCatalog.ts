@@ -133,6 +133,42 @@ const articleTextCurrent: CatalogToolRow[] = [
     ),
   },
   {
+    name: text("Карта AI-фрагментов", "AI trace map"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Показывает локальные фрагменты с AI-похожими признаками: служебные переходы, формальные пассивы, повторы и слишком ровный ритм. Это не доказательство авторства.",
+      "Maps local AI-like fragments: generic transitions, formal passives, repetition, and uniform rhythm. This is not proof of authorship.",
+    ),
+  },
+  {
+    name: text("Водность и шаблонность", "Genericness and watery text"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Ищет общие фразы, слабую конкретику, повторяющиеся понятия и места, где нужны пример, источник, число или практическое действие.",
+      "Finds broad phrasing, weak specificity, repeated concepts, and places that need an example, source, number, or practical action.",
+    ),
+  },
+  {
+    name: text("Читаемость и сложность", "Readability and complexity"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Оценивает плотность предложений, длинные фразы и тяжёлые абзацы, которые мешают быстро понять текст.",
+      "Reviews sentence density, long sentences, and heavy paragraphs that make the text harder to scan.",
+    ),
+  },
+  {
+    name: text("Очередь фактов на проверку", "Claim source queue"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Собирает утверждения, цифры и категоричные формулировки, которые редактору стоит проверить по источникам перед публикацией.",
+      "Collects claims, numbers, and absolute wording that an editor should verify against sources before publication.",
+    ),
+  },
+  {
     name: text("Естественность", "Naturalness"),
     group: "primary",
     change: "moved",

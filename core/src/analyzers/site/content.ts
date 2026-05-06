@@ -181,6 +181,7 @@ export async function analyzeContent(
   // --- Compute text metrics -------------------------------------------
   const textRaw = $root.text();
   const text = textRaw.replace(/\s+/g, " ").trim();
+  const textBlocks = extractTextBlocks($root, $);
   const word_count = countWords(text);
   const character_count = text.length;
   const sentence_count = countSentences(text);
@@ -208,6 +209,7 @@ export async function analyzeContent(
     paragraph_count,
     average_words_per_sentence,
     text_to_code_ratio,
+    extraction_note: extraction.note,
   };
 
   const issues = computeIssues({ summary, links, images });
@@ -218,6 +220,8 @@ export async function analyzeContent(
     response_time_ms: elapsedMs,
     issues,
     summary,
+    main_text: text,
+    text_blocks: textBlocks,
     links,
     images,
   };
@@ -239,15 +243,24 @@ function extractMainContent(
 ): {
   root: cheerio.Cheerio<any>;
   method: AnalyzeContentResult["summary"]["extraction_method"];
+  note: string;
 } {
-  const article = $("article").first();
+  const article = pickBestRoot($, "article");
   if (article.length > 0) {
-    return { root: article, method: "article" };
+    return {
+      root: cleanContentRoot(article),
+      method: "article",
+      note: "Основной текст извлечен из семантического блока article; навигация, реклама и служебные блоки удалены локально.",
+    };
   }
 
-  const main = $("main").first();
+  const main = pickBestRoot($, "main");
   if (main.length > 0) {
-    return { root: main, method: "main" };
+    return {
+      root: cleanContentRoot(main),
+      method: "main",
+      note: "Основной текст извлечен из блока main; навигация, реклама и служебные блоки удалены локально.",
+    };
   }
 
   // <body> minus landmarks. We clone the body so mutations don't
@@ -255,27 +268,150 @@ function extractMainContent(
   const body = $("body").first();
   if (body.length === 0) {
     // Pathological case: no <body>. Use the document root.
-    return { root: $.root(), method: "body" };
+    return {
+      root: cleanContentRoot($.root()),
+      method: "body",
+      note: "У страницы нет body, поэтому ToraSEO использовал корневой HTML-документ и удалил служебные блоки.",
+    };
   }
 
   const clone = body.clone();
   // Remove all common landmarks. We use $ as the parser to evaluate
   // the selector against the clone (cheerio supports this pattern).
-  clone.find("header, nav, footer, aside").remove();
+  removeNonArticleNoise(clone);
 
   // Also strip script/style/noscript — they contain text we don't want
   // counted (e.g. inline JSON-LD, CSS rules). They're not landmarks
   // strictly, but they're definitely not "content".
-  clone.find("script, style, noscript").remove();
 
   const trimmedText = clone.text().trim();
   if (trimmedText.length === 0) {
     // Stripping landmarks left nothing. Fall back to body as-is and
     // report that fact via extraction_method.
-    return { root: body, method: "body" };
+    return {
+      root: cleanContentRoot(body),
+      method: "body",
+      note: "После удаления служебных блоков текст не найден, поэтому ToraSEO использовал body страницы.",
+    };
   }
 
-  return { root: clone, method: "body_minus_landmarks" };
+  return {
+    root: clone,
+    method: "body_minus_landmarks",
+    note: "Семантический article/main не найден, поэтому ToraSEO взял body без навигации, рекламы, комментариев и служебных блоков.",
+  };
+}
+
+function pickBestRoot(
+  $: cheerio.CheerioAPI,
+  selector: string,
+): cheerio.Cheerio<any> {
+  let best: cheerio.Cheerio<any> | null = null;
+  let bestScore = 0;
+
+  $(selector).each((_, element) => {
+    const candidate = $(element);
+    const cleaned = cleanContentRoot(candidate);
+    const text = cleaned.text().replace(/\s+/g, " ").trim();
+    const linkText = cleaned.find("a").text().replace(/\s+/g, " ").trim();
+    const score =
+      countWords(text) +
+      cleaned.find("p").length * 12 +
+      cleaned.find("h1, h2, h3").length * 8 -
+      countWords(linkText) * 0.6;
+
+    if (score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  });
+
+  return bestScore > 20 && best !== null ? best : $([]);
+}
+
+function cleanContentRoot(
+  root: cheerio.Cheerio<any>,
+): cheerio.Cheerio<any> {
+  const clone = root.clone();
+  removeNonArticleNoise(clone);
+  return clone;
+}
+
+function removeNonArticleNoise(root: cheerio.Cheerio<any>): void {
+  root
+    .find(
+      [
+        "script",
+        "style",
+        "noscript",
+        "template",
+        "svg",
+        "canvas",
+        "iframe",
+        "header",
+        "nav",
+        "footer",
+        "aside",
+        "form",
+        "button",
+        "[hidden]",
+        "[aria-hidden='true']",
+        "[role='banner']",
+        "[role='navigation']",
+        "[role='complementary']",
+        "[role='contentinfo']",
+        "[class*='advert']",
+        "[class*='ads']",
+        "[class*='ad-']",
+        "[class*='banner']",
+        "[class*='promo']",
+        "[class*='sponsor']",
+        "[class*='recommend']",
+        "[class*='related']",
+        "[class*='share']",
+        "[class*='social']",
+        "[class*='comment']",
+        "[class*='subscribe']",
+        "[id*='advert']",
+        "[id*='ads']",
+        "[id*='banner']",
+        "[id*='promo']",
+        "[id*='sponsor']",
+        "[id*='recommend']",
+        "[id*='related']",
+        "[id*='share']",
+        "[id*='social']",
+        "[id*='comment']",
+        "[id*='subscribe']",
+      ].join(","),
+    )
+    .remove();
+}
+
+function extractTextBlocks(
+  root: cheerio.Cheerio<any>,
+  $: cheerio.CheerioAPI,
+): string[] {
+  const blocks: string[] = [];
+
+  root.find("h1, h2, h3, p, li, blockquote").each((_, element) => {
+    const text = $(element).text().replace(/\s+/g, " ").trim();
+    if (text.length < 24 || isLikelyNoiseText(text)) return;
+    blocks.push(text);
+  });
+
+  if (blocks.length === 0) {
+    const fallback = root.text().replace(/\s+/g, " ").trim();
+    if (fallback.length > 0) blocks.push(fallback);
+  }
+
+  return blocks.slice(0, 120);
+}
+
+function isLikelyNoiseText(text: string): boolean {
+  return /cookie|privacy policy|subscribe|advertisement|реклама|подпис|коммент|поделиться|читайте также|похожие материалы/i.test(
+    text,
+  );
 }
 
 // --- Word / sentence counting --------------------------------------------

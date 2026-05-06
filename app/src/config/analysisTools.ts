@@ -8,6 +8,9 @@ import type { AnalysisTypeId } from "./analysisTypes";
 export type AnalysisToolId =
   | ToolId
   | "extract_main_text"
+  | "page_url_article_internal"
+  | "analyze_google_page_search"
+  | "analyze_yandex_page_search"
   | "detect_text_platform"
   | "analyze_text_structure"
   | "analyze_text_style"
@@ -17,6 +20,10 @@ export type AnalysisToolId =
   | "article_uniqueness"
   | "language_syntax"
   | "ai_writing_probability"
+  | "ai_trace_map"
+  | "genericness_water_check"
+  | "readability_complexity"
+  | "claim_source_queue"
   | "naturalness_indicators"
   | "fact_distortion_check"
   | "logic_consistency_check"
@@ -73,15 +80,27 @@ function analysisTool(
 export const ANALYSIS_TOOLS: Record<AnalysisTypeId, AnalysisToolMeta[]> = {
   site_by_url: TOOLS.map((tool) => siteTool(tool.id)),
   page_by_url: [
-    siteTool("check_robots_txt"),
-    siteTool("analyze_meta"),
-    siteTool("analyze_headings"),
-    siteTool("analyze_content"),
-    siteTool("detect_stack"),
-    analysisTool("extract_main_text"),
     analysisTool("detect_text_platform"),
+    analysisTool("analyze_text_structure"),
     analysisTool("analyze_text_style"),
+    analysisTool("analyze_tone_fit"),
     analysisTool("language_audience_fit"),
+    analysisTool("media_placeholder_review"),
+    analysisTool("article_uniqueness"),
+    analysisTool("language_syntax"),
+    analysisTool("ai_writing_probability"),
+    analysisTool("genericness_water_check"),
+    analysisTool("readability_complexity"),
+    analysisTool("naturalness_indicators"),
+    analysisTool("logic_consistency_check"),
+    analysisTool("intent_seo_forecast"),
+    analysisTool("safety_science_review"),
+    analysisTool("ai_trace_map", { defaultSelected: false }),
+    analysisTool("claim_source_queue", { defaultSelected: false }),
+    analysisTool("fact_distortion_check", { defaultSelected: false }),
+    analysisTool("ai_hallucination_check", { defaultSelected: false }),
+    analysisTool("analyze_google_page_search", { defaultSelected: false }),
+    analysisTool("analyze_yandex_page_search", { defaultSelected: false }),
   ],
   article_text: [
     analysisTool("detect_text_platform"),
@@ -90,6 +109,17 @@ export const ANALYSIS_TOOLS: Record<AnalysisTypeId, AnalysisToolMeta[]> = {
     analysisTool("analyze_tone_fit"),
     analysisTool("language_audience_fit"),
     analysisTool("media_placeholder_review"),
+    analysisTool("article_uniqueness"),
+    analysisTool("language_syntax"),
+    analysisTool("ai_writing_probability"),
+    analysisTool("genericness_water_check"),
+    analysisTool("readability_complexity"),
+    analysisTool("naturalness_indicators"),
+    analysisTool("logic_consistency_check"),
+    analysisTool("intent_seo_forecast"),
+    analysisTool("safety_science_review"),
+    analysisTool("ai_trace_map", { defaultSelected: false }),
+    analysisTool("claim_source_queue", { defaultSelected: false }),
     analysisTool("fact_distortion_check", { defaultSelected: false }),
     analysisTool("ai_hallucination_check", { defaultSelected: false }),
   ],

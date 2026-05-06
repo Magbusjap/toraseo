@@ -51,7 +51,8 @@ export async function readActiveInputMarkdown(
     ? Date.parse(latest.workspace.expiresAt)
     : NaN;
   if (
-    latest?.analysisType === "article_text" &&
+    (latest?.analysisType === "article_text" ||
+      latest?.analysisType === "page_by_url") &&
     latest.workspace?.inputFile &&
     Number.isFinite(expiresAt) &&
     expiresAt > Date.now()
@@ -60,6 +61,17 @@ export async function readActiveInputMarkdown(
   }
 
   return null;
+}
+
+export async function writeActiveInputMarkdown(
+  state: CurrentScanState | null,
+  content: string,
+): Promise<void> {
+  const inputFile = state?.workspace?.inputFile;
+  if (!inputFile) return;
+  const tmpPath = `${inputFile}.${process.pid}.tmp`;
+  await fs.writeFile(tmpPath, content, "utf-8");
+  await fs.rename(tmpPath, inputFile);
 }
 
 export async function writeWorkspaceResult(
