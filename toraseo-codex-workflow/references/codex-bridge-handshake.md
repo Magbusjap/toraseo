@@ -65,12 +65,21 @@ states.
 
 The handshake response can describe different bridge workloads:
 
-- `site_by_url`: call the selected site-audit tools for the returned URL.
+- `site_by_url`: call `site_url_internal` when it is available. It runs
+  the selected site-audit checks inside ToraSEO and writes individual
+  results back under the normal check names. Do not call separate site
+  URL tools unless explicitly debugging one check. Do not request
+  filesystem access to read JSON result files after the report is
+  already visible in the app unless the user explicitly asks for raw
+  debugging files. Do not ask the user to paste a report summary,
+  screenshot, JSON, or result files after `site_url_internal` has
+  completed; its MCP response contains enough facts for the final
+  user-facing summary.
 - `article_text`: call the selected article-text tools. The text body is
   stored in the temporary ToraSEO workspace as `input.md`, so Codex must
   not ask the user to paste it into chat. The selected MCP tools read
-  that file and write their structured results back into the app state
-  and `results/*.json`.
+  that file and return enough structured evidence for the final chat
+  summary and app report.
 - `page_by_url`: call `page_url_article_internal` when returned by the
   handshake. It extracts the article from the URL or the optional
   user-highlighted text block, cleans local URL/page noise, and writes
@@ -211,6 +220,14 @@ platform offers that choice. When the approval dialog appears, guide
 the user to tick the chat/session approval checkbox and click Allow.
 Repeated per-tool approvals are a fallback only when Codex does not
 expose a broader approval option.
+
+For `site_by_url`, approval is only needed for `site_url_internal`. After
+that package finishes and writes results to ToraSEO, do not request
+additional MCP approval or filesystem permission for the final chat
+summary. Use the MCP response and visible app report as the source of
+facts; temporary `results/*.json` files are for debugging/export paths,
+not for the normal user-facing summary. Do not ask the user to paste a
+report summary, screenshot, JSON, or result files.
 
 Do not describe per-tool approval as the intended long-term product
 flow. Future ToraSEO scans may use many more tools, so the bridge

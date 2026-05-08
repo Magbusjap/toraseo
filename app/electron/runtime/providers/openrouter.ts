@@ -27,6 +27,7 @@ const DEFAULT_MODEL = "openrouter/auto";
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_ATTEMPTS = 2;
+const ANALYSIS_VERSION = "0.0.1";
 
 interface OpenRouterSuccessPayload {
   choices?: Array<{
@@ -432,9 +433,12 @@ function toolLabelForPrompt(value: string, locale: "en" | "ru"): string {
       en: "main text extraction",
     },
     check_robots_txt: { ru: "проверка robots.txt", en: "robots.txt check" },
+    analyze_indexability: { ru: "индексация", en: "indexability" },
     analyze_meta: { ru: "мета-теги страницы", en: "page meta tags" },
+    analyze_canonical: { ru: "canonical", en: "canonical" },
     analyze_headings: { ru: "заголовки страницы", en: "page headings" },
     analyze_content: { ru: "контент страницы", en: "page content" },
+    analyze_links: { ru: "ссылки страницы", en: "page links" },
     detect_stack: { ru: "стек сайта", en: "site stack" },
     analyze_google_page_search: {
       ru: "проверка страницы в Google",
@@ -621,11 +625,15 @@ function mapToolLabelToId(value: string): string | null {
     "main text extraction": "extract_main_text",
     "robots txt check": "check_robots_txt",
     "robots.txt check": "check_robots_txt",
+    indexability: "analyze_indexability",
     "page meta tags": "analyze_meta",
     "meta tags": "analyze_meta",
+    canonical: "analyze_canonical",
     "page headings": "analyze_headings",
     headings: "analyze_headings",
     "page content": "analyze_content",
+    "page links": "analyze_links",
+    links: "analyze_links",
     "site stack": "detect_stack",
     "google page search check": "analyze_google_page_search",
     "yandex page search check": "analyze_yandex_page_search",
@@ -718,6 +726,21 @@ function arrayValue(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
+function reportAnalysisTypeForRequest(
+  request: ProviderChatRequest,
+): RuntimeAuditReport["analysisType"] {
+  if (request.articleCompareContext) return "article_compare";
+  if (request.articleTextContext) {
+    const context = request.articleTextContext;
+    const looksLikePageByUrl =
+      context.sourceType === "page_by_url" ||
+      (/^https?:\/\//i.test(context.topic.trim()) &&
+        context.selectedTools.includes("extract_main_text"));
+    return looksLikePageByUrl ? "page_by_url" : "article_text";
+  }
+  return "site_by_url";
+}
+
 function coerceLocalizedArticleReport(
   candidate: Record<string, unknown>,
   request: ProviderChatRequest,
@@ -799,6 +822,8 @@ function coerceLocalizedArticleReport(
           .slice(0, 8);
 
   return {
+    analysisType: reportAnalysisTypeForRequest(request),
+    analysisVersion: ANALYSIS_VERSION,
     mode: request.policy.mode,
     providerId: "openrouter",
     model,
@@ -883,6 +908,8 @@ function coerceReport(
     return null;
   }
   return {
+    analysisType: reportAnalysisTypeForRequest(request),
+    analysisVersion: ANALYSIS_VERSION,
     mode: request.policy.mode,
     providerId: "openrouter",
     model,
@@ -992,8 +1019,9 @@ export class OpenRouterAdapter implements ProviderAdapter {
       const structuredScan = isStructuredArticleTextScan(request);
       const autoRunAction = articleTextAutoRunAction(request);
       const isPageByUrl =
-        /^https?:\/\//i.test(context.topic.trim()) &&
-        context.selectedTools.includes("extract_main_text");
+        context.sourceType === "page_by_url" ||
+        (/^https?:\/\//i.test(context.topic.trim()) &&
+          context.selectedTools.includes("extract_main_text"));
       const languageInstruction =
         request.policy.locale === "ru"
           ? "Ответь по-русски."

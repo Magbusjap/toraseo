@@ -1,5 +1,6 @@
 import { app, BrowserWindow, clipboard, dialog, screen } from "electron";
 import fs from "node:fs/promises";
+import * as fsSync from "node:fs";
 import path from "node:path";
 import log from "electron-log";
 
@@ -12,6 +13,13 @@ let reportWindowNavigationToken = 0;
 let reportWindowViewState: "closed" | "report" | "processing" | "ended" =
   "closed";
 let reportWindowExportReport: RuntimeAuditReport | null = null;
+const REPORT_ANALYSIS_VERSION = "0.0.1";
+
+function analysisVersionLine(isRu: boolean, version = REPORT_ANALYSIS_VERSION): string {
+  return isRu
+    ? `Версия анализа: ${version}`
+    : `Analysis version: ${version}`;
+}
 
 function normalizePdfPath(filePath: string): string {
   return path.extname(filePath).toLowerCase() === ".pdf"
@@ -2235,6 +2243,14 @@ function renderArticleTextReportDashboardHtml(report: RuntimeAuditReport): strin
           font-weight: 900;
           cursor: pointer;
         }
+        .analysis-version {
+          margin: 0;
+          color: rgba(26, 15, 8, 0.42);
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: .06em;
+          text-transform: uppercase;
+        }
         .top-grid { display: grid; grid-template-columns: minmax(0, 1.42fr) 280px 300px; gap: 14px; align-items: stretch; }
         .report-summary-panel .top-grid { margin-top: 10px; }
         .summary-metrics { margin-top: 18px; }
@@ -3080,6 +3096,9 @@ function renderArticleTextReportDashboardHtml(report: RuntimeAuditReport): strin
         </section>
         ${renderArticleInsights(report, isRu)}
         ${renderArticleFooterReport(report, isRu)}
+        <section class="panel">
+          <p class="analysis-version">${analysisVersionLine(isRu, report.analysisVersion)}</p>
+        </section>
       </main>
       <script>
         (() => {
@@ -3193,6 +3212,402 @@ function viewportSizeOverlayMarkup(): string {
       </script>`;
 }
 
+type SiteDisplayStatus = "critical" | "warning" | "info" | "passed";
+
+interface SiteDisplayFact {
+  title: string;
+  detail: string;
+  action: string;
+  status: SiteDisplayStatus;
+  priority: "high" | "medium" | "low";
+  sourceToolIds: string[];
+}
+
+function siteToolLabel(toolId: string, isRu: boolean): string {
+  const ru: Record<string, string> = {
+    scan_site_minimal: "Базовый скан",
+    analyze_indexability: "Индексация",
+    check_robots_txt: "Robots.txt",
+    analyze_sitemap: "Sitemap",
+    check_redirects: "Редиректы",
+    analyze_meta: "Meta-теги",
+    analyze_canonical: "Canonical",
+    analyze_headings: "Заголовки",
+    analyze_content: "Контент",
+    analyze_links: "Ссылки",
+    detect_stack: "Стек сайта",
+  };
+  const en: Record<string, string> = {
+    scan_site_minimal: "Basic scan",
+    analyze_indexability: "Indexability",
+    check_robots_txt: "Robots.txt",
+    analyze_sitemap: "Sitemap",
+    check_redirects: "Redirects",
+    analyze_meta: "Meta tags",
+    analyze_canonical: "Canonical",
+    analyze_headings: "Headings",
+    analyze_content: "Content",
+    analyze_links: "Links",
+    detect_stack: "Site stack",
+  };
+  return (isRu ? ru : en)[toolId] ?? toolId;
+}
+
+function siteReadableTitle(title: string, isRu: boolean): string {
+  if (!isRu) return title;
+  const normalized = title.toLowerCase();
+  if (normalized.includes("no sitemap")) return "Sitemap не найден";
+  if (normalized.includes("thin content")) return "Мало основного текста";
+  if (normalized.includes("no meta description")) return "Meta description отсутствует";
+  if (normalized.includes("no canonical")) return "Canonical отсутствует";
+  if (normalized.includes("og missing")) return "Open Graph отсутствует";
+  if (normalized.includes("twitter card missing")) return "Twitter Card отсутствует";
+  if (normalized.includes("title too short")) return "Title слишком короткий";
+  if (normalized.includes("heading level skip")) return "Пропуск уровня заголовка";
+  if (normalized.includes("no redirects")) return "Редиректов нет";
+  if (normalized.includes("indexability clear")) return "Индексация разрешена";
+  if (normalized.includes("robots") && normalized.includes("completed")) {
+    return "Robots.txt разрешает обход";
+  }
+  if (normalized.includes("minimal scan completed")) return "Базовый скан выполнен";
+  if (normalized.includes("links checked")) return "Ссылки проверены";
+  if (normalized.includes("stack detected")) return "Стек сайта определен";
+  return title
+    .replace(/^Meta tags:/i, "Meta-теги:")
+    .replace(/^Headings:/i, "Заголовки:")
+    .replace(/^Content:/i, "Контент:")
+    .replace(/^Redirects:/i, "Редиректы:")
+    .replace(/^Indexability:/i, "Индексация:");
+}
+
+function siteReadableDetail(detail: string, isRu: boolean): string {
+  if (!isRu) return detail;
+  const normalized = detail.toLowerCase();
+  if (normalized.includes("no sitemap found")) {
+    return "Sitemap не найден. Поисковикам может быть сложнее находить страницы сайта. Создайте sitemap.xml и укажите его в robots.txt.";
+  }
+  if (normalized.includes("page contains only") && normalized.includes("words")) {
+    return "На странице мало основного текста. Проверьте, что важный контент доступен в HTML, и добавьте содержательное описание темы.";
+  }
+  if (normalized.includes("meta name=\"description\"")) {
+    return "На странице нет meta description. Поисковая система может сформировать сниппет автоматически, поэтому добавьте описание на 120-160 символов.";
+  }
+  if (normalized.includes("canonical")) {
+    return "Canonical не указан. Если у страницы есть дубли или URL-варианты, добавьте канонический адрес.";
+  }
+  if (normalized.includes("no open graph")) {
+    return "Open Graph не настроен. При публикации ссылки в соцсетях превью может выглядеть случайным.";
+  }
+  if (normalized.includes("twitter:card")) {
+    return "Twitter Card не настроен. В X/Twitter ссылка может отображаться как обычный текст без нормального превью.";
+  }
+  if (normalized.includes("title is") && normalized.includes("characters")) {
+    return "Title короткий. Уточните его так, чтобы он лучше называл страницу и содержал важный поисковый смысл.";
+  }
+  if (normalized.includes("heading-level skip")) {
+    return "В структуре заголовков есть пропуск уровня. Это не всегда SEO-блокер, но лучше сделать иерархию чище.";
+  }
+  if (normalized.includes("no robots.txt block") || normalized.includes("locally indexable")) {
+    return "Блокировок индексации через robots.txt или meta robots не найдено.";
+  }
+  if (normalized.includes("crawling is allowed")) {
+    return "Robots.txt разрешает обход этой страницы.";
+  }
+  if (normalized.includes("detected likely stack signals")) {
+    return detail.replace(/^Detected likely stack signals:/i, "Найдены вероятные технологии:");
+  }
+  return detail;
+}
+
+function siteFactKey(title: string, detail: string): string {
+  const text = `${title} ${detail}`.toLowerCase();
+  if (text.includes("canonical")) return "canonical";
+  if (text.includes("meta description")) return "meta_description";
+  if (text.includes("no sitemap") || text.includes("sitemap not found")) return "sitemap";
+  if (text.includes("thin content")) return "thin_content";
+  if (text.includes("open graph") || text.includes("og missing")) return "open_graph";
+  if (text.includes("twitter")) return "twitter_card";
+  if (text.includes("title too short")) return "title_too_short";
+  if (text.includes("heading level skip")) return "heading_level_skip";
+  if (text.includes("no redirects")) return "redirects_ok";
+  if (text.includes("indexability clear")) return "indexability_ok";
+  if (text.includes("robots") && text.includes("completed")) return "robots_ok";
+  if (text.includes("minimal scan completed")) return "basic_scan_ok";
+  if (text.includes("links checked")) return "links_checked";
+  if (text.includes("stack detected")) return "stack_detected";
+  return title.toLowerCase().replace(/[^a-z0-9а-яё]+/giu, "_");
+}
+
+function siteReadableAction(title: string, detail: string, isRu: boolean): string {
+  const text = `${title} ${detail}`.toLowerCase();
+  const key = siteFactKey(title, detail);
+  if (!isRu) {
+    if (key === "sitemap") return "Create sitemap.xml, add it to robots.txt, and rerun the scan.";
+    if (key === "thin_content") return "Make sure the main content is present in HTML or add a fuller page body.";
+    if (key === "meta_description") return "Add a clear meta description of about 120-160 characters.";
+    if (key === "canonical") return "Add a canonical URL if the page can have duplicate URL variants.";
+    if (key === "open_graph") return "Add Open Graph title, description, URL, and preview image.";
+    if (key === "twitter_card") return "Add twitter:card or reuse the Open Graph preview for X/Twitter.";
+    if (key === "title_too_short") return "Expand the title so it names the page and includes the main search meaning.";
+    if (key === "heading_level_skip") return "Clean up the heading hierarchy without changing the article meaning.";
+    if (key === "redirects_ok" || key === "indexability_ok" || key === "robots_ok" || key === "links_checked") {
+      return "No urgent action is needed for this check.";
+    }
+    if (key === "stack_detected") return "Use these signals as technical context, not as an SEO issue.";
+    if (text.includes("invalid url")) return "Check the entered URL and rerun the scan.";
+    return "Review this check and rerun the scan after changes.";
+  }
+  if (key === "sitemap") return "Создайте sitemap.xml, укажите его в robots.txt и запустите повторный скан.";
+  if (key === "thin_content") return "Проверьте, что основной контент есть в HTML, или добавьте более содержательный текст страницы.";
+  if (key === "meta_description") return "Добавьте понятный meta description примерно на 120-160 символов.";
+  if (key === "canonical") return "Добавьте canonical, если у страницы могут быть дубли или разные URL-варианты.";
+  if (key === "open_graph") return "Добавьте Open Graph: заголовок, описание, URL и изображение превью.";
+  if (key === "twitter_card") return "Добавьте twitter:card или настройте наследование превью из Open Graph.";
+  if (key === "title_too_short") return "Расширьте title: он должен яснее называть страницу и основной поисковый смысл.";
+  if (key === "heading_level_skip") return "Приведите иерархию заголовков в более чистый порядок.";
+  if (key === "redirects_ok" || key === "indexability_ok" || key === "robots_ok" || key === "links_checked") {
+    return "Срочных действий по этой проверке не требуется.";
+  }
+  if (key === "stack_detected") return "Используйте эти сигналы как справку, но не как SEO-проблему.";
+  if (text.includes("invalid url")) return "Проверьте введенный URL и запустите скан повторно.";
+  return "Проверьте этот пункт и запустите повторный скан после правок.";
+}
+
+function siteFactStatus(priority: "high" | "medium" | "low", title: string, detail: string): SiteDisplayStatus {
+  const text = `${title} ${detail}`.toLowerCase();
+  const key = siteFactKey(title, detail);
+  if (key === "meta_description" || key === "title_too_short") return "warning";
+  if (key === "canonical" || key === "heading_level_skip" || key === "links_checked") {
+    return "info";
+  }
+  if (key === "thin_content" || key === "sitemap") return "critical";
+  const passed =
+    text.includes("completed") ||
+    text.includes("clear") ||
+    text.includes("no redirects") ||
+    text.includes("links checked") ||
+    text.includes("crawling is allowed");
+  if (passed && priority === "low") return "passed";
+  if (priority === "high") return "critical";
+  if (priority === "medium") return "warning";
+  return "info";
+}
+
+function aggregateSiteFacts(report: RuntimeAuditReport, isRu: boolean): SiteDisplayFact[] {
+  const byKey = new Map<string, SiteDisplayFact>();
+  for (const fact of report.confirmedFacts) {
+    const key = siteFactKey(fact.title, fact.detail);
+    const item: SiteDisplayFact = {
+      title: siteReadableTitle(fact.title, isRu),
+      detail: siteReadableDetail(fact.detail, isRu),
+      action: siteReadableAction(fact.title, fact.detail, isRu),
+      status: siteFactStatus(fact.priority, fact.title, fact.detail),
+      priority: fact.priority,
+      sourceToolIds: fact.sourceToolIds,
+    };
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, item);
+      continue;
+    }
+    existing.sourceToolIds = Array.from(
+      new Set([...existing.sourceToolIds, ...item.sourceToolIds]),
+    );
+    if (item.priority === "high" || existing.priority === "low") {
+      existing.priority = item.priority;
+      existing.status = item.status;
+    }
+  }
+  return [...byKey.values()].sort(
+    (a, b) => siteStatusWeight(a.status) - siteStatusWeight(b.status),
+  );
+}
+
+function siteStatusWeight(status: SiteDisplayStatus): number {
+  if (status === "critical") return 0;
+  if (status === "warning") return 1;
+  if (status === "info") return 2;
+  return 3;
+}
+
+interface SitePreviewData {
+  url: string;
+  title: string;
+  h1: string;
+  status: string;
+  wordCount: string;
+  stack: string[];
+  robots: SiteDisplayStatus;
+  sitemap: SiteDisplayStatus;
+  meta: SiteDisplayStatus;
+  canonical: SiteDisplayStatus;
+  content: SiteDisplayStatus;
+  openGraph: SiteDisplayStatus;
+}
+
+function firstMatch(text: string, pattern: RegExp): string | null {
+  return text.match(pattern)?.[1]?.trim() ?? null;
+}
+
+function buildSitePreviewData(
+  report: RuntimeAuditReport,
+  facts: SiteDisplayFact[],
+  isRu: boolean,
+): SitePreviewData {
+  const raw = report.confirmedFacts.map((fact) => `${fact.title}; ${fact.detail}`).join("\n");
+  const stackText =
+    firstMatch(raw, /signals:\s*([^.\n]+)/i) ??
+    firstMatch(raw, /Detected likely stack signals:\s*([^.\n]+)/i) ??
+    "";
+  const status = firstMatch(raw, /HTTP\s+(\d{3})/i) ?? "200";
+  const wordCount =
+    firstMatch(raw, /only\s+(\d+)\s+words/i) ??
+    firstMatch(raw, /(\d+)\s+words/i) ??
+    "—";
+  const title =
+    firstMatch(raw, /title:\s*([^;\n]+)/i) ??
+    (isRu ? "Title не определен" : "Title not detected");
+  const h1 =
+    firstMatch(raw, /H1:\s*([^;\n]+)/i) ??
+    (isRu ? "H1 не определен" : "H1 not detected");
+  const url =
+    firstMatch(raw, /final URL:\s*([^;\n]+)/i) ??
+    firstMatch(report.summary, /(https?:\/\/[^\s]+)/i) ??
+    (isRu ? "URL сайта" : "Site URL");
+  const statusFor = (...toolIds: string[]): SiteDisplayStatus => {
+    const matching = facts.filter((fact) =>
+      fact.sourceToolIds.some((toolId) => toolIds.includes(toolId)),
+    );
+    if (matching.some((fact) => fact.status === "critical")) return "critical";
+    if (matching.some((fact) => fact.status === "warning")) return "warning";
+    if (matching.some((fact) => fact.status === "info")) return "info";
+    return "passed";
+  };
+  return {
+    url,
+    title,
+    h1,
+    status,
+    wordCount,
+    stack: stackText
+      .split(/,\s*/g)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 8),
+    robots: statusFor("check_robots_txt"),
+    sitemap: statusFor("analyze_sitemap"),
+    meta: statusFor("analyze_meta"),
+    canonical: statusFor("analyze_canonical"),
+    content: statusFor("analyze_content"),
+    openGraph: facts.some((fact) => siteFactKey(fact.title, fact.detail) === "open_graph")
+      ? "warning"
+      : "passed",
+  };
+}
+
+function siteStatusText(status: SiteDisplayStatus, isRu: boolean): string {
+  if (status === "critical") return isRu ? "Проблема" : "Issue";
+  if (status === "warning") return isRu ? "Проверить" : "Review";
+  if (status === "info") return isRu ? "Инфо" : "Info";
+  return isRu ? "OK" : "OK";
+}
+
+function renderSitePreviewBlock(preview: SitePreviewData, isRu: boolean): string {
+  const stackItems = preview.stack.length
+    ? preview.stack.map((item) => `<span class="tech-chip">${escapeHtml(item)}</span>`).join("")
+    : `<span class="tech-chip">${isRu ? "Стек не определен" : "Stack not detected"}</span>`;
+  const signal = (label: string, status: SiteDisplayStatus) => `
+    <div class="tech-row">
+      <span>${escapeHtml(label)}</span>
+      <strong class="status-${status}">${escapeHtml(siteStatusText(status, isRu))}</strong>
+    </div>`;
+  return `
+    <section class="site-preview-card">
+      <div class="browser-preview">
+        <div class="browser-top">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <div class="address">${escapeHtml(preview.url)}</div>
+        </div>
+        <div class="browser-body">
+          <p class="preview-label">${isRu ? "Как страницу видит базовый SEO-скан" : "How the base SEO scan sees the page"}</p>
+          <h2>${escapeHtml(preview.h1)}</h2>
+          <p class="preview-title">${escapeHtml(preview.title)}</p>
+          <div class="serp-card">
+            <strong>${escapeHtml(preview.title)}</strong>
+            <span>${escapeHtml(preview.url)}</span>
+            <p>${isRu ? "Description не найден: поисковик может собрать сниппет автоматически из текста страницы." : "Description is missing: the search engine may build a snippet automatically from page text."}</p>
+          </div>
+          <div class="preview-lines">
+            <span style="width: 88%"></span>
+            <span style="width: 72%"></span>
+            <span style="width: 54%"></span>
+          </div>
+        </div>
+      </div>
+      <aside class="tech-panel">
+        <div>
+          <p class="meta">${isRu ? "Технологии и SEO-сигналы" : "Technology and SEO signals"}</p>
+          <h2>${isRu ? "Профиль сайта" : "Site profile"}</h2>
+        </div>
+        <div class="tech-grid">
+          <div><span>HTTP</span><strong>${escapeHtml(preview.status)}</strong></div>
+          <div><span>${isRu ? "Текст" : "Text"}</span><strong>${escapeHtml(preview.wordCount)}</strong></div>
+        </div>
+        <div class="tech-chips">${stackItems}</div>
+        <div class="tech-rows">
+          ${signal("Robots.txt", preview.robots)}
+          ${signal("Sitemap", preview.sitemap)}
+          ${signal("Meta", preview.meta)}
+          ${signal("Canonical", preview.canonical)}
+          ${signal("Open Graph", preview.openGraph)}
+          ${signal(isRu ? "Контент" : "Content", preview.content)}
+        </div>
+      </aside>
+    </section>`;
+}
+
+function renderAuditDirections(facts: SiteDisplayFact[], isRu: boolean): string {
+  const groups = [
+    { label: isRu ? "Индексация" : "Indexability", tools: ["scan_site_minimal", "analyze_indexability"] },
+    { label: isRu ? "Метаданные и canonical" : "Metadata and canonical", tools: ["analyze_meta", "analyze_canonical"] },
+    { label: isRu ? "Структура и ссылки" : "Structure and links", tools: ["analyze_headings", "analyze_links"] },
+    { label: isRu ? "Готовность контента" : "Content readiness", tools: ["analyze_content"] },
+    { label: isRu ? "Sitemap и редиректы" : "Sitemap and redirects", tools: ["analyze_sitemap", "check_redirects"] },
+    { label: isRu ? "Технические сигналы" : "Technical signals", tools: ["check_robots_txt", "detect_stack"] },
+  ];
+  return groups
+    .map((group) => {
+      const matching = facts.filter((fact) =>
+        fact.sourceToolIds.some((toolId) => group.tools.includes(toolId)),
+      );
+      const seenTools = new Set(
+        matching.flatMap((fact) =>
+          fact.sourceToolIds.filter((toolId) => group.tools.includes(toolId)),
+        ),
+      );
+      const problems = matching.filter(
+        (fact) => fact.status === "critical" || fact.status === "warning",
+      ).length;
+      const status =
+        matching.some((fact) => fact.status === "critical")
+          ? "critical"
+          : matching.some((fact) => fact.status === "warning")
+            ? "warning"
+            : "passed";
+      const width = Math.max(12, Math.round((seenTools.size / group.tools.length) * 100));
+      return `
+        <article class="direction-card">
+          <div class="direction-head">
+            <strong>${escapeHtml(group.label)}</strong>
+            <span class="status-${status}">${problems > 0 ? `${problems} ${isRu ? "проблем" : "issues"}` : `${seenTools.size}/${group.tools.length}`}</span>
+          </div>
+          <p>${seenTools.size}/${group.tools.length} ${isRu ? "проверок выполнено" : "checks completed"}</p>
+          <div class="direction-bar"><span class="seg-${status === "passed" ? "passed" : status}" style="width:${width}%"></span></div>
+        </article>`;
+    })
+    .join("");
+}
+
 function renderReportHtml(report: RuntimeAuditReport): string {
   if (report.articleCompare) {
     return renderArticleCompareReportDashboardHtml(report);
@@ -3202,106 +3617,562 @@ function renderReportHtml(report: RuntimeAuditReport): string {
     return renderArticleTextReportDashboardHtml(report);
   }
 
-  const facts = report.confirmedFacts
+  const facts = aggregateSiteFacts(report, /[А-Яа-яЁё]/.test(report.summary));
+  const isRu = /[А-Яа-яЁё]/.test(
+    `${report.summary} ${facts.map((fact) => fact.title).join(" ")}`,
+  );
+  const preview = buildSitePreviewData(report, facts, isRu);
+  const critical = facts.filter((fact) => fact.status === "critical").length;
+  const warning = facts.filter((fact) => fact.status === "warning").length;
+  const info = facts.filter((fact) => fact.status === "info").length;
+  const passed = facts.filter((fact) => fact.status === "passed").length;
+  const sourceTotal = new Set(report.confirmedFacts.flatMap((fact) => fact.sourceToolIds)).size;
+  const blockedToolIds = new Set(
+    facts
+      .filter((fact) => fact.status === "critical" || fact.status === "warning")
+      .flatMap((fact) => fact.sourceToolIds),
+  );
+  const cleanTools = Math.max(0, sourceTotal - blockedToolIds.size);
+  const readiness = Math.max(0, Math.min(100, 100 - critical * 14 - warning * 7));
+  const mascotMarkup = siteReportMascotMarkup(critical, warning, isRu);
+  const fixes = facts
+    .filter((fact) => fact.status === "critical" || fact.status === "warning")
+    .slice(0, 5);
+  const nextStep =
+    fixes.length > 0
+      ? isRu
+        ? `Исправьте сначала: ${fixes.slice(0, 3).map((fact) => fact.title).join(", ")}. После правок запустите повторный скан.`
+        : `Fix first: ${fixes.slice(0, 3).map((fact) => fact.title).join(", ")}. Run the scan again after edits.`
+      : isRu
+        ? "Критичных проблем не найдено. Проверьте информационные замечания и запустите повторный скан после правок."
+        : "No critical issues found. Review informational notes and run the scan again after edits.";
+  const detailCards = facts
+    .filter((fact) => fact.status !== "passed")
+    .map((fact) => renderSiteFactHtml(fact, isRu))
+    .join("");
+  const passedCards = facts
+    .filter((fact) => fact.status === "passed")
+    .map(
+      (fact) => `<li>${escapeHtml(fact.title)}</li>`,
+    )
+    .join("");
+  const fixCards = fixes
     .map(
       (fact) => `
-        <article class="card">
-          <header class="card-header">
+        <article class="signal-card">
+          <div class="signal-head">
             <h3>${escapeHtml(fact.title)}</h3>
-            <span class="pill">${priorityLabel(fact.priority)}</span>
-          </header>
+            <span class="status-${fact.status}">${escapeHtml(
+              fact.status === "critical"
+                ? isRu ? "Критично" : "Critical"
+                : fact.status === "warning"
+                  ? isRu ? "Предупреждение" : "Warning"
+                  : isRu ? "Информация" : "Info",
+            )}</span>
+          </div>
           <p>${escapeHtml(fact.detail)}</p>
-          <p class="meta">Sources: ${escapeHtml(fact.sourceToolIds.join(", "))}</p>
+          <p class="meta">${isRu ? "Что сделать" : "Action"}: ${escapeHtml(fact.action)}</p>
         </article>`,
     )
     .join("");
-
-  const hypotheses = report.expertHypotheses.length
-    ? report.expertHypotheses
-        .map(
-          (item) => `
-          <article class="card hypothesis">
-            <header class="card-header">
-              <h3>${escapeHtml(item.title)}</h3>
-              <span class="pill">${priorityLabel(item.priority)}</span>
-            </header>
-            <p>${escapeHtml(item.detail)}</p>
-            <p><strong>Expected impact:</strong> ${escapeHtml(item.expectedImpact)}</p>
-            <p><strong>Validation:</strong> ${escapeHtml(item.validationMethod)}</p>
-          </article>`,
-        )
-        .join("")
-    : `<article class="card empty"><p>No expert hypotheses for this report.</p></article>`;
+  const technicalRows = report.confirmedFacts
+    .map(
+      (fact) => `
+        <li>
+          <strong>${escapeHtml(fact.title)}</strong>
+          <span>${escapeHtml(fact.sourceToolIds.join(", "))}</span>
+        </li>`,
+    )
+    .join("");
 
   return `<!doctype html>
-  <html lang="en">
+  <html lang="${isRu ? "ru" : "en"}">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>ToraSEO Report</title>
+      <title>ToraSEO Site Audit Report</title>
       <style>
         :root {
           color-scheme: light;
-          --bg: #fff7f0;
+          --bg: #fff7ed;
           --surface: #ffffff;
-          --border: #efd9ca;
-          --text: #1a0f08;
-          --muted: #70554a;
+          --border: #ffedd5;
+          --text: #2b1b12;
+          --muted: rgba(43, 27, 18, 0.58);
           --accent: #ff6b35;
           --accent-soft: #fff0e8;
+          --green: #059669;
+          --red: #ef4444;
+          --orange: #f97316;
+          --blue: #60a5fa;
+          --shadow: 0 1px 2px rgba(43, 27, 18, 0.06);
         }
         * { box-sizing: border-box; }
         body {
           margin: 0;
-          padding: 32px;
+          padding: 24px;
           font-family: Inter, "Segoe UI", system-ui, sans-serif;
+          font-size: 14px;
           color: var(--text);
           background: var(--bg);
         }
         .shell {
-          max-width: 1120px;
+          max-width: 1168px;
           margin: 0 auto;
           display: grid;
-          gap: 24px;
-        }
-        .hero, .section {
-          background: var(--surface);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 24px;
-        }
-        .hero h1, .section h2, .card h3 {
-          margin: 0;
-        }
-        .hero p {
-          margin: 12px 0 0;
-          line-height: 1.6;
-        }
-        .meta-row {
-          margin-top: 16px;
-          display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-        .meta-chip, .pill {
-          display: inline-flex;
-          align-items: center;
-          border-radius: 999px;
-          border: 1px solid var(--border);
-          background: var(--accent-soft);
-          color: var(--text);
-          padding: 6px 10px;
-          font-size: 12px;
-          font-weight: 600;
-        }
-        .grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 16px;
         }
+        .hero, .section, .kpi {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          box-shadow: var(--shadow);
+        }
+        .hero { padding: 20px; }
+        .section { padding: 16px; }
+        .hero h1, .section h2, .card h3, .fix-card h3 {
+          margin: 0;
+        }
+        h1 {
+          font-size: 20px;
+          line-height: 1.2;
+        }
+        h2 {
+          font-size: 14px;
+          line-height: 1.25;
+        }
+        h3 {
+          font-size: 14px;
+          line-height: 1.25;
+        }
+        .hero p {
+          margin: 8px 0 0;
+          line-height: 1.5;
+        }
+        .hero-top {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+        }
+        .hero-actions {
+          display: flex;
+          gap: 8px;
+        }
+        .audit-hero {
+          display: grid;
+          grid-template-columns: 72px minmax(0, 1fr) auto;
+          gap: 18px;
+          align-items: center;
+        }
+        .audit-mascot {
+          width: 56px;
+          height: 56px;
+          object-fit: contain;
+          flex: 0 0 auto;
+        }
+        .audit-mascot.fallback {
+          display: grid;
+          place-items: center;
+          border-radius: 12px;
+          background: var(--accent-soft);
+          color: var(--accent);
+          font-size: 28px;
+          font-weight: 900;
+        }
+        .eyebrow {
+          margin: 0 0 6px;
+          color: var(--accent);
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+        .button, .pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 8px;
+          border: 1px solid var(--border);
+          background: white;
+          color: var(--text);
+          padding: 8px 12px;
+          font-size: 12px;
+          font-weight: 600;
+          text-decoration: none;
+        }
+        .button.primary {
+          background: var(--accent);
+          color: white;
+          border-color: var(--accent);
+        }
+        .summary-line {
+          width: 100%;
+          height: 7px;
+          margin-top: 14px;
+          border-radius: 999px;
+          background: var(--accent);
+        }
+        .chips {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-top: 14px;
+        }
+        .chip {
+          border-radius: 999px;
+          background: var(--accent-soft);
+          padding: 6px 10px;
+          font-size: 12px;
+          color: var(--muted);
+        }
+        .kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+        }
+        .kpi { padding: 18px; }
+        .kpi-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .kpi-icon {
+          display: grid;
+          place-items: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 8px;
+          background: var(--accent-soft);
+          color: var(--accent);
+        }
+        .score-ring {
+          display: grid;
+          place-items: center;
+          width: 56px;
+          height: 56px;
+          border-radius: 999px;
+          color: var(--green) !important;
+          background: conic-gradient(currentColor var(--ring-deg), rgba(120, 72, 42, 0.12) 0deg);
+        }
+        .score-ring span {
+          display: grid;
+          place-items: center;
+          width: 40px;
+          height: 40px;
+          border-radius: 999px;
+          background: white;
+          color: inherit;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          font-size: 14px;
+          font-weight: 700;
+        }
+        .kpi-value {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          font-size: 28px;
+          font-weight: 700;
+        }
+        .kpi strong {
+          display: block;
+          margin-top: 10px;
+          font-size: 14px;
+        }
+        .kpi-detail {
+          display: block;
+          margin-top: 6px;
+          color: var(--muted);
+          font-size: 12px;
+          line-height: 1.45;
+        }
+        .site-preview-card {
+          display: grid;
+          grid-template-columns: 2fr 1fr;
+          gap: 16px;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 16px;
+        }
+        .browser-preview, .tech-panel {
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          background: #fffdfa;
+          overflow: hidden;
+        }
+        .browser-top {
+          display: grid;
+          grid-template-columns: 10px 10px 10px minmax(0, 1fr);
+          gap: 7px;
+          align-items: center;
+          padding: 10px 12px;
+          border-bottom: 1px solid var(--border);
+          background: #fff7f0;
+        }
+        .dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 999px;
+          display: block;
+        }
+        .dot.red { background: #ff5f57; }
+        .dot.yellow { background: #ffbd2e; }
+        .dot.green { background: #28c840; }
+        .address {
+          min-width: 0;
+          margin-left: 8px;
+          padding: 6px 10px;
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          background: white;
+          color: var(--muted);
+          font-size: 12px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .browser-body {
+          padding: 22px;
+          min-height: 300px;
+        }
+        .preview-label {
+          margin: 0 0 10px;
+          color: var(--accent);
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+        .preview-title {
+          color: var(--muted);
+          margin-top: 8px;
+        }
+        .serp-card {
+          margin-top: 18px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 14px;
+          background: white;
+        }
+        .serp-card strong, .serp-card span {
+          display: block;
+        }
+        .serp-card span {
+          margin-top: 4px;
+          color: var(--green);
+          font-size: 12px;
+        }
+        .preview-lines {
+          display: grid;
+          gap: 10px;
+          margin-top: 20px;
+        }
+        .preview-lines span {
+          display: block;
+          height: 10px;
+          border-radius: 999px;
+          background: #f3e4da;
+        }
+        .tech-panel {
+          display: grid;
+          align-content: start;
+          gap: 14px;
+          padding: 18px;
+        }
+        .tech-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+        .tech-grid div {
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 12px;
+          background: white;
+        }
+        .tech-grid span, .tech-row span {
+          display: block;
+          color: var(--muted);
+          font-size: 11px;
+        }
+        .tech-grid strong {
+          display: block;
+          margin-top: 4px;
+          font-size: 20px;
+        }
+        .tech-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .tech-chip {
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          padding: 6px 9px;
+          background: var(--accent-soft);
+          color: var(--muted);
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .tech-rows {
+          display: grid;
+          gap: 8px;
+        }
+        .tech-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 10px;
+          background: white;
+        }
+        .distribution {
+          display: flex;
+          height: 14px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: rgba(43, 27, 18, 0.1);
+        }
+        .status-grid {
+          display: grid;
+          grid-template-columns: 1.1fr 0.9fr;
+          gap: 16px;
+        }
+        .seg-critical { background: var(--red); }
+        .seg-warning { background: var(--orange); }
+        .seg-info { background: #60a5fa; }
+        .seg-passed { background: var(--green); }
+        .status-legend {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 14px;
+          color: var(--muted);
+          font-size: 12px;
+        }
+        .section-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 14px;
+          margin-bottom: 14px;
+        }
+        .section-head p {
+          margin: 6px 0 0;
+          color: var(--muted);
+          font-size: 12px;
+        }
+        .small-pill {
+          border-radius: 999px;
+          background: var(--accent-soft);
+          padding: 6px 10px;
+          color: var(--muted);
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .direction-list {
+          display: grid;
+          gap: 10px;
+        }
+        .direction-card {
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 12px;
+          background: rgba(255, 247, 237, 0.6);
+        }
+        .direction-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+        .direction-card p {
+          margin: 6px 0 10px;
+          color: var(--muted);
+          font-size: 12px;
+        }
+        .direction-bar {
+          height: 7px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: rgba(43, 27, 18, 0.1);
+        }
+        .direction-bar span {
+          display: block;
+          height: 100%;
+        }
+        .fix-list {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .details-list { display: grid; gap: 12px; }
+        .section-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 12px;
+          color: var(--accent);
+          font-size: 12px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+        .section-title h2 {
+          margin: 0;
+          color: inherit;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.2;
+        }
+        .section-title svg {
+          width: 16px;
+          height: 16px;
+          flex: 0 0 auto;
+        }
+        .signal-card {
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 12px;
+          background: rgba(255, 247, 237, 0.55);
+        }
+        .signal-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .signal-head span {
+          flex: 0 0 auto;
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+        .signal-card p {
+          margin: 6px 0 0;
+          color: rgba(43, 27, 18, 0.68);
+          line-height: 1.45;
+        }
+        .gate {
+          display: grid;
+          grid-template-columns: repeat(7, minmax(0, 1fr));
+          gap: 8px;
+        }
+        .gate-step {
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 10px;
+          font-size: 12px;
+          font-weight: 700;
+          text-align: center;
+          background: #fffdfa;
+        }
+        .gate-step.critical { color: var(--red); border-color: #fecaca; background: #fff1f1; }
+        .gate-step.warning { color: var(--orange); border-color: #fed7aa; background: #fff7ed; }
+        .gate-step.passed { color: var(--green); border-color: #bbf7d0; background: #f0fdf4; }
         .card {
           border: 1px solid var(--border);
-          border-radius: 10px;
+          border-radius: 8px;
           padding: 16px;
           background: #fffdfa;
         }
@@ -3320,16 +4191,58 @@ function renderReportHtml(report: RuntimeAuditReport): string {
           color: var(--muted);
           font-size: 12px;
         }
-        .next-step {
-          border-left: 4px solid var(--accent);
-          padding-left: 16px;
+        .passed-list {
+          display: grid;
+          gap: 8px;
+          margin: 0;
+          padding: 0;
+          list-style: none;
         }
-        .empty {
+        .passed-list li {
+          border: 1px solid #bbf7d0;
+          border-radius: 8px;
+          background: #ecfdf5;
+          padding: 10px 12px;
+          color: #047857;
+          font-size: 14px;
+        }
+        details {
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 14px;
+          background: #fffdfa;
+        }
+        details ul { margin-bottom: 0; }
+        details li {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 12px;
+          padding: 8px 0;
+          border-bottom: 1px solid #f4e5dc;
+        }
+        details li:last-child { border-bottom: 0; }
+        details span { color: var(--muted); font-size: 12px; }
+        .analysis-version {
+          margin: 0;
           color: var(--muted);
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
         }
+        .status-critical { color: var(--red); }
+        .status-warning { color: var(--orange); }
+        .status-info { color: var(--muted); }
+        .status-passed { color: var(--green); }
         @media print {
           body { padding: 0; background: white; }
           .hero, .section, .card { break-inside: avoid; }
+        }
+        @media (max-width: 900px) {
+          .kpi-grid, .gate { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .status-grid { grid-template-columns: 1fr; }
+          .site-preview-card { grid-template-columns: 1fr; }
+          .hero-top { flex-direction: column; }
         }
         ${viewportSizeOverlayStyle()}
       </style>
@@ -3337,34 +4250,218 @@ function renderReportHtml(report: RuntimeAuditReport): string {
     <body>
       <div class="shell">
         <section class="hero">
-          <h1>ToraSEO Audit Report</h1>
-          <p>${escapeHtml(report.summary)}</p>
-          <div class="meta-row">
-            <span class="meta-chip">Provider: ${escapeHtml(report.providerId)}</span>
-            <span class="meta-chip">Model: ${escapeHtml(report.model)}</span>
-            <span class="meta-chip">Mode: ${escapeHtml(report.mode)}</span>
-            <span class="meta-chip">Generated: ${escapeHtml(report.generatedAt)}</span>
+          <div class="audit-hero">
+            ${mascotMarkup}
+            <div>
+              <p class="eyebrow">${isRu ? "Метод проверки" : "Audit method"}</p>
+              <h1>${critical > 0 ? (isRu ? "Найдены проблемы" : "Issues found") : (isRu ? "Критичных проблем не найдено" : "No critical issues found")}</h1>
+              <div class="summary-line"></div>
+              <div class="chips">
+                <span class="chip">${critical} ${isRu ? "Критично" : "Critical"}</span>
+                <span class="chip">${warning} ${isRu ? "Предупреждения" : "Warnings"}</span>
+                <span class="chip">${info} ${isRu ? "Информация" : "Info"}</span>
+              </div>
+            </div>
+            <div class="hero-actions">
+              <span class="pill">${sourceTotal} / ${sourceTotal}</span>
+              <button class="button primary" onclick="location.href='toraseo://export-report-pdf'">${isRu ? "Экспорт PDF" : "Export PDF"}</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="kpi-grid">
+          <div class="kpi">
+            <div class="kpi-top"><span class="kpi-icon">${reportIconSvg("gauge")}</span><span class="score-ring" style="--ring-deg:${readiness * 3.6}deg"><span>${readiness}</span></span></div>
+            <strong>${isRu ? "Готовность SEO" : "SEO readiness"}</strong>
+            <span class="kpi-detail">${isRu ? "можно использовать после правок" : "usable after fixes"}</span>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top"><span class="kpi-icon">${reportIconSvg("activity")}</span><span class="score-ring" style="--ring-deg:360deg"><span>100</span></span></div>
+            <strong>${isRu ? "Покрытие аудита" : "Audit coverage"}</strong>
+            <span class="kpi-detail">${sourceTotal}/${sourceTotal} ${isRu ? "инструментов" : "tools"}</span>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top"><span class="kpi-icon">${reportIconSvg("check")}</span><span class="kpi-value status-passed">${cleanTools}</span></div>
+            <strong>${isRu ? "Чистые проверки" : "Clean checks"}</strong>
+            <span class="kpi-detail">${isRu ? "завершены без блокирующих проблем" : "completed without blockers"}</span>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top"><span class="kpi-icon">${reportIconSvg("shield")}</span><span class="kpi-value status-warning">${critical + warning + info}</span></div>
+            <strong>${isRu ? "Найдено замечаний" : "Findings"}</strong>
+            <span class="kpi-detail">${isRu ? "критично, предупреждения, информация" : "critical, warnings, info"}</span>
+          </div>
+        </section>
+
+        ${renderSitePreviewBlock(preview, isRu)}
+
+        <section class="status-grid">
+          <div class="section">
+            <div class="section-head">
+              <div>
+                <h2>${isRu ? "Распределение статусов" : "Status distribution"}</h2>
+                <p>${isRu ? "Это оценка по выбранным проверкам, а не показатель трафика, популярности или позиций." : "This is based on selected checks, not traffic, popularity, or rankings."}</p>
+              </div>
+              <span class="small-pill">${isRu ? "Готово" : "Done"}</span>
+            </div>
+            <div class="distribution">
+              ${renderDistributionSegment(critical, facts.length, "seg-critical")}
+              ${renderDistributionSegment(warning, facts.length, "seg-warning")}
+              ${renderDistributionSegment(info, facts.length, "seg-info")}
+              ${renderDistributionSegment(passed, facts.length, "seg-passed")}
+            </div>
+            <div class="status-legend">
+              <span>${isRu ? "Критично" : "Critical"} ${critical}</span>
+              <span>${isRu ? "Предупреждения" : "Warnings"} ${warning}</span>
+              <span>${isRu ? "Информация" : "Info"} ${info}</span>
+              <span>${isRu ? "Ошибки" : "Errors"} 0</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head compact">
+              <h2>${isRu ? "Направления проверки" : "Audit directions"}</h2>
+            </div>
+            <div class="direction-list">${renderAuditDirections(facts, isRu)}</div>
           </div>
         </section>
 
         <section class="section">
-          <h2>Confirmed facts</h2>
-          <div class="grid">${facts}</div>
+          ${renderReportSectionTitle(isRu ? "Обзор" : "Overview", "shield")}
+          <p>${escapeHtml(report.summary)}</p>
+        </section>
+
+        ${fixCards ? `<section class="section">${renderReportSectionTitle(isRu ? "Что исправить первым" : "Fix first", "shield")}<div class="fix-list">${fixCards}</div></section>` : ""}
+
+        <section class="section">
+          ${renderReportSectionTitle(isRu ? "SEO-цепочка проверки" : "SEO gate flow", "check")}
+          <div class="gate">${renderSeoGateFlow(facts, isRu)}</div>
+        </section>
+
+        <section id="details" class="section">
+          ${renderReportSectionTitle(isRu ? "Результаты проверки" : "Check results", "shield")}
+          <div class="details-list">${detailCards}</div>
+        </section>
+
+        ${passedCards ? `<section class="section">${renderReportSectionTitle(isRu ? "Пройденные проверки" : "Passed checks", "shield")}<ul class="passed-list">${passedCards}</ul></section>` : ""}
+
+        <section class="section">
+          ${renderReportSectionTitle(isRu ? "Следующий шаг" : "Next step", "shield")}
+          <p>${escapeHtml(nextStep)}</p>
         </section>
 
         <section class="section">
-          <h2>Expert hypotheses</h2>
-          <div class="grid">${hypotheses}</div>
+          <details>
+            <summary>${isRu ? "Технические детали" : "Technical details"}</summary>
+            <ul>${technicalRows}</ul>
+          </details>
         </section>
 
-        <section class="section next-step">
-          <h2>Recommended next step</h2>
-          <p>${escapeHtml(report.nextStep)}</p>
+        <section class="section">
+          <p class="analysis-version">${analysisVersionLine(isRu, report.analysisVersion)}</p>
         </section>
       </div>
       ${viewportSizeOverlayMarkup()}
     </body>
   </html>`;
+}
+
+function renderDistributionSegment(value: number, total: number, className: string): string {
+  if (value <= 0 || total <= 0) return "";
+  return `<div class="${className}" style="width:${(value / total) * 100}%"></div>`;
+}
+
+function renderSiteFactHtml(fact: SiteDisplayFact, isRu: boolean): string {
+  const statusLabel =
+    fact.status === "critical"
+      ? isRu ? "Критично" : "Critical"
+      : fact.status === "warning"
+        ? isRu ? "Предупреждение" : "Warning"
+        : isRu ? "Информация" : "Info";
+  return `
+    <article class="card">
+      <header class="card-header">
+        <h3>${escapeHtml(fact.title)}</h3>
+        <span class="pill status-${fact.status}">${escapeHtml(statusLabel)}</span>
+      </header>
+      <p>${escapeHtml(fact.detail)}</p>
+      <p><strong>${isRu ? "Что сделать" : "Action"}:</strong> ${escapeHtml(fact.action)}</p>
+      <p class="meta">${isRu ? "Проверки" : "Checks"}: ${escapeHtml(fact.sourceToolIds.map((toolId) => siteToolLabel(toolId, isRu)).join(", "))}</p>
+    </article>`;
+}
+
+function renderSeoGateFlow(facts: SiteDisplayFact[], isRu: boolean): string {
+  const steps = [
+    { label: "URL", tools: ["scan_site_minimal"] },
+    { label: "HTTP", tools: ["scan_site_minimal"] },
+    { label: isRu ? "Индексация" : "Indexability", tools: ["analyze_indexability"] },
+    { label: "Robots", tools: ["check_robots_txt"] },
+    { label: "Sitemap", tools: ["analyze_sitemap"] },
+    { label: "Meta", tools: ["analyze_meta", "analyze_canonical"] },
+    { label: isRu ? "Контент" : "Content", tools: ["analyze_content"] },
+  ];
+  return steps
+    .map((step) => {
+      const matching = facts.filter((fact) =>
+        fact.sourceToolIds.some((toolId) => step.tools.includes(toolId)),
+      );
+      const status =
+        matching.some((fact) => fact.status === "critical")
+          ? "critical"
+          : matching.some((fact) => fact.status === "warning")
+            ? "warning"
+            : "passed";
+      return `<div class="gate-step ${status}">${escapeHtml(step.label)}</div>`;
+    })
+    .join("");
+}
+
+function readMascotDataUri(fileName: string): string | null {
+  const candidates = [
+    path.join(process.cwd(), "branding", "mascots", fileName),
+    path.join(app.getAppPath(), "branding", "mascots", fileName),
+    path.join(__dirname, "..", "..", "branding", "mascots", fileName),
+  ];
+  for (const candidate of candidates) {
+    try {
+      const svg = fsSync.readFileSync(candidate);
+      return `data:image/svg+xml;base64,${svg.toString("base64")}`;
+    } catch {
+      // Try the next development/packaged path.
+    }
+  }
+  return null;
+}
+
+function siteReportMascotMarkup(critical: number, warning: number, isRu: boolean): string {
+  const fileName =
+    critical > 0
+      ? "tora-surprised.svg"
+      : warning > 0
+        ? "tora-neutral.svg"
+        : "tora-champion.svg";
+  const dataUri = readMascotDataUri(fileName);
+  if (!dataUri) {
+    return `<div class="audit-mascot fallback">T</div>`;
+  }
+  return `<img class="audit-mascot" src="${dataUri}" alt="${isRu ? "Маскот ToraSEO" : "ToraSEO mascot"}" />`;
+}
+
+function reportIconSvg(name: "gauge" | "activity" | "check" | "shield"): string {
+  const common = `width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"`;
+  if (name === "activity") {
+    return `<svg ${common}><path d="M22 12h-4l-3 7-6-14-3 7H2"/></svg>`;
+  }
+  if (name === "check") {
+    return `<svg ${common}><path d="M21.8 12A10 10 0 1 1 12 2.2"/><path d="m9 12 2 2 4-5"/></svg>`;
+  }
+  if (name === "shield") {
+    return `<svg ${common}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`;
+  }
+  return `<svg ${common}><path d="M4.9 19.1a10 10 0 1 1 14.2 0"/><path d="m12 13 3-5"/><path d="M8 17h8"/></svg>`;
+}
+
+function renderReportSectionTitle(title: string, icon: "check" | "shield"): string {
+  return `<div class="section-title">${reportIconSvg(icon)}<h2>${escapeHtml(title)}</h2></div>`;
 }
 
 function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): string {
@@ -3496,6 +4593,14 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
           border-color:var(--accent);
           background:var(--accent);
           color:#fff;
+        }
+        .analysis-version {
+          margin:0;
+          color:rgba(26,15,8,.42);
+          font-size:11px;
+          font-weight:800;
+          letter-spacing:.06em;
+          text-transform:uppercase;
         }
         .status-line {
           min-height:17px;
@@ -3945,6 +5050,9 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
         <section class="panel">
           <p class="next-step">${escapeHtml(report.nextStep)}</p>
         </section>
+        <section class="panel">
+          <p class="analysis-version">${analysisVersionLine(true, report.analysisVersion)}</p>
+        </section>
       </main>
       <script>
         (() => {
@@ -4318,6 +5426,8 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
       "",
       `Дословные совпадения: ${compare.similarity.exactOverlap ?? "—"}%`,
       "",
+      analysisVersionLine(true, report.analysisVersion),
+      "",
       "## Метрики",
       "",
       metrics,
@@ -4428,6 +5538,8 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
       "",
       article.verdictDetail,
       "",
+      analysisVersionLine(false, report.analysisVersion),
+      "",
       `Evidence coverage: ${article.coverage.percent}% (${article.coverage.completed}/${article.coverage.total} tools)`,
       "",
       `Warnings: ${article.warningCount}`,
@@ -4505,6 +5617,7 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
     `Provider: ${report.providerId}`,
     `Model: ${report.model}`,
     `Mode: ${report.mode}`,
+    analysisVersionLine(false, report.analysisVersion),
     `Generated: ${report.generatedAt}`,
     "",
     "## Confirmed facts",

@@ -52,6 +52,8 @@ Recognized Codex trigger variants:
 | `/toraseo codex-bridge-mode setup-check` | Verify that Codex can reach ToraSEO MCP and that Codex Workflow Instructions are active. |
 | `/toraseo codex-bridge-mode article-text` | Analyze one article text from the temporary ToraSEO workspace. |
 | `/toraseo codex-bridge-mode article-compare` | Compare Text A and Text B from the temporary ToraSEO workspace. |
+| `/toraseo codex-bridge-mode page-by-url` | Analyze the main article text extracted from a URL. |
+| `/toraseo codex-bridge-mode site-by-url` | Run the internal site URL audit package and summarize its facts. |
 
 Also run this same check when the user manually asks whether Codex can
 see, access, or connect to ToraSEO, ToraSEO MCP, the ToraSEO SKILL, or
@@ -68,14 +70,23 @@ installation/version problem: tell the user to update or reinstall the
 run the setup check again.
 
 After the handshake succeeds, use the returned `analysisType` and
-`selectedTools` as the contract. For `site_by_url`, selected tools audit
-the returned URL. For `article_text`, the article body is already stored
+`selectedTools` as the contract. For `site_by_url`, call
+`site_url_internal` when it is available; that single MCP call runs the
+selected site-audit checks inside ToraSEO and writes individual results
+back to the app under normal check names. Do not call separate site URL
+tools unless you are explicitly debugging one check. Do not request
+filesystem access to read JSON result files after the site report is
+already visible in the app unless the user explicitly asks for raw
+debugging files. Do not ask the user to paste the report summary, a
+screenshot, JSON, or result files after `site_url_internal` has completed;
+its MCP response contains enough facts for the final user-facing summary.
+For `article_text`,
+the article body is already stored
 in the temporary ToraSEO workspace as `input.md`; do not ask the user to
 paste the article into chat and do not copy the article body back into
-your final answer. Call the selected article-text MCP tools directly;
-they read `input.md` and write structured results back to the app state
-and `results/*.json`. Then give a useful article-analysis answer in
-chat: name what style/platform/tone you detected, mention every selected
+your final answer. Call the selected article-text MCP tools directly and
+summarize from their responses and the app report. Then give a useful
+article-analysis answer in chat: name what style/platform/tone you detected, mention every selected
 tool category at least briefly, and separate "what to fix first" from
 "optional improvements". Do not say only that results were written to
 the app. Built-in text checks may run even when they are not visible as
@@ -156,6 +167,12 @@ one-time chat/session approval option when the platform offers it. Tell
 the user to tick the chat/session approval checkbox and click Allow. Do
 not ask the user to approve each analyzer tool one by one unless Codex
 itself provides no broader approval path.
+
+For `site_by_url`, the only analysis MCP approval should be
+`site_url_internal`. After it completes and ToraSEO has the report, write
+the final chat summary from those results without asking for another MCP
+tool approval, report screenshot, pasted summary, JSON file, or filesystem
+permission to read the temporary bridge cache.
 
 ## Working Rules
 

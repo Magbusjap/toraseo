@@ -27,6 +27,11 @@ import type { ToolId } from "../config/tools";
 export type RuntimePolicyMode = "strict_audit" | "audit_plus_ideas";
 export type AuditExecutionMode = "bridge" | "native";
 export type RuntimeAnalysisType = "site" | "article_text" | "article_compare";
+export type RuntimeReportAnalysisType =
+  | "article_text"
+  | "article_compare"
+  | "page_by_url"
+  | "site_by_url";
 
 /**
  * A single rule the policy layer enforces. Keep this minimal in
@@ -188,6 +193,7 @@ export interface RuntimeScanContext {
 export interface RuntimeArticleTextContext {
   action: "scan" | "solution";
   runId?: string;
+  sourceType?: "article_text" | "page_by_url";
   topic: string;
   body: string;
   analysisRole?: string;
@@ -422,6 +428,8 @@ export interface RuntimeArticleCompareSummary {
 }
 
 export interface RuntimeAuditReport {
+  analysisType?: RuntimeReportAnalysisType;
+  analysisVersion?: string;
   mode: RuntimePolicyMode;
   providerId: ProviderId;
   model: string;

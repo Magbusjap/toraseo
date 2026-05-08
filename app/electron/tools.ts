@@ -32,6 +32,9 @@ import {
   CheckRedirectsError,
   analyzeContent,
   AnalyzeContentError,
+  analyzeIndexability,
+  analyzeCanonical,
+  analyzeLinks,
   detectStack,
   DetectStackError,
 } from "@toraseo/core";
@@ -131,6 +134,11 @@ async function runOne(
         };
       }
 
+      case "analyze_indexability": {
+        const result = await analyzeIndexability(url);
+        return classify(toolId, result);
+      }
+
       case "analyze_sitemap": {
         const result = await analyzeSitemap(url);
         return classify(toolId, result);
@@ -138,6 +146,11 @@ async function runOne(
 
       case "analyze_meta": {
         const result = await analyzeMeta(url);
+        return classify(toolId, result);
+      }
+
+      case "analyze_canonical": {
+        const result = await analyzeCanonical(url);
         return classify(toolId, result);
       }
 
@@ -153,6 +166,11 @@ async function runOne(
 
       case "analyze_content": {
         const result = await analyzeContent(url);
+        return classify(toolId, result);
+      }
+
+      case "analyze_links": {
+        const result = await analyzeLinks(url);
         return classify(toolId, result);
       }
 

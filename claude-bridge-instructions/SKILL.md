@@ -216,11 +216,25 @@ or evidence is present. In the final chat answer, use normal user-facing
 check names and do not mention handshake details, scan IDs, backend tool
 IDs, selectedTools, sourceToolIds, or result file paths.
 
-Call each tool in `selectedTools` (in any order, but matching the
-listed order makes the app's UI feel linear). Each tool writes
-its result to the state file; the app polls and updates its UI
-in real time. You will receive a brief summary in chat for each
-tool — use these to compose the final recommendations.
+If `analysisType` is `site_by_url`, call `site_url_internal` when it is
+returned in `selectedTools`; that single MCP call performs the selected
+site-audit checks and writes individual results back to the app under
+normal check names. Do not call each separate site URL tool unless the
+user explicitly asks to debug one check. In the final chat answer, use
+normal user-facing check names and do not mention handshake details, scan
+IDs, backend tool IDs, selectedTools, sourceToolIds, or result file paths.
+Do not ask the user to paste the report summary, a screenshot, JSON, or
+result files after `site_url_internal` has completed; use the MCP response
+and visible app report.
+
+For analysis types that do not have an internal package, call each tool
+in `selectedTools` (in any order, but matching the listed order makes the
+app's UI feel linear). For `site_by_url`, `page_by_url`, and
+`article_compare`, do not call each hidden/internal tool separately after
+the internal package has completed. Each tool writes its result to the
+state file; the app polls and updates its UI in real time. You will
+receive a brief summary in chat for each visible package/tool — use these
+to compose the final recommendations.
 
 When all tools complete, write the **standard audit report**
 in chat following §3.4 and the template in

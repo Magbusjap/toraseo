@@ -170,6 +170,7 @@ export async function verifyCodexWorkflowLoadedHandler({
   }
 
   const workspaceText = await readActiveInputMarkdown(state);
+  const analysisType = state!.analysisType ?? "site_by_url";
 
   return {
     content: [
@@ -180,7 +181,7 @@ export async function verifyCodexWorkflowLoadedHandler({
             ok: true,
             scanId: state!.scanId,
             url: state!.url,
-            analysisType: state!.analysisType ?? "site_by_url",
+            analysisType,
             input: state!.input
               ? {
                   action: state!.input.action,
@@ -198,18 +199,13 @@ export async function verifyCodexWorkflowLoadedHandler({
                   hasPageTextBlock: Boolean(state!.input.pageTextBlock),
                 }
               : undefined,
-            workspace: state!.workspace
-              ? {
-                  inputFile: state!.workspace.inputFile,
-                  metaFile: state!.workspace.metaFile,
-                  resultsDir: state!.workspace.resultsDir,
-                  expiresAt: state!.workspace.expiresAt,
-                }
-              : undefined,
+            workspace: undefined,
             selectedTools:
-              state!.analysisType === "article_compare"
+              analysisType === "article_compare"
                 ? ["article_compare_internal"]
-                : state!.analysisType === "page_by_url"
+                : analysisType === "site_by_url"
+                  ? ["site_url_internal"]
+                : analysisType === "page_by_url"
                   ? [
                       "page_url_article_internal",
                       ...state!.selectedTools.filter((toolId) =>
@@ -221,8 +217,8 @@ export async function verifyCodexWorkflowLoadedHandler({
                     ]
                 : state!.selectedTools,
             internalSelectedTools:
-              state!.analysisType === "article_compare" ||
-              state!.analysisType === "page_by_url"
+              analysisType === "article_compare" ||
+              analysisType === "page_by_url"
                 ? state!.selectedTools
                 : undefined,
             message:
@@ -236,6 +232,9 @@ export async function verifyCodexWorkflowLoadedHandler({
               "When answering the user, use human-readable Russian check names and " +
               "avoid backend ids such as trustSignals, syntaxRiskSignals, tool ids, " +
               "or result file paths unless the user asks for debugging details. " +
+              "Do not request filesystem access to read temporary workspace or " +
+              "results JSON files for a normal final summary; MCP tool responses " +
+              "and the app report are the source of facts. " +
               "Do not mention connection handshakes, scan ids, MCP internals, or aggregate tool names " +
               "in the final user-facing answer; write a normal comparison report summary. " +
               "For text-analysis runs, do not ask " +
@@ -246,6 +245,14 @@ export async function verifyCodexWorkflowLoadedHandler({
               "Text A and Text B from the temporary ToraSEO workspace. Keep " +
               "the comparison text-evidence only: do not claim ranking causes " +
               "from text alone and do not rewrite the full article. " +
+              "For site-by-URL runs, call site_url_internal; it runs the " +
+              "selected site-audit checks and writes individual results under " +
+              "normal user-facing tool names. Do not call separate site URL " +
+              "tools unless explicitly debugging one check. Do not read " +
+              "workspace JSON files after site_url_internal; use the MCP " +
+              "tool response and the app report as the source of facts. Do not " +
+              "ask the user to paste a report summary, screenshot, or JSON after " +
+              "site_url_internal has completed. " +
               "For page-by-URL runs, call page_url_article_internal; it runs " +
               "the internal URL/page extraction and article text checks as MCP " +
               "checks and writes individual results under normal user-facing " +

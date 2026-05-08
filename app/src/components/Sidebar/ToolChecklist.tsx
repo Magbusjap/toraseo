@@ -13,6 +13,7 @@ interface ToolChecklistProps<T extends string> {
   disabled: boolean;
   onToggleTool: (toolId: T) => void;
   onToggleAllTools: () => void;
+  showToggleAll?: boolean;
 }
 
 export default function ToolChecklist<T extends string>({
@@ -21,6 +22,7 @@ export default function ToolChecklist<T extends string>({
   disabled,
   onToggleTool,
   onToggleAllTools,
+  showToggleAll = true,
 }: ToolChecklistProps<T>) {
   const { t } = useTranslation();
   const allSelected = selectedTools.size === tools.length;
@@ -42,23 +44,25 @@ export default function ToolChecklist<T extends string>({
         ))}
       </ul>
 
-      <button
-        type="button"
-        onClick={onToggleAllTools}
-        disabled={disabled}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-white/15 px-3 py-2 text-xs font-medium text-white/75 transition hover:border-primary/70 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {allSelected ? (
-          <CheckSquare className="h-3.5 w-3.5" strokeWidth={2} />
-        ) : (
-          <Square className="h-3.5 w-3.5" strokeWidth={2} />
-        )}
-        <span>
-          {allSelected
-            ? t("sidebar.tools.clearAll")
-            : t("sidebar.tools.selectAll")}
-        </span>
-      </button>
+      {showToggleAll && (
+        <button
+          type="button"
+          onClick={onToggleAllTools}
+          disabled={disabled}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-white/15 px-3 py-2 text-xs font-medium text-white/75 transition hover:border-primary/70 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {allSelected ? (
+            <CheckSquare className="h-3.5 w-3.5" strokeWidth={2} />
+          ) : (
+            <Square className="h-3.5 w-3.5" strokeWidth={2} />
+          )}
+          <span>
+            {allSelected
+              ? t("sidebar.tools.clearAll")
+              : t("sidebar.tools.selectAll")}
+          </span>
+        </button>
+      )}
 
       {!hasSelectedTools && (
         <p className="mt-2 text-xs text-status-issues">

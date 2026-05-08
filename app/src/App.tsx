@@ -835,24 +835,6 @@ function MainApp() {
       setPreflightError(null);
       return;
     }
-    if (confirmedExecutionMode === "native" && !providerConfigured) {
-      setPreflightError(
-        t("preflight.providerMissing", {
-          defaultValue: "Add an AI provider before using API + AI Chat.",
-        }),
-      );
-      handleOpenProviderSettings();
-      return;
-    }
-    if (confirmedExecutionMode === "native" && !selectedModelProfile) {
-      setPreflightError(
-        t("preflight.modelMissing", {
-          defaultValue:
-            "Choose the AI provider model before starting analysis.",
-        }),
-      );
-      return;
-    }
     if (confirmedExecutionMode === "bridge" && bridgeProgram === "codex") {
       const fresh = await checkNow();
       if (!fresh.codexRunning) {
@@ -883,7 +865,11 @@ function MainApp() {
       setPreflightError(t("preflight.depsFailed"));
       return;
     }
-    if (confirmedExecutionMode === "native") {
+    if (
+      confirmedExecutionMode === "native" &&
+      providerConfigured &&
+      selectedModelProfile
+    ) {
       await window.toraseo.runtime.openChatWindow({
         status: "active",
         locale: currentLocale,
@@ -1032,24 +1018,8 @@ function MainApp() {
   const handleStartNativeScan = async () => {
     setPreflightError(null);
     setRuntimeReport(null);
-    void window.toraseo.runtime.showReportWindowProcessing();
-    if (!providerConfigured) {
-      setPreflightError(
-        t("preflight.providerMissing", {
-          defaultValue: "Add an AI provider before using API + AI Chat.",
-        }),
-      );
-      handleOpenProviderSettings();
-      return;
-    }
-    if (!selectedModelProfile) {
-      setPreflightError(
-        t("preflight.modelMissing", {
-          defaultValue:
-            "Choose the AI provider model before starting analysis.",
-        }),
-      );
-      return;
+    if (providerConfigured && selectedModelProfile) {
+      void window.toraseo.runtime.showReportWindowProcessing();
     }
     const orderedIds = TOOLS.map((item) => item.id).filter((id) =>
       selectedTools.has(id),
@@ -2054,6 +2024,7 @@ function MainApp() {
       articleTextContext: {
         action: "scan",
         runId: `page-url-${Date.now()}`,
+        sourceType: "page_by_url",
         topic: pageByUrlInput.url,
         body,
         analysisRole: analysisRole.trim() || undefined,
@@ -2219,9 +2190,7 @@ function MainApp() {
     url.trim().length > 0 &&
     selectedTools.size > 0 &&
     (executionMode === "native"
-      ? scanState !== "scanning" &&
-        providerConfigured &&
-        Boolean(selectedModelProfile)
+      ? scanState !== "scanning"
       : bridgeProgram === "codex"
         ? (codexPathReady && codexSetupVerified) ||
           Boolean(bridge.state && bridge.state.status !== "complete")
@@ -2229,16 +2198,7 @@ function MainApp() {
           Boolean(bridge.state && bridge.state.status !== "complete"));
 
   const scanButtonTooltip =
-    executionMode === "native" && !providerConfigured
-      ? t("preflight.providerMissing", {
-          defaultValue: "Add an AI provider before using API + AI Chat.",
-        })
-      : executionMode === "native" && !selectedModelProfile
-        ? t("preflight.modelMissing", {
-            defaultValue:
-              "Choose the AI provider model before starting analysis.",
-          })
-      : executionMode === "bridge" && isBridgeBlocked
+    executionMode === "bridge" && isBridgeBlocked
       ? t("preflight.depsFailed")
       : executionMode === "bridge" &&
           bridgeProgram === "codex" &&

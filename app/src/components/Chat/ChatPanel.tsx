@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { Bot, Check, Copy, Sparkles, ShieldCheck } from "lucide-react";
 
 import type { CurrentScanState } from "../../types/ipc";
+import { DEFAULT_ANALYSIS_VERSION } from "../../config/versions";
 import type {
   AuditExecutionMode,
   OrchestratorMessageInput,
@@ -351,9 +352,12 @@ function toolLabelForChat(value: string, locale: SupportedLocale): string {
       en: "main text extraction",
     },
     check_robots_txt: { ru: "проверка robots.txt", en: "robots.txt check" },
+    analyze_indexability: { ru: "индексация", en: "indexability" },
     analyze_meta: { ru: "мета-теги страницы", en: "page meta tags" },
+    analyze_canonical: { ru: "canonical", en: "canonical" },
     analyze_headings: { ru: "заголовки страницы", en: "page headings" },
     analyze_content: { ru: "контент страницы", en: "page content" },
+    analyze_links: { ru: "ссылки страницы", en: "page links" },
     detect_stack: { ru: "стек сайта", en: "site stack" },
     analyze_google_page_search: {
       ru: "проверка страницы в Google",
@@ -1262,9 +1266,17 @@ function articleTextToolLabelForLocale(
       ru: "Проверка robots.txt",
       en: "Robots.txt check",
     },
+    analyze_indexability: {
+      ru: "Индексация",
+      en: "Indexability",
+    },
     analyze_meta: {
       ru: "Мета-теги страницы",
       en: "Page meta tags",
+    },
+    analyze_canonical: {
+      ru: "Canonical",
+      en: "Canonical",
     },
     analyze_headings: {
       ru: "Заголовки страницы",
@@ -1273,6 +1285,10 @@ function articleTextToolLabelForLocale(
     analyze_content: {
       ru: "Контент страницы",
       en: "Page content",
+    },
+    analyze_links: {
+      ru: "Ссылки страницы",
+      en: "Page links",
     },
     detect_stack: {
       ru: "Стек сайта",
@@ -2436,6 +2452,9 @@ function mergeArticleTextReports(
         }. Completed checks: ${confirmedFacts.length}.`;
 
   return {
+    analysisType:
+      context.sourceType === "page_by_url" ? "page_by_url" : "article_text",
+    analysisVersion: DEFAULT_ANALYSIS_VERSION,
     mode: last.mode,
     providerId: last.providerId,
     model: last.model,
@@ -2765,6 +2784,8 @@ function mergeArticleCompareReports(
       ? `ИИ сформировал отчет по сравнению двух текстов под цель: ${compareGoalModeLabel(goalMode, locale)}. Проверено пунктов: ${confirmedFacts.length}.`
       : `AI formed a two-text comparison report for: ${compareGoalModeLabel(goalMode, locale)}. Completed checks: ${confirmedFacts.length}.`;
   return {
+    analysisType: "article_compare",
+    analysisVersion: DEFAULT_ANALYSIS_VERSION,
     mode: last.mode,
     providerId: last.providerId,
     model: last.model,

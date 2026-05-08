@@ -17,28 +17,36 @@
  */
 
 export type ToolId =
+  | "scan_site_minimal"
+  | "analyze_indexability"
   | "check_robots_txt"
   | "analyze_sitemap"
-  | "analyze_meta"
-  | "analyze_headings"
   | "check_redirects"
+  | "analyze_meta"
+  | "analyze_canonical"
+  | "analyze_headings"
   | "analyze_content"
-  | "scan_site_minimal"
+  | "analyze_links"
   | "detect_stack";
 
 export interface ToolMeta {
   id: ToolId;
+  group: "basic" | "onPage" | "advanced";
+  defaultSelected?: boolean;
 }
 
 export const TOOLS: ToolMeta[] = [
-  { id: "check_robots_txt" },
-  { id: "analyze_sitemap" },
-  { id: "analyze_meta" },
-  { id: "analyze_headings" },
-  { id: "check_redirects" },
-  { id: "analyze_content" },
-  { id: "scan_site_minimal" },
-  { id: "detect_stack" },
+  { id: "scan_site_minimal", group: "basic" },
+  { id: "analyze_indexability", group: "basic" },
+  { id: "check_robots_txt", group: "basic" },
+  { id: "analyze_sitemap", group: "basic" },
+  { id: "check_redirects", group: "basic" },
+  { id: "analyze_meta", group: "onPage" },
+  { id: "analyze_canonical", group: "onPage" },
+  { id: "analyze_headings", group: "onPage" },
+  { id: "analyze_content", group: "onPage" },
+  { id: "analyze_links", group: "onPage" },
+  { id: "detect_stack", group: "advanced", defaultSelected: false },
 ];
 
 /**
@@ -55,13 +63,16 @@ export const TOOLS: ToolMeta[] = [
  * change just because the UI does.
  */
 const TOOL_I18N_KEY_BASE: Record<ToolId, string> = {
+  scan_site_minimal: "scanMinimal",
+  analyze_indexability: "indexability",
   check_robots_txt: "robots",
   analyze_sitemap: "sitemap",
-  analyze_meta: "meta",
-  analyze_headings: "headings",
   check_redirects: "redirects",
+  analyze_meta: "meta",
+  analyze_canonical: "canonical",
+  analyze_headings: "headings",
   analyze_content: "content",
-  scan_site_minimal: "scanMinimal",
+  analyze_links: "links",
   detect_stack: "stack",
 };
 
@@ -69,5 +80,7 @@ export function getToolI18nKeyBase(id: ToolId): string {
   return TOOL_I18N_KEY_BASE[id];
 }
 
-/** All tools enabled by default. */
-export const DEFAULT_SELECTED_TOOLS: Set<ToolId> = new Set(TOOLS.map((t) => t.id));
+/** Baseline tools enabled by default; advanced checks stay opt-in. */
+export const DEFAULT_SELECTED_TOOLS: Set<ToolId> = new Set(
+  TOOLS.filter((tool) => tool.defaultSelected !== false).map((tool) => tool.id),
+);

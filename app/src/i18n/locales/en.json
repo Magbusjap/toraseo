@@ -220,6 +220,7 @@
       "ready": "Ready",
       "planned": "0.0.9"
     },
+    "versionFootnote": "App version: ToraSEO {{appVersion}} · individual analysis versions are shown in reports and documentation.",
     "analysisTypes": {
       "siteByUrl": {
         "title": "Site by URL",
@@ -338,6 +339,14 @@
     "tools": {
       "selectAll": "Select all",
       "clearAll": "Clear all"
+    },
+    "siteGroups": {
+      "basic": "Basic checks",
+      "basicDescription": "URL, indexability, robots.txt, sitemap, and redirects",
+      "onPage": "On-page SEO",
+      "onPageDescription": "Meta tags, canonical, headings, content, and links",
+      "advanced": "Advanced",
+      "advancedDescription": "Optional checks that are not needed for every audit"
     },
     "resizeHandle": "Resize sidebar",
     "backToHomeTitle": "Back to home",
@@ -899,6 +908,14 @@
       "label": "Meta tags",
       "tooltip": "Title, description, Open Graph, viewport"
     },
+    "indexability": {
+      "label": "Indexability",
+      "tooltip": "Robots.txt and meta robots without live search-index claims"
+    },
+    "canonical": {
+      "label": "Canonical",
+      "tooltip": "Canonical URL and duplicate-page risk"
+    },
     "headings": {
       "label": "Headings",
       "tooltip": "h1–h6 heading structure"
@@ -910,6 +927,10 @@
     "content": {
       "label": "Content",
       "tooltip": "Text volume, code-to-text ratio"
+    },
+    "links": {
+      "label": "Links",
+      "tooltip": "Internal, external, and invalid links in main content"
     },
     "scanMinimal": {
       "label": "Minimal scan",
@@ -1075,20 +1096,20 @@
     }
   },
   "siteDashboard": {
-    "health": "Audit health",
-    "coverage": "Evidence coverage",
+    "health": "SEO readiness",
+    "coverage": "Audit coverage",
     "coverageDetail": "{{completed}}/{{total}} tools",
     "cleanTools": "Clean tools",
     "cleanToolsDetail": "completed without blocking issues",
-    "findings": "Findings",
+    "findings": "Issues found",
     "findingsDetail": "critical, warnings, info, errors",
-    "issueDistribution": "Issue distribution",
-    "healthNote": "This is a technical audit health view, not a popularity or traffic score.",
-    "complete": "Complete",
+    "issueDistribution": "Status distribution",
+    "healthNote": "This is a score for selected checks, not a traffic, popularity, or ranking metric.",
+    "complete": "Ready",
     "inProgress": "In progress",
     "waiting": "Waiting",
-    "toolGroups": "Audit groups",
-    "topSignals": "Top signals",
+    "toolGroups": "Audit directions",
+    "topSignals": "Fix first",
     "noSignalsYet": "Signals will appear here as tools return structured facts.",
     "startPrompt": "Run the default audit preset to fill this board with site facts, metrics, and next actions.",
     "notScored": "not scored yet",
@@ -1097,8 +1118,11 @@
     "healthNeedsWork": "needs focused repair",
     "healthPoor": "blocking issues likely",
     "groups": {
-      "crawl": "Crawl and index access",
-      "page": "Page and content surface",
+      "indexability": "Indexability",
+      "metadata": "Metadata and canonical",
+      "structure": "Structure and links",
+      "content": "Content readiness",
+      "crawl": "Sitemap and redirects",
       "technical": "Technical signals"
     }
   },

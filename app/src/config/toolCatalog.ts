@@ -54,6 +54,24 @@ const siteByUrlCurrent: CatalogToolRow[] = [
     ),
   },
   {
+    name: text("Индексация", "Indexability"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Проверяет robots.txt и meta robots как локальные признаки доступности страницы для индексации. Не утверждает live-наличие страницы в поиске.",
+      "Checks robots.txt and meta robots as local indexability signals. Does not claim live search-index presence.",
+    ),
+  },
+  {
+    name: text("Canonical", "Canonical"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Проверяет canonical как отдельный on-page блок: отсутствие, относительный URL или указание на другую страницу.",
+      "Checks canonical as a separate on-page block: missing, relative, or pointing elsewhere.",
+    ),
+  },
+  {
     name: text("Заголовки", "Headings"),
     group: "primary",
     description: text(
@@ -67,6 +85,15 @@ const siteByUrlCurrent: CatalogToolRow[] = [
     description: text(
       "Извлекает основной текст, считает слова, ссылки, изображения и text-to-code ratio.",
       "Extracts main text and counts words, links, images, and text-to-code ratio.",
+    ),
+  },
+  {
+    name: text("Ссылки", "Links"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Считает внутренние, внешние и некорректные ссылки в основном контенте страницы.",
+      "Counts internal, external, and invalid links in the extracted main content.",
     ),
   },
   {
@@ -95,8 +122,8 @@ const siteByUrlCurrent: CatalogToolRow[] = [
   },
   {
     name: text("Технологический стек", "Technology stack"),
-    group: "secondary",
-    change: "added",
+    group: "additional",
+    change: "moved",
     description: text(
       "Определяет публичные признаки CMS, фреймворка, аналитики, CDN и сервера.",
       "Detects public CMS, framework, analytics, CDN, and server signals.",

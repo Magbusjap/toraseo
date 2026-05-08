@@ -1,8 +1,7 @@
 import { ArrowLeft, Globe, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { TOOLS, type ToolId, getToolI18nKeyBase } from "../../config/tools";
-import ToolChecklist from "./ToolChecklist";
+import { TOOLS, type ToolId } from "../../config/tools";
 
 interface ActiveSidebarProps {
   url: string;
@@ -36,14 +35,40 @@ export default function ActiveSidebar({
   const trimmedUrl = url.trim();
   const hasValidUrl = trimmedUrl.length > 0 && isLikelyUrl(trimmedUrl);
   const hasSelectedTools = selectedTools.size > 0;
-  const toolItems = TOOLS.map((tool) => {
-    const keyBase = getToolI18nKeyBase(tool.id);
-    return {
-      id: tool.id,
-      label: t(`tools.${keyBase}.label`),
-      tooltip: t(`tools.${keyBase}.tooltip`),
-    };
-  });
+  const toolPackages = [
+    {
+      id: "basic",
+      title: t("sidebar.siteGroups.basic", { defaultValue: "Базовый аудит" }),
+      description: t("sidebar.siteGroups.basicDescription", {
+        defaultValue: "URL, индексация, robots.txt, sitemap и редиректы",
+      }),
+      tools: TOOLS.filter((tool) => tool.group === "basic").map((tool) => tool.id),
+    },
+    {
+      id: "onPage",
+      title: t("sidebar.siteGroups.onPage", { defaultValue: "SEO на странице" }),
+      description: t("sidebar.siteGroups.onPageDescription", {
+        defaultValue: "Meta-теги, canonical, заголовки, контент и ссылки",
+      }),
+      tools: TOOLS.filter((tool) => tool.group === "onPage").map((tool) => tool.id),
+    },
+    {
+      id: "advanced",
+      title: t("sidebar.siteGroups.advanced", { defaultValue: "Расширенные" }),
+      description: t("sidebar.siteGroups.advancedDescription", {
+        defaultValue: "Дополнительные проверки, которые нужны не каждому аудиту",
+      }),
+      tools: TOOLS.filter((tool) => tool.group === "advanced").map((tool) => tool.id),
+    },
+  ];
+  const togglePackage = (tools: ToolId[]) => {
+    const shouldSelect = tools.some((toolId) => !selectedTools.has(toolId));
+    for (const toolId of tools) {
+      if (selectedTools.has(toolId) !== shouldSelect) {
+        onToggleTool(toolId);
+      }
+    }
+  };
   const computedTooltip = !hasValidUrl
     ? t("sidebar.tooltip.noUrl")
     : !hasSelectedTools
@@ -115,13 +140,48 @@ export default function ActiveSidebar({
         </SidebarSection>
 
         <SidebarSection title={t("sidebar.section.checks")}>
-          <ToolChecklist
-            tools={toolItems}
-            selectedTools={selectedTools}
+          <div className="space-y-2">
+            {toolPackages.map((pack) => {
+              if (pack.tools.length === 0) return null;
+              const checked = pack.tools.every((toolId) => selectedTools.has(toolId));
+              const partial =
+                !checked && pack.tools.some((toolId) => selectedTools.has(toolId));
+              return (
+                <label
+                  key={pack.id}
+                  className="flex cursor-pointer items-start gap-2 rounded-md px-1 py-1.5 transition hover:bg-white/5"
+                  title={pack.description}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={isBusy}
+                    onChange={() => togglePackage(pack.tools)}
+                    className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/10 text-primary focus:ring-primary disabled:opacity-40"
+                    aria-checked={partial ? "mixed" : checked}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-white/80">
+                      {pack.title}
+                    </span>
+                    <span className="mt-0.5 block text-xs leading-snug text-white/45">
+                      {pack.description}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={onToggleAllTools}
             disabled={isBusy}
-            onToggleTool={onToggleTool}
-            onToggleAllTools={onToggleAllTools}
-          />
+            className="mt-4 w-full rounded-md border border-white/15 px-3 py-2 text-xs font-medium text-white/70 transition hover:border-primary/70 hover:text-white disabled:opacity-40"
+          >
+            {selectedTools.size === TOOLS.length
+              ? t("sidebar.tools.clearAll")
+              : t("sidebar.tools.selectAll")}
+          </button>
         </SidebarSection>
       </div>
 

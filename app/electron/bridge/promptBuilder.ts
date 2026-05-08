@@ -66,45 +66,41 @@ import type {
  * SKILL.md §2.1 treats it as definitive. The "Приложение ToraSEO
  * запущено" phrase is a secondary natural-language trigger.
  */
-const TEMPLATE_RU = (url: string, tools: string): string =>
-  `/toraseo bridge-mode
+const TEMPLATE_RU = (_url: string, _tools: string): string =>
+  `/toraseo bridge-mode site-by-url
 
-Приложение ToraSEO запущено и ожидает анализа сайта ${url}.
-
-Используй инструменты: ${tools}.
-
-Результаты будут отображены в приложении ToraSEO.
-После завершения анализа дай рекомендации в чате на основе данных.`;
+ToraSEO ожидает: анализ сайта по URL.
+После handshake запусти только site_url_internal и дай рекомендации в чате на основе результатов.
+Детали возьми из SKILL + MCP. Не проси пользователя присылать сводку, скрин или JSON.`;
 
 /**
  * English template. Mirrors the Russian structure verb-for-verb
  * so behavior is consistent across locales.
  */
-const TEMPLATE_EN = (url: string, tools: string): string =>
-  `/toraseo bridge-mode
+const TEMPLATE_EN = (_url: string, _tools: string): string =>
+  `/toraseo bridge-mode site-by-url
 
-The ToraSEO Desktop App is running and waiting for a scan of ${url}.
+ToraSEO is waiting for: site by URL analysis.
+After the handshake, run only site_url_internal and give chat recommendations based on the results.
+Take details from SKILL + MCP. Do not ask the user to send a summary, screenshot, or JSON.`;
 
-Use the tools: ${tools}.
-
-Results will be displayed in the ToraSEO Desktop App.
-After all tools complete, provide recommendations in chat based on the data.`;
-
-const CODEX_TEMPLATE_EN = (url: string): string =>
+const CODEX_TEMPLATE_EN = (_url: string): string =>
   `Use $toraseo-codex-workflow.
 
-/toraseo codex-bridge-mode
+/toraseo codex-bridge-mode site-by-url
 
-ToraSEO is waiting for a site scan: ${url}.
-Use SKILL + MCP for the details.`;
+ToraSEO is waiting for: site by URL analysis.
+After the handshake, run only site_url_internal and give chat recommendations based on the results.
+Take details from SKILL + MCP. Do not ask the user to send a summary, screenshot, or JSON.`;
 
-const CODEX_TEMPLATE_RU = (url: string): string =>
+const CODEX_TEMPLATE_RU = (_url: string): string =>
   `Используй $toraseo-codex-workflow.
 
-/toraseo codex-bridge-mode
+/toraseo codex-bridge-mode site-by-url
 
-ToraSEO ожидает анализ сайта: ${url}.
-Детали возьми из SKILL + MCP.`;
+ToraSEO ожидает: анализ сайта по URL.
+После handshake запусти только site_url_internal и дай рекомендации в чате на основе результатов.
+Детали возьми из SKILL + MCP. Не проси пользователя присылать сводку, скрин или JSON.`;
 
 const TEXT_EVIDENCE_BOUNDARY =
   "Base recommendations only on selected MCP tool evidence. Treat ai_writing_probability, ai_trace_map, genericness_water_check, readability_complexity, claim_source_queue, and ai_hallucination_check as separate checks: AI-writing probability is a style/rhythm heuristic, AI trace map is an editing map of local AI-like fragments rather than authorship proof, genericness/watery text flags broad filler and weak concrete evidence, readability/complexity flags dense sentences and heavy paragraphs, claim source queue lists claims needing source review, and hallucination review is an optional claim-safety signal. Use intent_seo_forecast for intent, hook, CTR, and CMS metadata suggestions when present. Keep backend IDs out of user-facing wording: translate platform/tool/issue keys into human-readable language and show raw IDs only in parentheses when useful for debugging. If the CMS metadata looks copied from a service line such as Part 1, Download PDF, or a numeric navigation line, call it a weak draft and suggest a clearer title, description, keywords, category, tags, and slug from the article topic. Use safety_science_review warnings for unsafe, legal-sensitive, scientific, or calculation-heavy content, while noting that AI can be wrong and does not replace expert review. Do not claim live SERP/social demand unless an external data source explicitly provides it. Do not rewrite, rank, or add editorial claims outside that evidence. If the user later asks to rewrite or improve the analyzed article, call article_rewrite_context instead of reading input.md directly or asking the user to paste the article again. Write the rewritten article directly in chat as a separate copyable article block; the user will copy it into ToraSEO and run a new scan. Keep rewrite choices aligned with the active workflow instructions, selected tools, platform/style/audience fit, SEO intent, media-marker policy, and risk warnings.";

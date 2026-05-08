@@ -1,5 +1,6 @@
 import { ArrowLeft, History } from "lucide-react";
 
+import { APP_VERSION, DEFAULT_ANALYSIS_VERSION } from "../../config/versions";
 import type { SupportedLocale } from "../../types/ipc";
 
 interface ChangelogViewProps {
@@ -192,6 +193,8 @@ const COPY = {
     lead:
       "Краткая история изменений из CHANGELOG до версии 0.0.9. Пока это обзор внутри приложения; полный технический журнал остается в репозитории.",
     active: "активная",
+    versionMeta:
+      "Версии функций: модули анализа 0.0.1, схемы результата 0.0.1, промпты 0.0.1, формулы score — в разработке.",
   },
   en: {
     back: "Back home",
@@ -201,6 +204,8 @@ const COPY = {
     lead:
       "A compact in-app history based on CHANGELOG up to version 0.0.9. The full technical log still lives in the repository.",
     active: "active",
+    versionMeta:
+      "Feature versions: analysis modules 0.0.1, result schemas 0.0.1, prompts 0.0.1, score formulas in development.",
   },
 } as const;
 
@@ -269,6 +274,14 @@ export default function ChangelogView({
                 <p className="mt-2 text-sm font-semibold text-outline-900/80">
                   {entry.title[currentLocale]}
                 </p>
+                {entry.version === `App ${APP_VERSION}` && (
+                  <p className="mt-1 text-xs leading-relaxed text-outline-900/45">
+                    {copy.versionMeta.replaceAll(
+                      "0.0.1",
+                      DEFAULT_ANALYSIS_VERSION,
+                    )}
+                  </p>
+                )}
                 <ul className="mt-3 space-y-2 text-sm leading-relaxed text-outline-900/70">
                   {entry.points[currentLocale].map((point) => (
                     <li key={point} className="ml-5 list-disc">

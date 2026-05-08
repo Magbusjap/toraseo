@@ -78,7 +78,10 @@ function analysisTool(
 }
 
 export const ANALYSIS_TOOLS: Record<AnalysisTypeId, AnalysisToolMeta[]> = {
-  site_by_url: TOOLS.map((tool) => siteTool(tool.id)),
+  site_by_url: TOOLS.map((tool) => ({
+    ...siteTool(tool.id),
+    defaultSelected: tool.defaultSelected,
+  })),
   page_by_url: [
     analysisTool("detect_text_platform"),
     analysisTool("analyze_text_structure"),

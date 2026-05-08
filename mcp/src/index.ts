@@ -17,20 +17,20 @@
  *   entries to it, and falls back to legacy chat-only mode when no
  *   scan is active. See `bridgeWrapper.ts` for details.
  *
- * Tool grouping (per `wiki/toraseo/product-modes.md`):
- *   Mode A — Site Audit:    scan_site_minimal, check_robots_txt,
- *                            analyze_meta, analyze_headings,
- *                            analyze_sitemap, check_redirects,
- *                            analyze_content, detect_stack
+ * Tool grouping (per current ToraSEO product modes):
+ *   Mode A — Site Audit:    scan_site_minimal, analyze_indexability,
+ *                            check_robots_txt, analyze_sitemap,
+ *                            check_redirects, analyze_meta,
+ *                            analyze_canonical, analyze_headings,
+ *                            analyze_content, analyze_links
  *   Mode B — Content Audit: (none yet)
  *
  *   Plus the v0.0.7+ Bridge Mode handshake tool:
  *     verify_skill_loaded — required first call when an active
  *     ToraSEO scan is waiting; never called in standalone use.
  *
- * Mode A baseline is complete and now includes the first expansion
- * tool (`detect_stack`). Schema.org analysis is intentionally deferred
- * to post-MVP (see day-9 wiki for rationale).
+ * `detect_stack` is available as an opt-in advanced check. Schema.org
+ * analysis is intentionally deferred to post-MVP.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -58,6 +58,12 @@ import {
   analyzeContent,
   analyzeContentInputSchema,
   AnalyzeContentError,
+  analyzeIndexability,
+  analyzeIndexabilityInputSchema,
+  analyzeCanonical,
+  analyzeCanonicalInputSchema,
+  analyzeLinks,
+  analyzeLinksInputSchema,
   detectStack,
   detectStackInputSchema,
   DetectStackError,
@@ -116,6 +122,7 @@ import {
   analyzeGooglePageSearchHandler,
   analyzeYandexPageSearchHandler,
 } from "./pageUrlTools.js";
+import { siteUrlInternalHandler } from "./siteUrlTools.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -181,6 +188,17 @@ server.registerTool(
 // to live in each handler inline. See bridgeWrapper.ts.
 
 server.registerTool(
+  "site_url_internal",
+  {
+    title: "Site URL Internal Checks",
+    description:
+      "For an active site_by_url bridge run, runs the selected site-audit checks in one MCP call and writes individual results into the ToraSEO app under their normal tool names. Prefer this tool in Bridge Mode to avoid asking the user to approve each site check separately.",
+    inputSchema: emptyInputSchema,
+  },
+  siteUrlInternalHandler,
+);
+
+server.registerTool(
   "scan_site_minimal",
   {
     title: "Scan Site (Minimal)",
@@ -227,6 +245,28 @@ server.registerTool(
     inputSchema: analyzeMetaInputSchema,
   },
   bridgeWrap("analyze_meta", analyzeMeta, AnalyzeMetaError),
+);
+
+server.registerTool(
+  "analyze_indexability",
+  {
+    title: "Analyze Indexability",
+    description:
+      "Checks whether the URL is locally indexable by combining robots.txt access and meta robots directives. Returns indexability reasons and severity-tagged issues without claiming live search index status.",
+    inputSchema: analyzeIndexabilityInputSchema,
+  },
+  bridgeWrap("analyze_indexability", analyzeIndexability, AnalyzeMetaError),
+);
+
+server.registerTool(
+  "analyze_canonical",
+  {
+    title: "Analyze Canonical",
+    description:
+      "Checks the page canonical URL as a focused on-page SEO block: missing canonical, relative canonical, or canonical pointing elsewhere. Returns raw canonical data and severity-tagged issues.",
+    inputSchema: analyzeCanonicalInputSchema,
+  },
+  bridgeWrap("analyze_canonical", analyzeCanonical, AnalyzeMetaError),
 );
 
 server.registerTool(
@@ -311,6 +351,17 @@ server.registerTool(
     inputSchema: analyzeContentInputSchema,
   },
   bridgeWrap("analyze_content", analyzeContent, AnalyzeContentError),
+);
+
+server.registerTool(
+  "analyze_links",
+  {
+    title: "Analyze Page Links",
+    description:
+      "Extracts internal, external, and invalid links from the main content and reports link-specific SEO issues such as missing internal links or unusually high outbound link counts.",
+    inputSchema: analyzeLinksInputSchema,
+  },
+  bridgeWrap("analyze_links", analyzeLinks, AnalyzeContentError),
 );
 
 server.registerTool(

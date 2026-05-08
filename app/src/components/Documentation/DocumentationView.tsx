@@ -1,5 +1,6 @@
 import { ArrowLeft, BookOpen } from "lucide-react";
 
+import { APP_VERSION, VERSION_REGISTRY } from "../../config/versions";
 import type { SupportedLocale } from "../../types/ipc";
 
 interface DocumentationViewProps {
@@ -52,7 +53,37 @@ const COPY = {
         description:
           "Сравнение двух текстов: Text A и Text B уже лежат в ToraSEO, ИИ запускает выбранные проверки сравнения и оценивает только текстовые признаки.",
       },
+      {
+        codex: "/toraseo codex-bridge-mode page-by-url",
+        claude: "/toraseobridge page-by-url",
+        description:
+          "Анализ страницы по URL: ToraSEO извлекает основной текст страницы, очищает шум страницы и запускает проверки текста статьи.",
+      },
+      {
+        codex: "/toraseo codex-bridge-mode site-by-url",
+        claude: "/toraseo bridge-mode site-by-url",
+        description:
+          "Анализ сайта по URL: один внутренний MCP-вызов запускает выбранные проверки сайта и отдаёт ИИ готовые факты для пользовательской сводки.",
+      },
     ],
+    versioningTitle: "Версионирование приложения и функций",
+    versioningLead:
+      "В интерфейсе показываем только версию приложения и версию конкретного анализа. Этого достаточно, чтобы понимать, какими правилами был сформирован отчёт, без перегруза техническими версиями.",
+    versionKindsTitle: "Что показывается пользователю",
+    versionKinds: [
+      {
+        title: "Версия приложения",
+        description:
+          "Общий релиз ToraSEO: интерфейс, Electron, окна, экспорт, документация и системные функции.",
+      },
+      {
+        title: "Версия анализа",
+        description:
+          "Версия пользовательской логики конкретной функции: набор проверок, правила группировки, рекомендации и вид отчёта.",
+      },
+    ],
+    versionHeaders: ["Функция", "Версия анализа"],
+    appVersionLabel: "Версия приложения",
   },
   en: {
     back: "Back home",
@@ -98,7 +129,37 @@ const COPY = {
         description:
           "Two-text comparison: Text A and Text B are already in ToraSEO, so AI runs the selected comparison checks and compares text evidence only.",
       },
+      {
+        codex: "/toraseo codex-bridge-mode page-by-url",
+        claude: "/toraseobridge page-by-url",
+        description:
+          "Page by URL analysis: ToraSEO extracts the main page article, removes page noise, and runs article-text checks.",
+      },
+      {
+        codex: "/toraseo codex-bridge-mode site-by-url",
+        claude: "/toraseo bridge-mode site-by-url",
+        description:
+          "Site by URL analysis: one internal MCP call runs selected site checks and returns facts for the user-facing summary.",
+      },
     ],
+    versioningTitle: "Application and feature versioning",
+    versioningLead:
+      "The interface shows only the app version and the current analysis version. This is enough to identify which user-facing rules produced the report without exposing internal schema, prompt, or score formula versions.",
+    versionKindsTitle: "What users see",
+    versionKinds: [
+      {
+        title: "App version",
+        description:
+          "The ToraSEO release: UI, Electron, windows, export, documentation, and system features.",
+      },
+      {
+        title: "Analysis version",
+        description:
+          "The user-facing logic version for a specific feature: checks, grouping rules, recommendations, and report UX.",
+      },
+    ],
+    versionHeaders: ["Feature", "Analysis version"],
+    appVersionLabel: "App version",
   },
 } as const;
 
@@ -209,6 +270,70 @@ export default function DocumentationView({
                       </td>
                       <td className="px-4 py-3 leading-relaxed text-outline-900/70">
                         {command.description}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="mt-6 border-t border-outline/10 pt-7">
+            <h3 className="font-display text-xl font-semibold text-outline-900">
+              {copy.versioningTitle}
+            </h3>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-outline-900/65">
+              {copy.versioningLead}
+            </p>
+            <div className="mt-4 rounded-lg border border-outline/10 bg-white">
+              <div className="border-b border-outline/10 px-4 py-3">
+                <h4 className="text-sm font-semibold text-outline-900">
+                  {copy.versionKindsTitle}
+                </h4>
+              </div>
+              <div className="grid gap-0 divide-y divide-outline/10">
+                {copy.versionKinds.map((item) => (
+                  <div
+                    key={item.title}
+                    className="grid gap-2 px-4 py-3 text-sm md:grid-cols-[180px_1fr]"
+                  >
+                    <strong className="text-outline-900/80">
+                      {item.title}
+                    </strong>
+                    <span className="leading-relaxed text-outline-900/65">
+                      {item.description}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 rounded-lg border border-outline/10 bg-orange-50/35 px-4 py-3 text-sm">
+              <span className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
+                {copy.appVersionLabel}
+              </span>
+              <strong className="mt-1 block text-outline-900">
+                ToraSEO {APP_VERSION}
+              </strong>
+            </div>
+            <div className="mt-4 overflow-hidden rounded-lg border border-outline/10">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead className="bg-orange-50/70 text-xs uppercase tracking-wider text-outline-900/50">
+                  <tr>
+                    {copy.versionHeaders.map((header) => (
+                      <th key={header} className="px-4 py-3 font-semibold">
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline/10">
+                  {VERSION_REGISTRY.map((row) => (
+                    <tr key={row.id} className="align-top">
+                      <td className="px-4 py-3 font-semibold text-outline-900/80">
+                        {currentLocale === "ru" ? row.labelRu : row.labelEn}
+                      </td>
+                      <td className="px-4 py-3 text-outline-900/70">
+                        {row.analysisVersion}
                       </td>
                     </tr>
                   ))}

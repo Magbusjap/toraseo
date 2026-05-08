@@ -57,6 +57,18 @@
       "types": "./dist/tools/site/analyze-content.d.ts",
       "default": "./dist/tools/site/analyze-content.js"
     },
+    "./tools/site/analyze-indexability": {
+      "types": "./dist/tools/site/analyze-indexability.d.ts",
+      "default": "./dist/tools/site/analyze-indexability.js"
+    },
+    "./tools/site/analyze-canonical": {
+      "types": "./dist/tools/site/analyze-canonical.d.ts",
+      "default": "./dist/tools/site/analyze-canonical.js"
+    },
+    "./tools/site/analyze-links": {
+      "types": "./dist/tools/site/analyze-links.d.ts",
+      "default": "./dist/tools/site/analyze-links.js"
+    },
     "./tools/site/detect-stack": {
       "types": "./dist/tools/site/detect-stack.d.ts",
       "default": "./dist/tools/site/detect-stack.js"

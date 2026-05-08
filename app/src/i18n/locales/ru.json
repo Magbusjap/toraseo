@@ -220,6 +220,7 @@
       "ready": "Готово",
       "planned": "0.0.9"
     },
+    "versionFootnote": "Версия приложения: ToraSEO {{appVersion}} · версии конкретных анализов указаны в отчётах и документации.",
     "analysisTypes": {
       "siteByUrl": {
         "title": "Сайт по URL",
@@ -338,6 +339,14 @@
     "tools": {
       "selectAll": "Выбрать все",
       "clearAll": "Снять все"
+    },
+    "siteGroups": {
+      "basic": "Базовые проверки",
+      "basicDescription": "URL, индексация, robots.txt, sitemap и редиректы",
+      "onPage": "SEO на странице",
+      "onPageDescription": "Meta-теги, canonical, заголовки, контент и ссылки",
+      "advanced": "Расширенные",
+      "advancedDescription": "Дополнительные проверки, которые нужны не каждому аудиту"
     },
     "resizeHandle": "Изменить ширину сайдбара",
     "backToHomeTitle": "На главную",
@@ -898,6 +907,14 @@
       "label": "Мета-теги",
       "tooltip": "Title, description, Open Graph, viewport"
     },
+    "indexability": {
+      "label": "Индексация",
+      "tooltip": "Robots.txt и meta robots без live-проверки поисковой выдачи"
+    },
+    "canonical": {
+      "label": "Canonical",
+      "tooltip": "Канонический URL страницы и риск дублей"
+    },
     "headings": {
       "label": "Заголовки",
       "tooltip": "Структура заголовков h1–h6"
@@ -909,6 +926,10 @@
     "content": {
       "label": "Контент",
       "tooltip": "Объём текста, соотношение код/текст"
+    },
+    "links": {
+      "label": "Ссылки",
+      "tooltip": "Внутренние, внешние и некорректные ссылки в основном контенте"
     },
     "scanMinimal": {
       "label": "Базовый скан",
@@ -1074,20 +1095,20 @@
     }
   },
   "siteDashboard": {
-    "health": "Здоровье аудита",
-    "coverage": "Покрытие фактов",
+    "health": "Готовность SEO",
+    "coverage": "Покрытие аудита",
     "coverageDetail": "{{completed}}/{{total}} инструментов",
     "cleanTools": "Чистые проверки",
     "cleanToolsDetail": "завершены без блокирующих проблем",
-    "findings": "Сигналы",
-    "findingsDetail": "критично, предупреждения, инфо, ошибки",
-    "issueDistribution": "Распределение проблем",
-    "healthNote": "Это техническая оценка аудита, а не показатель популярности или трафика.",
+    "findings": "Найдено замечаний",
+    "findingsDetail": "критично, предупреждения, информация, ошибки",
+    "issueDistribution": "Распределение статусов",
+    "healthNote": "Это оценка по выбранным проверкам, а не показатель трафика, популярности или позиций.",
     "complete": "Готово",
     "inProgress": "В процессе",
     "waiting": "Ожидание",
-    "toolGroups": "Группы аудита",
-    "topSignals": "Главные сигналы",
+    "toolGroups": "Направления проверки",
+    "topSignals": "Что исправить первым",
     "noSignalsYet": "Сигналы появятся здесь, когда инструменты вернут структурированные факты.",
     "startPrompt": "Запустите стандартный набор проверок, чтобы заполнить доску фактами, метриками и следующими действиями.",
     "notScored": "оценки пока нет",
@@ -1096,8 +1117,11 @@
     "healthNeedsWork": "нужен сфокусированный ремонт",
     "healthPoor": "вероятны блокирующие проблемы",
     "groups": {
-      "crawl": "Доступ для обхода и индексации",
-      "page": "Страница и контент",
+      "indexability": "Индексация",
+      "metadata": "Метаданные и canonical",
+      "structure": "Структура и ссылки",
+      "content": "Готовность контента",
+      "crawl": "Sitemap и редиректы",
       "technical": "Технические сигналы"
     }
   },

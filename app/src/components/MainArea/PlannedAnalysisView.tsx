@@ -19,6 +19,10 @@ import {
   type AnalysisTypeId,
 } from "../../config/analysisTypes";
 import type { AnalysisToolId } from "../../config/analysisTools";
+import {
+  DEFAULT_ANALYSIS_VERSION,
+  getAnalysisVersionText,
+} from "../../config/versions";
 import type {
   AuditExecutionMode,
   RuntimeArticleTextAnnotation,
@@ -1214,7 +1218,8 @@ function ApiArticleTextReportPanel({
   completedTools: number;
   totalTools: number;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const evalLabEnabled = isEvalLabEnabled();
@@ -1237,6 +1242,8 @@ function ApiArticleTextReportPanel({
     );
   }
   const article = report.articleText;
+  const reportAnalysisType = (report.analysisType ??
+    "article_text") as AnalysisTypeId;
   const reportComplete = Boolean(
     report &&
       completedTools >= totalTools &&
@@ -1530,6 +1537,13 @@ function ApiArticleTextReportPanel({
       <p className="mt-5 text-sm font-medium text-outline-900">
         {report.nextStep}
       </p>
+      <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-outline-900/35">
+        {getAnalysisVersionText(
+          reportAnalysisType,
+          locale,
+          report.analysisVersion,
+        )}
+      </p>
     </section>
   );
 }
@@ -1707,6 +1721,8 @@ function buildArticleCompareBridgeReport(
   });
 
   return {
+    analysisType: "article_compare",
+    analysisVersion: DEFAULT_ANALYSIS_VERSION,
     mode: "strict_audit",
     providerId: "local",
     model: "ToraSEO MCP + Instructions",
@@ -2275,7 +2291,8 @@ function ArticleCompareResultsDashboard({
   completedTools: number;
   totalTools: number;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
@@ -2559,6 +2576,13 @@ function ArticleCompareResultsDashboard({
 
       <p className="mt-5 text-sm font-medium text-outline-900">
         {enrichedReport.nextStep}
+      </p>
+      <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-outline-900/35">
+        {getAnalysisVersionText(
+          "article_compare",
+          locale,
+          enrichedReport.analysisVersion,
+        )}
       </p>
     </section>
   );
@@ -2932,7 +2956,8 @@ function ArticleTextResultsDashboard({
 }: {
   state: CurrentScanState | null;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const evalLabEnabled = isEvalLabEnabled();
@@ -3462,6 +3487,9 @@ function ArticleTextResultsDashboard({
           />
         ))}
       </div>
+      <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-outline-900/35">
+        {getAnalysisVersionText(state.analysisType, locale, report.analysisVersion)}
+      </p>
     </section>
   );
 }
@@ -6254,6 +6282,9 @@ function buildArticleTextReport(
   });
 
   return {
+    analysisType:
+      state.analysisType === "page_by_url" ? "page_by_url" : "article_text",
+    analysisVersion: DEFAULT_ANALYSIS_VERSION,
     mode: "audit_plus_ideas",
     providerId: "local",
     model: "ToraSEO MCP + Instructions",

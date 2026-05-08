@@ -14,13 +14,16 @@ interface BridgeIssue {
 }
 
 const TOOL_LABELS: Record<ToolId, string> = {
+  scan_site_minimal: "Minimal scan",
+  analyze_indexability: "Indexability",
   check_robots_txt: "Robots.txt",
   analyze_sitemap: "Sitemap",
-  analyze_meta: "Meta tags",
-  analyze_headings: "Headings",
   check_redirects: "Redirects",
+  analyze_meta: "Meta tags",
+  analyze_canonical: "Canonical",
+  analyze_headings: "Headings",
   analyze_content: "Content",
-  scan_site_minimal: "Minimal scan",
+  analyze_links: "Links",
   detect_stack: "Stack detection",
 };
 
@@ -41,6 +44,21 @@ function priorityFromIssueSeverity(
     return severity;
   }
   return "ok";
+}
+
+function priorityFromBridgeIssue(issue: BridgeIssue): RuntimeScanFact["severity"] {
+  if (
+    issue.code === "no_meta_description" ||
+    issue.code === "title_too_short" ||
+    issue.code === "og_missing" ||
+    issue.code === "twitter_card_missing"
+  ) {
+    return "warning";
+  }
+  if (issue.code === "no_canonical" || issue.code === "heading_level_skip") {
+    return "ok";
+  }
+  return priorityFromIssueSeverity(issue.severity);
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -183,6 +201,27 @@ function detailFromBridgeData(
       .join("; ");
   }
 
+  if (toolId === "analyze_indexability") {
+    const indexable = record.indexable;
+    const reasons = Array.isArray(record.reasons) ? record.reasons.length : 0;
+    const robots = asRecord(record.robots_txt);
+    return [
+      typeof indexable === "boolean"
+        ? indexable
+          ? "locally indexable"
+          : "blocked from indexing locally"
+        : "indexability checked",
+      `blocking reasons: ${reasons}`,
+      typeof robots?.allowed === "boolean"
+        ? robots.allowed
+          ? "robots allows crawl"
+          : "robots blocks crawl"
+        : null,
+    ]
+      .filter(Boolean)
+      .join("; ");
+  }
+
   if (toolId === "analyze_meta") {
     const status = getNumberField(record, "status");
     const basic = asRecord(record.basic);
@@ -206,6 +245,17 @@ function detailFromBridgeData(
     ]
       .filter(Boolean)
       .join("; ");
+  }
+
+  if (toolId === "analyze_canonical") {
+    const canonical = asRecord(record.canonical);
+    return canonical
+      ? [
+          `canonical: ${getStringField(canonical, "value") ?? "unknown"}`,
+          `absolute: ${String(canonical.is_absolute ?? "unknown")}`,
+          `points to self: ${String(canonical.points_to_self ?? "unknown")}`,
+        ].join("; ")
+      : "canonical missing";
   }
 
   if (toolId === "analyze_headings") {
@@ -271,6 +321,15 @@ function detailFromBridgeData(
     ]
       .filter(Boolean)
       .join("; ");
+  }
+
+  if (toolId === "analyze_links") {
+    const links = asRecord(record.links);
+    return [
+      `internal: ${getNumberField(links ?? {}, "internal") ?? 0}`,
+      `external: ${getNumberField(links ?? {}, "external") ?? 0}`,
+      `invalid: ${getNumberField(links ?? {}, "invalid") ?? 0}`,
+    ].join("; ");
   }
 
   if (toolId === "detect_stack") {
@@ -375,7 +434,7 @@ export function buildBridgeScanFacts(
             toolId,
             title: `${TOOL_LABELS[toolId]}: ${formatIssueCode(issue.code)}`,
             detail: issue.message,
-            severity: priorityFromIssueSeverity(issue.severity),
+            severity: priorityFromBridgeIssue(issue),
             source: "bridge_scan",
           });
         }

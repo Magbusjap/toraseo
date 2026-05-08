@@ -700,6 +700,10 @@ export interface AnalyzeContentResult {
   };
 }
 
+export type AnalyzeIndexabilityResult = import("./analyzers/site/derived.js").AnalyzeIndexabilityResult;
+export type AnalyzeCanonicalResult = import("./analyzers/site/derived.js").AnalyzeCanonicalResult;
+export type AnalyzeLinksResult = import("./analyzers/site/derived.js").AnalyzeLinksResult;
+
 /**
  * A single stack/platform finding produced by `detect_stack`.
  *

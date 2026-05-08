@@ -39,6 +39,9 @@ export type {
   CheckRedirectsResult,
   ContentIssue,
   AnalyzeContentResult,
+  AnalyzeIndexabilityResult,
+  AnalyzeCanonicalResult,
+  AnalyzeLinksResult,
   StackDetection,
   StackIssue,
   DetectStackResult,
@@ -86,6 +89,21 @@ export {
   analyzeContentInputSchema,
   AnalyzeContentError,
 } from "./tools/site/analyze-content.js";
+
+export {
+  analyzeIndexability,
+  analyzeIndexabilityInputSchema,
+} from "./tools/site/analyze-indexability.js";
+
+export {
+  analyzeCanonical,
+  analyzeCanonicalInputSchema,
+} from "./tools/site/analyze-canonical.js";
+
+export {
+  analyzeLinks,
+  analyzeLinksInputSchema,
+} from "./tools/site/analyze-links.js";
 
 export {
   detectStack,

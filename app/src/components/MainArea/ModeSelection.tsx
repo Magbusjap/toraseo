@@ -22,6 +22,10 @@ import {
   ANALYSIS_TYPES,
   type AnalysisTypeId,
 } from "../../config/analysisTypes";
+import {
+  APP_VERSION,
+  getAnalysisVersionBadgeText,
+} from "../../config/versions";
 
 import type {
   CurrentScanState,
@@ -106,7 +110,8 @@ export default function ModeSelection({
   onClearSkillConfirmation,
   onSelect,
 }: ModeSelectionProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const bridgeReady =
     bridgeProgram === "claude"
       ? Boolean(detectorStatus?.allGreen)
@@ -267,7 +272,6 @@ export default function ModeSelection({
         )}
         <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {ANALYSIS_TYPES.map((analysis) => {
-            const ready = analysis.availability === "ready";
             const disabled =
               analysis.id === "site_by_url"
                 ? !canSelectSite
@@ -279,17 +283,20 @@ export default function ModeSelection({
                 icon={iconForAnalysis(analysis.id)}
                 title={t(`modeSelection.analysisTypes.${key}.title`)}
                 subtitle={t(`modeSelection.analysisTypes.${key}.subtitle`)}
-                statusLabel={
-                  ready
-                    ? t("modeSelection.analysisStatus.ready")
-                    : t("modeSelection.analysisStatus.planned")
-                }
+                statusLabel={getAnalysisVersionBadgeText(analysis.id, locale)}
                 disabled={disabled}
                 onClick={() => onSelect(analysis.id)}
               />
             );
           })}
         </div>
+        <p className="mt-4 rounded-lg border border-outline/10 bg-white px-4 py-3 text-xs leading-relaxed text-outline-900/45">
+          {t("modeSelection.versionFootnote", {
+            defaultValue:
+              "Версия приложения: ToraSEO {{appVersion}} · версии конкретных анализов указаны в отчётах и документации.",
+            appVersion: APP_VERSION,
+          })}
+        </p>
       </section>
     </div>
   );

@@ -11,6 +11,9 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { getToolI18nKeyBase, type ToolId } from "../../config/tools";
+import {
+  getAnalysisVersionText,
+} from "../../config/versions";
 import type { CurrentScanState, ScanComplete } from "../../types/ipc";
 import type { ScanState } from "../../hooks/useScan";
 import type {
@@ -107,6 +110,7 @@ export default function NativeLayout({
             scanContext={runtimeScanContext}
             localSummary={localSummary}
           />
+          <AnalysisVersionBadge />
         </div>
       </div>
     </div>
@@ -218,13 +222,9 @@ function AuditStatusHero({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-orange-600">
-                {executionMode === "native"
-                  ? t("analysisHero.nativeMode", {
-                      defaultValue: "API + AI Chat",
-                    })
-                  : t("analysisHero.bridgeMode", {
-                      defaultValue: "MCP + Instructions",
-                    })}
+                {t("analysisHero.auditMethod", {
+                  defaultValue: "Метод проверки",
+                })}
               </p>
               <h1 className="mt-1 text-lg font-semibold text-outline-900">
                 {statusLabel}
@@ -283,7 +283,8 @@ function SiteDashboardBoard({
   bridgeFacts: RuntimeScanFact[];
   localSummary: ScanComplete | null;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language.startsWith("ru") ? "ru" : "en";
   const selectedTools =
     executionMode === "native"
       ? scanContext?.selectedTools ?? []
@@ -335,16 +336,17 @@ function SiteDashboardBoard({
         <DashboardMetricCard
           icon={<Gauge size={17} />}
           label={t("siteDashboard.health", {
-            defaultValue: "Audit health",
+            defaultValue: "SEO readiness",
           })}
           value={healthScore === null ? "--" : `${healthScore}%`}
           detail={healthMeta.label}
           tone={healthMeta.tone}
+          ringValue={healthScore}
         />
         <DashboardMetricCard
           icon={<Activity size={17} />}
           label={t("siteDashboard.coverage", {
-            defaultValue: "Evidence coverage",
+            defaultValue: "Audit coverage",
           })}
           value={hasRun ? `${coverage}%` : "--"}
           detail={t("siteDashboard.coverageDetail", {
@@ -353,6 +355,7 @@ function SiteDashboardBoard({
             defaultValue: `${completedTools.length}/${selectedTools.length} tools`,
           })}
           tone={coverage >= 100 ? "green" : hasRun ? "orange" : "muted"}
+          ringValue={hasRun ? coverage : null}
         />
         <DashboardMetricCard
           icon={<CheckCircle2 size={17} />}
@@ -368,7 +371,7 @@ function SiteDashboardBoard({
         <DashboardMetricCard
           icon={<ShieldAlert size={17} />}
           label={t("siteDashboard.findings", {
-            defaultValue: "Findings",
+            defaultValue: "Найдено замечаний",
           })}
           value={hasRun ? String(findingsTotal) : "--"}
           detail={t("siteDashboard.findingsDetail", {
@@ -396,7 +399,7 @@ function SiteDashboardBoard({
             </div>
             <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-outline-900/60">
               {complete
-                ? t("siteDashboard.complete", { defaultValue: "Complete" })
+                ? t("siteDashboard.complete", { defaultValue: "Готово" })
                 : hasRun
                   ? t("siteDashboard.inProgress", {
                       defaultValue: "In progress",
@@ -459,7 +462,7 @@ function SiteDashboardBoard({
       <div className="rounded-lg border border-orange-100 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-semibold text-outline-900">
           {t("siteDashboard.topSignals", {
-            defaultValue: "Top signals",
+            defaultValue: "Что исправить первым",
           })}
         </h2>
         {topSignals.length > 0 ? (
@@ -486,18 +489,31 @@ function SiteDashboardBoard({
   );
 }
 
+function AnalysisVersionBadge() {
+  const { i18n } = useTranslation();
+  const isRu = i18n.language.startsWith("ru");
+  const locale = isRu ? "ru" : "en";
+  return (
+    <div className="rounded-lg border border-orange-100 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-wider text-outline-900/45 shadow-sm">
+      {getAnalysisVersionText("site_by_url", locale)}
+    </div>
+  );
+}
+
 function DashboardMetricCard({
   icon,
   label,
   value,
   detail,
   tone,
+  ringValue,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   detail: string;
   tone: "green" | "orange" | "red" | "muted";
+  ringValue?: number | null;
 }) {
   const toneClass =
     tone === "green"
@@ -513,15 +529,43 @@ function DashboardMetricCard({
         <span className="rounded-md bg-orange-50 p-2 text-primary">
           {icon}
         </span>
-        <span className={`font-mono text-2xl font-semibold ${toneClass}`}>
-          {value}
-        </span>
+        {typeof ringValue === "number" ? (
+          <ScoreRing value={ringValue} className={toneClass} />
+        ) : (
+          <span className={`font-mono text-2xl font-semibold ${toneClass}`}>
+            {value}
+          </span>
+        )}
       </div>
       <h2 className="mt-3 text-sm font-semibold text-outline-900">{label}</h2>
       <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
         {detail}
       </p>
     </div>
+  );
+}
+
+function ScoreRing({
+  value,
+  className,
+}: {
+  value: number;
+  className: string;
+}) {
+  const clamped = Math.max(0, Math.min(100, value));
+  return (
+    <span
+      className={`grid h-14 w-14 place-items-center rounded-full ${className}`}
+      style={{
+        background: `conic-gradient(currentColor ${clamped * 3.6}deg, rgba(120, 72, 42, 0.12) 0deg)`,
+      }}
+    >
+      <span className="grid h-10 w-10 place-items-center rounded-full bg-white">
+        <span className={`font-mono text-sm font-semibold ${className}`}>
+          {clamped}
+        </span>
+      </span>
+    </span>
   );
 }
 
@@ -601,6 +645,7 @@ interface ToolCategory {
   label: string;
   completed: number;
   total: number;
+  issues: number;
   severity: RuntimeScanFact["severity"] | "pending";
 }
 
@@ -617,9 +662,14 @@ function ToolCategoryRow({ category }: { category: ToolCategory }) {
           {category.label}
         </span>
         <span className={`text-xs font-semibold ${meta.textClass}`}>
-          {category.completed}/{category.total}
+          {category.issues > 0
+            ? `${category.issues} проблем`
+            : `${category.completed}/${category.total}`}
         </span>
       </div>
+      <p className="mt-1 text-xs text-outline-900/50">
+        {category.completed}/{category.total} проверок выполнено
+      </p>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-outline-900/10">
         <div
           className={`h-full rounded-full transition-all duration-500 ${meta.barClass}`}
@@ -631,19 +681,21 @@ function ToolCategoryRow({ category }: { category: ToolCategory }) {
 }
 
 function SignalCard({ fact }: { fact: RuntimeScanFact }) {
-  const meta = getSeverityMeta(fact.severity);
+  const { i18n } = useTranslation();
+  const isRu = i18n.language.startsWith("ru");
+  const meta = getSeverityMeta(fact.severity, isRu);
   return (
     <article className="rounded-md border border-orange-100 bg-orange-50/30 p-3">
       <div className="flex items-start justify-between gap-3">
         <h3 className="min-w-0 text-sm font-medium text-outline-900">
-          {formatFactTitle(fact)}
+          {formatFactTitle(fact, isRu)}
         </h3>
         <span className={`text-xs font-semibold uppercase ${meta.className}`}>
           {meta.label}
         </span>
       </div>
       <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-outline-900/65">
-        {fact.detail}
+        {formatFactDetail(fact.detail, isRu)}
       </p>
     </article>
   );
@@ -799,18 +851,39 @@ function buildToolCategories(
 ): ToolCategory[] {
   const groups: Array<{ id: string; label: string; tools: ToolId[] }> = [
     {
-      id: "crawl",
-      label: t("siteDashboard.groups.crawl", {
-        defaultValue: "Crawl and index access",
+      id: "indexability",
+      label: t("siteDashboard.groups.indexability", {
+        defaultValue: "Indexability",
       }),
-      tools: ["check_robots_txt", "analyze_sitemap", "check_redirects"],
+      tools: ["analyze_indexability", "check_robots_txt"],
     },
     {
-      id: "page",
-      label: t("siteDashboard.groups.page", {
-        defaultValue: "Page and content surface",
+      id: "metadata",
+      label: t("siteDashboard.groups.metadata", {
+        defaultValue: "Metadata and canonical",
       }),
-      tools: ["analyze_meta", "analyze_headings", "analyze_content"],
+      tools: ["analyze_meta", "analyze_canonical"],
+    },
+    {
+      id: "structure",
+      label: t("siteDashboard.groups.structure", {
+        defaultValue: "Structure",
+      }),
+      tools: ["analyze_headings", "analyze_links"],
+    },
+    {
+      id: "content",
+      label: t("siteDashboard.groups.content", {
+        defaultValue: "Content readiness",
+      }),
+      tools: ["analyze_content"],
+    },
+    {
+      id: "crawl",
+      label: t("siteDashboard.groups.crawl", {
+        defaultValue: "Sitemap and redirects",
+      }),
+      tools: ["analyze_sitemap", "check_redirects"],
     },
     {
       id: "technical",
@@ -829,11 +902,19 @@ function buildToolCategories(
       completedTools.includes(toolId),
     );
     const severity = worstSeverityForTools(selected, facts);
+    const issues = facts.filter(
+      (fact) =>
+        selected.includes(fact.toolId) &&
+        (fact.severity === "critical" ||
+          fact.severity === "warning" ||
+          fact.severity === "error"),
+    ).length;
     return {
       id: group.id,
       label: group.label,
       completed: completed.length,
       total: selected.length,
+      issues,
       severity: completed.length === 0 ? "pending" : severity,
     };
   });
@@ -894,23 +975,62 @@ function getCategoryMeta(
   return { textClass: "text-outline-900/55", barClass: "bg-primary" };
 }
 
-function getSeverityMeta(severity: RuntimeScanFact["severity"]) {
+function getSeverityMeta(severity: RuntimeScanFact["severity"], isRu = false) {
   if (severity === "error") {
-    return { label: "error", className: "text-red-700" };
+    return { label: isRu ? "ошибка" : "error", className: "text-red-700" };
   }
   if (severity === "critical") {
-    return { label: "critical", className: "text-red-600" };
+    return { label: isRu ? "критично" : "critical", className: "text-red-600" };
   }
   if (severity === "warning") {
-    return { label: "warning", className: "text-orange-600" };
+    return { label: isRu ? "предупреждение" : "warning", className: "text-orange-600" };
   }
-  return { label: "ok", className: "text-emerald-600" };
+  return { label: isRu ? "информация" : "ok", className: "text-emerald-600" };
 }
 
-function formatFactTitle(fact: RuntimeScanFact): string {
+function formatFactTitle(fact: RuntimeScanFact, isRu = false): string {
   const keyBase = getToolI18nKeyBase(fact.toolId);
   if (fact.title === keyBase) return keyBase;
+  if (isRu) {
+    const normalized = fact.title.toLowerCase();
+    if (normalized.includes("no sitemap")) return "Sitemap не найден";
+    if (normalized.includes("thin content")) return "Мало основного текста";
+    if (normalized.includes("title too short")) return "Title слишком короткий";
+    if (normalized.includes("no meta description")) return "Meta description отсутствует";
+    if (normalized.includes("og missing")) return "Open Graph отсутствует";
+    if (normalized.includes("no canonical")) return "Canonical отсутствует";
+    if (normalized.includes("heading level skip")) return "Пропуск уровня заголовка";
+    if (normalized.includes("links checked")) return "Ссылки проверены";
+    if (normalized.includes("stack detected")) return "Стек сайта определён";
+  }
   return fact.title;
+}
+
+function formatFactDetail(detail: string, isRu = false): string {
+  if (!isRu) return detail;
+  const normalized = detail.toLowerCase();
+  if (normalized.includes("no sitemap found")) {
+    return "Sitemap не найден. Поисковикам может быть сложнее находить страницы сайта. Создайте sitemap.xml и укажите его в robots.txt.";
+  }
+  if (normalized.includes("page contains only") && normalized.includes("words")) {
+    return "На странице мало основного текста. Проверьте, что важный контент доступен в HTML, и добавьте содержательное описание темы.";
+  }
+  if (normalized.includes("title is") && normalized.includes("characters")) {
+    return "Title короткий. Уточните его так, чтобы он лучше называл страницу и содержал важный поисковый смысл.";
+  }
+  if (normalized.includes("meta name=\"description\"")) {
+    return "На странице нет meta description. Поисковая система может сформировать сниппет автоматически, поэтому добавьте описание на 120-160 символов.";
+  }
+  if (normalized.includes("no open graph")) {
+    return "Open Graph не настроен. При публикации ссылки в соцсетях превью может выглядеть случайным.";
+  }
+  if (normalized.includes("canonical")) {
+    return "Canonical не указан. Если у страницы есть дубли или URL-варианты, добавьте канонический адрес.";
+  }
+  if (normalized.includes("heading-level skip")) {
+    return "В структуре заголовков есть пропуск уровня. Это не всегда SEO-блокер, но лучше сделать иерархию чище.";
+  }
+  return detail.replace(/^Detected likely stack signals:/i, "Найдены вероятные технологии:");
 }
 
 function pickMascot({
