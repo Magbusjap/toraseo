@@ -60,8 +60,11 @@ const EMPTY_DRAFT: DraftModelProfile = {
 };
 
 const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const DEFAULT_ROUTERAI_BASE_URL = "https://routerai.ru/api/v1";
 const OPENROUTER_MODEL_ID_EXAMPLE =
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
+const ROUTERAI_MODEL_ID_EXAMPLE = "openai/gpt-4o";
+const GLOBAL_MODEL_SELECTION_STORAGE_KEY = "toraseo.providerModelProfileId";
 
 function looksLikeUrl(value: string): boolean {
   return /^https?:\/\//i.test(value.trim());
@@ -100,6 +103,44 @@ function extractOpenRouterModelId(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+function providerModelExample(providerId: ProviderId): string {
+  return providerId === "routerai"
+    ? ROUTERAI_MODEL_ID_EXAMPLE
+    : OPENROUTER_MODEL_ID_EXAMPLE;
+}
+
+function providerDefaultBaseUrl(providerId: ProviderId): string {
+  return providerId === "routerai"
+    ? DEFAULT_ROUTERAI_BASE_URL
+    : DEFAULT_OPENROUTER_BASE_URL;
+}
+
+function providerSelectionValue(providerId: ProviderId, profileId: string): string {
+  return `${providerId}:${profileId}`;
+}
+
+function readGlobalModelSelection(): string | null {
+  return window.localStorage.getItem(GLOBAL_MODEL_SELECTION_STORAGE_KEY);
+}
+
+function writeGlobalModelSelection(providerId: ProviderId, profileId: string): void {
+  window.localStorage.setItem(
+    GLOBAL_MODEL_SELECTION_STORAGE_KEY,
+    providerSelectionValue(providerId, profileId),
+  );
+}
+
+function extractProviderModelId(
+  providerId: ProviderId,
+  value: string,
+): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (providerId === "openrouter") return extractOpenRouterModelId(trimmed);
+  if (looksLikeUrl(trimmed)) return null;
+  return trimmed;
 }
 
 export default function ProvidersTab({
@@ -238,6 +279,9 @@ function ProviderCard({
   const [defaultModelProfileId, setDefaultModelProfileId] = useState<
     string | null
   >(info.defaultModelProfileId);
+  const [globalDefaultSelection, setGlobalDefaultSelection] = useState(
+    readGlobalModelSelection,
+  );
   const [draft, setDraft] = useState<DraftModelProfile>(EMPTY_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);
   const saveRef = useRef<() => Promise<void>>(async () => {});
@@ -253,6 +297,8 @@ function ProviderCard({
 
   const labelKey = blurbKeyFor(info.id);
   const locale: SupportedLocale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
+  const modelExample = providerModelExample(info.id);
+  const defaultBaseUrl = providerDefaultBaseUrl(info.id);
 
   const flashFor = (kind: "saved" | "deleted") => {
     setFlash(kind);
@@ -283,11 +329,7 @@ function ProviderCard({
       );
       return;
     }
-    if (
-      trimmedApiKey &&
-      info.id === "openrouter" &&
-      !looksLikeOpenRouterKey(trimmedApiKey)
-    ) {
+    if (trimmedApiKey && info.id === "openrouter" && !looksLikeOpenRouterKey(trimmedApiKey)) {
       setErrorCode("api_key_format");
       setErrorMessage(
         t("settings.providers.errors.api_key_format", {
@@ -414,14 +456,14 @@ function ProviderCard({
   };
 
   const handleAddOrUpdateModel = () => {
-    const modelId = extractOpenRouterModelId(draft.modelId);
+    const modelId = extractProviderModelId(info.id, draft.modelId);
     if (!modelId) {
       if (looksLikeUrl(draft.modelId)) {
         setModelDraftError(
           t("settings.providers.models.modelIdUrlError", {
             defaultValue:
-              "Paste the model ID, not the OpenRouter page URL. Example: {{example}}",
-            example: OPENROUTER_MODEL_ID_EXAMPLE,
+              "Paste the model ID, not the model page URL. Example: {{example}}",
+            example: modelExample,
           }),
         );
       }
@@ -431,8 +473,8 @@ function ProviderCard({
       setModelDraftError(
         t("settings.providers.models.modelIdUrlError", {
           defaultValue:
-            "Paste the model ID, not the OpenRouter page URL. Example: {{example}}",
-          example: OPENROUTER_MODEL_ID_EXAMPLE,
+            "Paste the model ID, not the model page URL. Example: {{example}}",
+          example: modelExample,
         }),
       );
       return;
@@ -441,8 +483,8 @@ function ProviderCard({
       setModelDraftError(
         t("settings.providers.models.modelIdKeyError", {
           defaultValue:
-            "Paste the OpenRouter model ID here, not your API key. Example: {{example}}",
-          example: OPENROUTER_MODEL_ID_EXAMPLE,
+            "Paste the model ID here, not your API key. Example: {{example}}",
+          example: modelExample,
         }),
       );
       return;
@@ -497,6 +539,12 @@ function ProviderCard({
       delete next[profileId];
       return next;
     });
+  };
+
+  const handleMakeDefaultModel = (profileId: string) => {
+    setDefaultModelProfileId(profileId);
+    writeGlobalModelSelection(info.id, profileId);
+    setGlobalDefaultSelection(providerSelectionValue(info.id, profileId));
   };
 
   const handleTestModel = async (profile: ProviderModelProfile) => {
@@ -580,7 +628,7 @@ function ProviderCard({
                 })
               : t("settings.providers.hints.apiKey", {
                   defaultValue:
-                    "Use an OpenRouter key from your OpenRouter account. It usually starts with sk-or-.",
+                    "Use the API key from this provider account.",
                 })
           }
           trailing={
@@ -635,7 +683,7 @@ function ProviderCard({
               setApiKey(nextValue);
               setErrorCode(null);
               setErrorMessage(null);
-              if (looksLikeOpenRouterModelId(nextValue)) {
+              if (info.id === "openrouter" && looksLikeOpenRouterModelId(nextValue)) {
                 setErrorCode("api_key_format");
                 setErrorMessage(
                   t("settings.providers.errors.api_key_format", {
@@ -664,8 +712,8 @@ function ProviderCard({
           label={t("settings.providers.labels.baseUrl")}
           hint={t("settings.providers.hints.baseUrl", {
             defaultValue:
-              "Leave empty to use the default OpenRouter endpoint: {{url}}",
-            url: DEFAULT_OPENROUTER_BASE_URL,
+              "Leave empty to use the default endpoint: {{url}}",
+            url: defaultBaseUrl,
           })}
         >
           <input
@@ -676,7 +724,7 @@ function ProviderCard({
               setErrorCode(null);
               setErrorMessage(null);
             }}
-            placeholder={t("settings.providers.placeholders.baseUrl")}
+            placeholder={defaultBaseUrl}
             spellCheck={false}
             autoComplete="off"
             disabled={!encryptionAvailable || savingKey}
@@ -690,13 +738,14 @@ function ProviderCard({
           <div>
             <h3 className="text-sm font-semibold text-outline-900">
               {t("settings.providers.models.title", {
-                defaultValue: "OpenRouter models",
+                defaultValue: "{{provider}} models",
+                provider: info.label,
               })}
             </h3>
             <p className="mt-1 text-xs text-outline-900/60">
               {t("settings.providers.models.body", {
                 defaultValue:
-                  "Use one OpenRouter key, then save the models you want to use inside ToraSEO.",
+                  "Use one provider key, then save the models you want to use inside ToraSEO.",
               })}
             </p>
           </div>
@@ -726,6 +775,15 @@ function ProviderCard({
                           <Star size={10} />
                           {t("settings.providers.models.default", {
                             defaultValue: "Default",
+                          })}
+                        </span>
+                      )}
+                      {globalDefaultSelection ===
+                        providerSelectionValue(info.id, profile.id) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                          <Check size={10} />
+                          {t("settings.providers.models.appDefault", {
+                            defaultValue: "App default",
                           })}
                         </span>
                       )}
@@ -760,7 +818,7 @@ function ProviderCard({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setDefaultModelProfileId(profile.id)}
+                      onClick={() => handleMakeDefaultModel(profile.id)}
                       className="rounded-md border border-outline/15 bg-white px-2 py-1 text-xs text-outline-900 transition hover:bg-orange-50"
                     >
                       {t("settings.providers.actions.makeDefault", {
@@ -800,14 +858,14 @@ function ProviderCard({
             <p>
               {t("settings.providers.models.empty", {
                 defaultValue:
-                  "Add at least one OpenRouter model before API + AI Chat can start.",
+                  "Add at least one model for this provider before API + AI Chat can start.",
               })}
             </p>
             <p className="mt-1 text-xs">
               {t("settings.providers.models.modelIdHelp", {
                 defaultValue:
-                  "Use the model ID from the OpenRouter model page, not the page link. Example: {{example}}",
-                example: OPENROUTER_MODEL_ID_EXAMPLE,
+                  "Use the model ID from the provider model page, not the page link. Example: {{example}}",
+                example: modelExample,
               })}
             </p>
           </div>
@@ -829,7 +887,7 @@ function ProviderCard({
                 }))
               }
               placeholder={t("settings.providers.placeholders.modelName", {
-                defaultValue: "GPT-5.5",
+                defaultValue: info.id === "routerai" ? "GPT-4o via RouterAI" : "GPT-5.5",
               })}
               className="w-full rounded-md border border-outline/15 bg-white px-3 py-2 text-sm text-outline-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
@@ -840,7 +898,7 @@ function ProviderCard({
             })}
             hint={t("settings.providers.hints.modelId", {
               defaultValue:
-                "Paste the exact OpenRouter model ID shown under the model name.",
+                "Paste the exact model ID shown by the provider.",
             })}
           >
             <input
@@ -854,14 +912,14 @@ function ProviderCard({
                   setModelDraftError(
                     t("settings.providers.models.modelIdKeyError", {
                       defaultValue:
-                        "Paste the OpenRouter model ID here, not your API key. Example: {{example}}",
-                      example: OPENROUTER_MODEL_ID_EXAMPLE,
+                        "Paste the model ID here, not your API key. Example: {{example}}",
+                      example: modelExample,
                     }),
                   );
                 }
               }}
               placeholder={t("settings.providers.placeholders.modelId", {
-                defaultValue: OPENROUTER_MODEL_ID_EXAMPLE,
+                defaultValue: modelExample,
               })}
               spellCheck={false}
               className="w-full rounded-md border border-outline/15 bg-white px-3 py-2 font-mono text-sm text-outline-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -1085,6 +1143,8 @@ function blurbKeyFor(id: ProviderId): string {
   switch (id) {
     case "openrouter":
       return "settings.providers.openrouter";
+    case "routerai":
+      return "settings.providers.routerai";
     case "openai":
       return "settings.providers.openrouter";
     case "anthropic":

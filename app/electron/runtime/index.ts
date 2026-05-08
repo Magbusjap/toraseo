@@ -89,6 +89,7 @@ export const RUNTIME_CHANNELS = {
 
 const ALLOWED_PROVIDER_IDS: ReadonlySet<ProviderId> = new Set<ProviderId>([
   "openrouter",
+  "routerai",
   "openai",
   "anthropic",
   "google",

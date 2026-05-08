@@ -4,9 +4,10 @@ export type AnalysisTypeId =
   | "article_text"
   | "article_compare"
   | "site_compare"
-  | "site_design_by_url";
+  | "site_design_by_url"
+  | "image_analysis";
 
-export type AnalysisAvailability = "ready" | "planned";
+export type AnalysisAvailability = "ready" | "planned" | "development";
 
 export interface AnalysisTypeMeta {
   id: AnalysisTypeId;
@@ -42,7 +43,12 @@ export const ANALYSIS_TYPES: AnalysisTypeMeta[] = [
   },
   {
     id: "site_design_by_url",
-    availability: "planned",
+    availability: "development",
     i18nKeyBase: "siteDesignByUrl",
+  },
+  {
+    id: "image_analysis",
+    availability: "development",
+    i18nKeyBase: "imageAnalysis",
   },
 ];

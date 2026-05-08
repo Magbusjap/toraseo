@@ -3,7 +3,7 @@
  *
  * Production-ready implementation for the native runtime:
  *   - OpenAI-compatible `/chat/completions` request
- *   - 20s timeout with one retry on retryable failures
+ *   - long-running model timeout with one retry on retryable failures
  *   - stable provider error mapping
  *   - strict JSON output contract for analysis-panel rendering
  */
@@ -16,6 +16,7 @@ import {
   type ProviderChatResponse,
 } from "./base.js";
 import type {
+  ProviderId,
   ProviderUsage,
   ProviderCapabilities,
   ProviderConfig,
@@ -25,9 +26,23 @@ import type {
 
 const DEFAULT_MODEL = "openrouter/auto";
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
-const REQUEST_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 90_000;
 const MAX_ATTEMPTS = 2;
 const ANALYSIS_VERSION = "0.0.1";
+
+function timeoutMessage(label: string, locale: "en" | "ru"): string {
+  const seconds = Math.round(REQUEST_TIMEOUT_MS / 1000);
+  return locale === "ru"
+    ? `${label} не ответил за ${seconds} секунд. Проверьте модель ещё раз или выберите более быструю модель для теста.`
+    : `${label} did not respond within ${seconds} seconds. Test the model again or choose a faster model for the probe.`;
+}
+
+interface OpenAiCompatibleAdapterOptions {
+  id: ProviderId;
+  label: string;
+  defaultModel: string;
+  defaultBaseUrl: string;
+}
 
 interface OpenRouterSuccessPayload {
   choices?: Array<{
@@ -270,11 +285,23 @@ function hasArticleCompareContext(request: ProviderChatRequest): boolean {
   );
 }
 
+function hasSiteCompareContext(request: ProviderChatRequest): boolean {
+  return Boolean(
+    request.siteCompareContext?.urls.length &&
+      request.siteCompareContext.urls.length >= 2 &&
+      request.siteCompareContext.scanResults.length > 0,
+  );
+}
+
 function isStructuredArticleCompareScan(request: ProviderChatRequest): boolean {
   return (
     hasArticleCompareContext(request) &&
     request.analysisType === "article_compare"
   );
+}
+
+function isStructuredSiteCompareScan(request: ProviderChatRequest): boolean {
+  return hasSiteCompareContext(request) && request.analysisType === "site_compare";
 }
 
 function inferArticleCompareGoalMode(goal: string): RuntimeArticleCompareGoalMode {
@@ -396,6 +423,9 @@ function isStructuredArticleTextScan(request: ProviderChatRequest): boolean {
 }
 
 function expectedConfirmedFactCount(request: ProviderChatRequest): number {
+  if (isStructuredSiteCompareScan(request)) {
+    return request.siteCompareContext?.selectedTools.length || 1;
+  }
   if (isStructuredArticleCompareScan(request)) {
     return request.articleCompareContext?.selectedTools.length || 1;
   }
@@ -428,6 +458,9 @@ function toolLabelForPrompt(value: string, locale: "en" | "ru"): string {
       ru: "пакет анализа страницы по URL",
       en: "page URL analysis package",
     },
+    scan_site_minimal: { ru: "базовый скан сайта", en: "basic site scan" },
+    analyze_sitemap: { ru: "sitemap", en: "sitemap" },
+    check_redirects: { ru: "редиректы", en: "redirects" },
     extract_main_text: {
       ru: "извлечение основного текста",
       en: "main text extraction",
@@ -554,13 +587,21 @@ function toolLabelForPrompt(value: string, locale: "en" | "ru"): string {
       ru: "план улучшения",
       en: "improvement plan",
     },
+    compare_site_positioning: { ru: "сравнение позиционирования сайтов", en: "site positioning comparison" },
+    compare_site_metadata: { ru: "сравнение метаданных сайтов", en: "site metadata comparison" },
+    compare_site_structure: { ru: "сравнение структуры сайтов", en: "site structure comparison" },
+    compare_site_content_depth: { ru: "сравнение глубины контента", en: "site content depth comparison" },
+    compare_site_technical_basics: { ru: "сравнение технической базы", en: "technical baseline comparison" },
+    compare_site_delta: { ru: "сравнение разрывов", en: "delta comparison" },
+    compare_site_direction_matrix: { ru: "матрица направлений", en: "direction matrix" },
+    compare_site_competitive_insights: { ru: "конкурентные выводы", en: "competitive insights" },
   };
   return labels[value]?.[locale] ?? value;
 }
 
-function resolveBaseUrl(configBaseUrl?: string): string {
+function resolveBaseUrl(configBaseUrl: string | undefined, defaultBaseUrl: string): string {
   const raw = configBaseUrl?.trim();
-  if (!raw) return DEFAULT_BASE_URL;
+  if (!raw) return defaultBaseUrl;
 
   try {
     const parsed = new URL(raw);
@@ -569,7 +610,7 @@ function resolveBaseUrl(configBaseUrl?: string): string {
       parsed.hostname.endsWith(".openrouter.ai");
 
     if (isOpenRouterHost && !parsed.pathname.startsWith("/api/")) {
-      return DEFAULT_BASE_URL;
+      return defaultBaseUrl;
     }
   } catch {
     return raw;
@@ -611,6 +652,8 @@ function fallbackToolId(
     request.articleTextContext?.selectedTools[0] ??
     request.articleCompareContext?.selectedTools[index] ??
     request.articleCompareContext?.selectedTools[0] ??
+    request.siteCompareContext?.selectedTools[index] ??
+    request.siteCompareContext?.selectedTools[0] ??
     request.scanContext?.selectedTools[index] ??
     request.scanContext?.selectedTools[0] ??
     "api_article_text"
@@ -629,6 +672,12 @@ function mapToolLabelToId(value: string): string | null {
     "page meta tags": "analyze_meta",
     "meta tags": "analyze_meta",
     canonical: "analyze_canonical",
+    sitemap: "analyze_sitemap",
+    "sitemap check": "analyze_sitemap",
+    redirects: "check_redirects",
+    "redirect check": "check_redirects",
+    "basic scan": "scan_site_minimal",
+    "site scan": "scan_site_minimal",
     "page headings": "analyze_headings",
     headings: "analyze_headings",
     "page content": "analyze_content",
@@ -694,6 +743,16 @@ function mapToolLabelToId(value: string): string | null {
     "title ctr comparison": "compare_title_ctr",
     "similarity risk": "similarity_risk",
     "improvement plan": "compare_improvement_plan",
+    "site positioning comparison": "compare_site_positioning",
+    "metadata comparison": "compare_site_metadata",
+    "site metadata comparison": "compare_site_metadata",
+    "site structure comparison": "compare_site_structure",
+    "site content depth comparison": "compare_site_content_depth",
+    "technical baseline comparison": "compare_site_technical_basics",
+    "site technical comparison": "compare_site_technical_basics",
+    "delta comparison": "compare_site_delta",
+    "direction matrix": "compare_site_direction_matrix",
+    "competitive insights": "compare_site_competitive_insights",
   };
   return aliases[normalized] ?? null;
 }
@@ -706,6 +765,7 @@ function normalizeSourceToolIds(
   const expected = new Set([
     ...(request.articleTextContext?.selectedTools ?? []),
     ...(request.articleCompareContext?.selectedTools ?? []),
+    ...(request.siteCompareContext?.selectedTools ?? []),
     ...(request.scanContext?.selectedTools ?? []),
   ]);
   const raw = normaliseToolIds(input);
@@ -729,6 +789,7 @@ function arrayValue(value: unknown): unknown[] {
 function reportAnalysisTypeForRequest(
   request: ProviderChatRequest,
 ): RuntimeAuditReport["analysisType"] {
+  if (request.siteCompareContext) return "site_compare";
   if (request.articleCompareContext) return "article_compare";
   if (request.articleTextContext) {
     const context = request.articleTextContext;
@@ -745,6 +806,7 @@ function coerceLocalizedArticleReport(
   candidate: Record<string, unknown>,
   request: ProviderChatRequest,
   model: string,
+  providerId: ProviderId,
 ): RuntimeAuditReport | null {
   const factsSource = arrayValue(candidate["факты"]);
   if (factsSource.length === 0) return null;
@@ -825,7 +887,7 @@ function coerceLocalizedArticleReport(
     analysisType: reportAnalysisTypeForRequest(request),
     analysisVersion: ANALYSIS_VERSION,
     mode: request.policy.mode,
-    providerId: "openrouter",
+    providerId,
     model,
     generatedAt: new Date().toISOString(),
     summary:
@@ -844,10 +906,16 @@ function coerceReport(
   raw: unknown,
   request: ProviderChatRequest,
   model: string,
+  providerId: ProviderId,
 ): RuntimeAuditReport | null {
   if (!isRecord(raw)) return null;
   const candidate = raw;
-  const localizedReport = coerceLocalizedArticleReport(candidate, request, model);
+  const localizedReport = coerceLocalizedArticleReport(
+    candidate,
+    request,
+    model,
+    providerId,
+  );
   if (localizedReport) return localizedReport;
   const hasExpertHypothesisArray = Array.isArray(candidate.expertHypotheses);
   if (
@@ -911,7 +979,7 @@ function coerceReport(
     analysisType: reportAnalysisTypeForRequest(request),
     analysisVersion: ANALYSIS_VERSION,
     mode: request.policy.mode,
-    providerId: "openrouter",
+    providerId,
     model,
     generatedAt: new Date().toISOString(),
     summary: candidate.summary.trim(),
@@ -926,8 +994,8 @@ function wait(ms: number): Promise<void> {
 }
 
 export class OpenRouterAdapter implements ProviderAdapter {
-  public readonly id = "openrouter" as const;
-  public readonly label = "OpenRouter";
+  public readonly id: ProviderId;
+  public readonly label: string;
   public readonly capabilities: ProviderCapabilities = {
     ...DEFAULT_CAPABILITIES,
     streaming: false,
@@ -936,13 +1004,27 @@ export class OpenRouterAdapter implements ProviderAdapter {
   };
 
   private config: ProviderConfig;
+  private defaultModel: string;
+  private defaultBaseUrl: string;
 
-  constructor(config: ProviderConfig) {
+  constructor(
+    config: ProviderConfig,
+    options: OpenAiCompatibleAdapterOptions = {
+      id: "openrouter",
+      label: "OpenRouter",
+      defaultModel: DEFAULT_MODEL,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    },
+  ) {
     const check = validateProviderConfig(config);
     if (!check.ok) {
-      throw new Error(`openrouter adapter init failed: ${check.reason}`);
+      throw new Error(`${options.id} adapter init failed: ${check.reason}`);
     }
+    this.id = options.id;
+    this.label = options.label;
     this.config = config;
+    this.defaultModel = options.defaultModel;
+    this.defaultBaseUrl = options.defaultBaseUrl;
   }
 
   isConfigured(): boolean {
@@ -950,6 +1032,55 @@ export class OpenRouterAdapter implements ProviderAdapter {
   }
 
   private buildUserPrompt(request: ProviderChatRequest): string {
+    if (hasSiteCompareContext(request)) {
+      const context = request.siteCompareContext!;
+      const languageInstruction =
+        request.policy.locale === "ru"
+          ? "Reply in Russian. Keep fixed SEO terms such as SERP, Core Web Vitals, Open Graph, canonical, robots.txt, sitemap, and SEO when that is the normal term."
+          : "Reply in English.";
+      const selectedChecks = context.selectedTools.map((toolId) =>
+        toolLabelForPrompt(toolId, request.policy.locale),
+      );
+
+      return [
+        "The user clicked Site comparison by URL in ToraSEO API + AI Chat.",
+        "The app already ran public URL checks for each site and passes the scan evidence below. The AI must interpret that evidence and form the structured comparison report.",
+        "Return JSON that satisfies the required audit schema only; do not wrap it in markdown fences. Do not translate JSON property names.",
+        "Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses.",
+        "Each confirmedFacts item must use exactly: title, detail, priority, sourceToolIds. Priority values must be exactly high, medium, or low.",
+        "Return one confirmedFacts item for every selected site comparison check, in the same order as selectedToolIds. sourceToolIds must contain the exact backend id for the current check.",
+        "Use title for the finding headline, not the tool name. Write detail in two or three short paragraphs: who is stronger, why, where the gap is, and what to do first.",
+        "If this request contains only one selected check, treat it as one step of a larger site comparison and do not mention scan mechanics.",
+        languageInstruction,
+        "Compare up to three sites as one competitive comparison dashboard. Do not render three full audits side by side.",
+        "Stay within public technical/content signals from the provided scan evidence. Do not pretend Search Console, GA4, backlinks, live rankings, private analytics, Lighthouse, or paid SEO databases ran.",
+        "If a URL has errors or missing evidence for a direction, say that the direction needs verification instead of inventing a clean score.",
+        request.policy.mode === "strict_audit"
+          ? "Strict mode: expertHypotheses must be an empty array. Tie every recommendation to provided scan evidence or clearly marked local heuristics."
+          : "Ideas mode: expert hypotheses are allowed, but label them as hypotheses and keep them bounded by the provided evidence.",
+        "",
+        "Comparison context:",
+        JSON.stringify(
+          {
+            runId: context.runId ?? "not specified",
+            urls: context.urls,
+            focus: context.focus || "general competitive comparison",
+            selectedToolIds: context.selectedTools,
+            selectedChecks,
+            siteToolIds: context.siteTools,
+          },
+          null,
+          2,
+        ),
+        "",
+        "User request:",
+        request.userText,
+        "",
+        "Public scan evidence by site and tool:",
+        JSON.stringify(context.scanResults, null, 2),
+      ].join("\n");
+    }
+
     if (hasArticleCompareContext(request)) {
       const context = request.articleCompareContext!;
       const languageInstruction =
@@ -1154,11 +1285,13 @@ export class OpenRouterAdapter implements ProviderAdapter {
     signal: AbortSignal,
     outputContractMode: OutputContractMode,
   ): Promise<ProviderChatResponse> {
-    const endpoint = `${resolveBaseUrl(this.config.baseUrl).replace(/\/+$/, "")}/chat/completions`;
+    const endpoint = `${resolveBaseUrl(this.config.baseUrl, this.defaultBaseUrl).replace(/\/+$/, "")}/chat/completions`;
     const requestBody: Record<string, unknown> = {
       model,
       temperature: request.policy.mode === "strict_audit" ? 0.1 : 0.35,
-      max_tokens: hasArticleTextContext(request) || hasArticleCompareContext(request)
+      max_tokens: hasArticleTextContext(request) ||
+        hasArticleCompareContext(request) ||
+        hasSiteCompareContext(request)
         ? 3600
         : hasScanEvidence(request)
           ? 1800
@@ -1201,7 +1334,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
         return {
           ok: false,
           errorCode: "provider_timeout",
-          errorMessage: "The AI provider took too long to respond.",
+          errorMessage: timeoutMessage(this.label, request.policy.locale),
         };
       }
       return {
@@ -1210,7 +1343,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
         errorMessage:
           error instanceof Error
             ? error.message
-            : "Network error while contacting OpenRouter.",
+            : `Network error while contacting ${this.label}.`,
       };
     }
 
@@ -1221,7 +1354,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
       return {
         ok: false,
         errorCode: "provider_bad_response",
-        errorMessage: "OpenRouter response body could not be read.",
+        errorMessage: `${this.label} response body could not be read.`,
       };
     }
 
@@ -1229,14 +1362,14 @@ export class OpenRouterAdapter implements ProviderAdapter {
       return {
         ok: false,
         errorCode: "provider_auth_failed",
-        errorMessage: "OpenRouter rejected the API key.",
+        errorMessage: `${this.label} rejected the API key.`,
       };
     }
     if (response.status === 429) {
       return {
         ok: false,
         errorCode: "provider_rate_limited",
-        errorMessage: "OpenRouter rate-limited the request.",
+        errorMessage: `${this.label} rate-limited the request.`,
       };
     }
     if (!response.ok) {
@@ -1251,7 +1384,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
           ok: false,
           errorCode: "provider_structured_output_unsupported",
           errorMessage:
-            "The selected OpenRouter model does not support strict structured output.",
+            `The selected ${this.label} model does not support strict structured output.`,
         };
       }
       return {
@@ -1261,8 +1394,8 @@ export class OpenRouterAdapter implements ProviderAdapter {
             ? "provider_temporary_failure"
             : "provider_http_error",
         errorMessage: providerMessage
-          ? `OpenRouter returned HTTP ${response.status}: ${providerMessage}`
-          : `OpenRouter returned HTTP ${response.status}.`,
+          ? `${this.label} returned HTTP ${response.status}: ${providerMessage}`
+          : `${this.label} returned HTTP ${response.status}.`,
       };
     }
 
@@ -1273,8 +1406,8 @@ export class OpenRouterAdapter implements ProviderAdapter {
         errorCode: "provider_bad_response",
         errorMessage:
           outputContractMode === "json_schema"
-            ? "OpenRouter returned a non-JSON API response."
-            : "OpenRouter returned a non-JSON API response after compatibility fallback.",
+            ? `${this.label} returned a non-JSON API response.`
+            : `${this.label} returned a non-JSON API response after compatibility fallback.`,
       };
     }
     if (payload.error?.message) {
@@ -1291,7 +1424,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
       return {
         ok: false,
         errorCode: "provider_bad_response",
-        errorMessage: "OpenRouter response did not include message content.",
+        errorMessage: `${this.label} response did not include message content.`,
       };
     }
 
@@ -1308,11 +1441,11 @@ export class OpenRouterAdapter implements ProviderAdapter {
       return {
         ok: false,
         errorCode: "provider_bad_response",
-        errorMessage: "OpenRouter returned non-JSON message content.",
+        errorMessage: `${this.label} returned non-JSON message content.`,
       };
     }
 
-    const report = coerceReport(parsed, request, model);
+    const report = coerceReport(parsed, request, model, this.id);
     if (!report) {
       if (outputContractMode === "prompt_only") {
         return {
@@ -1325,7 +1458,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
       return {
         ok: false,
         errorCode: "provider_bad_response",
-        errorMessage: "OpenRouter response did not satisfy the audit contract.",
+        errorMessage: `${this.label} response did not satisfy the audit contract.`,
       };
     }
 
@@ -1343,13 +1476,12 @@ export class OpenRouterAdapter implements ProviderAdapter {
       return {
         ok: false,
         errorCode: "provider_not_configured",
-        errorMessage:
-          "OpenRouter is not configured. Add an API key in Settings.",
+        errorMessage: `${this.label} is not configured. Add an API key in Settings.`,
       };
     }
 
     const model =
-      request.modelOverride ?? this.config.defaultModel ?? DEFAULT_MODEL;
+      request.modelOverride ?? this.config.defaultModel ?? this.defaultModel;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       const controller = new AbortController();
@@ -1358,7 +1490,8 @@ export class OpenRouterAdapter implements ProviderAdapter {
         const initialContractMode: OutputContractMode =
           hasScanEvidence(request) ||
           isStructuredArticleTextScan(request) ||
-          isStructuredArticleCompareScan(request)
+          isStructuredArticleCompareScan(request) ||
+          isStructuredSiteCompareScan(request)
             ? "json_schema"
             : "prompt_only";
         const result = await this.executeAttempt(
@@ -1392,7 +1525,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
                 ok: false,
                 errorCode: "provider_bad_response",
                 errorMessage:
-                  "The selected OpenRouter model did not return parseable audit content. Try a model with structured JSON support.",
+                  `The selected ${this.label} model did not return parseable audit content. Try a model with structured JSON support.`,
               };
             }
             return fallback;
@@ -1409,7 +1542,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
     return {
       ok: false,
       errorCode: "provider_temporary_failure",
-      errorMessage: "OpenRouter did not complete the request after retrying.",
+      errorMessage: `${this.label} did not complete the request after retrying.`,
     };
   }
 }

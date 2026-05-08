@@ -158,3 +158,4 @@ branding/_exports/
 config.local.json
 config.local.js
 .local/
+.toraseo-bridge/

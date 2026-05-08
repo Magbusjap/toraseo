@@ -184,6 +184,8 @@ export async function startScan(
   const analysisType =
     url === "toraseo://article-compare"
       ? "article_compare"
+      : url === "toraseo://site-compare" || input?.siteUrls?.length
+        ? "site_compare"
       : input?.sourceType === "page_by_url"
         ? "page_by_url"
         : input || url === "toraseo://article-text"
@@ -211,6 +213,7 @@ export async function startScan(
           pageTextBlock: undefined,
           textA: undefined,
           textB: undefined,
+          siteUrls: input.siteUrls,
         }
       : undefined,
     workspace,

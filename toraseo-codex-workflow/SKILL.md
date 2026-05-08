@@ -54,6 +54,18 @@ Recognized Codex trigger variants:
 | `/toraseo codex-bridge-mode article-compare` | Compare Text A and Text B from the temporary ToraSEO workspace. |
 | `/toraseo codex-bridge-mode page-by-url` | Analyze the main article text extracted from a URL. |
 | `/toraseo codex-bridge-mode site-by-url` | Run the internal site URL audit package and summarize its facts. |
+| `/toraseo codex-bridge-mode site-compare` | Compare up to three site URLs as one competitive dashboard. |
+
+Recognized chat-only fallback variants, used only when the live Desktop
+App/MCP bridge cannot run:
+
+| Command | Meaning |
+|---|---|
+| `/toraseo chat-only-fallback article-text` | Analyze pasted article text directly in chat. |
+| `/toraseo chat-only-fallback article-compare` | Compare pasted Text A and Text B directly in chat. |
+| `/toraseo chat-only-fallback page-by-url` | Analyze pasted page text or a visible page extract; do not pretend a URL was fetched if browsing is unavailable. |
+| `/toraseo chat-only-fallback site-by-url` | Analyze available site evidence directly in chat; do not pretend a URL was fetched if browsing is unavailable. |
+| `/toraseo chat-only-fallback site-compare` | Compare available evidence for up to three sites as one compact dashboard. |
 
 Also run this same check when the user manually asks whether Codex can
 see, access, or connect to ToraSEO, ToraSEO MCP, the ToraSEO SKILL, or
@@ -80,6 +92,14 @@ already visible in the app unless the user explicitly asks for raw
 debugging files. Do not ask the user to paste the report summary, a
 screenshot, JSON, or result files after `site_url_internal` has completed;
 its MCP response contains enough facts for the final user-facing summary.
+For `site_compare`, call `site_compare_internal` when it is available;
+that single MCP call runs the selected site checks for up to three URLs
+and writes compact comparison entries back to the app. Do not render
+three full audits side by side. Your final answer should follow the
+comparison dashboard shape: summary, compact site KPI cards,
+comparative metrics, heatmap/direction matrix, winners by block, and
+actionable insights. Do not ask for JSON, screenshots, pasted summaries,
+or result files after `site_compare_internal` has completed.
 For `article_text`,
 the article body is already stored
 in the temporary ToraSEO workspace as `input.md`; do not ask the user to
@@ -154,13 +174,16 @@ The prompt command is only a trigger. The real bridge protocol is:
 Codex Workflow Instructions -> `verify_codex_workflow_loaded` -> MCP
 selected tools -> app state updates.
 
-If the user asks for article-text or two-text comparison analysis while
-ToraSEO Desktop App or the live MCP bridge is unavailable, switch to the
-chat-only fallback in `references/chat-only-fallback.md`. Make clear that
-the app will not be updated and that no MCP tools, live SERP, external
-plagiarism, legal, medical, investment, engineering, or scientific expert
-verification ran. Do not read the fallback file during a healthy bridge
-run; the handshake response and selected MCP tools are authoritative then.
+If the user asks for `article_text`, `article_compare`, `page_by_url`,
+`site_by_url`, or `site_compare` analysis while ToraSEO Desktop App or
+the live MCP bridge is unavailable, switch to the chat-only fallback in
+`references/chat-only-fallback.md`. Make clear that the app will not be
+updated and that no MCP tools, live SERP, external plagiarism, legal,
+medical, investment, engineering, or scientific expert verification ran.
+For URL-only requests, do not pretend the URL was fetched unless your
+current environment has a real browsing/network tool and you actually
+used it. Do not read the fallback file during a healthy bridge run; the
+handshake response and selected MCP tools are authoritative then.
 
 If Codex asks the user to approve ToraSEO MCP tools, prefer the
 one-time chat/session approval option when the platform offers it. Tell
@@ -169,10 +192,12 @@ not ask the user to approve each analyzer tool one by one unless Codex
 itself provides no broader approval path.
 
 For `site_by_url`, the only analysis MCP approval should be
-`site_url_internal`. After it completes and ToraSEO has the report, write
-the final chat summary from those results without asking for another MCP
-tool approval, report screenshot, pasted summary, JSON file, or filesystem
-permission to read the temporary bridge cache.
+`site_url_internal`. For `site_compare`, the only analysis MCP approval
+should be `site_compare_internal`. After an internal aggregator
+completes and ToraSEO has the report, write the final chat summary from
+those results without asking for another MCP tool approval, report
+screenshot, pasted summary, JSON file, or filesystem permission to read
+the temporary bridge cache.
 
 ## Working Rules
 

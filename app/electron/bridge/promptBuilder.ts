@@ -102,6 +102,34 @@ ToraSEO ожидает: анализ сайта по URL.
 После handshake запусти только site_url_internal и дай рекомендации в чате на основе результатов.
 Детали возьми из SKILL + MCP. Не проси пользователя присылать сводку, скрин или JSON.`;
 
+const SITE_COMPARE_TEMPLATE_EN = (): string =>
+  `/toraseo bridge-mode site-compare
+
+ToraSEO is waiting for: site comparison by URL.
+After the handshake, run only site_compare_internal. Build one competitive comparison dashboard: summary, compact site cards, comparative metrics, direction heatmap, winners by block, and actionable insights. Do not render three full audits side by side. Do not ask the user to send a summary, screenshot, or JSON.`;
+
+const SITE_COMPARE_TEMPLATE_RU = (): string =>
+  `/toraseo bridge-mode site-compare
+
+ToraSEO ожидает: сравнение сайтов по URL.
+После handshake запусти только site_compare_internal. Построй один сравнительный dashboard: summary, компактные карточки сайтов, сравнительные метрики, матрицу направлений, победителей по блокам и actionable insights. Не выводи три полных аудита рядом. Не проси пользователя присылать сводку, скрин или JSON.`;
+
+const CODEX_SITE_COMPARE_TEMPLATE_EN = (): string =>
+  `Use $toraseo-codex-workflow.
+
+/toraseo codex-bridge-mode site-compare
+
+ToraSEO is waiting for: site comparison by URL.
+After the handshake, run only site_compare_internal. Build one competitive comparison dashboard: summary, compact site cards, comparative metrics, direction heatmap, winners by block, and actionable insights. Do not render three full audits side by side. Do not ask the user to send a summary, screenshot, or JSON.`;
+
+const CODEX_SITE_COMPARE_TEMPLATE_RU = (): string =>
+  `Используй $toraseo-codex-workflow.
+
+/toraseo codex-bridge-mode site-compare
+
+ToraSEO ожидает: сравнение сайтов по URL.
+После handshake запусти только site_compare_internal. Построй один сравнительный dashboard: summary, компактные карточки сайтов, сравнительные метрики, матрицу направлений, победителей по блокам и actionable insights. Не выводи три полных аудита рядом. Не проси пользователя присылать сводку, скрин или JSON.`;
+
 const TEXT_EVIDENCE_BOUNDARY =
   "Base recommendations only on selected MCP tool evidence. Treat ai_writing_probability, ai_trace_map, genericness_water_check, readability_complexity, claim_source_queue, and ai_hallucination_check as separate checks: AI-writing probability is a style/rhythm heuristic, AI trace map is an editing map of local AI-like fragments rather than authorship proof, genericness/watery text flags broad filler and weak concrete evidence, readability/complexity flags dense sentences and heavy paragraphs, claim source queue lists claims needing source review, and hallucination review is an optional claim-safety signal. Use intent_seo_forecast for intent, hook, CTR, and CMS metadata suggestions when present. Keep backend IDs out of user-facing wording: translate platform/tool/issue keys into human-readable language and show raw IDs only in parentheses when useful for debugging. If the CMS metadata looks copied from a service line such as Part 1, Download PDF, or a numeric navigation line, call it a weak draft and suggest a clearer title, description, keywords, category, tags, and slug from the article topic. Use safety_science_review warnings for unsafe, legal-sensitive, scientific, or calculation-heavy content, while noting that AI can be wrong and does not replace expert review. Do not claim live SERP/social demand unless an external data source explicitly provides it. Do not rewrite, rank, or add editorial claims outside that evidence. If the user later asks to rewrite or improve the analyzed article, call article_rewrite_context instead of reading input.md directly or asking the user to paste the article again. Write the rewritten article directly in chat as a separate copyable article block; the user will copy it into ToraSEO and run a new scan. Keep rewrite choices aligned with the active workflow instructions, selected tools, platform/style/audience fit, SEO intent, media-marker policy, and risk warnings.";
 
@@ -353,6 +381,33 @@ export function buildScanPrompt(
 ): string {
   // Comma-separated tool names — Claude reads this as a list.
   const toolsList = toolIds.join(", ");
+  const isSiteCompare =
+    state?.analysisType === "site_compare" ||
+    url === "toraseo://site-compare" ||
+    Boolean(state?.input?.siteUrls?.length);
+  const isPageByUrl =
+    state?.analysisType === "page_by_url" ||
+    state?.input?.sourceType === "page_by_url";
+  if (isSiteCompare) {
+    if (bridgeClient === "codex") {
+      return locale === "ru"
+        ? CODEX_SITE_COMPARE_TEMPLATE_RU()
+        : CODEX_SITE_COMPARE_TEMPLATE_EN();
+    }
+    return locale === "ru"
+      ? SITE_COMPARE_TEMPLATE_RU()
+      : SITE_COMPARE_TEMPLATE_EN();
+  }
+  if (isPageByUrl) {
+    if (bridgeClient === "codex") {
+      return locale === "ru"
+        ? CODEX_PAGE_URL_TEMPLATE_RU(url)
+        : CODEX_PAGE_URL_TEMPLATE_EN(url);
+    }
+    return locale === "ru"
+      ? PAGE_URL_TEMPLATE_RU(url, toolsList)
+      : PAGE_URL_TEMPLATE_EN(url, toolsList);
+  }
   if (state?.analysisType === "article_text") {
     if (bridgeClient === "codex") {
       return locale === "ru"
@@ -372,16 +427,6 @@ export function buildScanPrompt(
     return locale === "ru"
       ? COMPARE_TEMPLATE_RU(toolsList, state)
       : COMPARE_TEMPLATE_EN(toolsList, state);
-  }
-  if (state?.analysisType === "page_by_url") {
-    if (bridgeClient === "codex") {
-      return locale === "ru"
-        ? CODEX_PAGE_URL_TEMPLATE_RU(url)
-        : CODEX_PAGE_URL_TEMPLATE_EN(url);
-    }
-    return locale === "ru"
-      ? PAGE_URL_TEMPLATE_RU(url, toolsList)
-      : PAGE_URL_TEMPLATE_EN(url, toolsList);
   }
   const template =
     bridgeClient === "codex"

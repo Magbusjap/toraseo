@@ -34,6 +34,26 @@ article excerpt. Make clear that URL-level fetching, robots/meta/headings,
 index visibility, search clicks/impressions, and mention discovery did not
 run in chat-only fallback mode.
 
+If the request is Site by URL and browsing/network tools are available in
+the current environment, inspect only public evidence you can actually
+reach and keep the report bounded. If browsing is unavailable, ask for
+exported facts, screenshots, page text, title/meta, robots/sitemap snippets,
+or a short crawl summary. Do not invent site-wide technical findings.
+
+If the request is Site comparison for two or three sites, do not write
+three full audits side by side. Use one compact competitive dashboard:
+
+- summary: who looks strongest and why
+- compact site cards: only key KPIs or qualitative status
+- comparative metrics: metadata, content, indexability, structure,
+  performance, trust
+- direction heatmap: green/yellow/red per direction when evidence exists
+- winners by block
+- actionable insights: what to copy from the leader and what to fix first
+
+If only URLs were provided and browsing/network tools are unavailable,
+state that live site evidence was not fetched and ask for source material.
+
 If the user provided one article text, analyze conceptually:
 
 - platform/use-case fit

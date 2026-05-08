@@ -76,8 +76,12 @@ Current planning direction:
   follow the active workflow rules and selected tool evidence.
 - `article_compare`: compare structure, style, platform fit, strengths
   and weaknesses, language/audience fit, and media placement.
-- `site_compare`: compare positioning, content depth, technical basics,
-  public stack signals, and strengths/weaknesses.
+- `site_compare`: compare up to three URLs through one competitive
+  dashboard, not three full audits side by side. Reuse the full
+  `site_by_url` public check package per URL, then synthesize:
+  summary, compact KPI cards, grouped metrics, one radar-style overview
+  when available, delta bars, heatmap/direction matrix, winners by
+  block, and actionable insights.
 - `site_design_by_url`: keep as planned/deferred for full execution
   until visual/media boundaries are clearer; UI may show planned tools
   but must not imply a completed design/vision analyzer exists.
@@ -237,8 +241,11 @@ This applies to:
 - `article_compare`
 - `site_compare`
 
-The goal is fast scanning of strengths, weaknesses, and differences
-between competitors or variants.
+For `article_compare`, columns may contain richer side-by-side text
+evidence. For `site_compare`, columns must stay compact and
+summary-only. Do not render three complete audits next to each other.
+The goal is fast scanning of strengths, weaknesses, winners, gaps, and
+next actions between competitors or variants.
 
 ## Runtime Split
 

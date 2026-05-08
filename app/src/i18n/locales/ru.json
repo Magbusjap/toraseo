@@ -132,7 +132,7 @@
     },
     "providers": {
       "title": "ИИ-провайдеры",
-      "intro": "Подключите языковую модель, чтобы встроенный чат мог анализировать и обсуждать ваши сканирования. Ключи шифруются операционной системой и никогда не покидают это устройство.",
+      "intro": "Подключите ИИ-провайдера, чтобы встроенный чат мог анализировать и обсуждать сканирования. OpenRouter — международный роутер моделей. RouterAI — российский OpenAI-compatible роутер с оплатой в рублях.",
       "encryptionUnavailable": "На этом устройстве недоступно безопасное хранилище ОС. Настройте системный keyring, например gnome-keyring на Linux, перед добавлением API-ключей.",
       "labels": {
         "apiKey": "API-ключ",
@@ -152,10 +152,10 @@
         "usageHint": "Глубокий аудит"
       },
       "hints": {
-        "apiKey": "Используйте ключ OpenRouter из своего аккаунта OpenRouter. Обычно он начинается с `sk-or-`.",
+      "apiKey": "Используйте API-ключ из аккаунта выбранного провайдера.",
         "apiKeySaved": "Сохранённые ключи показываются в маскированном виде. ToraSEO не может вернуть сохранённый секрет обратно в это поле.",
-        "baseUrl": "Оставьте пустым, чтобы использовать стандартный адрес API OpenRouter: {{url}}",
-        "modelId": "Вставьте точный ID модели OpenRouter, указанный под названием модели."
+      "baseUrl": "Оставьте пустым, чтобы использовать стандартный адрес API: {{url}}",
+      "modelId": "Вставьте точный ID модели, указанный у провайдера."
       },
       "status": {
         "configured": "Подключён",
@@ -183,41 +183,47 @@
         "makeDefault": "Сделать по умолчанию",
         "testThisModel": "Проверить"
       },
-      "openrouter": {
-        "name": "OpenRouter",
-        "blurb": "Один ключ — много моделей: OpenAI, Anthropic, Google, open-source. Рекомендуется по умолчанию."
-      },
+    "openrouter": {
+      "name": "OpenRouter",
+      "blurb": "Международный роутер моделей. Один ключ может отправлять запросы к разным глобальным провайдерам моделей."
+    },
+    "routerai": {
+      "name": "RouterAI",
+      "blurb": "Российский OpenAI-compatible роутер моделей. Удобен, когда важны оплата в рублях или российский платежный сценарий."
+    },
       "models": {
-        "title": "Модели OpenRouter",
-        "body": "Используйте один ключ OpenRouter, а затем сохраните в ToraSEO те модели, которые хотите использовать.",
+        "title": "Модели {{provider}}",
+        "body": "Используйте один ключ провайдера, а затем сохраните в ToraSEO модели, которые хотите использовать.",
         "empty": "Добавьте хотя бы одну модель этого провайдера, прежде чем запускать API + AI Chat.",
-        "modelIdHelp": "Используйте ID модели со страницы модели OpenRouter, а не ссылку на страницу. Пример: {{example}}",
-        "modelIdUrlError": "Вставьте ID модели, а не URL страницы OpenRouter. Пример: {{example}}",
-        "modelIdKeyError": "Вставьте сюда ID модели OpenRouter, а не API-ключ. Пример: {{example}}",
+    "modelIdHelp": "Используйте ID модели со страницы модели провайдера, а не ссылку на страницу. Пример: {{example}}",
+    "modelIdUrlError": "Вставьте ID модели, а не URL страницы модели. Пример: {{example}}",
+    "modelIdKeyError": "Вставьте сюда ID модели, а не API-ключ. Пример: {{example}}",
         "testHelp": "Проверка необязательна и запускает небольшой запрос именно к выбранной модели. На платных моделях это может потратить токены провайдера.",
         "testOkStructured": "Модель отвечает структурированным audit-результатом.",
         "testOkPlain": "Модель отвечает, но structured audit output не подтвержден.",
-        "default": "По умолчанию"
+        "default": "По умолчанию у провайдера",
+    "appDefault": "По умолчанию в приложении"
       },
       "errors": {
-        "api_key_url": "В это поле нужно вставить API-ключ OpenRouter, а не URL страницы модели.",
+        "api_key_url": "В это поле нужно вставить API-ключ провайдера, а не URL страницы модели.",
         "api_key_format": "Ключи OpenRouter обычно начинаются с `sk-or-`. Вставьте ключ из OpenRouter -> Keys, а не ID модели.",
         "encryption_unavailable": "Шифрование недоступно: keyring ОС не настроен.",
         "invalid_input": "Заполните API-ключ.",
-        "provider_not_configured": "Сначала сохраните ключ OpenRouter, а потом модели.",
+        "provider_not_configured": "Сначала сохраните ключ провайдера, а потом модели.",
         "write_failed": "Не удалось сохранить ключ. Попробуйте снова."
       }
     }
   },
   "modeSelection": {
-    "idle": "Ожидание",
+    "idle": "Ожидаю анализ",
     "question": "Что вы хотите проверить?",
     "siteByUrl": "Сайт по URL",
     "articleText": "Текст статьи",
     "siteSubtitle": "Аудит сайта",
     "articleSubtitle": "v0.2 — скоро",
     "analysisStatus": {
-      "ready": "Готово",
+      "ready": "Готов к анализу",
+      "error": "Error",
       "planned": "0.0.9"
     },
     "versionFootnote": "Версия приложения: ToraSEO {{appVersion}} · версии конкретных анализов указаны в отчётах и документации.",
@@ -244,6 +250,10 @@
       },
       "siteDesignByUrl": {
         "title": "Дизайн и контент по URL",
+        "subtitle": "Отдельный аудит"
+      },
+      "imageAnalysis": {
+        "title": "Анализ изображения",
         "subtitle": "Отдельный аудит"
       }
     },
@@ -662,6 +672,12 @@
       "compareSentToApiChat": "Сравнение двух текстов запущено через API + AI Chat. Отчет появится здесь после ответа модели.",
       "compareBridgeUnavailable": "Сравнение двух текстов запущено через MCP + Instructions. Результаты появятся здесь после выполнения инструментов.",
       "compareSkillFallbackPromptCopied": "Промпт скопирован. Вставьте его в чат {{appName}}: SKILL подготовит сравнение двух текстов прямо в чате, пока MCP или приложение недоступны.",
+      "siteCompareBridgeOnly": "Сравнение сайтов по URL доступно в API + AI Chat и MCP + Instructions. Выберите режим на главном экране.",
+      "siteCompareNeedUrls": "Добавьте минимум два URL для сравнения.",
+      "siteCompareStarted": "Сравнение запущено через MCP + Instructions. Результат появится ниже как единый сравнительный dashboard.",
+      "siteCompareApiStarted": "Открыт AI Chat. ToraSEO сканирует сайты, затем ИИ сформирует сравнительный отчет.",
+      "siteCompareRun": "Сравнить сайты",
+      "siteCompareRunAgain": "Сравнить сайты повторно",
       "aiDraftNeedContext": "Добавьте хотя бы тему, запрос или короткую заготовку текста, чтобы ИИ мог предложить решение.",
       "aiDraftNeedMore": "Напишите ещё немного: минимум два небольших абзаца, чтобы ИИ мог предложить осмысленное решение.",
       "aiDraftPrepared": "Ввод уже похож на основу для решения. Полный запуск этой команды подключится вместе с анализом текста.",
@@ -700,6 +716,10 @@
       },
       "siteDesignByUrl": {
         "title": "Источник дизайна и контента"
+      },
+      "imageAnalysis": {
+        "title": "Анализ изображения",
+        "body": "Загрузка изображения, OCR, проверка визуального контента и рекомендации по медиа-SEO находятся в разработке."
       }
     }
   },
@@ -836,6 +856,14 @@
       "label": "Сравнение позиционирования",
       "tooltip": "Сравнить обещание сайта, аудиторию и видимое предложение"
     },
+    "compare_site_metadata": {
+      "label": "Сравнение метаданных",
+      "tooltip": "Сравнить title, description, canonical, Open Graph и Twitter Card"
+    },
+    "compare_site_structure": {
+      "label": "Сравнение структуры",
+      "tooltip": "Сравнить заголовки, внутренние ссылки, доставку URL и архитектурные сигналы страницы"
+    },
     "compare_site_content_depth": {
       "label": "Сравнение глубины контента",
       "tooltip": "Сравнить покрытие темы и полноту видимого контента"
@@ -843,6 +871,18 @@
     "compare_site_technical_basics": {
       "label": "Сравнение технической базы",
       "tooltip": "Сравнить базовые SEO и публичные технические сигналы"
+    },
+    "compare_site_delta": {
+      "label": "Сравнение разрывов",
+      "tooltip": "Показать, где каждый сайт выигрывает или проигрывает по направлениям"
+    },
+    "compare_site_direction_matrix": {
+      "label": "Матрица направлений",
+      "tooltip": "Показать компактную heatmap по robots, sitemap, metadata, canonical, контенту, редиректам и стеку"
+    },
+    "compare_site_competitive_insights": {
+      "label": "Конкурентные выводы",
+      "tooltip": "Объяснить, кто сильнее, почему, что перенять и что исправить первым"
     },
     "visual_hierarchy": {
       "label": "Визуальная иерархия",
@@ -885,7 +925,7 @@
       "infoTitle": "Информация"
     },
     "status": {
-      "ready": "Готов",
+      "ready": "Готов к анализу",
       "scanning": "Анализирую",
       "completed": "Завершено",
       "issuesFound": "Найдены проблемы",
@@ -1000,6 +1040,7 @@
     "modelMissing": "Выберите модель ИИ-провайдера перед началом анализа.",
     "nativeUnavailable": "API + AI Chat недоступен в этой сборке.",
     "articleTextBridgeRequired": "Анализ текста через Codex или Claude Desktop требует режима MCP + Instructions.",
+    "siteCompareBridgeRequired": "Сравнение сайтов по URL можно запускать через API + AI Chat или MCP + Instructions.",
     "skillFallbackCopyFailed": "Claude Bridge Instructions установлены, но ToraSEO не смог скопировать fallback-промпт.",
     "codexClosedTitle": "Codex недоступен",
     "codexNeedsConfirmation": "Откройте Codex перед запуском пути через Codex bridge.",
@@ -1010,8 +1051,9 @@
   "analysisHero": {
     "nativeMode": "API + AI Chat",
     "bridgeMode": "MCP + Instructions",
-    "ready": "Готов к сканированию",
+    "ready": "Готов к анализу",
     "scanning": "Анализ в процессе",
+    "error": "Error",
     "reportReady": "Отчет сформирован",
     "solutionProvided": "Ответ предоставлен в чате",
     "chatAnswerStarted": "Запрос отправлен в AI Chat",
@@ -1062,6 +1104,9 @@
     "endedTitle": "Сессия завершена",
     "endedBody": "Запустите новый анализ в режиме API + AI Chat в главном окне ToraSEO, чтобы продолжить.",
     "nativeReady": "Нативный режим готов. Уже можно спросить, как работает аудит, а для рекомендаций по сайту запустите сканирование.",
+    "articleTextIntro": "API-анализ текста открыт. ИИ использует выбранные проверки и сформирует отчет.",
+    "articleCompareIntro": "API-сравнение текстов открыто. ИИ использует выбранные проверки и сформирует отчет.",
+    "siteCompareIntro": "API-сравнение сайтов открыто. ToraSEO сначала соберет URL-проверки, затем ИИ сформирует сравнительный отчет.",
     "bridgeReady": "Bridge mode готов. Вставьте скопированный промпт в Claude Desktop, чтобы MCP-инструменты заполнили приложение.",
     "bridgeTitle": "Помощник MCP + Instructions",
     "inAppRuntime": "Встроенный ИИ-модуль",

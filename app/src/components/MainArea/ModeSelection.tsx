@@ -5,6 +5,7 @@ import {
   FileCheck2,
   FileText,
   Globe,
+  Image,
   Info,
   PanelTop,
   PlugZap,
@@ -16,7 +17,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import OnboardingView from "../Onboarding/OnboardingView";
-import SleepingMascot from "../Mascot/SleepingMascot";
+import Mascot, { type MascotMood } from "../Mascot/Mascot";
 import toraLogoWordmark from "@branding/logos/tora-logo-wordmark.svg";
 import {
   ANALYSIS_TYPES,
@@ -38,10 +39,16 @@ import type {
 } from "../../types/ipc";
 import type {
   AuditExecutionMode,
+  ProviderId,
   ProviderModelProfile,
 } from "../../types/runtime";
 
 export type BridgeProgram = "claude" | "codex";
+
+type ProviderModelOption = ProviderModelProfile & {
+  providerId: ProviderId;
+  providerLabel: string;
+};
 
 interface ModeSelectionProps {
   selectedExecutionMode: AuditExecutionMode;
@@ -49,7 +56,7 @@ interface ModeSelectionProps {
   nativeRuntimeEnabled: boolean;
   providerConfigured: boolean;
   providersLoading: boolean;
-  providerModelProfiles: ProviderModelProfile[];
+  providerModelProfiles: ProviderModelOption[];
   selectedModelProfileId: string | null;
   bridgeProgram: BridgeProgram;
   codexSetupVerified: boolean;
@@ -127,6 +134,11 @@ export default function ModeSelection({
         ? bridgeReady
         : false;
   const canSelectDraftAnalysis = canSelectSite;
+  const headerStatus = getHeaderStatusMeta({
+    confirmedExecutionMode,
+    canSelectAnalysis: canSelectDraftAnalysis,
+    t,
+  });
 
   return (
     <div className="flex h-full flex-col items-center justify-start overflow-auto px-8 pb-10 pt-4">
@@ -139,12 +151,12 @@ export default function ModeSelection({
         />
         <div className="flex items-center gap-2 text-sm text-outline-900/70">
           <span
-            className="h-2.5 w-2.5 rounded-full bg-status-idle"
+            className={`h-2.5 w-2.5 rounded-full ${headerStatus.dotClass}`}
             aria-hidden="true"
           />
-          <span>{t("modeSelection.idle")}</span>
+          <span>{headerStatus.label}</span>
         </div>
-        <SleepingMascot className="h-28 w-28" />
+        <Mascot mood={headerStatus.mascot} className="h-28 w-28" />
       </header>
 
       <section className="mt-4 w-full max-w-4xl">
@@ -273,7 +285,9 @@ export default function ModeSelection({
         <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {ANALYSIS_TYPES.map((analysis) => {
             const disabled =
-              analysis.id === "site_by_url"
+              analysis.availability === "development"
+                ? true
+                : analysis.id === "site_by_url"
                 ? !canSelectSite
                 : !canSelectDraftAnalysis;
             const key = analysis.i18nKeyBase;
@@ -302,6 +316,40 @@ export default function ModeSelection({
   );
 }
 
+function getHeaderStatusMeta({
+  confirmedExecutionMode,
+  canSelectAnalysis,
+  t,
+}: {
+  confirmedExecutionMode: AuditExecutionMode | null;
+  canSelectAnalysis: boolean;
+  t: ReturnType<typeof useTranslation>["t"];
+}): { dotClass: string; label: string; mascot: MascotMood } {
+  if (!confirmedExecutionMode) {
+    return {
+      dotClass: "bg-status-idle",
+      label: t("modeSelection.idle", { defaultValue: "Waiting for analysis" }),
+      mascot: "sleeping",
+    };
+  }
+
+  if (!canSelectAnalysis) {
+    return {
+      dotClass: "bg-red-600",
+      label: t("modeSelection.analysisStatus.error", { defaultValue: "Error" }),
+      mascot: "surprised",
+    };
+  }
+
+  return {
+    dotClass: "bg-status-complete",
+    label: t("modeSelection.analysisStatus.ready", {
+      defaultValue: "Ready for analysis",
+    }),
+    mascot: "neutral",
+  };
+}
+
 function iconForAnalysis(id: AnalysisTypeId): React.ReactNode {
   switch (id) {
     case "site_by_url":
@@ -321,6 +369,8 @@ function iconForAnalysis(id: AnalysisTypeId): React.ReactNode {
       );
     case "site_design_by_url":
       return <ScanEye className="h-7 w-7" strokeWidth={1.5} />;
+    case "image_analysis":
+      return <Image className="h-7 w-7" strokeWidth={1.5} />;
   }
 }
 
@@ -759,7 +809,7 @@ function NativeSetup({
   enabled: boolean;
   providerConfigured: boolean;
   providersLoading: boolean;
-  modelProfiles: ProviderModelProfile[];
+  modelProfiles: ProviderModelOption[];
   selectedModelProfileId: string | null;
   onModelProfileChange: (profileId: string) => void;
   onOpenProviderSettings: () => void;
@@ -772,8 +822,9 @@ function NativeSetup({
   const statusText =
     providerConfigured && selectedModel
       ? t("modeSelection.native.modelReady", {
-          defaultValue: "Ready with {{model}}.",
+          defaultValue: "Ready with {{model}} from {{provider}}.",
           model: selectedModel.displayName,
+          provider: selectedModel.providerLabel,
         })
       : providerConfigured && !hasModels
         ? t("modeSelection.native.modelMissing", {
@@ -830,7 +881,7 @@ function NativeSetup({
             >
               {modelProfiles.map((profile) => (
                 <option key={profile.id} value={profile.id}>
-                  {profile.displayName}
+                  {profile.displayName} · {profile.providerLabel}
                 </option>
               ))}
             </select>

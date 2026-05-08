@@ -22,7 +22,6 @@ import type {
   RuntimeScanContext,
   RuntimeScanFact,
 } from "../../types/runtime";
-import sleepingMascot from "@branding/mascots/tora-sleeping.svg";
 import focusedMascot from "@branding/mascots/tora-focused.svg";
 import happyMascot from "@branding/mascots/tora-happy.svg";
 import neutralMascot from "@branding/mascots/tora-neutral.svg";
@@ -154,6 +153,7 @@ function AuditStatusHero({
     executionMode === "native"
       ? localSummary?.totals ?? scanContext?.totals
       : totalsFromBridgeState(bridgeState, bridgeFacts);
+  const hasError = bridgeState?.status === "error" || (totals?.errors ?? 0) > 0;
   const visibleMetrics = totals
     ? [
         {
@@ -196,10 +196,13 @@ function AuditStatusHero({
   const mascot = pickMascot({
     running,
     complete,
+    hasError,
     totals,
     t,
   });
-  const statusLabel = running
+  const statusLabel = hasError
+    ? t("analysisHero.error", { defaultValue: "Error" })
+    : running
     ? t("analysisHero.scanning", { defaultValue: "Analysis in progress" })
     : complete
       ? totals && (totals.critical > 0 || totals.errors > 0)
@@ -207,7 +210,12 @@ function AuditStatusHero({
         : totals && totals.warning > 0
           ? t("analysisHero.warnings", { defaultValue: "Warnings found" })
           : t("analysisHero.topReady", { defaultValue: "Top-ready result" })
-      : t("analysisHero.ready", { defaultValue: "Ready to scan" });
+      : t("analysisHero.ready", { defaultValue: "Ready for analysis" });
+  const dotClass = hasError
+    ? "bg-red-600"
+    : running
+      ? "bg-status-working animate-pulse"
+      : "bg-status-complete";
 
   return (
     <section className="rounded-lg border border-orange-100 bg-white px-5 py-4 shadow-sm">
@@ -226,9 +234,12 @@ function AuditStatusHero({
                   defaultValue: "Метод проверки",
                 })}
               </p>
-              <h1 className="mt-1 text-lg font-semibold text-outline-900">
-                {statusLabel}
-              </h1>
+              <div className="mt-1 flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+                <h1 className="text-lg font-semibold text-outline-900">
+                  {statusLabel}
+                </h1>
+              </div>
             </div>
             <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
               {completedTotal} / {selectedTotal}
@@ -243,7 +254,9 @@ function AuditStatusHero({
             aria-valuemax={100}
           >
             <div
-              className={`h-full rounded-full bg-primary transition-all duration-300 ${
+              className={`h-full rounded-full transition-all duration-300 ${
+                hasError ? "bg-red-600" : "bg-primary"
+              } ${
                 running ? "toraseo-progress-stripes" : ""
               }`}
               style={{ width: `${visualProgress}%` }}
@@ -1036,11 +1049,13 @@ function formatFactDetail(detail: string, isRu = false): string {
 function pickMascot({
   running,
   complete,
+  hasError,
   totals,
   t,
 }: {
   running: boolean;
   complete: boolean;
+  hasError: boolean;
   totals:
     | {
         critical: number;
@@ -1051,6 +1066,14 @@ function pickMascot({
     | undefined;
   t: ReturnType<typeof useTranslation>["t"];
 }) {
+  if (hasError) {
+    return {
+      src: surprisedMascot,
+      alt: t("app.altMascotSurprised", {
+        defaultValue: "ToraSEO mascot surprised by issues",
+      }),
+    };
+  }
   if (running) {
     return {
       src: focusedMascot,
@@ -1058,7 +1081,7 @@ function pickMascot({
     };
   }
   if (complete && totals) {
-    if (totals.critical > 0 || totals.errors > 0) {
+    if (totals.errors > 0) {
       return {
         src: surprisedMascot,
         alt: t("app.altMascotSurprised", {
@@ -1066,19 +1089,9 @@ function pickMascot({
         }),
       };
     }
-    if (totals.warning > 0) {
-      return {
-        src: neutralMascot,
-        alt: t("app.altMascotNeutral", {
-          defaultValue: "ToraSEO mascot reviewing warnings",
-        }),
-      };
-    }
     return {
-      src: championMascot,
-      alt: t("app.altMascotChampion", {
-        defaultValue: "ToraSEO champion mascot",
-      }),
+      src: happyMascot,
+      alt: t("app.altMascotHappy"),
     };
   }
   if (totals && (totals.critical > 0 || totals.warning > 0 || totals.errors > 0)) {
@@ -1088,7 +1101,9 @@ function pickMascot({
     };
   }
   return {
-    src: sleepingMascot,
-    alt: t("app.altMascotSleeping"),
+    src: neutralMascot,
+    alt: t("app.altMascotNeutral", {
+      defaultValue: "ToraSEO mascot ready for analysis",
+    }),
   };
 }

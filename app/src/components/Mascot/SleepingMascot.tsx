@@ -1,5 +1,4 @@
-import { useTranslation } from "react-i18next";
-import sleepingMascotUrl from "@branding/mascots/tora-sleeping.svg";
+import Mascot from "./Mascot";
 
 interface SleepingMascotProps {
   className?: string;
@@ -12,19 +11,9 @@ interface SleepingMascotProps {
  * via the Vite alias `@branding`. No file duplication — single
  * source of truth in branding/.
  *
- * All six poses (sleeping/neutral/focused/happy/surprised/champion)
- * live in branding/mascots/. When per-status switching is needed,
- * we'll introduce a generic `Mascot` component that takes a
- * `status` prop.
+ * Kept as a tiny compatibility wrapper around the generic Mascot
+ * component for older screens that still ask for the sleeping pose.
  */
 export default function SleepingMascot({ className }: SleepingMascotProps) {
-  const { t } = useTranslation();
-  return (
-    <img
-      src={sleepingMascotUrl}
-      alt={t("app.altMascotSleeping")}
-      className={className}
-      draggable={false}
-    />
-  );
+  return <Mascot mood="sleeping" className={className} />;
 }

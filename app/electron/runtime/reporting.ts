@@ -3609,6 +3609,10 @@ function renderAuditDirections(facts: SiteDisplayFact[], isRu: boolean): string 
 }
 
 function renderReportHtml(report: RuntimeAuditReport): string {
+  if (report.siteCompare) {
+    return renderSiteCompareReportDashboardHtml(report);
+  }
+
   if (report.articleCompare) {
     return renderArticleCompareReportDashboardHtml(report);
   }
@@ -4462,6 +4466,213 @@ function reportIconSvg(name: "gauge" | "activity" | "check" | "shield"): string 
 
 function renderReportSectionTitle(title: string, icon: "check" | "shield"): string {
   return `<div class="section-title">${reportIconSvg(icon)}<h2>${escapeHtml(title)}</h2></div>`;
+}
+
+function renderSiteCompareReportDashboardHtml(report: RuntimeAuditReport): string {
+  const compare = report.siteCompare;
+  if (!compare) return renderReportHtml({ ...report, siteCompare: undefined });
+  const isRu = /[А-Яа-яЁё]/.test(`${report.summary} ${report.nextStep}`);
+  const colors = ["#ff6b35", "#2563eb", "#059669"];
+  const winner = compare.winnerUrl ?? (isRu ? "ожидаем данные" : "waiting for data");
+  const metricBars = compare.metrics
+    .map(
+      (metric) => `
+        <section class="metric-panel">
+          <h3>${escapeHtml(metric.label)}</h3>
+          <div class="bars">
+            ${metric.values
+              .map(
+                (item, index) => `
+                  <div class="bar-row">
+                    <span>${escapeHtml(item.url)}</span>
+                    <b><i style="width:${Math.max(0, Math.min(100, item.value))}%; background:${colors[index % colors.length]}"></i></b>
+                    <strong>${item.value}</strong>
+                  </div>`,
+              )
+              .join("")}
+          </div>
+        </section>`,
+    )
+    .join("");
+  const siteCards = compare.sites
+    .map(
+      (site, index) => `
+        <article class="site-card">
+          <div class="site-top">
+            <span>Site ${index + 1}</span>
+            ${site.url === compare.winnerUrl ? `<mark>${isRu ? "Победитель" : "Winner"}</mark>` : ""}
+          </div>
+          <h2>${escapeHtml(site.url)}</h2>
+          <div class="kpis">
+            <div><span>SEO</span><strong>${site.score}/100</strong></div>
+            <div><span>Issues</span><strong>${site.critical + site.warning}</strong></div>
+            <div><span>Content</span><strong>${site.content}/100</strong></div>
+            <div><span>Metadata</span><strong>${site.metadata}/100</strong></div>
+          </div>
+        </article>`,
+    )
+    .join("");
+  const heatmapRows = compare.directions
+    .map(
+      (direction) => `
+        <tr>
+          <th>${escapeHtml(direction.label)}</th>
+          ${direction.values
+            .map((item) => `<td><span class="pill ${item.status}">${siteCompareStatusLabel(item.status, isRu)}</span></td>`)
+            .join("")}
+        </tr>`,
+    )
+    .join("");
+  const winnerScore =
+    compare.sites.find((site) => site.url === compare.winnerUrl)?.score ??
+    compare.sites[0]?.score ??
+    0;
+  const deltaRows = compare.sites
+    .map((site) => {
+      const delta = site.score - winnerScore;
+      return `
+        <div class="bar-row">
+          <span>${escapeHtml(site.url)}</span>
+          <b><i style="width:${Math.max(4, Math.min(100, Math.abs(delta)))}%; background:${delta >= 0 ? "#059669" : "#f97316"}"></i></b>
+          <strong>${delta}</strong>
+        </div>`;
+    })
+    .join("");
+  const insights = compare.insights.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+
+  return `<!doctype html>
+  <html lang="${isRu ? "ru" : "en"}">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>ToraSEO Site Comparison</title>
+      <style>
+        :root { --bg:#fff7ed; --surface:#fff; --border:#ffedd5; --text:#2b1b12; --muted:rgba(43,27,18,.58); --accent:#ff6b35; }
+        * { box-sizing:border-box; }
+        body { margin:0; padding:24px; background:var(--bg); color:var(--text); font-family:Inter,"Segoe UI",system-ui,sans-serif; font-size:14px; }
+        .shell { max-width:1320px; margin:0 auto; display:grid; gap:16px; }
+        .hero,.panel,.metric-panel,.site-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:0 1px 2px rgba(43,27,18,.06); }
+        .hero { padding:20px; display:flex; justify-content:space-between; gap:24px; align-items:flex-start; }
+        h1,h2,h3,p { margin:0; }
+        h1 { font-size:24px; line-height:1.15; }
+        h2 { font-size:15px; }
+        h3 { font-size:13px; }
+        .muted { color:var(--muted); line-height:1.5; margin-top:8px; }
+        .version { color:var(--muted); font-size:12px; font-weight:700; margin-top:10px; }
+        .button { display:inline-flex; border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); text-decoration:none; font-weight:800; font-size:12px; background:#fff; white-space:nowrap; }
+        .grid3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+        .grid2 { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:16px; }
+        .metric-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+        .panel,.site-card,.metric-panel { padding:16px; }
+        .site-top { display:flex; justify-content:space-between; gap:12px; color:var(--muted); font-size:11px; font-weight:800; text-transform:uppercase; }
+        mark { background:#fff0e8; color:var(--accent); border-radius:999px; padding:3px 8px; }
+        .kpis { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:14px; }
+        .kpis div { background:#fff7ed; border-radius:7px; padding:9px; }
+        .kpis span { display:block; color:var(--muted); font-size:11px; font-weight:800; text-transform:uppercase; }
+        .kpis strong { display:block; margin-top:4px; font-size:18px; }
+        .bars { display:grid; gap:10px; margin-top:14px; }
+        .bar-row { display:grid; grid-template-columns:170px minmax(0,1fr) 44px; gap:10px; align-items:center; font-size:12px; }
+        .bar-row span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); }
+        .bar-row b { height:8px; border-radius:999px; background:#f3e4d8; overflow:hidden; }
+        .bar-row i { display:block; height:100%; border-radius:999px; }
+        table { width:100%; border-collapse:collapse; margin-top:12px; }
+        th,td { border-top:1px solid var(--border); padding:10px; text-align:left; }
+        th { font-weight:800; }
+        .pill { display:inline-flex; border-radius:999px; padding:5px 9px; font-size:11px; font-weight:800; }
+        .good { background:#ecfdf5; color:#047857; } .warn { background:#fffbeb; color:#b45309; } .bad { background:#fef2f2; color:#dc2626; } .pending { background:#f3f4f6; color:#6b7280; }
+        .radar-wrap { display:grid; justify-items:center; gap:10px; }
+        .legend { display:flex; flex-wrap:wrap; gap:10px; color:var(--muted); font-size:12px; }
+        .legend span { display:inline-flex; align-items:center; gap:5px; }
+        .dot { width:8px; height:8px; border-radius:999px; display:inline-block; }
+        ul { margin:12px 0 0; padding-left:18px; line-height:1.55; color:var(--muted); }
+        @media print { body { padding:10mm; } .button { display:none; } .shell { max-width:none; } }
+      </style>
+    </head>
+    <body>
+      <main class="shell">
+        <section class="hero">
+          <div>
+            <p class="muted">Competitive comparison dashboard</p>
+            <h1>${isRu ? "Сравнение сайтов по URL" : "Site Comparison by URL"}</h1>
+            <p class="muted">${isRu ? "Победитель" : "Winner"}: <strong>${escapeHtml(winner)}</strong>. ${escapeHtml(report.nextStep)}</p>
+            <p class="version">${analysisVersionLine(isRu, report.analysisVersion)}</p>
+          </div>
+          <a class="button" href="toraseo://export-report-pdf">${isRu ? "Экспорт PDF" : "Export PDF"}</a>
+        </section>
+        <section class="grid3">${siteCards}</section>
+        <section class="grid2">
+          <div class="panel"><h2>${isRu ? "Сравнительные метрики" : "Comparative metrics"}</h2><div class="metric-grid">${metricBars}</div></div>
+          <div class="panel radar-wrap"><h2>Radar profile</h2>${renderSiteCompareRadarSvg(compare.sites, colors)}<div class="legend">${compare.sites.map((site, index) => `<span><i class="dot" style="background:${colors[index % colors.length]}"></i>${escapeHtml(site.url)}</span>`).join("")}</div></div>
+        </section>
+        <section class="grid2">
+          <div class="panel"><h2>${isRu ? "Delta к лидеру" : "Delta to leader"}</h2><div class="bars">${deltaRows}</div></div>
+          <div class="panel"><h2>${isRu ? "Что делать" : "Actions"}</h2><ul>${insights}</ul></div>
+        </section>
+        <section class="panel">
+          <h2>Heatmap / ${isRu ? "матрица направлений" : "direction matrix"}</h2>
+          <table>
+            <thead><tr><th>${isRu ? "Направление" : "Direction"}</th>${compare.sites.map((site) => `<th>${escapeHtml(site.url)}</th>`).join("")}</tr></thead>
+            <tbody>${heatmapRows}</tbody>
+          </table>
+        </section>
+        <p class="version">${analysisVersionLine(isRu, report.analysisVersion)}</p>
+      </main>
+    </body>
+  </html>`;
+}
+
+function siteCompareStatusLabel(status: "good" | "warn" | "bad" | "pending", isRu: boolean): string {
+  if (status === "good") return "OK";
+  if (status === "warn") return isRu ? "Проверить" : "Check";
+  if (status === "bad") return isRu ? "Проблема" : "Issue";
+  return isRu ? "Ожидаем" : "Pending";
+}
+
+function renderSiteCompareRadarSvg(
+  sites: NonNullable<RuntimeAuditReport["siteCompare"]>["sites"],
+  colors: string[],
+): string {
+  const axes = [
+    { key: "score", label: "SEO" },
+    { key: "metadata", label: "Meta" },
+    { key: "content", label: "Content" },
+    { key: "indexability", label: "Index" },
+  ] as const;
+  const center = 92;
+  const radius = 64;
+  const point = (index: number, value: number) => {
+    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / axes.length;
+    const r = (Math.max(0, Math.min(100, value)) / 100) * radius;
+    return `${center + Math.cos(angle) * r},${center + Math.sin(angle) * r}`;
+  };
+  const grid = [0.25, 0.5, 0.75, 1]
+    .map((scale) => {
+      const points = axes
+        .map((_, index) => {
+          const angle = -Math.PI / 2 + (Math.PI * 2 * index) / axes.length;
+          const r = radius * scale;
+          return `${center + Math.cos(angle) * r},${center + Math.sin(angle) * r}`;
+        })
+        .join(" ");
+      return `<polygon points="${points}" fill="none" stroke="#f3d8c5" stroke-width="1" />`;
+    })
+    .join("");
+  const labels = axes
+    .map((axis, index) => {
+      const angle = -Math.PI / 2 + (Math.PI * 2 * index) / axes.length;
+      const x = center + Math.cos(angle) * (radius + 22);
+      const y = center + Math.sin(angle) * (radius + 22);
+      return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-size="9" fill="#7c5b4a">${axis.label}</text>`;
+    })
+    .join("");
+  const polygons = sites
+    .map((site, siteIndex) => {
+      const points = axes.map((axis, index) => point(index, Number(site[axis.key]) || 0)).join(" ");
+      const color = colors[siteIndex % colors.length];
+      return `<polygon points="${points}" fill="${color}" fill-opacity=".12" stroke="${color}" stroke-width="2" />`;
+    })
+    .join("");
+  return `<svg viewBox="0 0 184 184" width="240" height="240" role="img">${grid}${labels}${polygons}</svg>`;
 }
 
 function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): string {
@@ -5758,6 +5969,7 @@ async function ensureReportWindow(report: RuntimeAuditReport): Promise<BrowserWi
       show: false,
       backgroundColor: "#FFF7F0",
       title: "ToraSEO Details",
+      autoHideMenuBar: true,
       x: externalDisplay ? externalDisplay.bounds.x + 40 : undefined,
       y: externalDisplay ? externalDisplay.bounds.y + 40 : undefined,
       webPreferences: {
@@ -5878,11 +6090,14 @@ export async function exportReportPdf(
       true,
     );
     await tempWindow.webContents.executeJavaScript(PDF_EXPORT_PREPARE_SCRIPT, true);
+    const isLandscapeReport = report.analysisType === "site_compare" || Boolean(report.siteCompare);
     const pdf = await tempWindow.webContents.printToPDF({
       printBackground: true,
-      pageSize: { width: 8.27, height: 11.69 },
+      pageSize: isLandscapeReport
+        ? { width: 11.69, height: 8.27 }
+        : { width: 8.27, height: 11.69 },
       margins: { marginType: "none" },
-      scale: 0.88,
+      scale: isLandscapeReport ? 0.82 : 0.88,
     });
     if (pdf.byteLength === 0) {
       throw new Error("Generated PDF is empty.");

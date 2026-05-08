@@ -22,6 +22,7 @@ import PlannedAnalysisView, {
   type ArticleTextAction,
   type ArticleTextPromptData,
   type PageByUrlPromptData,
+  type SiteComparePromptData,
 } from "./components/MainArea/PlannedAnalysisView";
 import ChangelogView from "./components/Changelog/ChangelogView";
 import DocumentationView from "./components/Documentation/DocumentationView";
@@ -52,14 +53,22 @@ import {
   buildNativeScanContext,
 } from "./runtime/scanContext";
 
-import type { BridgeClient, SupportedLocale } from "./types/ipc";
-import type { CurrentScanState } from "./types/ipc";
+import type {
+  BridgeClient,
+  CurrentScanState,
+  ScanComplete,
+  StageUpdate,
+  SupportedLocale,
+} from "./types/ipc";
 import type {
   AuditExecutionMode,
+  ProviderId,
   ProviderInfo,
   RuntimeArticleCompareGoalMode,
   RuntimeAuditReport,
   RuntimeChatWindowSession,
+  RuntimeSiteCompareContext,
+  RuntimeSiteCompareToolResult,
 } from "./types/runtime";
 
 export type AppMode =
@@ -80,8 +89,20 @@ type NavigationTarget = {
   selectedAnalysisType: AnalysisTypeId | null;
 };
 
+type ProviderModelOption = {
+  id: string;
+  sourceProfileId: string;
+  providerId: ProviderId;
+  providerLabel: string;
+  displayName: string;
+  modelId: string;
+  usageHint?: string;
+};
+
 const EXECUTION_MODE_STORAGE_KEY = "toraseo.executionMode";
-const OPENROUTER_MODEL_STORAGE_KEY = "toraseo.openrouterModelProfileId";
+const BRIDGE_PROGRAM_STORAGE_KEY = "toraseo.bridgeProgram";
+const LEGACY_OPENROUTER_MODEL_STORAGE_KEY = "toraseo.openrouterModelProfileId";
+const PROVIDER_MODEL_STORAGE_KEY = "toraseo.providerModelProfileId";
 const SIDEBAR_WIDTH_STORAGE_KEY = "toraseo.sidebarWidth";
 const RETURN_HOME_SHORTCUTS_STORAGE_KEY = "toraseo.returnHomeShortcuts";
 const SIDEBAR_DEFAULT_WIDTH = 260;
@@ -140,6 +161,27 @@ const BUILT_IN_PAGE_BY_URL_TOOLS = [
   "intent_seo_forecast",
   "safety_science_review",
 ] as const;
+const BUILT_IN_SITE_COMPARE_TOOLS = [
+  "scan_site_minimal",
+  "analyze_indexability",
+  "check_robots_txt",
+  "analyze_sitemap",
+  "check_redirects",
+  "analyze_meta",
+  "analyze_canonical",
+  "analyze_headings",
+  "analyze_content",
+  "analyze_links",
+  "compare_site_positioning",
+  "compare_site_metadata",
+  "compare_site_structure",
+  "compare_site_content_depth",
+  "compare_site_technical_basics",
+  "compare_site_delta",
+  "compare_site_direction_matrix",
+  "compare_site_competitive_insights",
+  "compare_strengths_weaknesses",
+] as const;
 
 function effectiveArticleTextToolIds(
   selectedToolIds: Iterable<AnalysisToolId>,
@@ -171,13 +213,132 @@ function effectivePageByUrlToolIds(
   return result;
 }
 
+function effectiveSiteCompareToolIds(
+  selectedToolIds: Iterable<AnalysisToolId>,
+): string[] {
+  const result = Array.from(selectedToolIds, String);
+  for (const toolId of BUILT_IN_SITE_COMPARE_TOOLS) {
+    if (!result.includes(toolId)) result.push(toolId);
+  }
+  return result;
+}
+
 function siteToolIdsFromAnalysisTools(toolIds: string[]): ToolId[] {
   const siteIds = new Set(TOOLS.map((tool) => tool.id));
   const result = toolIds.filter((toolId): toolId is ToolId =>
     siteIds.has(toolId as ToolId),
   );
   if (!result.includes("analyze_content")) result.push("analyze_content");
-  return result;
+  return Array.from(new Set(result));
+}
+
+async function runSingleNativeSiteCompareScan(
+  url: string,
+  toolIds: ToolId[],
+): Promise<RuntimeSiteCompareToolResult[]> {
+  if (typeof window === "undefined" || !window.toraseo) {
+    return toolIds.map((toolId) => ({
+      url,
+      toolId,
+      status: "error",
+      errorCode: "preload_missing",
+      errorMessage: "ToraSEO preload API is unavailable.",
+    }));
+  }
+
+  return new Promise((resolve) => {
+    const results = new Map<string, RuntimeSiteCompareToolResult>();
+    let activeScanId: string | null = null;
+    let settled = false;
+    let unsubscribeUpdate: (() => void) | null = null;
+    let unsubscribeComplete: (() => void) | null = null;
+    const earlyUpdates: StageUpdate[] = [];
+    const earlyCompletes: ScanComplete[] = [];
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      unsubscribeUpdate?.();
+      unsubscribeComplete?.();
+      resolve(
+        toolIds.map(
+          (toolId) =>
+            results.get(toolId) ?? {
+              url,
+              toolId,
+              status: "error",
+              errorCode: "missing_stage",
+              errorMessage: "The scan finished without a tool result.",
+            },
+        ),
+      );
+    };
+
+    const acceptUpdate = (update: StageUpdate) => {
+      if (!activeScanId || update.scanId !== activeScanId) return;
+      if (update.status === "pending" || update.status === "running") return;
+      results.set(update.toolId, {
+        url,
+        toolId: update.toolId,
+        status: update.status,
+        summary: update.summary,
+        result: update.result,
+        errorCode: update.errorCode,
+        errorMessage: update.errorMessage,
+      });
+    };
+    const acceptComplete = (complete: ScanComplete) => {
+      if (!activeScanId || complete.scanId !== activeScanId) return;
+      finish();
+    };
+
+    unsubscribeUpdate = window.toraseo.onStageUpdate((update) => {
+      if (!activeScanId) {
+        earlyUpdates.push(update);
+        return;
+      }
+      acceptUpdate(update);
+    });
+    unsubscribeComplete = window.toraseo.onScanComplete((complete) => {
+      if (!activeScanId) {
+        earlyCompletes.push(complete);
+        return;
+      }
+      acceptComplete(complete);
+    });
+
+    window.toraseo
+      .startScan({ url, toolIds })
+      .then(({ scanId }) => {
+        activeScanId = scanId;
+        earlyUpdates.forEach(acceptUpdate);
+        earlyCompletes.forEach(acceptComplete);
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        for (const toolId of toolIds) {
+          results.set(toolId, {
+            url,
+            toolId,
+            status: "error",
+            errorCode: "ipc_failure",
+            errorMessage: message,
+          });
+        }
+        finish();
+      });
+  });
+}
+
+async function runNativeSiteCompareScans(
+  urls: string[],
+  toolIds: ToolId[],
+): Promise<RuntimeSiteCompareToolResult[]> {
+  const batches: RuntimeSiteCompareToolResult[][] = [];
+  for (const url of urls) {
+    batches.push(await runSingleNativeSiteCompareScan(url, toolIds));
+  }
+  return batches.flat();
 }
 
 function extractedMainTextFromAnalyzeContent(result: unknown): string {
@@ -401,6 +562,49 @@ function buildClaudeSkillFallbackPageByUrlPrompt(options: {
   ]);
 }
 
+function buildClaudeSkillFallbackSiteByUrlPrompt(options: {
+  url: string;
+  locale: SupportedLocale;
+  selectedTools: string[];
+}): string {
+  return joinPromptLines([
+    "Use ToraSEO Claude Bridge Instructions.",
+    "",
+    "/toraseo chat-only-fallback site-by-url",
+    "",
+    "ToraSEO Desktop App and/or MCP are unavailable, but the SKILL is installed.",
+    "Read only references/chat-only-fallback.md for this fallback path. Do not call MCP tools and do not claim that the app report was updated.",
+    "If you can browse the public URL in your current environment, analyze only observable evidence. If browsing is unavailable, do not pretend that the page or site was fetched; ask for pasted page text, title/meta, screenshots, or exported facts.",
+    "Return the result directly in chat with normal check names, not internal tool ids. Keep facts separate from assumptions.",
+    "",
+    `Interface locale: ${options.locale}`,
+    `URL: ${options.url}`,
+    `Selected ToraSEO checks: ${fallbackToolNames(options.selectedTools, options.locale)}`,
+  ]);
+}
+
+function buildClaudeSkillFallbackSiteComparePrompt(options: {
+  data: SiteComparePromptData;
+  locale: SupportedLocale;
+  selectedTools: string[];
+}): string {
+  return joinPromptLines([
+    "Use ToraSEO Claude Bridge Instructions.",
+    "",
+    "/toraseo chat-only-fallback site-compare",
+    "",
+    "ToraSEO Desktop App and/or MCP are unavailable, but the SKILL is installed.",
+    "Read only references/chat-only-fallback.md for this fallback path. Do not call MCP tools and do not claim that the app report was updated.",
+    "Build one compact competitive comparison in chat when evidence is available: summary, site KPI cards, comparative metrics, direction heatmap, winners by block, and actionable insights.",
+    "Do not render three full audits side by side. If browsing is unavailable and only URLs were provided, say that live site facts were not fetched and ask for page text, screenshots, or exported facts.",
+    "",
+    `Interface locale: ${options.locale}`,
+    `URLs: ${options.data.urls.join(", ")}`,
+    `Focus: ${options.data.focus || "Not specified"}`,
+    `Selected ToraSEO checks: ${fallbackToolNames(options.selectedTools, options.locale)}`,
+  ]);
+}
+
 async function copyTextToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -423,12 +627,28 @@ function persistExecutionMode(mode: AuditExecutionMode): void {
   window.localStorage.setItem(EXECUTION_MODE_STORAGE_KEY, mode);
 }
 
-function readSelectedOpenRouterModel(): string | null {
-  return window.localStorage.getItem(OPENROUTER_MODEL_STORAGE_KEY);
+function readPersistedBridgeProgram(): BridgeProgram | null {
+  const value = window.localStorage.getItem(BRIDGE_PROGRAM_STORAGE_KEY);
+  return value === "codex" || value === "claude" ? value : null;
 }
 
-function persistSelectedOpenRouterModel(profileId: string): void {
-  window.localStorage.setItem(OPENROUTER_MODEL_STORAGE_KEY, profileId);
+function persistBridgeProgram(program: BridgeProgram): void {
+  window.localStorage.setItem(BRIDGE_PROGRAM_STORAGE_KEY, program);
+}
+
+function providerModelOptionId(providerId: ProviderId, profileId: string): string {
+  return `${providerId}:${profileId}`;
+}
+
+function readSelectedProviderModel(): string | null {
+  return (
+    window.localStorage.getItem(PROVIDER_MODEL_STORAGE_KEY) ??
+    window.localStorage.getItem(LEGACY_OPENROUTER_MODEL_STORAGE_KEY)
+  );
+}
+
+function persistSelectedProviderModel(profileId: string): void {
+  window.localStorage.setItem(PROVIDER_MODEL_STORAGE_KEY, profileId);
 }
 
 function readPersistedSidebarWidth(): number {
@@ -488,6 +708,7 @@ function MainApp() {
       article_compare: getDefaultAnalysisToolSet("article_compare"),
       site_compare: getDefaultAnalysisToolSet("site_compare"),
       site_design_by_url: getDefaultAnalysisToolSet("site_design_by_url"),
+      image_analysis: getDefaultAnalysisToolSet("image_analysis"),
     }));
   const [analysisRole, setAnalysisRole] = useState("");
   const [textPlatform, setTextPlatform] = useState("site_article");
@@ -511,17 +732,22 @@ function MainApp() {
     useState<"scan" | null>(null);
   const [articleCompareInput, setArticleCompareInput] =
     useState<ArticleComparePromptData | null>(null);
+  const [siteCompareStartedOnce, setSiteCompareStartedOnce] = useState(false);
+  const [siteCompareInput, setSiteCompareInput] =
+    useState<SiteComparePromptData | null>(null);
+  const [nativeSiteCompareActiveRun, setNativeSiteCompareActiveRun] =
+    useState<"scan" | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [codexClosedNotice, setCodexClosedNotice] = useState<string | null>(
     null,
   );
   const [codexClosedNoticeShake, setCodexClosedNoticeShake] = useState(false);
   const [executionModeDraft, setExecutionModeDraft] =
-    useState<AuditExecutionMode>(() => readPersistedExecutionMode() ?? "native");
+    useState<AuditExecutionMode>(() => readPersistedExecutionMode() ?? "bridge");
   const [confirmedExecutionMode, setConfirmedExecutionMode] =
     useState<AuditExecutionMode | null>(() => readPersistedExecutionMode());
   const [bridgeProgram, setBridgeProgram] =
-    useState<BridgeProgram>("claude");
+    useState<BridgeProgram>(() => readPersistedBridgeProgram() ?? "codex");
   const [settingsInitialTab, setSettingsInitialTab] =
     useState<"general" | "language" | "providers">("general");
   const [settingsReturnTarget, setSettingsReturnTarget] =
@@ -534,7 +760,7 @@ function MainApp() {
   const [providersLoading, setProvidersLoading] = useState(true);
   const [selectedModelProfileId, setSelectedModelProfileId] = useState<
     string | null
-  >(() => readSelectedOpenRouterModel());
+  >(() => readSelectedProviderModel());
   const [runtimeReport, setRuntimeReport] = useState<RuntimeAuditReport | null>(
     null,
   );
@@ -585,17 +811,26 @@ function MainApp() {
   const { enabled: nativeRuntimeEnabled } = useNativeRuntimeFlag();
   const bridgeStatus = bridge.state?.status;
   const executionMode = confirmedExecutionMode ?? executionModeDraft;
-  const openRouterProvider = providers.find(
-    (provider) => provider.id === "openrouter",
+  const providerConfigured = providers.some((provider) => provider.configured);
+  const providerModelProfiles: ProviderModelOption[] = useMemo(
+    () =>
+      providers.flatMap((provider) =>
+        provider.modelProfiles.map((profile) => ({
+          ...profile,
+          id: providerModelOptionId(provider.id, profile.id),
+          sourceProfileId: profile.id,
+          providerId: provider.id,
+          providerLabel: provider.label,
+          displayName: profile.displayName,
+        })),
+      ),
+    [providers],
   );
-  const providerConfigured = providers.some(
-    (provider) => provider.id === "openrouter" && provider.configured,
-  );
-  const providerModelProfiles = openRouterProvider?.modelProfiles ?? [];
   const selectedModelProfile =
     providerModelProfiles.find(
       (profile) => profile.id === selectedModelProfileId,
     ) ?? null;
+  const selectedProviderId = selectedModelProfile?.providerId ?? null;
 
   const refreshProviders = useCallback(async () => {
     setProvidersLoading(true);
@@ -634,12 +869,21 @@ function MainApp() {
     ) {
       return;
     }
-    const fallbackId =
-      openRouterProvider?.defaultModelProfileId ?? providerModelProfiles[0].id;
+    const configuredDefault = providers
+      .filter((provider) => provider.configured)
+      .map((provider) =>
+        provider.defaultModelProfileId
+          ? providerModelOptionId(provider.id, provider.defaultModelProfileId)
+          : null,
+      )
+      .find((value): value is string =>
+        Boolean(value && providerModelProfiles.some((profile) => profile.id === value)),
+      );
+    const fallbackId = configuredDefault ?? providerModelProfiles[0].id;
     setSelectedModelProfileId(fallbackId);
-    persistSelectedOpenRouterModel(fallbackId);
+    persistSelectedProviderModel(fallbackId);
   }, [
-    openRouterProvider?.defaultModelProfileId,
+    providers,
     providerModelProfiles,
     selectedModelProfileId,
   ]);
@@ -874,10 +1118,12 @@ function MainApp() {
         status: "active",
         locale: currentLocale,
         analysisType: "site",
+        selectedProviderId,
         selectedModelProfile,
         scanContext: nativeScanContext,
         articleTextContext: null,
         articleCompareContext: null,
+        siteCompareContext: null,
         report: runtimeReport,
       });
     }
@@ -903,6 +1149,7 @@ function MainApp() {
     }
     if (executionMode === "bridge" && bridge.state) {
       void bridge.cancelScan();
+      bridge.clearRetainedState();
       setCodexPromptHelperVisible(false);
       setCodexPromptHelperScanId(null);
     }
@@ -919,6 +1166,9 @@ function MainApp() {
     setArticleCompareStartedOnce(false);
     setNativeArticleCompareActiveRun(null);
     setArticleCompareInput(null);
+    setSiteCompareStartedOnce(false);
+    setSiteCompareInput(null);
+    setNativeSiteCompareActiveRun(null);
     setAnalysisRole("");
     setReferenceReturnTarget(null);
     setUrl("");
@@ -1113,6 +1363,29 @@ function MainApp() {
 
     const fresh = await checkNow();
     if (!fresh.allGreen) {
+      if (fresh.skillInstalled) {
+        const orderedIds = TOOLS.map((item) => item.id).filter((id) =>
+          selectedTools.has(id),
+        );
+        const copied = await copyTextToClipboard(
+          buildClaudeSkillFallbackSiteByUrlPrompt({
+            url: url.trim(),
+            locale: currentLocale,
+            selectedTools: orderedIds,
+          }),
+        );
+        if (!copied) {
+          setPreflightError(
+            t("preflight.skillFallbackCopyFailed", {
+              defaultValue:
+                "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+            }),
+          );
+          return;
+        }
+        showPromptCopiedToast();
+        return;
+      }
       setPreflightError(t("preflight.depsFailed"));
       return;
     }
@@ -1224,6 +1497,11 @@ function MainApp() {
     setExecutionModeDraft(next);
   };
 
+  const handleBridgeProgramChange = (next: BridgeProgram) => {
+    setBridgeProgram(next);
+    persistBridgeProgram(next);
+  };
+
   const handleOpenCodex = async () => {
     const result = await openCodex();
     void checkNow();
@@ -1245,7 +1523,7 @@ function MainApp() {
 
   const handleModelProfileChange = (profileId: string) => {
     setSelectedModelProfileId(profileId);
-    persistSelectedOpenRouterModel(profileId);
+    persistSelectedProviderModel(profileId);
     setPreflightError(null);
   };
 
@@ -1348,7 +1626,9 @@ function MainApp() {
     [bridge.stages, bridge.state],
   );
   const activeArticleTextRun =
-    executionMode === "native" && selectedAnalysisType === "article_compare"
+    executionMode === "native" && selectedAnalysisType === "site_compare"
+      ? nativeSiteCompareActiveRun
+      : executionMode === "native" && selectedAnalysisType === "article_compare"
       ? nativeArticleCompareActiveRun
       : executionMode === "native" && selectedAnalysisType === "page_by_url"
         ? nativePageByUrlActiveRun
@@ -1366,11 +1646,16 @@ function MainApp() {
             (bridge.state.status === "awaiting_handshake" ||
               bridge.state.status === "in_progress")
           ? "scan"
+        : bridge.state?.analysisType === "site_compare" &&
+            (bridge.state.status === "awaiting_handshake" ||
+              bridge.state.status === "in_progress")
+          ? "scan"
         : null;
   const completedArticleTextAction =
     (bridge.state?.analysisType === "article_text" ||
       bridge.state?.analysisType === "article_compare" ||
-      bridge.state?.analysisType === "page_by_url") &&
+      bridge.state?.analysisType === "page_by_url" ||
+      bridge.state?.analysisType === "site_compare") &&
     bridge.state.status === "complete"
       ? bridge.state.input?.action ?? "scan"
       : null;
@@ -1383,6 +1668,8 @@ function MainApp() {
           : runtimeReport && selectedAnalysisType === "page_by_url"
             ? "scan"
           : runtimeReport && selectedAnalysisType === "article_compare"
+            ? "scan"
+          : runtimeReport && selectedAnalysisType === "site_compare"
             ? "scan"
           : null
       : completedArticleTextAction;
@@ -1400,6 +1687,10 @@ function MainApp() {
     selectedAnalysisType === "page_by_url"
       ? effectivePageByUrlToolIds(selectedAnalysisToolsByType.page_by_url)
       : [];
+  const effectiveSiteCompareTools =
+    selectedAnalysisType === "site_compare"
+      ? effectiveSiteCompareToolIds(selectedAnalysisToolsByType.site_compare)
+      : [];
   const plannedCompletedTools =
     executionMode === "native" &&
     selectedAnalysisType === "article_text" &&
@@ -1413,7 +1704,16 @@ function MainApp() {
           selectedAnalysisType === "article_compare" &&
           runtimeReport
         ? countCoveredReportTools(runtimeReport, effectiveArticleCompareTools)
+      : executionMode === "native" &&
+          selectedAnalysisType === "site_compare" &&
+          runtimeReport
+        ? countCoveredReportTools(runtimeReport, effectiveSiteCompareTools)
       : displayedArticleTextState?.analysisType === "article_compare"
+        ? displayedArticleTextState.selectedTools.filter((toolId) => {
+            const entry = displayedArticleTextState.buffer[toolId];
+            return entry?.status === "complete" || entry?.status === "error";
+          }).length
+      : displayedArticleTextState?.analysisType === "site_compare"
         ? displayedArticleTextState.selectedTools.filter((toolId) => {
             const entry = displayedArticleTextState.buffer[toolId];
             return entry?.status === "complete" || entry?.status === "error";
@@ -1431,9 +1731,12 @@ function MainApp() {
         ? effectivePageByUrlTools.length
       : executionMode === "native" && selectedAnalysisType === "article_compare"
         ? effectiveArticleCompareTools.length
+      : executionMode === "native" && selectedAnalysisType === "site_compare"
+        ? effectiveSiteCompareTools.length
       : displayedArticleTextState?.analysisType === "article_text" ||
           displayedArticleTextState?.analysisType === "article_compare" ||
-          displayedArticleTextState?.analysisType === "page_by_url"
+          displayedArticleTextState?.analysisType === "page_by_url" ||
+          displayedArticleTextState?.analysisType === "site_compare"
       ? displayedArticleTextState.selectedTools.length
       : selectedAnalysisType
         ? selectedAnalysisToolsByType[selectedAnalysisType].size
@@ -1460,6 +1763,18 @@ function MainApp() {
       bridge.state.status === "complete"
     ) {
       setPageByUrlStartedOnce(true);
+    }
+    if (
+      bridge.state?.analysisType === "article_compare" &&
+      bridge.state.status === "complete"
+    ) {
+      setArticleCompareStartedOnce(true);
+    }
+    if (
+      bridge.state?.analysisType === "site_compare" &&
+      bridge.state.status === "complete"
+    ) {
+      setSiteCompareStartedOnce(true);
     }
   }, [bridge.state]);
 
@@ -1510,6 +1825,7 @@ function MainApp() {
           status: "active",
           locale: currentLocale,
           analysisType: "article_text",
+          selectedProviderId,
           selectedModelProfile,
           scanContext: null,
           articleTextContext: {
@@ -1640,10 +1956,12 @@ function MainApp() {
         status: "active",
         locale: currentLocale,
         analysisType: "article_text",
+        selectedProviderId,
         selectedModelProfile,
         scanContext: null,
         articleTextContext: null,
         articleCompareContext: null,
+        siteCompareContext: null,
         articleTextRunState: "idle",
         report: runtimeReport,
       });
@@ -1781,10 +2099,12 @@ function MainApp() {
       status: "active",
       locale: currentLocale,
       analysisType: "article_text",
+      selectedProviderId,
       selectedModelProfile,
       scanContext: nativeScanContext,
       articleTextContext: null,
       articleCompareContext: null,
+      siteCompareContext: null,
       articleTextRunState: "idle",
       report: runtimeReport,
     });
@@ -1906,6 +2226,7 @@ function MainApp() {
         status: "active",
         locale: currentLocale,
         analysisType: "article_compare",
+        selectedProviderId,
         selectedModelProfile,
         scanContext: null,
         articleTextContext: null,
@@ -1921,6 +2242,7 @@ function MainApp() {
           customPlatform: customPlatform.trim() || undefined,
           selectedTools: toolIds,
         },
+        siteCompareContext: null,
         articleTextRunState: "running",
         report: null,
       });
@@ -1950,10 +2272,210 @@ function MainApp() {
       status: "active",
       locale: currentLocale,
       analysisType: "article_compare",
+      selectedProviderId,
       selectedModelProfile,
       scanContext: null,
       articleTextContext: null,
       articleCompareContext: null,
+      siteCompareContext: null,
+      articleTextRunState: "idle",
+      report: runtimeReport,
+    });
+  };
+
+  const handleRunSiteCompare = async (
+    data: SiteComparePromptData,
+  ): Promise<boolean | "fallback"> => {
+    const toolIds = effectiveSiteCompareToolIds(
+      selectedAnalysisToolsByType.site_compare,
+    );
+    const normalizedData: SiteComparePromptData = {
+      urls: data.urls.map((item) => item.trim()).filter(Boolean).slice(0, 3),
+      focus: data.focus.trim(),
+    };
+    setPreflightError(null);
+    setRuntimeReport(null);
+    setSiteCompareInput(normalizedData);
+
+    if (executionMode !== "bridge") {
+      if (!nativeRuntimeEnabled || !window.toraseo?.runtime?.openChatWindow) {
+        setPreflightError(
+          t("preflight.nativeUnavailable", {
+            defaultValue: "API + AI Chat is unavailable in this build.",
+          }),
+        );
+        return false;
+      }
+      if (!providerConfigured) {
+        setPreflightError(
+          t("preflight.providerMissing", {
+            defaultValue: "Add an AI provider before using API + AI Chat.",
+          }),
+        );
+        handleOpenProviderSettings();
+        return false;
+      }
+      if (!selectedModelProfile) {
+        setPreflightError(
+          t("preflight.modelMissing", {
+            defaultValue: "Choose the AI provider model before starting analysis.",
+          }),
+        );
+        return false;
+      }
+
+      const siteTools = siteToolIdsFromAnalysisTools(toolIds);
+      const runId = `site-compare-${Date.now()}`;
+      const initialContext: RuntimeSiteCompareContext = {
+        runId,
+        urls: normalizedData.urls,
+        focus: normalizedData.focus,
+        selectedTools: toolIds,
+        siteTools,
+        scanResults: [],
+      };
+      setNativeSiteCompareActiveRun("scan");
+      setSiteCompareStartedOnce(true);
+      let result: { ok: boolean };
+      try {
+        result = await window.toraseo.runtime.openChatWindow({
+          status: "active",
+          locale: currentLocale,
+          analysisType: "site_compare",
+          selectedProviderId,
+          selectedModelProfile,
+          scanContext: null,
+          articleTextContext: null,
+          articleCompareContext: null,
+          siteCompareContext: initialContext,
+          articleTextRunState: "running",
+          report: null,
+        });
+      } catch {
+        result = { ok: false };
+      }
+      if (!result.ok) {
+        setNativeSiteCompareActiveRun(null);
+        setPreflightError(
+          t("preflight.nativeUnavailable", {
+            defaultValue: "API + AI Chat is unavailable in this build.",
+          }),
+        );
+        return false;
+      }
+
+      void (async () => {
+        const scanResults = await runNativeSiteCompareScans(
+          normalizedData.urls,
+          siteTools,
+        );
+        const completedContext: RuntimeSiteCompareContext = {
+          ...initialContext,
+          scanResults,
+        };
+        await window.toraseo.runtime.updateChatWindowSession({
+          status: "active",
+          locale: currentLocale,
+          analysisType: "site_compare",
+          selectedProviderId,
+          selectedModelProfile,
+          scanContext: null,
+          articleTextContext: null,
+          articleCompareContext: null,
+          siteCompareContext: completedContext,
+          articleTextRunState: "running",
+          report: null,
+        });
+      })();
+      return true;
+    }
+
+    if (bridgeProgram === "codex") {
+      const fresh = await checkNow();
+      if (!fresh.codexRunning) {
+        showCodexClosedNotice(
+          t("preflight.codexNeedsConfirmation", {
+            defaultValue: "Open Codex before starting the Codex bridge path.",
+          }),
+        );
+        return false;
+      }
+      if (!fresh.codexSetupVerified) {
+        setPreflightError(
+          t("preflight.codexSetupMissing", {
+            defaultValue:
+              "Run the Codex setup check first so ToraSEO can confirm MCP and Codex Workflow Instructions.",
+          }),
+        );
+        return false;
+      }
+    } else if (detectorStatus && !detectorStatus.allGreen) {
+      if (detectorStatus.skillInstalled) {
+        const copied = await copyTextToClipboard(
+          buildClaudeSkillFallbackSiteComparePrompt({
+            data: normalizedData,
+            locale: currentLocale,
+            selectedTools: toolIds,
+          }),
+        );
+        if (!copied) {
+          setPreflightError(
+            t("preflight.skillFallbackCopyFailed", {
+              defaultValue:
+                "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+            }),
+          );
+          return false;
+        }
+        setSiteCompareStartedOnce(true);
+        showPromptCopiedToast();
+        return "fallback";
+      }
+      setPreflightError(t("preflight.depsFailed"));
+      return false;
+    }
+
+    setSiteCompareStartedOnce(true);
+    void window.toraseo.runtime.showReportWindowProcessing();
+    const result = await bridge.startScan("toraseo://site-compare", toolIds, bridgeProgram, {
+      action: "scan",
+      topic: normalizedData.focus,
+      siteUrls: normalizedData.urls,
+      selectedAnalysisTools: toolIds,
+    });
+    if (
+      bridgeProgram === "codex" &&
+      !result.prompt.includes("codex-bridge-mode site-compare")
+    ) {
+      const fallbackPrompt = [
+        "Use $toraseo-codex-workflow.",
+        "",
+        "/toraseo codex-bridge-mode site-compare",
+        "",
+        "ToraSEO is waiting for: site comparison by URL.",
+        "After the handshake, run only site_compare_internal. Build one competitive comparison dashboard: summary, compact site cards, comparative metrics, direction heatmap, winners by block, and actionable insights. Do not render three full audits side by side. Do not ask the user to send a summary, screenshot, or JSON.",
+      ].join("\n");
+      await copyTextToClipboard(fallbackPrompt);
+    }
+    return true;
+  };
+
+  const handleCancelSiteCompare = () => {
+    if (executionMode !== "native") {
+      void bridge.cancelScan();
+      return;
+    }
+    setNativeSiteCompareActiveRun(null);
+    void window.toraseo.runtime.updateChatWindowSession({
+      status: "active",
+      locale: currentLocale,
+      analysisType: "site_compare",
+      selectedProviderId,
+      selectedModelProfile,
+      scanContext: null,
+      articleTextContext: null,
+      articleCompareContext: null,
+      siteCompareContext: null,
       articleTextRunState: "idle",
       report: runtimeReport,
     });
@@ -1964,13 +2486,21 @@ function MainApp() {
       status: "active",
       locale: currentLocale,
       analysisType: "site",
+      selectedProviderId,
       selectedModelProfile,
       scanContext: nativeScanContext,
       articleTextContext: null,
       articleCompareContext: null,
+      siteCompareContext: null,
       report: runtimeReport,
     }),
-    [currentLocale, nativeScanContext, runtimeReport, selectedModelProfile],
+    [
+      currentLocale,
+      nativeScanContext,
+      runtimeReport,
+      selectedModelProfile,
+      selectedProviderId,
+    ],
   );
 
   useEffect(() => {
@@ -2019,6 +2549,7 @@ function MainApp() {
       status: "active",
       locale: currentLocale,
       analysisType: "article_text",
+      selectedProviderId,
       selectedModelProfile,
       scanContext: nativeScanContext,
       articleTextContext: {
@@ -2048,6 +2579,7 @@ function MainApp() {
     selectedAnalysisToolsByType.page_by_url,
     selectedAnalysisType,
     selectedModelProfile,
+    selectedProviderId,
     stages.analyze_content?.result,
     t,
     textPlatform,
@@ -2132,11 +2664,15 @@ function MainApp() {
           if (session.analysisType === "article_compare") {
             setArticleCompareStartedOnce(true);
           }
+          if (session.analysisType === "site_compare") {
+            setSiteCompareStartedOnce(true);
+          }
         }
         if (
           session.status === "active" &&
           (session.analysisType === "article_text" ||
-            session.analysisType === "article_compare") &&
+            session.analysisType === "article_compare" ||
+            session.analysisType === "site_compare") &&
           (session.articleTextRunState === "complete" ||
             session.articleTextRunState === "failed")
         ) {
@@ -2147,7 +2683,11 @@ function MainApp() {
               setNativeArticleTextActiveRun(null);
             }
           } else {
-            setNativeArticleCompareActiveRun(null);
+            if (session.analysisType === "article_compare") {
+              setNativeArticleCompareActiveRun(null);
+            } else {
+              setNativeSiteCompareActiveRun(null);
+            }
           }
           if (session.articleTextRunState === "failed") {
             setPreflightError(
@@ -2462,7 +3002,7 @@ function MainApp() {
               onExecutionModeDraftChange={handleExecutionModeDraftChange}
               onConfirmExecutionMode={handleConfirmExecutionMode}
               onChangeConfirmedExecutionMode={handleChangeConfirmedExecutionMode}
-              onBridgeProgramChange={setBridgeProgram}
+              onBridgeProgramChange={handleBridgeProgramChange}
               onOpenCodex={handleOpenCodex}
               onPickCodexPath={pickCodexPath}
               onCopyCodexSetupPrompt={handleCopyCodexSetupPrompt}
@@ -2490,13 +3030,15 @@ function MainApp() {
               completedArticleTextAction={displayedCompletedArticleTextAction}
               completedTools={plannedCompletedTools}
               totalTools={plannedTotalTools}
-              bridgeState={bridge.state}
+              bridgeState={executionMode === "bridge" ? bridge.state : null}
               articleTextState={displayedArticleTextState}
               runtimeReport={runtimeReport}
               articleCompareInput={articleCompareInput}
+              siteCompareInput={siteCompareInput}
               scanStartedOnce={articleTextScanStartedOnce}
               pageByUrlStartedOnce={pageByUrlStartedOnce}
               compareStartedOnce={articleCompareStartedOnce}
+              siteCompareStartedOnce={siteCompareStartedOnce}
               solutionProvidedOnce={articleTextSolutionProvidedOnce}
               bridgeUnavailable={
                 executionMode === "bridge" &&
@@ -2511,6 +3053,8 @@ function MainApp() {
               onPageByUrlCancel={handleCancelPageByUrl}
               onArticleCompareRun={handleRunArticleCompare}
               onArticleCompareCancel={handleCancelArticleCompare}
+              onSiteCompareRun={handleRunSiteCompare}
+              onSiteCompareCancel={handleCancelSiteCompare}
             />
           ) : (
             <NativeLayout

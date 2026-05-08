@@ -250,6 +250,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                     workspaceText?.length ?? state!.input.text?.length ?? 0,
                   selectedAnalysisTools: state!.input.selectedAnalysisTools,
                   hasPageTextBlock: Boolean(state!.input.pageTextBlock),
+                  siteUrls: state!.input.siteUrls,
                 }
               : undefined,
             workspace: undefined,
@@ -258,6 +259,8 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                 ? ["article_compare_internal"]
                 : analysisType === "site_by_url"
                   ? ["site_url_internal"]
+                : analysisType === "site_compare"
+                  ? ["site_compare_internal"]
                 : analysisType === "page_by_url"
                   ? [
                       "page_url_article_internal",
@@ -271,7 +274,8 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                 : state!.selectedTools,
             internalSelectedTools:
               analysisType === "article_compare" ||
-              analysisType === "page_by_url"
+              analysisType === "page_by_url" ||
+              analysisType === "site_compare"
                 ? state!.selectedTools
                 : undefined,
             message:

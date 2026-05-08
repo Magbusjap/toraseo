@@ -39,7 +39,16 @@ export default function AnalysisDraftSidebar({
   const title = t(
     `modeSelection.analysisTypes.${keyForAnalysis(analysisType)}.title`,
   );
-  const toolItems = ANALYSIS_TOOLS[analysisType].map((tool) => ({
+  const showOnlyAdditionalTools =
+    analysisType === "site_by_url" || analysisType === "site_compare";
+  const visibleTools = showOnlyAdditionalTools
+    ? ANALYSIS_TOOLS[analysisType].filter(
+        (tool) =>
+          tool.defaultSelected === false &&
+          (analysisType !== "site_compare" || tool.id === "detect_stack"),
+      )
+    : ANALYSIS_TOOLS[analysisType];
+  const toolItems = visibleTools.map((tool) => ({
     id: tool.id,
     label:
       tool.source === "site"
@@ -58,6 +67,7 @@ export default function AnalysisDraftSidebar({
     analysisType === "page_by_url" ||
     analysisType === "article_text" ||
     analysisType === "article_compare";
+  const useAdditionalChecksTitle = showTextContext || showOnlyAdditionalTools;
 
   return (
     <div className="flex h-full flex-col bg-surface text-white">
@@ -192,7 +202,7 @@ export default function AnalysisDraftSidebar({
 
         <SidebarSection
           title={
-            showTextContext
+            useAdditionalChecksTitle
               ? t("plannedAnalysis.sidebar.additionalChecks", {
                   defaultValue: "Дополнительные проверки",
                 })
@@ -205,6 +215,7 @@ export default function AnalysisDraftSidebar({
             disabled={false}
             onToggleTool={onToggleTool}
             onToggleAllTools={onToggleAllTools}
+            showToggleAll={!showOnlyAdditionalTools}
           />
         </SidebarSection>
       </div>
@@ -297,5 +308,7 @@ function keyForAnalysis(analysisType: AnalysisTypeId): string {
       return "siteCompare";
     case "site_design_by_url":
       return "siteDesignByUrl";
+    case "image_analysis":
+      return "imageAnalysis";
   }
 }

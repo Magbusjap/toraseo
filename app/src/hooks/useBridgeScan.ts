@@ -43,6 +43,7 @@ interface UseBridgeScanReturn {
   retryHandshake: () => Promise<void>;
   copyCodexSetupPrompt: () => Promise<string>;
   copyBridgeSetupPrompt: (bridgeClient: BridgeClient) => Promise<string>;
+  clearRetainedState: () => void;
   isAwaitingHandshake: boolean;
 }
 
@@ -105,6 +106,13 @@ export function useBridgeScan(): UseBridgeScanReturn {
 
   const cancelScan = useCallback(async () => {
     await window.toraseo.bridge.cancelScan();
+    setState(null);
+    setPrompt(null);
+  }, []);
+
+  const clearRetainedState = useCallback(() => {
+    setState(null);
+    setPrompt(null);
   }, []);
 
   const retryHandshake = useCallback(async () => {
@@ -147,6 +155,7 @@ export function useBridgeScan(): UseBridgeScanReturn {
     retryHandshake,
     copyCodexSetupPrompt,
     copyBridgeSetupPrompt,
+    clearRetainedState,
     isAwaitingHandshake: state?.status === "awaiting_handshake",
   };
 }
