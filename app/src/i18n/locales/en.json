@@ -132,7 +132,7 @@
     },
     "providers": {
       "title": "AI providers",
-      "intro": "Connect a Large Language Model so the in-app chat can analyze and discuss your scans. Keys are encrypted at rest by your operating system and never leave this machine.",
+      "intro": "Connect an AI provider so the in-app chat can analyze and discuss your scans. OpenRouter is an international model router. RouterAI is a Russian OpenAI-compatible router with ruble billing.",
       "encryptionUnavailable": "OS-level secure storage is unavailable on this machine. Configure a system keyring (e.g. gnome-keyring on Linux) before adding API keys.",
       "labels": {
         "apiKey": "API key",
@@ -152,10 +152,10 @@
         "usageHint": "Deep audit"
       },
       "hints": {
-        "apiKey": "Use an OpenRouter key from your OpenRouter account. It usually starts with sk-or-.",
+        "apiKey": "Use the API key from the selected provider account.",
         "apiKeySaved": "Saved keys are shown as a mask. ToraSEO cannot reveal the stored secret back into this field.",
-        "baseUrl": "Leave empty to use the default OpenRouter endpoint: {{url}}",
-        "modelId": "Paste the exact OpenRouter model ID shown under the model name."
+        "baseUrl": "Leave empty to use the default endpoint: {{url}}",
+        "modelId": "Paste the exact model ID shown by the provider."
       },
       "status": {
         "configured": "Configured",
@@ -185,39 +185,45 @@
       },
       "openrouter": {
         "name": "OpenRouter",
-        "blurb": "Single key, many models — OpenAI, Anthropic, Google, open-source. Recommended default."
+        "blurb": "International model router. One key can route requests to many global model providers."
+      },
+      "routerai": {
+        "name": "RouterAI",
+        "blurb": "Russian OpenAI-compatible model router. Use it when ruble billing or Russian payment flow is important."
       },
       "models": {
-        "title": "OpenRouter models",
-        "body": "Use one OpenRouter key, then save the models you want to use inside ToraSEO.",
+        "title": "{{provider}} models",
+        "body": "Use one provider key, then save the models you want to use inside ToraSEO.",
         "empty": "Add at least one model for this provider before API + AI Chat can start.",
-        "modelIdHelp": "Use the model ID from the OpenRouter model page, not the page link. Example: {{example}}",
-        "modelIdUrlError": "Paste the model ID, not the OpenRouter page URL. Example: {{example}}",
-        "modelIdKeyError": "Paste the OpenRouter model ID here, not your API key. Example: {{example}}",
+        "modelIdHelp": "Use the model ID from the provider model page, not the page link. Example: {{example}}",
+        "modelIdUrlError": "Paste the model ID, not the model page URL. Example: {{example}}",
+        "modelIdKeyError": "Paste the model ID here, not your API key. Example: {{example}}",
         "testHelp": "Testing is optional and runs a small request against the exact model you choose. It can spend provider tokens on paid models.",
         "testOkStructured": "Model responds with structured audit output.",
         "testOkPlain": "Model responds, but structured audit output was not confirmed.",
-        "default": "Default"
+        "default": "Provider default",
+        "appDefault": "App default"
       },
       "errors": {
-        "api_key_url": "Paste the OpenRouter API key here, not a model page URL.",
+        "api_key_url": "Paste the provider API key here, not a model page URL.",
         "api_key_format": "OpenRouter API keys usually start with sk-or-. Paste the key from OpenRouter -> Keys, not a model ID.",
         "encryption_unavailable": "Cannot encrypt: OS keyring is not available.",
         "invalid_input": "Please fill in the API key.",
-        "provider_not_configured": "Save the OpenRouter key before saving models.",
+        "provider_not_configured": "Save the provider key before saving models.",
         "write_failed": "Could not save the key. Try again."
       }
     }
   },
   "modeSelection": {
-    "idle": "Idle",
+    "idle": "Waiting for analysis",
     "question": "What would you like to check?",
     "siteByUrl": "Site by URL",
     "articleText": "Article text",
     "siteSubtitle": "Site Audit",
     "articleSubtitle": "v0.2 - coming soon",
     "analysisStatus": {
-      "ready": "Ready",
+      "ready": "Ready for analysis",
+      "error": "Error",
       "planned": "0.0.9"
     },
     "versionFootnote": "App version: ToraSEO {{appVersion}} · individual analysis versions are shown in reports and documentation.",
@@ -244,6 +250,10 @@
       },
       "siteDesignByUrl": {
         "title": "Design and content by URL",
+        "subtitle": "Separate audit"
+      },
+      "imageAnalysis": {
+        "title": "Image analysis",
         "subtitle": "Separate audit"
       }
     },
@@ -663,6 +673,12 @@
       "compareSentToApiChat": "Comparison started in API + AI Chat. The report will appear here after the model responds.",
       "compareBridgeUnavailable": "Two-text comparison started through MCP + Instructions. Results will appear here after the tools finish.",
       "compareSkillFallbackPromptCopied": "Prompt copied. Paste it into {{appName}} chat: the Skill will compare the two texts directly in chat while MCP or the app is unavailable.",
+      "siteCompareBridgeOnly": "Site comparison by URL is available in API + AI Chat and MCP + Instructions. Choose a mode on the home screen.",
+      "siteCompareNeedUrls": "Add at least two URLs for comparison.",
+      "siteCompareStarted": "Comparison started through MCP + Instructions. The result will appear below as one comparative dashboard.",
+      "siteCompareApiStarted": "AI Chat opened. ToraSEO is scanning the sites, then AI will form the comparison report.",
+      "siteCompareRun": "Compare sites",
+      "siteCompareRunAgain": "Compare sites again",
       "aiDraftNeedContext": "Add at least a topic, query, or short text draft so AI can suggest a useful solution.",
       "aiDraftNeedMore": "Write a bit more: at least two short paragraphs, so AI has enough context for a useful solution.",
       "aiDraftPrepared": "This looks like enough context for a solution. Full execution will connect with text analysis.",
@@ -701,6 +717,10 @@
       },
       "siteDesignByUrl": {
         "title": "Design and content source"
+      },
+      "imageAnalysis": {
+        "title": "Image analysis",
+        "body": "Image upload, OCR, visual content checks, and media SEO recommendations are in development."
       }
     }
   },
@@ -837,6 +857,14 @@
       "label": "Positioning comparison",
       "tooltip": "Compare site promise, audience, and visible offer"
     },
+    "compare_site_metadata": {
+      "label": "Metadata comparison",
+      "tooltip": "Compare title, description, canonical, Open Graph, and Twitter Card coverage"
+    },
+    "compare_site_structure": {
+      "label": "Structure comparison",
+      "tooltip": "Compare headings, internal links, URL delivery, and page architecture signals"
+    },
     "compare_site_content_depth": {
       "label": "Content depth comparison",
       "tooltip": "Compare topical coverage and visible content completeness"
@@ -844,6 +872,18 @@
     "compare_site_technical_basics": {
       "label": "Technical baseline comparison",
       "tooltip": "Compare basic SEO and public technical signals"
+    },
+    "compare_site_delta": {
+      "label": "Delta comparison",
+      "tooltip": "Show where each site wins or loses by direction"
+    },
+    "compare_site_direction_matrix": {
+      "label": "Direction matrix",
+      "tooltip": "Show a compact heatmap for robots, sitemap, metadata, canonical, content, redirects, and stack"
+    },
+    "compare_site_competitive_insights": {
+      "label": "Competitive insights",
+      "tooltip": "Explain who is stronger, why, what to borrow, and what to fix first"
     },
     "visual_hierarchy": {
       "label": "Visual hierarchy",
@@ -886,7 +926,7 @@
       "infoTitle": "Info"
     },
     "status": {
-      "ready": "Ready",
+      "ready": "Ready for analysis",
       "scanning": "Analyzing",
       "completed": "Completed",
       "issuesFound": "Issues found",
@@ -1001,6 +1041,7 @@
     "modelMissing": "Choose the AI provider model before starting analysis.",
     "nativeUnavailable": "API + AI Chat is unavailable in this build.",
     "articleTextBridgeRequired": "Text analysis through Codex or Claude Desktop requires MCP + Instructions mode.",
+    "siteCompareBridgeRequired": "Site comparison by URL can run through API + AI Chat or MCP + Instructions.",
     "skillFallbackCopyFailed": "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
     "codexClosedTitle": "Codex unavailable",
     "codexNeedsConfirmation": "Open Codex before starting the Codex bridge path.",
@@ -1011,8 +1052,9 @@
   "analysisHero": {
     "nativeMode": "API + AI Chat",
     "bridgeMode": "MCP + Instructions",
-    "ready": "Ready to scan",
+    "ready": "Ready for analysis",
     "scanning": "Analysis in progress",
+    "error": "Error",
     "reportReady": "Report formed",
     "solutionProvided": "Answer provided in chat",
     "chatAnswerStarted": "Request sent to AI Chat",
@@ -1063,6 +1105,9 @@
     "endedTitle": "Session ended",
     "endedBody": "Start a new API + AI Chat analysis in the main ToraSEO window to continue.",
     "nativeReady": "Native mode is ready. You can ask how the audit works now, then run a scan for site-specific recommendations.",
+    "articleTextIntro": "API text analysis is open. AI will use the selected checks to form the report.",
+    "articleCompareIntro": "API text comparison is open. AI will use the selected checks to form the report.",
+    "siteCompareIntro": "API site comparison is open. ToraSEO will collect URL checks first, then AI will form the comparison report.",
     "bridgeReady": "Bridge mode is ready. Paste the copied prompt into Claude Desktop to let MCP tools fill the app.",
     "bridgeTitle": "MCP + Instructions Companion",
     "inAppRuntime": "In-app runtime",

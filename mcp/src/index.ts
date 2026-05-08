@@ -123,6 +123,7 @@ import {
   analyzeYandexPageSearchHandler,
 } from "./pageUrlTools.js";
 import { siteUrlInternalHandler } from "./siteUrlTools.js";
+import { siteCompareInternalHandler } from "./siteCompareTools.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -196,6 +197,17 @@ server.registerTool(
     inputSchema: emptyInputSchema,
   },
   siteUrlInternalHandler,
+);
+
+server.registerTool(
+  "site_compare_internal",
+  {
+    title: "Site Compare Internal Checks",
+    description:
+      "For an active site_compare bridge run, compares up to three site URLs in one MCP call. Runs selected site-by-URL checks for each URL and writes compact comparison entries into the ToraSEO app. Use this in Bridge Mode instead of running three full audits side by side.",
+    inputSchema: emptyInputSchema,
+  },
+  siteCompareInternalHandler,
 );
 
 server.registerTool(

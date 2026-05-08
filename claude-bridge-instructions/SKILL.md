@@ -11,11 +11,13 @@ Claude-side package turns a single user intent ("audit this site") into
 a coordinated sequence of MCP tool calls and produces a clear,
 prioritized report.
 
-> **Status: Mode A (Site Audit) + Mode B (Article Text) + Mode C (Two-Text Comparison) + Mode D (Page by URL) + Bridge Mode handshake.**
-> The `0.0.9` expansion adds article-text, two-text comparison, and
-> page-by-URL MCP tools. In Bridge Mode the app stores the temporary text
-> context in workspace `input.md`; Claude must not ask the user to paste
-> the article, URL page text, or comparison texts into chat.
+> **Status: Mode A (Site Audit) + Mode B (Article Text) + Mode C (Two-Text Comparison) + Mode D (Page by URL) + Mode E (Site Comparison) + Bridge Mode handshake.**
+> The `0.0.9` expansion adds article-text, two-text comparison,
+> page-by-URL, site-by-URL, and site-comparison MCP paths. In Bridge Mode
+> the app stores the temporary context in workspace `input.md` or app
+> state; Claude must not ask the user to paste the article, URL page text,
+> comparison texts, screenshots, summaries, or JSON after a healthy
+> handshake.
 
 Bridge Mode has two command families:
 
@@ -115,6 +117,11 @@ Treat any of the following as a Bridge Mode signal:
   two-text comparison bridge command copied by the Desktop App).
 - The pasted message starts with `/toraseobridge page-by-url` (the
   page/article by URL bridge command copied by the Desktop App).
+- The pasted message starts with `/toraseobridge site-by-url` or
+  `/toraseo bridge-mode site-by-url` (the site URL bridge command copied
+  by the Desktop App).
+- The pasted message starts with `/toraseobridge site-compare` (the
+  site comparison bridge command copied by the Desktop App).
 - The pasted message starts with `/toraseo chat-only-fallback` (the
   Desktop App copied a fallback prompt because the Skill is installed but
   MCP and/or the app scan is unavailable). In this case load
@@ -227,12 +234,23 @@ Do not ask the user to paste the report summary, a screenshot, JSON, or
 result files after `site_url_internal` has completed; use the MCP response
 and visible app report.
 
+If `analysisType` is `site_compare`, call only `site_compare_internal`
+when it is returned in `selectedTools`; that single MCP call runs the
+selected site checks for up to three URLs and writes compact comparison
+entries back to the app. Do not render three full audits side by side,
+do not ask the user to paste JSON, screenshots, summaries, or result
+files after the internal package completes, and do not call separate
+site URL tools unless the user explicitly asks to debug one check. In
+the final chat answer, write one competitive summary: who is stronger,
+why, where the gaps are, what to borrow, and what to fix first.
+
 For analysis types that do not have an internal package, call each tool
 in `selectedTools` (in any order, but matching the listed order makes the
 app's UI feel linear). For `site_by_url`, `page_by_url`, and
-`article_compare`, do not call each hidden/internal tool separately after
-the internal package has completed. Each tool writes its result to the
-state file; the app polls and updates its UI in real time. You will
+`article_compare`, and `site_compare`, do not call each hidden/internal
+tool separately after the internal package has completed. Each tool
+writes its result to the state file; the app polls and updates its UI in
+real time. You will
 receive a brief summary in chat for each visible package/tool — use these
 to compose the final recommendations.
 
@@ -441,6 +459,7 @@ plus the Bridge Mode handshake tool described in §2:
 | `intent_seo_forecast` | Text intent, title/meta, hook, and CTR direction |
 | `safety_science_review` | Sensitive-topic, safety, science, legal, financial, and expert-review flags |
 | `article_compare_internal` | Aggregate two-text comparison package for Bridge Mode |
+| `site_compare_internal` | Aggregate up-to-three-site comparison package for Bridge Mode |
 | `compare_intent_gap` | Two-text intent comparison |
 | `compare_article_structure` | Two-text structure comparison |
 | `compare_content_gap` | Content Gap between Text A and Text B |

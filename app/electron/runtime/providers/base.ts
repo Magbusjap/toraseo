@@ -24,6 +24,7 @@ import type {
   RuntimeAuditReport,
   RuntimePolicyBundle,
   RuntimeScanContext,
+  RuntimeSiteCompareContext,
 } from "../../../src/types/runtime.js";
 
 /**
@@ -44,6 +45,8 @@ export interface ProviderChatRequest {
   articleTextContext?: RuntimeArticleTextContext | null;
   /** Two-text comparison context for native API article comparison. */
   articleCompareContext?: RuntimeArticleCompareContext | null;
+  /** Site comparison context for native API site comparison. */
+  siteCompareContext?: RuntimeSiteCompareContext | null;
   /** Override default model for this request. */
   modelOverride?: string;
 }

@@ -139,7 +139,11 @@ export default function ActiveSidebar({
           </label>
         </SidebarSection>
 
-        <SidebarSection title={t("sidebar.section.checks")}>
+        <SidebarSection
+          title={t("plannedAnalysis.sidebar.additionalChecks", {
+            defaultValue: "Дополнительные проверки",
+          })}
+        >
           <div className="space-y-2">
             {toolPackages.map((pack) => {
               if (pack.tools.length === 0) return null;

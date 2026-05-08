@@ -1,11 +1,216 @@
 import { ArrowLeft } from "lucide-react";
-import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 interface FaqViewProps {
   onReturnHome: () => void;
 }
 
+type FaqItem = {
+  question: string;
+  answer: string[];
+};
+
+type FaqSectionCopy = {
+  title: string;
+  items: FaqItem[];
+};
+
+const COPY: Record<"en" | "ru", {
+  back: string;
+  title: string;
+  lead: string;
+  sections: FaqSectionCopy[];
+}> = {
+  en: {
+    back: "Back home",
+    title: "Frequently Asked Questions",
+    lead:
+      "Short answers about ToraSEO modes, analytics tools, AI providers, reports, and privacy.",
+    sections: [
+      {
+        title: "Modes",
+        items: [
+          {
+            question: "What is MCP + Instructions?",
+            answer: [
+              "This mode works through Claude Desktop or Codex. ToraSEO prepares the scan context, the external AI app calls the MCP tools, and the app receives structured results.",
+              "Use it when you want the assistant to run ToraSEO tools explicitly and summarize the evidence in the external chat.",
+            ],
+          },
+          {
+            question: "What is API + AI Chat?",
+            answer: [
+              "This mode opens the built-in chat. ToraSEO collects local scan facts first, then sends those facts to the selected provider model for interpretation.",
+              "Use it when you want the whole workflow inside ToraSEO without pasting bridge commands into another app.",
+            ],
+          },
+        ],
+      },
+      {
+        title: "Analytics Tools",
+        items: [
+          {
+            question: "Why does the sidebar say Additional checks?",
+            answer: [
+              "Core checks run as part of the selected analysis package. The sidebar shows optional checks that can expand or narrow the report.",
+            ],
+          },
+          {
+            question: "Why does site comparison not show three full audits side by side?",
+            answer: [
+              "Site comparison answers who is stronger, why, where the gaps are, and what to fix first. The UI uses compact site cards, comparative metrics, direction heatmaps, winners, and actionable insights instead of three long reports.",
+            ],
+          },
+        ],
+      },
+      {
+        title: "AI Providers",
+        items: [
+          {
+            question: "Which AI providers are supported?",
+            answer: [
+              "OpenRouter is the international model router. RouterAI is the Russian OpenAI-compatible router with ruble billing.",
+              "Both are configured in Settings. You add a provider key, save one or more model IDs, then choose one model as the app default.",
+            ],
+          },
+          {
+            question: "Does RouterAI need special code in settings?",
+            answer: [
+              "No for the normal chat flow. RouterAI exposes an OpenAI-compatible API endpoint, so ToraSEO uses the same chat completion adapter with RouterAI's base URL.",
+              "RouterAI plugins such as web search can be added later as provider options, but they should not require pasting a large function into the model ID field.",
+            ],
+          },
+        ],
+      },
+      {
+        title: "Reports",
+        items: [
+          {
+            question: "Where is the analysis version?",
+            answer: [
+              "Reports show the app version separately from the analysis version. The analysis version identifies which user-facing rules produced the report.",
+            ],
+          },
+          {
+            question: "Can reports be exported?",
+            answer: [
+              "PDF export is available for reports. Site comparison uses landscape layout because a wide comparison dashboard reads better than a narrow vertical page.",
+            ],
+          },
+        ],
+      },
+      {
+        title: "Privacy",
+        items: [
+          {
+            question: "What is sent to the internet?",
+            answer: [
+              "ToraSEO sends requests to the URLs you choose to analyze. In API + AI Chat, the selected provider also receives the scan facts and the prompt needed to form the report.",
+              "Stored API keys are kept through the app's secure provider settings and are not shown back in plain text.",
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  ru: {
+    back: "На главную",
+    title: "Часто задаваемые вопросы",
+    lead:
+      "Короткие ответы про режимы ToraSEO, инструменты аналитики, ИИ-провайдеров, отчёты и приватность.",
+    sections: [
+      {
+        title: "Режимы",
+        items: [
+          {
+            question: "Что такое MCP + Instructions?",
+            answer: [
+              "Этот режим работает через Claude Desktop или Codex. ToraSEO готовит контекст анализа, внешнее ИИ-приложение вызывает MCP-инструменты, а приложение получает структурированные результаты.",
+              "Используйте его, когда нужно явно запускать инструменты ToraSEO и получать итоговую сводку во внешнем чате.",
+            ],
+          },
+          {
+            question: "Что такое API + AI Chat?",
+            answer: [
+              "Этот режим открывает встроенный чат. ToraSEO сначала собирает локальные факты сканирования, затем отправляет их выбранной модели провайдера для интерпретации.",
+              "Используйте его, когда нужен весь сценарий внутри ToraSEO без вставки bridge-команд во внешнее приложение.",
+            ],
+          },
+        ],
+      },
+      {
+        title: "Инструменты аналитики",
+        items: [
+          {
+            question: "Почему в сайдбаре написано Дополнительные проверки?",
+            answer: [
+              "Базовые проверки входят в пакет выбранного анализа. В сайдбаре показываются дополнительные проверки, которыми можно расширить или сузить отчёт.",
+            ],
+          },
+          {
+            question: "Почему сравнение сайтов не показывает три полных аудита рядом?",
+            answer: [
+              "Сравнение сайтов отвечает на вопросы: кто сильнее, почему, где разрыв и что исправить первым. Поэтому интерфейс использует компактные карточки сайтов, сравнительные метрики, heatmap направлений, победителей и практические выводы.",
+            ],
+          },
+        ],
+      },
+      {
+        title: "ИИ-провайдеры",
+        items: [
+          {
+            question: "Какие ИИ-провайдеры поддерживаются?",
+            answer: [
+              "OpenRouter — международный роутер моделей. RouterAI — российский OpenAI-compatible роутер с оплатой в рублях.",
+              "Оба настраиваются в разделе настроек: добавьте ключ провайдера, сохраните нужные ID моделей и выберите одну модель по умолчанию для всего приложения.",
+            ],
+          },
+          {
+            question: "Для RouterAI нужно вставлять функцию в настройки?",
+            answer: [
+              "Для обычного чата и анализов не нужно. RouterAI даёт OpenAI-compatible API endpoint, поэтому ToraSEO использует тот же адаптер chat completions с базовым адресом RouterAI.",
+              "Плагины RouterAI, например web search, лучше добавить позже как отдельные опции провайдера, а не как большой код в поле ID модели.",
+            ],
+          },
+        ],
+      },
+      {
+        title: "Отчёты",
+        items: [
+          {
+            question: "Где указана версия анализа?",
+            answer: [
+              "В отчётах отдельно показываются версия приложения и версия анализа. Версия анализа показывает, по каким пользовательским правилам был собран отчёт.",
+            ],
+          },
+          {
+            question: "Можно ли экспортировать отчёт?",
+            answer: [
+              "PDF-экспорт доступен для отчётов. Для сравнения сайтов используется горизонтальная ориентация, потому что широкий сравнительный dashboard читается лучше узкого вертикального листа.",
+            ],
+          },
+        ],
+      },
+      {
+        title: "Приватность",
+        items: [
+          {
+            question: "Что отправляется в интернет?",
+            answer: [
+              "ToraSEO отправляет запросы к тем URL, которые вы сами анализируете. В API + AI Chat выбранный провайдер также получает факты сканирования и промпт, нужный для отчёта.",
+              "Сохранённые API-ключи хранятся через настройки провайдеров и не показываются обратно открытым текстом.",
+            ],
+          },
+        ],
+      },
+    ],
+  },
+};
+
 export default function FaqView({ onReturnHome }: FaqViewProps) {
+  const { i18n } = useTranslation();
+  const copy = i18n.language === "en" ? COPY.en : COPY.ru;
+
   return (
     <div className="flex h-full w-full min-w-0 flex-1 overflow-hidden bg-orange-50/30">
       <aside className="flex w-[300px] shrink-0 flex-col bg-surface px-5 py-6 text-white">
@@ -15,7 +220,7 @@ export default function FaqView({ onReturnHome }: FaqViewProps) {
           className="inline-flex items-center gap-2 self-start rounded-md border border-white/10 px-3 py-2 text-sm font-medium text-white/80 transition hover:border-primary/70 hover:text-white"
         >
           <ArrowLeft size={15} />
-          На главную
+          {copy.back}
         </button>
         <div className="flex flex-1 items-center justify-center">
           <h1 className="font-display text-3xl font-semibold tracking-wide text-white">
@@ -26,268 +231,42 @@ export default function FaqView({ onReturnHome }: FaqViewProps) {
 
       <main className="toraseo-sidebar-scrollbar min-w-0 flex-1 overflow-y-auto px-8 py-8">
         <article className="mx-auto w-full max-w-4xl rounded-lg border border-outline/10 bg-white px-8 py-7">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              ToraSEO
-            </p>
-            <h2 className="mt-2 font-display text-3xl font-semibold text-outline-900">
-              Часто задаваемые вопросы
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-outline-900/65">
-              Основная справочная информация из документа FAQ. Если ответа
-              на ваш вопрос здесь нет, можно открыть issue на GitHub.
-            </p>
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+            ToraSEO
+          </p>
+          <h2 className="mt-2 font-display text-3xl font-semibold text-outline-900">
+            {copy.title}
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-outline-900/65">
+            {copy.lead}
+          </p>
 
-          <FaqSection title="Что такое ToraSEO?">
-            <p>
-              ToraSEO — настольное приложение для SEO-аудита веб-страниц,
-              работающее в паре с Claude Desktop и Codex. Приложение
-              запускает объективные проверки: meta-теги, заголовки, sitemap,
-              редиректы, robots.txt и контент. ИИ интерпретирует результаты и
-              помогает собрать человеко-читаемый отчет.
-            </p>
-            <p>
-              Смысл проекта — разделить факты и интерпретацию: инструменты
-              собирают проверяемые данные, а ИИ объясняет, что с ними делать.
-            </p>
-          </FaqSection>
-
-          <FaqSection title="Установка и запуск">
-            <Question title="Что нужно установить, чтобы ToraSEO заработал?">
-              <p>Для режима MCP + Instructions нужны три компонента:</p>
-              <ol>
-                <li>ToraSEO Desktop App из GitHub Releases.</li>
-                <li>Claude Desktop или Codex, в зависимости от выбранного пути.</li>
-                <li>
-                  Инструкции для выбранного приложения: Claude Bridge
-                  Instructions или Codex Workflow Instructions.
-                </li>
-              </ol>
-              <p>
-                После установки ToraSEO проверяет готовность компонентов и
-                разблокирует запуск анализа.
-              </p>
-            </Question>
-
-            <Question title="Почему Windows ругается на неизвестного издателя?">
-              <p>
-                Приложение пока не подписано сертификатом. Windows SmartScreen
-                может показать предупреждение о неизвестном издателе. Это не
-                означает, что приложение является вирусом: исходный код открыт
-                на GitHub.
-              </p>
-              <p>
-                Подписание планируется позже, когда продукт стабилизируется.
-              </p>
-            </Question>
-
-            <Question title="Поддерживается ли macOS или Linux?">
-              <p>
-                Архитектурно да: Electron позволяет собирать приложение под
-                разные платформы. Сейчас основной публикуемый сценарий — Windows.
-                macOS и Linux можно добавить позже, когда появится устойчивый
-                спрос и тестовая база.
-              </p>
-            </Question>
-          </FaqSection>
-
-          <FaqSection title="Зависимости и подключение">
-            <Question title="Почему приложению нужен Claude Desktop или Codex?">
-              <p>
-                ToraSEO выполняет техническую часть анализа, а Claude Desktop
-                или Codex помогают интерпретировать результаты. Без ИИ можно
-                получить сырые данные, но не полноценное объяснение и план
-                исправлений.
-              </p>
-            </Question>
-
-            <Question title="Что такое MCP и зачем он нужен?">
-              <p>
-                MCP — это Model Context Protocol. Через него ToraSEO отдает ИИ
-                доступ к инструментам анализа. Благодаря MCP модель не гадает,
-                а вызывает конкретные проверки и получает структурированные
-                результаты.
-              </p>
-            </Question>
-
-            <Question title="Что такое Instructions или Skill?">
-              <p>
-                Это набор правил для ИИ: как запускать инструменты, как читать
-                результаты, как формировать рекомендации и где не делать
-                поспешных выводов. MCP дает инструменты, а инструкции задают
-                правильное поведение.
-              </p>
-            </Question>
-
-            <Question title="ToraSEO говорит, что приложение ИИ не запущено, хотя оно открыто">
-              <p>Обычно причины такие:</p>
-              <ul>
-                <li>приложение запущено под другим пользователем;</li>
-                <li>используется нестандартный путь установки;</li>
-                <li>антивирус блокирует чтение списка процессов;</li>
-                <li>приложение было закрыто принудительно и еще не обнаружено заново.</li>
-              </ul>
-              <p>
-                Если автоматический поиск не сработал, можно указать путь
-                вручную в настройках режима.
-              </p>
-            </Question>
-
-            <Question title="ToraSEO говорит, что MCP не зарегистрирован">
-              <p>Проверьте три вещи:</p>
-              <ul>
-                <li>конфиг действительно содержит запись ToraSEO MCP;</li>
-                <li>Claude Desktop или Codex были перезапущены после изменения;</li>
-                <li>файл конфигурации находится там, где ToraSEO его ищет.</li>
-              </ul>
-            </Question>
-          </FaqSection>
-
-          <FaqSection title="Сканирование и отчеты">
-            <Question title="Какие проверки запускает ToraSEO?">
-              <p>Для сайта по URL доступны базовые SEO-проверки:</p>
-              <ul>
-                <li>быстрое сканирование страницы;</li>
-                <li>robots.txt;</li>
-                <li>sitemap;</li>
-                <li>meta-теги;</li>
-                <li>структура заголовков;</li>
-                <li>редиректы;</li>
-                <li>контент страницы;</li>
-                <li>публичный технологический стек.</li>
-              </ul>
-              <p>
-                Для текста постепенно добавляются отдельные проверки: структура,
-                стиль, тон, аудитория, медиа, уникальность, грамотность,
-                естественность, логика и дополнительные проверки фактов.
-              </p>
-            </Question>
-
-            <Question title="Можно отключить какие-то проверки?">
-              <p>
-                Да. В сайдбаре анализа часть инструментов отображается как
-                чекбоксы. Их можно включать и отключать. Встроенные проверки
-                работают по умолчанию и не всегда отображаются как отдельные
-                галочки.
-              </p>
-            </Question>
-
-            <Question title="Почему скан долго не завершается?">
-              <p>
-                ToraSEO уважает robots.txt и соблюдает задержки между запросами.
-                Если сайт медленно отвечает или задает Crawl-delay, анализ может
-                идти дольше обычного.
-              </p>
-            </Question>
-
-            <Question title="Где сохраняются результаты?">
-              <p>
-                Текущие bridge-анализы используют временную рабочую папку с
-                input.md и results/*.json. Эти файлы нужны, чтобы Claude Desktop
-                или Codex могли надежно читать входные данные и возвращать
-                результаты в приложение.
-              </p>
-            </Question>
-          </FaqSection>
-
-          <FaqSection title="Обновления">
-            <Question title="Как обновить приложение?">
-              <p>
-                ToraSEO проверяет GitHub Releases при запуске и также позволяет
-                запустить проверку вручную через кнопку «Проверить обновления» в
-                тулбаре.
-              </p>
-            </Question>
-
-            <Question title="Обновление установится без моего участия?">
-              <p>
-                Нет. Обновления требуют явного действия пользователя: сначала
-                скачать, затем установить и перезапустить приложение.
-              </p>
-            </Question>
-          </FaqSection>
-
-          <FaqSection title="Приватность и безопасность">
-            <Question title="Что приложение отправляет в интернет?">
-              <p>
-                Только запросы к сайтам, которые вы сами анализируете, и
-                проверку обновлений на GitHub Releases. Телеметрия о ваших
-                запусках, URL и ошибках не отправляется.
-              </p>
-            </Question>
-
-            <Question title="ToraSEO использует мой API-ключ Claude?">
-              <p>
-                Нет. В режиме MCP + Instructions ToraSEO работает через
-                установленное приложение Claude Desktop или Codex и не хранит
-                API-ключи Claude.
-              </p>
-            </Question>
-
-            <Question title="Соблюдает ли ToraSEO robots.txt?">
-              <p>
-                Да. ToraSEO использует robots.txt как границу для сканирования
-                страниц и ресурсов сайта.
-              </p>
-            </Question>
-          </FaqSection>
-
-          <FaqSection title="Разработка и вклад">
-            <Question title="Я нашел баг — куда писать?">
-              <p>
-                Откройте issue на GitHub и приложите версию приложения, шаги для
-                воспроизведения, лог из папки ToraSEO и скриншот, если он
-                помогает понять проблему.
-              </p>
-            </Question>
-
-            <Question title="Какие технологии используются?">
-              <ul>
-                <li>App: Electron, React, TypeScript, Vite, Tailwind.</li>
-                <li>MCP server: Node.js, TypeScript, @toraseo/core.</li>
-                <li>Instructions: Markdown и локальные workflow-пакеты.</li>
-              </ul>
-            </Question>
-          </FaqSection>
+          {copy.sections.map((section) => (
+            <section key={section.title} className="mt-8 border-t border-outline/10 pt-7">
+              <h3 className="font-display text-xl font-semibold text-outline-900">
+                {section.title}
+              </h3>
+              <div className="mt-4 space-y-4">
+                {section.items.map((item) => (
+                  <section
+                    key={item.question}
+                    className="rounded-lg border border-outline/10 bg-orange-50/30 px-5 py-4"
+                  >
+                    <h4 className="font-display text-base font-semibold text-outline-900">
+                      {item.question}
+                    </h4>
+                    <div className="mt-2 space-y-2 text-sm leading-relaxed text-outline-900/70">
+                      {item.answer.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </section>
+          ))}
         </article>
       </main>
     </div>
-  );
-}
-
-function FaqSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="mt-8 border-t border-outline/10 pt-7">
-      <h3 className="font-display text-xl font-semibold text-outline-900">
-        {title}
-      </h3>
-      <div className="mt-4 space-y-4">{children}</div>
-    </section>
-  );
-}
-
-function Question({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-lg border border-outline/10 bg-orange-50/30 px-5 py-4">
-      <h4 className="font-display text-base font-semibold text-outline-900">
-        {title}
-      </h4>
-      <div className="mt-2 space-y-2 text-sm leading-relaxed text-outline-900/70 [&_a]:text-primary [&_a]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ul]:list-disc">
-        {children}
-      </div>
-    </section>
   );
 }

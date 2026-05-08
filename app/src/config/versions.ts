@@ -8,6 +8,7 @@ export type VersionRegistryRow = {
   labelRu: string;
   labelEn: string;
   analysisVersion: string;
+  development?: boolean;
 };
 
 const ROWS: VersionRegistryRow[] = [
@@ -46,6 +47,14 @@ const ROWS: VersionRegistryRow[] = [
     labelRu: "Анализ дизайна сайта по URL",
     labelEn: "Site design by URL analysis",
     analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    development: true,
+  },
+  {
+    id: "image_analysis",
+    labelRu: "Анализ изображения",
+    labelEn: "Image analysis",
+    analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    development: true,
   },
 ];
 
@@ -66,6 +75,9 @@ export function getAnalysisVersionText(
   analysisVersion?: string,
 ): string {
   const row = getVersionRegistryRow(analysisType);
+  if (row.development) {
+    return locale === "ru" ? "В разработке" : "In development";
+  }
   const version = analysisVersion ?? row.analysisVersion;
   return locale === "ru"
     ? `Версия анализа: ${version}`
@@ -78,6 +90,9 @@ export function getAnalysisVersionBadgeText(
   analysisVersion?: string,
 ): string {
   const row = getVersionRegistryRow(analysisType);
+  if (row.development) {
+    return locale === "ru" ? "В разработке" : "In development";
+  }
   const version = analysisVersion ?? row.analysisVersion;
   return locale === "ru" ? `версия: ${version}` : `version: ${version}`;
 }

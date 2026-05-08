@@ -57,6 +57,20 @@ const BUILTINS: ReadonlyArray<{
     envModel: "TORASEO_OPENROUTER_DEFAULT_MODEL",
     build: (config) => new OpenRouterAdapter(config),
   },
+  {
+    id: "routerai",
+    label: "RouterAI",
+    envKey: "TORASEO_ROUTERAI_API_KEY",
+    envBaseUrl: "TORASEO_ROUTERAI_BASE_URL",
+    envModel: "TORASEO_ROUTERAI_DEFAULT_MODEL",
+    build: (config) =>
+      new OpenRouterAdapter(config, {
+        id: "routerai",
+        label: "RouterAI",
+        defaultModel: "openai/gpt-4o",
+        defaultBaseUrl: "https://routerai.ru/api/v1",
+      }),
+  },
 ];
 
 async function tryRegister(builtin: (typeof BUILTINS)[number]): Promise<void> {

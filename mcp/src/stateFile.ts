@@ -23,6 +23,7 @@
 import { promises as fs } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   APP_PRODUCT_NAME,
@@ -86,7 +87,12 @@ export interface CurrentScanState {
   schemaVersion: 1;
   scanId: string;
   bridgeClient?: BridgeClient;
-  analysisType?: "site_by_url" | "page_by_url" | "article_text" | "article_compare";
+  analysisType?:
+    | "site_by_url"
+    | "page_by_url"
+    | "article_text"
+    | "article_compare"
+    | "site_compare";
   input?: {
     action?: "scan" | "solution";
     topic?: string;
@@ -111,6 +117,7 @@ export interface CurrentScanState {
     textPlatform?: string;
     customPlatform?: string;
     selectedAnalysisTools?: string[];
+    siteUrls?: string[];
   };
   workspace?: {
     workspaceDir: string;
@@ -198,6 +205,21 @@ export function userDataDirs(): string[] {
   }
 }
 
+function sharedStateFileCandidates(): string[] {
+  const explicit = process.env.TORASEO_BRIDGE_STATE_DIR?.trim();
+  const dirs = explicit ? [explicit] : [];
+  const cwd = process.cwd();
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  dirs.push(
+    path.resolve(cwd, ".toraseo-bridge"),
+    path.resolve(cwd, "..", ".toraseo-bridge"),
+    path.resolve(moduleDir, "..", "..", ".toraseo-bridge"),
+  );
+  return Array.from(new Set(dirs)).map((dir) =>
+    path.join(dir, "current-scan.json"),
+  );
+}
+
 /**
  * Find the active state-file. Tries each candidate userData dir in
  * order; returns the first one that exists, or null if none do.
@@ -218,6 +240,20 @@ async function findStateFilePath(): Promise<string | null> {
       return cachedStateFilePath;
     } catch {
       cachedStateFilePath = null;
+    }
+  }
+
+  const sharedCandidates = sharedStateFileCandidates();
+  for (const candidate of sharedCandidates) {
+    try {
+      await fs.access(candidate);
+      cachedStateFilePath = candidate;
+      process.stderr.write(
+        `[bridge:stateFile] found shared state file at: ${candidate}\n`,
+      );
+      return candidate;
+    } catch {
+      // Shared dev bridge file doesn't exist yet — try AppData paths.
     }
   }
 
@@ -260,6 +296,8 @@ async function findStateFilePath(): Promise<string | null> {
 async function writeStateFilePath(): Promise<string> {
   const found = await findStateFilePath();
   if (found) return found;
+  const shared = sharedStateFileCandidates()[0];
+  if (shared) return shared;
   const dirs = userDataDirs();
   // dirs always returns at least one entry per the switch in
   // userDataDirs, but TS doesn't infer that — fallback explicitly.
@@ -273,6 +311,8 @@ export function stateFilePath(): string {
   // else falls back to production path. Most callers should use
   // findStateFilePath() / writeStateFilePath() instead.
   if (cachedStateFilePath) return cachedStateFilePath;
+  const shared = sharedStateFileCandidates()[0];
+  if (shared) return shared;
   const dirs = userDataDirs();
   const fallback = dirs[0] ?? path.join(homedir(), "AppData", "Roaming", APP_PRODUCT_NAME);
   return path.join(fallback, "current-scan.json");
@@ -344,6 +384,7 @@ export async function readState(): Promise<CurrentScanState | null> {
 export async function writeState(state: CurrentScanState): Promise<void> {
   const target = await writeStateFilePath();
   const tmp = `${target}.${process.pid}.tmp`;
+  await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(tmp, JSON.stringify(state, null, 2), "utf-8");
   await fs.rename(tmp, target);
 }

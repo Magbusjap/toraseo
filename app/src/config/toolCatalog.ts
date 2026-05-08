@@ -363,6 +363,69 @@ const pageByUrlCurrent: CatalogToolRow[] = [
       "Checks language and audience fit for the page.",
     ),
   },
+  {
+    name: text("Уникальность статьи", "Article uniqueness"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Локально оценивает повторы и шаблонность извлечённого текста. Это не интернет-проверка плагиата.",
+      "Locally estimates repetition and template risk in the extracted text. This is not internet plagiarism detection.",
+    ),
+  },
+  {
+    name: text("Синтаксис языка", "Language syntax"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Проверяет пунктуацию, границы предложений и грамматически подозрительные места в найденном тексте.",
+      "Checks punctuation, sentence boundaries, and grammar-adjacent risks in the extracted text.",
+    ),
+  },
+  {
+    name: text("Вероятность написания ИИ", "AI writing probability"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Оценивает ИИ-похожесть по ритму, повторам и шаблонным формулировкам без доказательства авторства.",
+      "Estimates AI-style signals from rhythm, repetition, and generic phrasing without proving authorship.",
+    ),
+  },
+  {
+    name: text("Водность и шаблонность", "Genericness and watery text"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Ищет общие фразы, слабую конкретику и места, где нужны пример, источник, число или практическое действие.",
+      "Finds broad phrasing, weak specificity, and places that need an example, source, number, or practical action.",
+    ),
+  },
+  {
+    name: text("Читаемость и сложность", "Readability and complexity"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Проверяет плотность предложений, длинные фразы и тяжёлые абзацы в извлечённом тексте.",
+      "Reviews sentence density, long sentences, and heavy paragraphs in the extracted text.",
+    ),
+  },
+  {
+    name: text("Прогноз интента и SEO-пакет", "Intent forecast and SEO package"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Строит локальный прогноз интента, хука, CTR/тренд-потенциала и черновик CMS-метаданных без live SERP-данных.",
+      "Builds a local forecast for intent, hook, CTR/trend potential, and CMS metadata without live SERP data.",
+    ),
+  },
+  {
+    name: text("Риски и экспертная проверка", "Risk and expert review"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Отмечает unsafe, юридически, медицински, научно, технически и расчётно чувствительные утверждения.",
+      "Flags unsafe, legal, medical, scientific, technical, and calculation-sensitive claims.",
+    ),
+  },
 ];
 
 const articleCompareCurrent: CatalogToolRow[] = [
@@ -612,29 +675,93 @@ const articleCompareCurrent: CatalogToolRow[] = [
 ];
 
 const siteCompareCurrent: CatalogToolRow[] = [
+  ...siteByUrlCurrent.map((row) => ({
+    ...row,
+    description: text(
+      `${row.description.ru} В сравнении сайтов эта проверка выполняется для каждого URL и попадает в общую матрицу различий.`,
+      `${row.description.en} In site comparison, this check runs for each URL and feeds the shared difference matrix.`,
+    ),
+  })),
   {
     name: text("Сравнение позиционирования", "Positioning comparison"),
     group: "primary",
     change: "added",
-    description: text("Сравнивает обещание, аудиторию и видимое предложение сайтов.", "Compares promise, audience, and visible offer."),
+    description: text(
+      "Сравнивает обещание, аудиторию и видимое предложение сайтов.",
+      "Compares promise, audience, and visible offer.",
+    ),
+  },
+  {
+    name: text("Сравнение метаданных", "Metadata comparison"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Сравнивает title, description, canonical, Open Graph и Twitter Card как отдельное направление, а не как три полных отчёта рядом.",
+      "Compares title, description, canonical, Open Graph, and Twitter Card as one direction, not as full reports side by side.",
+    ),
+  },
+  {
+    name: text("Сравнение структуры", "Structure comparison"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Сравнивает заголовки, внутренние ссылки, архитектурные сигналы и редиректы.",
+      "Compares headings, internal links, architecture signals, and redirects.",
+    ),
   },
   {
     name: text("Глубина контента", "Content depth"),
     group: "primary",
     change: "added",
-    description: text("Сравнивает полноту и полезность контента.", "Compares content completeness and usefulness."),
+    description: text(
+      "Сравнивает полноту, полезность, тонкий контент и видимое покрытие темы.",
+      "Compares completeness, usefulness, thin content, and visible topical coverage.",
+    ),
   },
   {
     name: text("Техническая база", "Technical basics"),
     group: "secondary",
     change: "added",
-    description: text("Сравнивает базовые технические SEO-сигналы.", "Compares basic technical SEO signals."),
+    description: text(
+      "Сравнивает robots.txt, sitemap, статус ответа, canonical, публичный стек и базовые SEO-сигналы.",
+      "Compares robots.txt, sitemap, response status, canonical, public stack, and basic SEO signals.",
+    ),
+  },
+  {
+    name: text("Сравнение разрывов", "Delta comparison"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Показывает, насколько один сайт отстаёт или выигрывает по каждому направлению.",
+      "Shows how much one site lags or wins by direction.",
+    ),
+  },
+  {
+    name: text("Матрица направлений", "Direction matrix"),
+    group: "secondary",
+    change: "added",
+    description: text(
+      "Собирает heatmap по robots, sitemap, metadata, canonical, content, redirects и stack.",
+      "Builds a heatmap for robots, sitemap, metadata, canonical, content, redirects, and stack.",
+    ),
+  },
+  {
+    name: text("Конкурентные выводы", "Competitive insights"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Отвечает на три вопроса: кто сильнее, почему и что делать дальше.",
+      "Answers three questions: who is stronger, why, and what to do next.",
+    ),
   },
   {
     name: text("Сильные и слабые стороны", "Strengths and weaknesses"),
     group: "secondary",
     change: "added",
-    description: text("Показывает преимущества и слабые места сайтов.", "Shows strengths and weak spots of the sites."),
+    description: text(
+      "Показывает сильные и слабые стороны каждого сайта как итоговый synthesis-блок.",
+      "Shows each site's strengths and weaknesses as a final synthesis block.",
+    ),
   },
 ];
 
@@ -665,6 +792,18 @@ const siteDesignCurrent: CatalogToolRow[] = [
   },
 ];
 
+const imageAnalysisCurrent: CatalogToolRow[] = [
+  {
+    name: text("Анализ изображения", "Image analysis"),
+    group: "primary",
+    change: "added",
+    description: text(
+      "Отдельный аудит в разработке: загрузка изображения, OCR, визуальные сигналы, alt/контекст и рекомендации по медиа-SEO будут подключены позже.",
+      "Separate audit in development: image upload, OCR, visual signals, alt/context, and media SEO recommendations will be connected later.",
+    ),
+  },
+];
+
 const archiveSiteByUrl: CatalogToolRow[] = siteByUrlCurrent
   .filter((row) => row.name.ru !== "Технологический стек")
   .map((row) => ({ ...row, change: "stable" as const }));
@@ -692,6 +831,7 @@ export const TOOL_CATALOG_VERSIONS: CatalogVersion[] = [
       { analysisType: "site_by_url", rows: siteByUrlCurrent },
       { analysisType: "site_compare", rows: siteCompareCurrent },
       { analysisType: "site_design_by_url", rows: siteDesignCurrent },
+      { analysisType: "image_analysis", rows: imageAnalysisCurrent },
     ],
   },
   {
@@ -705,6 +845,7 @@ export const TOOL_CATALOG_VERSIONS: CatalogVersion[] = [
       { analysisType: "site_by_url", rows: archiveSiteByUrl },
       { analysisType: "site_compare", rows: archivePlanned("Сравнение сайтов") },
       { analysisType: "site_design_by_url", rows: archivePlanned("Дизайн и контент") },
+      { analysisType: "image_analysis", rows: archivePlanned("Анализ изображения") },
     ],
   },
 ];

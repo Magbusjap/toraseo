@@ -11,7 +11,7 @@ import {
   Type,
   Video,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -41,7 +41,7 @@ import type {
   RuntimeConfirmedFact,
 } from "../../types/runtime";
 import type { CurrentScanState, ToolBufferEntry } from "../../types/ipc";
-import sleepingMascot from "@branding/mascots/tora-sleeping.svg";
+import Mascot, { type MascotMood } from "../Mascot/Mascot";
 
 interface PlannedAnalysisViewProps {
   analysisType: AnalysisTypeId;
@@ -55,9 +55,11 @@ interface PlannedAnalysisViewProps {
   articleTextState: CurrentScanState | null;
   runtimeReport: RuntimeAuditReport | null;
   articleCompareInput: ArticleComparePromptData | null;
+  siteCompareInput: SiteComparePromptData | null;
   scanStartedOnce: boolean;
   pageByUrlStartedOnce: boolean;
   compareStartedOnce: boolean;
+  siteCompareStartedOnce: boolean;
   solutionProvidedOnce: boolean;
   bridgeUnavailable: boolean;
   bridgeUnavailableAppName: string;
@@ -73,6 +75,8 @@ interface PlannedAnalysisViewProps {
     data: ArticleComparePromptData,
   ) => Promise<boolean | "fallback">;
   onArticleCompareCancel: () => void;
+  onSiteCompareRun: (data: SiteComparePromptData) => Promise<boolean | "fallback">;
+  onSiteCompareCancel: () => void;
 }
 
 export default function PlannedAnalysisView({
@@ -87,9 +91,11 @@ export default function PlannedAnalysisView({
   articleTextState,
   runtimeReport,
   articleCompareInput,
+  siteCompareInput,
   scanStartedOnce,
   pageByUrlStartedOnce,
   compareStartedOnce,
+  siteCompareStartedOnce,
   solutionProvidedOnce,
   bridgeUnavailable,
   bridgeUnavailableAppName,
@@ -100,12 +106,26 @@ export default function PlannedAnalysisView({
   onPageByUrlCancel,
   onArticleCompareRun,
   onArticleCompareCancel,
+  onSiteCompareRun,
+  onSiteCompareCancel,
 }: PlannedAnalysisViewProps) {
   const { t } = useTranslation();
   const meta = ANALYSIS_TYPES.find((item) => item.id === analysisType);
+  const siteCompareResultsRef = useRef<HTMLElement | null>(null);
   const key = meta?.i18nKeyBase ?? "siteByUrl";
   const title = t(`modeSelection.analysisTypes.${key}.title`);
   const subtitle = t(`modeSelection.analysisTypes.${key}.subtitle`);
+
+  useEffect(() => {
+    if (analysisType !== "site_compare" || !siteCompareStartedOnce) return;
+    const handle = window.setTimeout(() => {
+      siteCompareResultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 50);
+    return () => window.clearTimeout(handle);
+  }, [analysisType, siteCompareStartedOnce]);
 
   return (
     <div className="h-full overflow-auto px-8 py-7">
@@ -137,6 +157,10 @@ export default function PlannedAnalysisView({
           <PlannedAnalysisStatusHero
             executionMode={executionMode}
             running={activeRun !== null}
+            hasError={
+              hasAnalysisStateError(articleTextState) ||
+              hasAnalysisStateError(bridgeState)
+            }
             completedArticleTextAction={completedArticleTextAction}
             completedTools={completedTools}
             totalTools={totalTools}
@@ -155,11 +179,14 @@ export default function PlannedAnalysisView({
               onPageByUrlCancel,
               onArticleCompareRun,
               onArticleCompareCancel,
+              onSiteCompareRun,
+              onSiteCompareCancel,
               activeRun,
               bridgeState,
               scanStartedOnce,
               pageByUrlStartedOnce,
               compareStartedOnce,
+              siteCompareStartedOnce,
               solutionProvidedOnce,
               bridgeUnavailable,
               bridgeUnavailableAppName,
@@ -241,6 +268,19 @@ export default function PlannedAnalysisView({
             />
           </section>
         )}
+
+        {analysisType === "site_compare" &&
+          (activeRun === "scan" || siteCompareStartedOnce) && (
+          <section ref={siteCompareResultsRef} className="pb-8">
+            <SiteCompareResultsDashboard
+              bridgeState={bridgeState}
+              input={siteCompareInput}
+              runtimeReport={runtimeReport}
+              completedTools={completedTools}
+              totalTools={totalTools}
+            />
+          </section>
+        )}
       </div>
     </div>
   );
@@ -249,12 +289,14 @@ export default function PlannedAnalysisView({
 function PlannedAnalysisStatusHero({
   executionMode,
   running,
+  hasError,
   completedArticleTextAction,
   completedTools,
   totalTools,
 }: {
   executionMode: AuditExecutionMode;
   running: boolean;
+  hasError: boolean;
   completedArticleTextAction: ArticleTextAction | null;
   completedTools: number;
   totalTools: number;
@@ -266,7 +308,11 @@ function PlannedAnalysisStatusHero({
       : running
         ? 8
         : 0;
-  const statusTitle = running
+  const statusTitle = hasError
+    ? t("analysisHero.error", {
+        defaultValue: "Error",
+      })
+    : running
     ? t("analysisHero.scanning", {
         defaultValue: "Analysis in progress",
       })
@@ -279,18 +325,23 @@ function PlannedAnalysisStatusHero({
             defaultValue: "Report formed",
           })
         : t("analysisHero.ready", {
-            defaultValue: "Ready to scan",
+            defaultValue: "Ready for analysis",
           });
+  const mascotMood = analysisHeroMascotMood({
+    running,
+    hasError,
+    completedArticleTextAction,
+  });
+  const dotClass = hasError
+    ? "bg-red-600"
+    : running
+      ? "bg-status-working animate-pulse"
+      : "bg-status-complete";
 
   return (
     <section className="rounded-lg border border-orange-100 bg-white px-5 py-4 shadow-sm">
       <div className="flex items-center gap-4">
-        <img
-          src={sleepingMascot}
-          alt={t("app.altMascotSleeping")}
-          className="h-20 w-20 shrink-0"
-          draggable={false}
-        />
+        <Mascot mood={mascotMood} className="h-20 w-20 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -301,11 +352,14 @@ function PlannedAnalysisStatusHero({
                     })
                   : t("analysisHero.bridgeMode", {
                       defaultValue: "MCP + Instructions",
-                    })}
+                  })}
               </p>
-              <h2 className="mt-1 text-lg font-semibold text-outline-900">
-                {statusTitle}
-              </h2>
+              <div className="mt-1 flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+                <h2 className="text-lg font-semibold text-outline-900">
+                  {statusTitle}
+                </h2>
+              </div>
             </div>
             <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
               {completedTools} / {totalTools}
@@ -320,7 +374,9 @@ function PlannedAnalysisStatusHero({
             aria-valuemax={100}
           >
             <div
-              className={`h-full rounded-full bg-primary transition-all duration-300 ${
+              className={`h-full rounded-full transition-all duration-300 ${
+                hasError ? "bg-red-600" : "bg-primary"
+              } ${
                 running ? "toraseo-progress-stripes" : ""
               }`}
               style={{ width: `${visualProgress}%` }}
@@ -330,6 +386,28 @@ function PlannedAnalysisStatusHero({
       </div>
     </section>
   );
+}
+
+function hasAnalysisStateError(state: CurrentScanState | null): boolean {
+  if (!state) return false;
+  if (state.status === "error") return true;
+  return Object.values(state.buffer).some((entry) => entry?.status === "error");
+}
+
+function analysisHeroMascotMood({
+  running,
+  hasError,
+  completedArticleTextAction,
+}: {
+  running: boolean;
+  hasError: boolean;
+  completedArticleTextAction: ArticleTextAction | null;
+}): MascotMood {
+  if (hasError) return "surprised";
+  if (running) return "focused";
+  if (completedArticleTextAction === "scan") return "happy";
+  if (completedArticleTextAction === "solution") return "happy";
+  return "neutral";
 }
 
 function renderInputSurface(
@@ -343,13 +421,16 @@ function renderInputSurface(
   onArticleTextCancel: () => void,
   onPageByUrlRun: (data: PageByUrlPromptData) => Promise<boolean | "fallback">,
   onPageByUrlCancel: () => void,
-  onArticleCompareRun: (data: ArticleComparePromptData) => Promise<boolean>,
+  onArticleCompareRun: (data: ArticleComparePromptData) => Promise<boolean | "fallback">,
   onArticleCompareCancel: () => void,
+  onSiteCompareRun: (data: SiteComparePromptData) => Promise<boolean | "fallback">,
+  onSiteCompareCancel: () => void,
   activeRun: ArticleTextAction | null,
   bridgeState: CurrentScanState | null,
   scanStartedOnce: boolean,
   pageByUrlStartedOnce: boolean,
   compareStartedOnce: boolean,
+  siteCompareStartedOnce: boolean,
   solutionProvidedOnce: boolean,
   bridgeUnavailable: boolean,
   bridgeUnavailableAppName: string,
@@ -396,18 +477,15 @@ function renderInputSurface(
       );
     case "site_compare":
       return (
-        <InputPanel
-          title={t("plannedAnalysis.forms.siteCompare.title", {
-            defaultValue: "Comparable sites",
-          })}
-          actionLabel={t("plannedAnalysis.actionLocked", {
-            defaultValue: "Execution is being prepared",
-          })}
-        >
-          <TextInput label="URL 1" placeholder="https://example.com" />
-          <TextInput label="URL 2" placeholder="https://competitor.com" />
-          <TextInput label="URL 3" placeholder="https://optional-site.com" />
-        </InputPanel>
+        <SiteComparePanel
+          onRun={onSiteCompareRun}
+          onCancel={onSiteCompareCancel}
+          active={activeRun === "scan"}
+          executionMode={executionMode}
+          startedOnce={siteCompareStartedOnce}
+          bridgeUnavailable={bridgeUnavailable}
+          bridgeUnavailableAppName={bridgeUnavailableAppName}
+        />
       );
     case "site_design_by_url":
       return (
@@ -433,6 +511,24 @@ function renderInputSurface(
             })}
             rows={5}
           />
+        </InputPanel>
+      );
+    case "image_analysis":
+      return (
+        <InputPanel
+          title={t("plannedAnalysis.forms.imageAnalysis.title", {
+            defaultValue: "Image analysis",
+          })}
+          actionLabel={t("plannedAnalysis.actionLocked", {
+            defaultValue: "Execution is being prepared",
+          })}
+        >
+          <div className="flex min-h-[170px] items-center justify-center rounded-lg border border-dashed border-outline/20 bg-white/60 px-4 text-center text-sm leading-relaxed text-outline-900/55">
+            {t("plannedAnalysis.forms.imageAnalysis.body", {
+              defaultValue:
+                "Image upload, OCR, visual content checks, and media SEO recommendations are in development.",
+            })}
+          </div>
         </InputPanel>
       );
     case "site_by_url":
@@ -491,6 +587,11 @@ export interface ArticleComparePromptData {
   roleB: RuntimeArticleCompareRole;
   textA: string;
   textB: string;
+}
+
+export interface SiteComparePromptData {
+  urls: string[];
+  focus: string;
 }
 
 export function inferArticleCompareGoalMode(
@@ -928,6 +1029,763 @@ function ArticleComparePanel({
       </div>
     </section>
   );
+}
+
+function SiteComparePanel({
+  onRun,
+  onCancel,
+  active,
+  executionMode,
+  startedOnce,
+  bridgeUnavailable,
+  bridgeUnavailableAppName,
+}: {
+  onRun: (data: SiteComparePromptData) => Promise<boolean | "fallback">;
+  onCancel: () => void;
+  active: boolean;
+  executionMode: AuditExecutionMode;
+  startedOnce: boolean;
+  bridgeUnavailable: boolean;
+  bridgeUnavailableAppName: string;
+}) {
+  const { t } = useTranslation();
+  const urlRefs = useRef(["", "", ""]);
+  const focusRef = useRef("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    if (active) {
+      onCancel();
+      setNotice(t("plannedAnalysis.forms.scanCancelled", { defaultValue: "Анализ отменён." }));
+      return;
+    }
+    if (executionMode === "bridge" && bridgeUnavailable) {
+      setNotice(
+        t("plannedAnalysis.forms.bridgeUnavailable", {
+          appName: bridgeUnavailableAppName,
+          defaultValue: "{{appName}} недоступен. Откройте его перед запуском bridge-анализа.",
+        }),
+      );
+      return;
+    }
+    const urls = Array.from(new Set(urlRefs.current.map((url) => url.trim()).filter(Boolean)));
+    if (urls.length < 2) {
+      setNotice(
+        t("plannedAnalysis.forms.siteCompareNeedUrls", {
+          defaultValue: "Добавьте минимум два URL для сравнения.",
+        }),
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      const ok = await onRun({ urls: urls.slice(0, 3), focus: focusRef.current.trim() });
+      if (ok) {
+        setNotice(
+          executionMode === "native"
+            ? t("plannedAnalysis.forms.siteCompareApiStarted", {
+                defaultValue:
+                  "Открыт AI Chat. ToraSEO сканирует сайты, затем ИИ сформирует сравнительный отчет.",
+              })
+            : t("plannedAnalysis.forms.siteCompareStarted", {
+                defaultValue:
+                  "Сравнение запущено через MCP + Instructions. Результат появится ниже как единый сравнительный dashboard.",
+              }),
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="rounded-lg border border-outline/10 bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-semibold text-outline-900">
+            {t("plannedAnalysis.forms.siteCompare.title", {
+              defaultValue: "Сравнение сайтов по URL",
+            })}
+          </h2>
+          <p className="mt-1 text-sm leading-relaxed text-outline-900/60">
+            {t("plannedAnalysis.forms.siteCompare.body", {
+              defaultValue:
+                "Сравните до трёх сайтов через общий dashboard: кто сильнее, почему, где разрыв и что исправить первым.",
+            })}
+          </p>
+        </div>
+        <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-outline-900/55">
+          {executionMode === "native" ? "API + AI Chat" : "MCP + Instructions"}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        {[0, 1, 2].map((index) => (
+          <TextInput
+            key={index}
+            label={`URL ${index + 1}${index === 2 ? " (optional)" : ""}`}
+            placeholder={
+              index === 0
+                ? "https://example.com"
+                : index === 1
+                  ? "https://competitor.com"
+                  : "https://optional-site.com"
+            }
+            onValueChange={(value) => {
+              urlRefs.current[index] = value;
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="mt-4">
+        <TextArea
+          label={t("plannedAnalysis.forms.siteCompareFocus", {
+            defaultValue: "Фокус сравнения",
+          })}
+          placeholder={t("plannedAnalysis.forms.siteCompareFocusPlaceholder", {
+            defaultValue:
+              "Например: сравнить мой сайт с конкурентами, найти разрывы в metadata и контенте, понять что перенять у лидера.",
+          })}
+          rows={3}
+          onValueChange={(value) => {
+            focusRef.current = value;
+          }}
+        />
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        {[
+          ["Summary", "Победитель и главный разрыв"],
+          ["Site cards", "Только краткие KPI"],
+          ["Heatmap", "Направления без перегруза"],
+          ["Insights", "Что перенять и исправить"],
+        ].map(([title, detail]) => (
+          <div key={title} className="rounded-lg border border-orange-100 bg-orange-50/40 p-3">
+            <p className="text-sm font-semibold text-outline-900">{title}</p>
+            <p className="mt-1 text-xs leading-relaxed text-outline-900/55">{detail}</p>
+          </div>
+        ))}
+      </div>
+
+      {notice && (
+        <p className="mt-4 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800">
+          {notice}
+        </p>
+      )}
+
+      <div className="mt-5 flex justify-end">
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={busy}
+          className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+            active
+              ? "border border-orange-300 bg-white text-orange-800 hover:bg-orange-50"
+              : "bg-primary text-white hover:bg-primary-600 disabled:bg-outline-900/15 disabled:text-outline-900/45"
+          }`}
+        >
+          {active
+            ? t("sidebar.cancel", { defaultValue: "Отменить" })
+            : startedOnce
+              ? t("plannedAnalysis.forms.siteCompareRunAgain", {
+                  defaultValue: "Сравнить сайты повторно",
+                })
+              : t("plannedAnalysis.forms.siteCompareRun", {
+                  defaultValue: "Сравнить сайты",
+                })}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+type SiteCompareStatus = "good" | "warn" | "bad" | "pending";
+
+interface SiteCompareCardData {
+  url: string;
+  hasData: boolean;
+  score: number;
+  critical: number;
+  warning: number;
+  metadata: number;
+  content: number;
+  indexability: number;
+}
+
+interface BufferedSiteCompareResult {
+  url?: string;
+  status?: "complete" | "error";
+  summary?: { critical?: number; warning?: number; info?: number };
+}
+
+function SiteCompareResultsDashboard({
+  bridgeState,
+  input,
+  runtimeReport,
+  completedTools,
+  totalTools,
+}: {
+  bridgeState: CurrentScanState | null;
+  input: SiteComparePromptData | null;
+  runtimeReport: RuntimeAuditReport | null;
+  completedTools: number;
+  totalTools: number;
+}) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === "en" ? "en" : "ru";
+  const urls = input?.urls ?? bridgeState?.input?.siteUrls ?? [];
+  const reportCompare =
+    runtimeReport?.analysisType === "site_compare"
+      ? runtimeReport.siteCompare
+      : null;
+  if (urls.length < 2) {
+    return (
+      <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
+        <h2 className="font-display text-lg font-semibold text-outline-900">
+          Ожидаем сайты для сравнения
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
+          Добавьте минимум два URL. Итоговый экран покажет общий dashboard, а не три полных аудита рядом.
+        </p>
+      </section>
+    );
+  }
+
+  const cards = reportCompare
+    ? reportCompare.sites.map((site) => ({
+        ...site,
+        hasData: true,
+      }))
+    : buildSiteCompareCards(urls, bridgeState);
+  const winner = cards.some((card) => card.hasData)
+    ? cards.slice().sort((a, b) => b.score - a.score)[0]
+    : null;
+  const reportReady =
+    Boolean(reportCompare) || (completedTools >= totalTools && totalTools > 0);
+  const directions = [
+    { label: "Robots", tool: "check_robots_txt" },
+    { label: "Sitemap", tool: "analyze_sitemap" },
+    { label: "Metadata", tool: "analyze_meta" },
+    { label: "Canonical", tool: "analyze_canonical" },
+    { label: "Content", tool: "analyze_content" },
+    { label: "Redirects", tool: "check_redirects" },
+    { label: "Stack", tool: "detect_stack" },
+  ];
+  const metrics = [
+    { label: "Metadata", key: "metadata" as const },
+    { label: "Content", key: "content" as const },
+    { label: "Indexability", key: "indexability" as const },
+    { label: "Overall SEO", key: "score" as const },
+  ];
+  if (!reportCompare && !bridgeState) {
+    return (
+      <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
+        <h2 className="font-display text-lg font-semibold text-outline-900">
+          API + AI Chat выполняет сравнение
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
+          Чат открыт отдельно. ToraSEO сначала собирает публичные URL-проверки по каждому сайту, затем ИИ формирует единый сравнительный dashboard.
+        </p>
+        <p className="mt-3 text-xs font-semibold text-outline-900/45">
+          {getAnalysisVersionText("site_compare", locale)}
+        </p>
+      </section>
+    );
+  }
+  const openDetails = () => {
+    const detailsReport = runtimeReport?.siteCompare
+      ? runtimeReport
+      : buildSiteCompareRuntimeReport({
+          bridgeState,
+          input,
+          cards,
+          winnerUrl: winner?.url ?? null,
+          completedTools,
+          totalTools,
+          directions,
+          metrics,
+        });
+    void window.toraseo.runtime.openReportWindow(
+      detailsReport,
+    );
+  };
+
+  return (
+    <section className="space-y-5">
+      <div className="rounded-lg border border-outline/10 bg-white p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
+              Competitive comparison dashboard
+            </p>
+            <h2 className="mt-1 font-display text-xl font-semibold text-outline-900">
+              Сравнение сайтов по URL
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
+              Победитель: <strong>{winner?.url ?? "ожидаем данные"}</strong>. Главная задача экрана — быстро ответить: кто лучше, почему и что делать дальше.
+            </p>
+            <p className="mt-2 text-xs font-semibold text-outline-900/45">
+              {getAnalysisVersionText("site_compare", locale)}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-outline-900/55">
+              {reportCompare
+                ? `${reportCompare.completed}/${reportCompare.total} проверок`
+                : `${completedTools}/${totalTools} проверок`}
+            </span>
+            <button
+              type="button"
+              onClick={openDetails}
+              disabled={urls.length < 2}
+              className="rounded-md border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-800 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {t("analysisPanel.actions.details", { defaultValue: "Подробнее" })}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {cards.map((card, index) => (
+          <article key={card.url} className="rounded-lg border border-outline/10 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
+                  Site {index + 1}
+                </p>
+                <h3 className="mt-1 truncate text-base font-semibold text-outline-900">
+                  {card.url}
+                </h3>
+              </div>
+              {winner?.url === card.url && (
+                <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                  Победитель
+                </span>
+              )}
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <SiteCompareKpi label="SEO" value={card.score} suffix="/100" />
+              <SiteCompareKpi label="Issues" value={card.critical + card.warning} />
+              <SiteCompareKpi label="Content" value={card.content} suffix="/100" />
+              <SiteCompareKpi label="Metadata" value={card.metadata} suffix="/100" />
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="rounded-lg border border-outline/10 bg-white p-5">
+          <h3 className="font-display text-lg font-semibold text-outline-900">
+            Сравнительные метрики
+          </h3>
+          <div className="mt-4 space-y-4">
+            {metrics.map(({ label, key }) => (
+              <div key={key}>
+                <p className="mb-2 text-sm font-semibold text-outline-900">{label}</p>
+                <div className="space-y-2">
+                  {cards.map((card) => {
+                    const value = card[key] as number;
+                    return (
+                      <div key={`${key}-${card.url}`} className="grid grid-cols-[120px_minmax(0,1fr)_42px] items-center gap-2 text-xs">
+                        <span className="truncate text-outline-900/60">{card.url}</span>
+                        <span className="h-2 overflow-hidden rounded-full bg-outline-900/10">
+                          <span className="block h-full rounded-full bg-primary" style={{ width: `${value}%` }} />
+                        </span>
+                        <strong className="text-right text-outline-900">{value}</strong>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-outline/10 bg-white p-5">
+          <h3 className="font-display text-lg font-semibold text-outline-900">
+            Radar profile
+          </h3>
+          <div className="mt-4">
+            <SiteCompareRadar cards={cards} />
+          </div>
+        </section>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="rounded-lg border border-outline/10 bg-white p-5">
+          <h3 className="font-display text-lg font-semibold text-outline-900">
+            Delta к лидеру
+          </h3>
+          <div className="mt-4 space-y-3">
+            {cards.map((card) => {
+              const delta = winner ? card.score - winner.score : 0;
+              return (
+                <div key={`delta-${card.url}`} className="grid grid-cols-[140px_minmax(0,1fr)_48px] items-center gap-3 text-xs">
+                  <span className="truncate text-outline-900/60">{card.url}</span>
+                  <span className="h-2 overflow-hidden rounded-full bg-outline-900/10">
+                    <span
+                      className={`block h-full rounded-full ${delta >= 0 ? "bg-emerald-500" : "bg-orange-400"}`}
+                      style={{ width: `${Math.max(4, Math.min(100, Math.abs(delta)))}%` }}
+                    />
+                  </span>
+                  <strong className="text-right text-outline-900">{delta}</strong>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-outline/10 bg-white p-5">
+          <h3 className="font-display text-lg font-semibold text-outline-900">
+            Что делать
+          </h3>
+          <div className="mt-4 space-y-3 text-sm text-outline-900/70">
+            <p><strong>Что перенять у лидера:</strong> стабильные направления без критичных замечаний, полный metadata-пакет и более глубокий контент.</p>
+            <p><strong>Что исправить первым:</strong> красные ячейки в матрице, затем самые большие разрывы по Metadata, Content и Indexability.</p>
+            <p className="rounded-md bg-orange-50 px-3 py-2 text-xs text-outline-900/55">
+              {reportReady
+                ? "Сравнение завершено. Можно открывать детали по направлениям и запускать повторный прогон после правок."
+                : "Пока идёт сбор данных. Dashboard уже показывает поступающие сигналы компактно."}
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <section className="rounded-lg border border-outline/10 bg-white p-5">
+        <h3 className="font-display text-lg font-semibold text-outline-900">
+          Heatmap / матрица направлений
+        </h3>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="text-xs uppercase tracking-wider text-outline-900/45">
+              <tr>
+                <th className="py-2 pr-3">Направление</th>
+                {cards.map((card) => (
+                  <th key={card.url} className="px-3 py-2">{card.url}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline/10">
+              {(reportCompare?.directions ?? directions).map((direction) => (
+                <tr key={"tool" in direction ? direction.tool : direction.label}>
+                  <td className="py-3 pr-3 font-medium text-outline-900">{direction.label}</td>
+                  {"values" in direction
+                    ? direction.values.map((item) => (
+                        <td key={`${direction.label}-${item.url}`} className="px-3 py-3">
+                          <SiteCompareStatusPill status={item.status} />
+                        </td>
+                      ))
+                    : cards.map((card) => (
+                        <td key={`${direction.tool}-${card.url}`} className="px-3 py-3">
+                          <SiteCompareStatusPill status={statusForSiteTool(bridgeState, direction.tool, card.url)} />
+                        </td>
+                      ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-outline-900/35">
+        {getAnalysisVersionText("site_compare", locale)}
+      </p>
+    </section>
+  );
+}
+
+function SiteCompareKpi({
+  label,
+  value,
+  suffix = "",
+}: {
+  label: string;
+  value: number;
+  suffix?: string;
+}) {
+  return (
+    <div className="rounded-md bg-orange-50/50 px-3 py-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-outline-900">{value}{suffix}</p>
+    </div>
+  );
+}
+
+function SiteCompareStatusPill({ status }: { status: SiteCompareStatus }) {
+  const map: Record<SiteCompareStatus, { label: string; className: string }> = {
+    good: { label: "OK", className: "bg-emerald-50 text-emerald-700" },
+    warn: { label: "Проверить", className: "bg-amber-50 text-amber-700" },
+    bad: { label: "Проблема", className: "bg-red-50 text-red-700" },
+    pending: { label: "Ожидаем", className: "bg-outline-900/5 text-outline-900/45" },
+  };
+  const item = map[status];
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${item.className}`}>
+      {item.label}
+    </span>
+  );
+}
+
+function SiteCompareRadar({ cards }: { cards: SiteCompareCardData[] }) {
+  const axes = [
+    { key: "score" as const, label: "SEO" },
+    { key: "metadata" as const, label: "Meta" },
+    { key: "content" as const, label: "Content" },
+    { key: "indexability" as const, label: "Index" },
+  ];
+  const colors = ["#ff6b35", "#2563eb", "#059669"];
+  const center = 84;
+  const radius = 58;
+  const pointsFor = (card: SiteCompareCardData) =>
+    axes
+      .map((axis, index) => {
+        const angle = -Math.PI / 2 + (Math.PI * 2 * index) / axes.length;
+        const value = Math.max(0, Math.min(100, Number(card[axis.key]) || 0));
+        const r = (value / 100) * radius;
+        return `${center + Math.cos(angle) * r},${center + Math.sin(angle) * r}`;
+      })
+      .join(" ");
+
+  return (
+    <div>
+      <svg viewBox="0 0 168 168" className="mx-auto h-48 w-full max-w-[260px]">
+        {[0.25, 0.5, 0.75, 1].map((scale) => (
+          <polygon
+            key={scale}
+            points={axes
+              .map((_, index) => {
+                const angle = -Math.PI / 2 + (Math.PI * 2 * index) / axes.length;
+                const r = radius * scale;
+                return `${center + Math.cos(angle) * r},${center + Math.sin(angle) * r}`;
+              })
+              .join(" ")}
+            fill="none"
+            stroke="#f3d8c5"
+            strokeWidth="1"
+          />
+        ))}
+        {axes.map((axis, index) => {
+          const angle = -Math.PI / 2 + (Math.PI * 2 * index) / axes.length;
+          const x = center + Math.cos(angle) * (radius + 18);
+          const y = center + Math.sin(angle) * (radius + 18);
+          return (
+            <g key={axis.key}>
+              <line
+                x1={center}
+                y1={center}
+                x2={center + Math.cos(angle) * radius}
+                y2={center + Math.sin(angle) * radius}
+                stroke="#f3d8c5"
+                strokeWidth="1"
+              />
+              <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="#7c5b4a">
+                {axis.label}
+              </text>
+            </g>
+          );
+        })}
+        {cards.map((card, index) => (
+          <polygon
+            key={card.url}
+            points={pointsFor(card)}
+            fill={colors[index % colors.length]}
+            fillOpacity="0.12"
+            stroke={colors[index % colors.length]}
+            strokeWidth="2"
+          />
+        ))}
+      </svg>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {cards.map((card, index) => (
+          <span key={card.url} className="inline-flex items-center gap-1.5 text-xs text-outline-900/60">
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: colors[index % colors.length] }}
+            />
+            {card.url}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function buildSiteCompareRuntimeReport({
+  bridgeState,
+  input,
+  cards,
+  winnerUrl,
+  completedTools,
+  totalTools,
+  directions,
+  metrics,
+}: {
+  bridgeState: CurrentScanState | null;
+  input: SiteComparePromptData | null;
+  cards: SiteCompareCardData[];
+  winnerUrl: string | null;
+  completedTools: number;
+  totalTools: number;
+  directions: Array<{ label: string; tool: string }>;
+  metrics: Array<{ label: string; key: "metadata" | "content" | "indexability" | "score" }>;
+}): RuntimeAuditReport {
+  const directionRows = directions.map((direction) => ({
+    label: direction.label,
+    values: cards.map((card) => ({
+      url: card.url,
+      status: statusForSiteTool(bridgeState, direction.tool, card.url),
+    })),
+  }));
+  const metricRows = metrics.map((metric) => ({
+    id: metric.key,
+    label: metric.label,
+    values: cards.map((card) => ({ url: card.url, value: Number(card[metric.key]) || 0 })),
+  }));
+  const insights = [
+    winnerUrl
+      ? `Лучший общий SEO-профиль по выбранным публичным проверкам: ${winnerUrl}.`
+      : "Победитель пока не определён: дождитесь завершения проверок.",
+    "Сначала исправляйте красные направления в heatmap, затем самые большие разрывы по Metadata, Content и Indexability.",
+    "Не воспринимайте сравнение как SERP-истину: это публичные технические и контентные сигналы без Search Console, GA4 и внешних ссылок.",
+  ];
+  return {
+    analysisType: "site_compare",
+    analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    mode: "strict_audit",
+    providerId: "openrouter",
+    model: "MCP + Instructions",
+    generatedAt: new Date().toISOString(),
+    summary: winnerUrl
+      ? `Сравнение сайтов по URL завершено. Победитель: ${winnerUrl}.`
+      : "Сравнение сайтов по URL ожидает данные.",
+    nextStep: "Откройте матрицу направлений, исправьте красные блоки и повторите сравнение.",
+    confirmedFacts: insights.map((detail, index) => ({
+      title: index === 0 ? "Сравнительный итог" : index === 1 ? "Приоритет правок" : "Граница анализа",
+      detail,
+      priority: index === 1 ? "high" : "medium",
+      sourceToolIds: bridgeState?.selectedTools ?? [],
+    })),
+    expertHypotheses: [],
+    siteCompare: {
+      focus: input?.focus ?? bridgeState?.input?.topic ?? "",
+      winnerUrl,
+      completed: completedTools,
+      total: totalTools,
+      sites: cards.map((card) => ({
+        url: card.url,
+        score: card.score,
+        critical: card.critical,
+        warning: card.warning,
+        metadata: card.metadata,
+        content: card.content,
+        indexability: card.indexability,
+      })),
+      metrics: metricRows,
+      directions: directionRows,
+      insights,
+    },
+  };
+}
+
+function buildSiteCompareCards(
+  urls: string[],
+  bridgeState: CurrentScanState | null,
+): SiteCompareCardData[] {
+  return urls.map((url) => {
+    const hasData = hasBufferedSiteData(bridgeState, url);
+    const critical = countSiteIssues(bridgeState, url, "critical");
+    const warning = countSiteIssues(bridgeState, url, "warning");
+    const metadata = directionalScore(bridgeState, url, ["analyze_meta", "analyze_canonical"]);
+    const content = directionalScore(bridgeState, url, ["analyze_content", "analyze_links"]);
+    const indexability = directionalScore(bridgeState, url, [
+      "analyze_indexability",
+      "check_robots_txt",
+      "analyze_sitemap",
+    ]);
+    return {
+      url,
+      hasData,
+      critical,
+      warning,
+      score: hasData
+        ? Math.max(0, Math.min(100, 100 - critical * 12 - warning * 6))
+        : 0,
+      metadata,
+      content,
+      indexability,
+    };
+  });
+}
+
+function hasBufferedSiteData(
+  bridgeState: CurrentScanState | null,
+  url: string,
+): boolean {
+  if (!bridgeState) return false;
+  return Object.values(bridgeState.buffer).some((entry) =>
+    Boolean(findBufferedSite(entry, url)),
+  );
+}
+
+function countSiteIssues(
+  bridgeState: CurrentScanState | null,
+  url: string,
+  severity: "critical" | "warning",
+): number {
+  if (!bridgeState) return 0;
+  return Object.values(bridgeState.buffer).reduce((sum, entry) => {
+    const site = findBufferedSite(entry, url);
+    return sum + (site?.summary?.[severity] ?? 0);
+  }, 0);
+}
+
+function directionalScore(
+  bridgeState: CurrentScanState | null,
+  url: string,
+  toolIds: string[],
+): number {
+  if (!bridgeState) return 0;
+  let critical = 0;
+  let warning = 0;
+  let found = false;
+  for (const toolId of toolIds) {
+    const site = findBufferedSite(bridgeState.buffer[toolId], url);
+    if (!site) continue;
+    found = true;
+    critical += site.summary?.critical ?? 0;
+    warning += site.summary?.warning ?? 0;
+  }
+  if (!found) return 0;
+  return Math.max(0, Math.min(100, 100 - critical * 18 - warning * 9));
+}
+
+function statusForSiteTool(
+  bridgeState: CurrentScanState | null,
+  toolId: string,
+  url: string,
+): SiteCompareStatus {
+  const site = bridgeState ? findBufferedSite(bridgeState.buffer[toolId], url) : null;
+  if (!site) return "pending";
+  if (site.status === "error") return "bad";
+  if ((site.summary?.critical ?? 0) > 0) return "bad";
+  if ((site.summary?.warning ?? 0) > 0) return "warn";
+  return "good";
+}
+
+function findBufferedSite(
+  entry: ToolBufferEntry | undefined,
+  url: string,
+): BufferedSiteCompareResult | null {
+  const sites = (entry?.data as { sites?: unknown[] } | undefined)?.sites;
+  if (!Array.isArray(sites)) return null;
+  const normalize = (value: string) => value.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+  const target = normalize(url);
+  const site = sites.find((item) => {
+    const candidate = (item as { url?: string }).url;
+    return candidate ? normalize(candidate) === target : false;
+  });
+  return (site as BufferedSiteCompareResult | undefined) ?? null;
 }
 
 function ArticleTextPanel({
@@ -6776,6 +7634,8 @@ function iconForAnalysis(id: AnalysisTypeId): React.ReactNode {
       );
     case "site_design_by_url":
       return <ScanEye className="h-6 w-6" strokeWidth={1.7} />;
+    case "image_analysis":
+      return <Image className="h-6 w-6" strokeWidth={1.7} />;
   }
 }
 

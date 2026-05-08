@@ -3,9 +3,7 @@ import type { TFunction } from "i18next";
 import { TOOLS, type ToolId, getToolI18nKeyBase } from "../../config/tools";
 import type { ScanComplete } from "../../types/ipc";
 import type { ScanState, StagesMap, StageState } from "../../hooks/useScan";
-import sleepingMascot from "@branding/mascots/tora-sleeping.svg";
-import focusedMascot from "@branding/mascots/tora-focused.svg";
-import happyMascot from "@branding/mascots/tora-happy.svg";
+import Mascot, { type MascotMood } from "../Mascot/Mascot";
 
 interface SiteAuditViewProps {
   url: string;
@@ -56,12 +54,7 @@ export default function SiteAuditView({
           {t("app.name")}
         </h1>
         <StatusIndicator scanState={scanState} summary={summary} />
-        <img
-          src={mascotState.src}
-          alt={mascotState.alt}
-          className="h-32 w-32"
-          draggable={false}
-        />
+        <Mascot mood={mascotState.mood} className="h-32 w-32" />
         {trimmedUrl ? (
           <p className="font-mono text-sm text-outline-900/70">{trimmedUrl}</p>
         ) : (
@@ -153,7 +146,7 @@ function getStatusMeta(
 ): { dotClass: string; label: string } {
   switch (scanState) {
     case "idle":
-      return { dotClass: "bg-status-ready", label: t("siteAudit.status.ready") };
+      return { dotClass: "bg-status-complete", label: t("siteAudit.status.ready") };
     case "scanning":
       return {
         dotClass: "bg-status-working animate-pulse",
@@ -166,9 +159,15 @@ function getStatusMeta(
           label: t("siteAudit.status.completed"),
         };
       }
+      if (summary.totals.errors > 0) {
+        return {
+          dotClass: "bg-red-600",
+          label: t("siteAudit.status.executionErrors"),
+        };
+      }
       if (summary.totals.critical > 0) {
         return {
-          dotClass: "bg-status-issues",
+          dotClass: "bg-red-600",
           label: t("siteAudit.status.issuesFound"),
         };
       }
@@ -176,12 +175,6 @@ function getStatusMeta(
         return {
           dotClass: "bg-status-issues",
           label: t("siteAudit.status.warnings"),
-        };
-      }
-      if (summary.totals.errors > 0) {
-        return {
-          dotClass: "bg-status-issues",
-          label: t("siteAudit.status.executionErrors"),
         };
       }
       return {
@@ -433,32 +426,25 @@ function isFinished(status: StageState["status"] | undefined): boolean {
 }
 
 interface MascotPick {
-  src: string;
-  alt: string;
+  mood: MascotMood;
 }
 
 function pickMascotState(
   scanState: ScanState,
   summary: ScanComplete | null,
-  t: TFunction,
+  _t: TFunction,
 ): MascotPick {
   if (scanState === "scanning") {
-    return {
-      src: focusedMascot,
-      alt: t("app.altMascotFocused"),
-    };
+    return { mood: "focused" };
   }
   if (scanState === "complete" && summary) {
-    // Happy mascot for clean runs; default to "happy" for now even on
-    // warnings — we don't have an "issues" mascot in MVP. A dedicated
-    // worried/concerned mascot can be added later.
     return {
-      src: happyMascot,
-      alt: t("app.altMascotHappy"),
+      mood: summary.totals.errors > 0
+        ? "surprised"
+        : "happy",
     };
   }
   return {
-    src: sleepingMascot,
-    alt: t("app.altMascotIdle"),
+    mood: "neutral",
   };
 }

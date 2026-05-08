@@ -82,6 +82,39 @@ If the user provided only a URL and MCP/network tools are unavailable, do
 not pretend the page was fetched. Ask for the page text, title/meta, or a
 brief extract, or provide a checklist of what to collect.
 
+## Page By URL
+
+If the user provided a URL plus copied/highlighted page content, treat the
+provided content as the evidence. Analyze the article/page text in chat and
+state that URL fetching, robots/meta/headings, index visibility, search
+clicks/impressions, and mention discovery did not run through ToraSEO MCP.
+
+If the user provided only a URL, follow the URL-only boundary above.
+
+## Site By URL
+
+If browsing/network tools are available in the current environment and the
+user gave a site URL, inspect only the public evidence you can actually
+reach and keep the report bounded. If browsing is unavailable, ask for
+exported facts, screenshots, page text, title/meta, robots/sitemap snippets,
+or a short crawl summary. Do not invent site-wide technical findings.
+
+## Site Comparison
+
+For two or three sites, do not write three full audits side by side. Use one
+compact competitive dashboard:
+
+- summary: who looks strongest and why
+- compact site cards: only key KPIs or qualitative status
+- comparative metrics: metadata, content, indexability, structure,
+  performance, trust
+- direction heatmap: green/yellow/red per direction when evidence exists
+- winners by block
+- actionable insights: what to copy from the leader and what to fix first
+
+If only URLs were provided and browsing/network tools are unavailable, state
+that live site evidence was not fetched and ask for source material.
+
 ## Do Not
 
 - Do not claim that ToraSEO Desktop App was updated.

@@ -26,12 +26,17 @@ import type { ToolId } from "../config/tools";
  */
 export type RuntimePolicyMode = "strict_audit" | "audit_plus_ideas";
 export type AuditExecutionMode = "bridge" | "native";
-export type RuntimeAnalysisType = "site" | "article_text" | "article_compare";
+export type RuntimeAnalysisType =
+  | "site"
+  | "article_text"
+  | "article_compare"
+  | "site_compare";
 export type RuntimeReportAnalysisType =
   | "article_text"
   | "article_compare"
   | "page_by_url"
-  | "site_by_url";
+  | "site_by_url"
+  | "site_compare";
 
 /**
  * A single rule the policy layer enforces. Keep this minimal in
@@ -68,6 +73,7 @@ export interface RuntimePolicyBundle {
  */
 export type ProviderId =
   | "openrouter"
+  | "routerai"
   | "openai"
   | "anthropic"
   | "google"
@@ -224,6 +230,29 @@ export interface RuntimeArticleCompareContext {
   textPlatform: string;
   customPlatform?: string;
   selectedTools: string[];
+}
+
+export interface RuntimeSiteCompareToolResult {
+  url: string;
+  toolId: string;
+  status: "ok" | "warning" | "critical" | "error";
+  summary?: {
+    critical: number;
+    warning: number;
+    info: number;
+  };
+  result?: unknown;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
+export interface RuntimeSiteCompareContext {
+  runId?: string;
+  urls: string[];
+  focus: string;
+  selectedTools: string[];
+  siteTools: string[];
+  scanResults: RuntimeSiteCompareToolResult[];
 }
 
 export interface RuntimeConfirmedFact {
@@ -427,6 +456,38 @@ export interface RuntimeArticleCompareSummary {
   limitations: string[];
 }
 
+export interface RuntimeSiteCompareSite {
+  url: string;
+  score: number;
+  critical: number;
+  warning: number;
+  metadata: number;
+  content: number;
+  indexability: number;
+}
+
+export interface RuntimeSiteCompareMetric {
+  id: string;
+  label: string;
+  values: Array<{ url: string; value: number }>;
+}
+
+export interface RuntimeSiteCompareDirection {
+  label: string;
+  values: Array<{ url: string; status: "good" | "warn" | "bad" | "pending" }>;
+}
+
+export interface RuntimeSiteCompareSummary {
+  focus: string;
+  winnerUrl: string | null;
+  completed: number;
+  total: number;
+  sites: RuntimeSiteCompareSite[];
+  metrics: RuntimeSiteCompareMetric[];
+  directions: RuntimeSiteCompareDirection[];
+  insights: string[];
+}
+
 export interface RuntimeAuditReport {
   analysisType?: RuntimeReportAnalysisType;
   analysisVersion?: string;
@@ -440,6 +501,7 @@ export interface RuntimeAuditReport {
   expertHypotheses: RuntimeExpertHypothesis[];
   articleText?: RuntimeArticleTextSummary;
   articleCompare?: RuntimeArticleCompareSummary;
+  siteCompare?: RuntimeSiteCompareSummary;
 }
 
 export interface ProviderUsage {
@@ -453,10 +515,12 @@ export interface RuntimeChatWindowSession {
   status: "active" | "ended";
   locale: SupportedLocale;
   analysisType: RuntimeAnalysisType;
+  selectedProviderId?: ProviderId | null;
   selectedModelProfile: ProviderModelProfile | null;
   scanContext: RuntimeScanContext | null;
   articleTextContext?: RuntimeArticleTextContext | null;
   articleCompareContext?: RuntimeArticleCompareContext | null;
+  siteCompareContext?: RuntimeSiteCompareContext | null;
   articleTextRunState?: "idle" | "running" | "complete" | "failed";
   articleTextRunError?: string;
   report: RuntimeAuditReport | null;
@@ -523,6 +587,8 @@ export interface OrchestratorMessageInput {
   articleTextContext?: RuntimeArticleTextContext | null;
   /** Current two-text comparison context for API + AI Chat workflows. */
   articleCompareContext?: RuntimeArticleCompareContext | null;
+  /** Current site comparison context for API + AI Chat workflows. */
+  siteCompareContext?: RuntimeSiteCompareContext | null;
 }
 
 /**

@@ -48,6 +48,7 @@ export async function handleUserMessage(
     scanContext: input.scanContext,
     articleTextContext: input.articleTextContext,
     articleCompareContext: input.articleCompareContext,
+    siteCompareContext: input.siteCompareContext,
     modelOverride: input.modelOverride,
   });
 

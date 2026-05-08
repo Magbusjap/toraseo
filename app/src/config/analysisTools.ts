@@ -43,8 +43,13 @@ export type AnalysisToolId =
   | "similarity_risk"
   | "compare_improvement_plan"
   | "compare_site_positioning"
+  | "compare_site_metadata"
+  | "compare_site_structure"
   | "compare_site_content_depth"
   | "compare_site_technical_basics"
+  | "compare_site_delta"
+  | "compare_site_direction_matrix"
+  | "compare_site_competitive_insights"
   | "visual_hierarchy"
   | "content_ux"
   | "design_content_alignment"
@@ -133,14 +138,19 @@ export const ANALYSIS_TOOLS: Record<AnalysisTypeId, AnalysisToolMeta[]> = {
     analysisTool("ai_hallucination_check", { defaultSelected: false }),
   ],
   site_compare: [
-    siteTool("analyze_meta"),
-    siteTool("analyze_headings"),
-    siteTool("analyze_content"),
-    siteTool("detect_stack"),
-    analysisTool("compare_site_positioning"),
-    analysisTool("compare_site_content_depth"),
-    analysisTool("compare_site_technical_basics"),
-    analysisTool("compare_strengths_weaknesses"),
+    ...TOOLS.map((tool) => ({
+      ...siteTool(tool.id),
+      defaultSelected: tool.defaultSelected,
+    })),
+    analysisTool("compare_site_positioning", { defaultSelected: false }),
+    analysisTool("compare_site_metadata", { defaultSelected: false }),
+    analysisTool("compare_site_structure", { defaultSelected: false }),
+    analysisTool("compare_site_content_depth", { defaultSelected: false }),
+    analysisTool("compare_site_technical_basics", { defaultSelected: false }),
+    analysisTool("compare_site_delta", { defaultSelected: false }),
+    analysisTool("compare_site_direction_matrix", { defaultSelected: false }),
+    analysisTool("compare_site_competitive_insights", { defaultSelected: false }),
+    analysisTool("compare_strengths_weaknesses", { defaultSelected: false }),
   ],
   site_design_by_url: [
     siteTool("analyze_meta"),
@@ -151,6 +161,7 @@ export const ANALYSIS_TOOLS: Record<AnalysisTypeId, AnalysisToolMeta[]> = {
     analysisTool("design_content_alignment"),
     analysisTool("trust_signals"),
   ],
+  image_analysis: [],
 };
 
 export function getDefaultAnalysisToolSet(

@@ -22,6 +22,7 @@ import type {
   RuntimeArticleCompareSummary,
   RuntimeArticleCompareTextSide,
   RuntimeArticleTextContext,
+  ProviderId,
   ProviderModelProfile,
   RuntimeAuditReport,
   RuntimeArticleTextDimensionStatus,
@@ -30,6 +31,11 @@ import type {
   RuntimePolicyMode,
   RuntimeScanContext,
   RuntimeConfirmedFact,
+  RuntimeSiteCompareContext,
+  RuntimeSiteCompareDirection,
+  RuntimeSiteCompareMetric,
+  RuntimeSiteCompareSite,
+  RuntimeSiteCompareToolResult,
 } from "../../types/runtime";
 import type { SupportedLocale } from "../../types/ipc";
 
@@ -44,7 +50,9 @@ interface ChatPanelProps {
   scanContext: RuntimeScanContext | null;
   articleTextContext?: RuntimeArticleTextContext | null;
   articleCompareContext?: RuntimeArticleCompareContext | null;
-  analysisType?: "site" | "article_text" | "article_compare";
+  siteCompareContext?: RuntimeSiteCompareContext | null;
+  analysisType?: "site" | "article_text" | "article_compare" | "site_compare";
+  selectedProviderId?: ProviderId | null;
   selectedModelProfile: ProviderModelProfile | null;
   bridgeState: CurrentScanState | null;
   bridgePrompt: string | null;
@@ -54,8 +62,6 @@ interface ChatPanelProps {
     errorMessage?: string,
   ) => void;
 }
-
-const RUNTIME_PROVIDER_ID = "openrouter" as const;
 
 function isScanContextReady(scanContext: RuntimeScanContext | null): boolean {
   return Boolean(scanContext && scanContext.completedTools.length > 0);
@@ -111,6 +117,23 @@ function articleCompareContextKey(
     context.textB.length,
     context.textA.slice(0, 60),
     context.textB.slice(0, 60),
+  ].join("|");
+}
+
+function siteCompareContextKey(
+  context: RuntimeSiteCompareContext | null | undefined,
+): string | null {
+  if (!context) return null;
+  return [
+    context.runId ?? "",
+    context.focus,
+    context.urls.join("|"),
+    context.selectedTools.join(","),
+    context.siteTools.join(","),
+    context.scanResults.length,
+    context.scanResults
+      .map((item) => `${item.url}:${item.toolId}:${item.status}`)
+      .join(","),
   ].join("|");
 }
 
@@ -215,6 +238,39 @@ function compareGoalModeDescription(
       "The report evaluates hook, clarity, brevity, platform fit, and reaction potential.",
   };
   return locale === "ru" ? ru[mode] : en[mode];
+}
+
+function buildSiteComparePrompt(
+  context: RuntimeSiteCompareContext,
+  locale: SupportedLocale,
+): string {
+  const selectedTools = context.selectedTools
+    .map((toolId) => toolLabelForChat(toolId, locale))
+    .join(", ");
+  if (locale === "ru") {
+    return [
+      "TORASEO_SITE_COMPARE_AUTO_RUN=scan",
+      "Сравни сайты по URL в рамках ToraSEO API + AI Chat.",
+      "",
+      `URL: ${context.urls.join(", ")}`,
+      `Фокус сравнения: ${context.focus || "общее конкурентное сравнение"}`,
+      `Выбранные проверки: ${selectedTools || "публичные SEO-проверки сайтов"}`,
+      "",
+      "Приложение уже собрало публичные URL-факты по каждому сайту и передало их в контекст. Построй единый сравнительный отчет: кто сильнее, почему, где разрыв, что перенять и что исправить первым.",
+      "Не делай три полных аудита рядом. Не утверждай, что были доступны Search Console, GA4, внешние ссылки, позиции в выдаче, Lighthouse или приватная аналитика.",
+    ].join("\n");
+  }
+  return [
+    "TORASEO_SITE_COMPARE_AUTO_RUN=scan",
+    "Compare sites by URL inside ToraSEO API + AI Chat.",
+    "",
+    `URLs: ${context.urls.join(", ")}`,
+    `Comparison focus: ${context.focus || "general competitive comparison"}`,
+    `Selected checks: ${selectedTools || "public site SEO checks"}`,
+    "",
+    "The app has collected public URL facts for each site and passed them as context. Build one comparative report: who is stronger, why, where the gap is, what to borrow, and what to fix first.",
+    "Do not render three full audits side by side. Do not claim access to Search Console, GA4, backlinks, live rankings, Lighthouse, or private analytics.",
+  ].join("\n");
 }
 
 function buildArticleComparePrompt(
@@ -466,7 +522,7 @@ function toolLabelForChat(value: string, locale: SupportedLocale): string {
 }
 
 function defaultPolicyModeForSession(
-  analysisType: "site" | "article_text" | "article_compare",
+  analysisType: "site" | "article_text" | "article_compare" | "site_compare",
   articleTextContext: RuntimeArticleTextContext | null | undefined,
 ): RuntimePolicyMode {
   if (
@@ -479,7 +535,7 @@ function defaultPolicyModeForSession(
 }
 
 function isAutoArticleTextScan(
-  analysisType: "site" | "article_text" | "article_compare",
+  analysisType: "site" | "article_text" | "article_compare" | "site_compare",
   articleTextContext: RuntimeArticleTextContext | null | undefined,
   text: string,
 ): boolean {
@@ -654,6 +710,60 @@ function renderReportText(
   report: RuntimeAuditReport,
   locale: SupportedLocale,
 ): string {
+  if (report.siteCompare) {
+    const compare = report.siteCompare;
+    const winner = compare.winnerUrl || (locale === "ru" ? "не определен" : "not determined");
+    const insights = compare.insights.length > 0
+      ? compare.insights.slice(0, 5)
+      : report.confirmedFacts.slice(0, 5).map((fact) => `${fact.title}: ${clampReportText(fact.detail, 220)}`);
+    const insightLines = insights.length > 0
+      ? insights.map((item) => `- ${item}`)
+      : [
+          locale === "ru"
+            ? "- Явных сравнительных выводов пока нет: часть URL-проверок требует повторной проверки или дала мало данных."
+            : "- No clear comparison insights yet: some URL checks need verification or returned limited evidence.",
+        ];
+    const factLines = report.confirmedFacts.slice(0, 6).map((fact, index) => {
+      return `${index + 1}. [${priorityLabel(fact.priority, locale)}] ${fact.title}: ${clampReportText(fact.detail, 260)}`;
+    });
+
+    if (locale === "ru") {
+      return [
+        `Готово: API-сравнение сайтов выполнено, отчет сформирован в ToraSEO. Проверено инструментов: ${compare.completed}/${compare.total}.`,
+        "",
+        `Победитель: ${winner}.`,
+        `Коротко: ${report.summary}`,
+        "",
+        "**Главные выводы**",
+        ...insightLines,
+        "",
+        "**Подтвержденные факты по выбранным проверкам**",
+        ...(factLines.length > 0
+          ? factLines
+          : ["1. Подтвержденные факты не вернулись от провайдера, но техническая сводка сохранена в отчете."]),
+        "",
+        `Следующий шаг: ${report.nextStep}`,
+      ].join("\n");
+    }
+
+    return [
+      `Done: API site comparison is complete and the report is formed in ToraSEO. Tool coverage: ${compare.completed}/${compare.total}.`,
+      "",
+      `Winner: ${winner}.`,
+      `Summary: ${report.summary}`,
+      "",
+      "**Main insights**",
+      ...insightLines,
+      "",
+      "**Confirmed facts by selected checks**",
+      ...(factLines.length > 0
+        ? factLines
+        : ["1. No confirmed facts were returned by the provider, but the technical summary is saved in the report."]),
+      "",
+      `Next step: ${report.nextStep}`,
+    ].join("\n");
+  }
+
   if (report.articleCompare) {
     const compare = report.articleCompare;
     if (locale === "ru") {
@@ -2803,6 +2913,196 @@ function mergeArticleCompareReports(
   };
 }
 
+function siteCompareToolResult(
+  context: RuntimeSiteCompareContext,
+  url: string,
+  toolId: string,
+): RuntimeSiteCompareToolResult | undefined {
+  return context.scanResults.find(
+    (item) => item.url === url && item.toolId === toolId,
+  );
+}
+
+function siteCompareStatus(
+  context: RuntimeSiteCompareContext,
+  url: string,
+  toolId: string,
+): "good" | "warn" | "bad" | "pending" {
+  const result = siteCompareToolResult(context, url, toolId);
+  if (!result) return "pending";
+  if (result.status === "error" || result.status === "critical") return "bad";
+  if (result.status === "warning") return "warn";
+  return "good";
+}
+
+function siteCompareIssueCount(
+  context: RuntimeSiteCompareContext,
+  url: string,
+  severity: "critical" | "warning",
+): number {
+  return context.scanResults
+    .filter((item) => item.url === url)
+    .reduce((sum, item) => sum + (item.summary?.[severity] ?? 0), 0);
+}
+
+function siteCompareDirectionalScore(
+  context: RuntimeSiteCompareContext,
+  url: string,
+  toolIds: string[],
+): number {
+  const results = toolIds
+    .map((toolId) => siteCompareToolResult(context, url, toolId))
+    .filter((item): item is RuntimeSiteCompareToolResult => Boolean(item));
+  if (results.length === 0) return 0;
+  const critical = results.reduce(
+    (sum, item) =>
+      sum + (item.status === "error" ? 1 : 0) + (item.summary?.critical ?? 0),
+    0,
+  );
+  const warning = results.reduce(
+    (sum, item) => sum + (item.summary?.warning ?? 0),
+    0,
+  );
+  return Math.max(0, Math.min(100, 100 - critical * 18 - warning * 9));
+}
+
+function buildSiteCompareSummaryForApi(
+  context: RuntimeSiteCompareContext,
+  confirmedFacts: RuntimeConfirmedFact[],
+  expectedToolIds: string[],
+  locale: SupportedLocale,
+): NonNullable<RuntimeAuditReport["siteCompare"]> {
+  const sites: RuntimeSiteCompareSite[] = context.urls.map((url) => {
+    const critical =
+      siteCompareIssueCount(context, url, "critical") +
+      context.scanResults.filter((item) => item.url === url && item.status === "error").length;
+    const warning = siteCompareIssueCount(context, url, "warning");
+    const metadata = siteCompareDirectionalScore(context, url, [
+      "analyze_meta",
+      "analyze_canonical",
+    ]);
+    const content = siteCompareDirectionalScore(context, url, [
+      "analyze_content",
+      "analyze_links",
+    ]);
+    const indexability = siteCompareDirectionalScore(context, url, [
+      "scan_site_minimal",
+      "analyze_indexability",
+      "check_robots_txt",
+      "analyze_sitemap",
+    ]);
+    return {
+      url,
+      score: Math.max(0, Math.min(100, 100 - critical * 12 - warning * 6)),
+      critical,
+      warning,
+      metadata,
+      content,
+      indexability,
+    };
+  });
+  const winnerUrl =
+    sites.slice().sort((a, b) => b.score - a.score)[0]?.url ?? null;
+  const metrics: RuntimeSiteCompareMetric[] = [
+    {
+      id: "metadata",
+      label: "Metadata",
+      values: sites.map((site) => ({ url: site.url, value: site.metadata })),
+    },
+    {
+      id: "content",
+      label: "Content",
+      values: sites.map((site) => ({ url: site.url, value: site.content })),
+    },
+    {
+      id: "indexability",
+      label: "Indexability",
+      values: sites.map((site) => ({ url: site.url, value: site.indexability })),
+    },
+    {
+      id: "score",
+      label: "Overall SEO",
+      values: sites.map((site) => ({ url: site.url, value: site.score })),
+    },
+  ];
+  const directionDefs = [
+    { label: "Robots", tool: "check_robots_txt" },
+    { label: "Sitemap", tool: "analyze_sitemap" },
+    { label: "Metadata", tool: "analyze_meta" },
+    { label: "Canonical", tool: "analyze_canonical" },
+    { label: "Content", tool: "analyze_content" },
+    { label: "Redirects", tool: "check_redirects" },
+    { label: "Stack", tool: "detect_stack" },
+  ];
+  const directions: RuntimeSiteCompareDirection[] = directionDefs.map(
+    (direction) => ({
+      label: direction.label,
+      values: context.urls.map((url) => ({
+        url,
+        status: siteCompareStatus(context, url, direction.tool),
+      })),
+    }),
+  );
+  const isRu = locale === "ru";
+  return {
+    focus: context.focus,
+    winnerUrl,
+    completed: confirmedFacts.length,
+    total: Math.max(1, expectedToolIds.length),
+    sites,
+    metrics,
+    directions,
+    insights: [
+      winnerUrl
+        ? isRu
+          ? `Лучший общий SEO-профиль по собранным публичным сигналам: ${winnerUrl}.`
+          : `Best overall SEO profile from collected public signals: ${winnerUrl}.`
+        : isRu
+          ? "Победитель пока не определен."
+          : "Winner is not determined yet.",
+      ...(confirmedFacts.slice(0, 4).map((fact) => fact.title)),
+    ],
+  };
+}
+
+function mergeSiteCompareReports(
+  reports: RuntimeAuditReport[],
+  context: RuntimeSiteCompareContext,
+  locale: SupportedLocale,
+): RuntimeAuditReport | null {
+  if (reports.length === 0) return null;
+  const last = reports[reports.length - 1];
+  const expectedToolIds = context.selectedTools;
+  const confirmedFacts = compactFactsByTool(
+    reports.flatMap((report) => report.confirmedFacts),
+    expectedToolIds,
+  );
+  const expertHypotheses = reports.flatMap((report) => report.expertHypotheses);
+  const siteCompare = buildSiteCompareSummaryForApi(
+    context,
+    confirmedFacts,
+    expectedToolIds,
+    locale,
+  );
+  const summary =
+    locale === "ru"
+      ? `ИИ сформировал сравнение сайтов по URL. Проверено направлений: ${confirmedFacts.length}.`
+      : `AI formed a site comparison by URL. Completed checks: ${confirmedFacts.length}.`;
+  return {
+    analysisType: "site_compare",
+    analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    mode: last.mode,
+    providerId: last.providerId,
+    model: last.model,
+    generatedAt: new Date().toISOString(),
+    summary,
+    nextStep: last.nextStep,
+    confirmedFacts,
+    expertHypotheses,
+    siteCompare,
+  };
+}
+
 function renderInlineMarkdown(text: string): ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return parts.map((part, index) => {
@@ -2898,7 +3198,9 @@ export default function ChatPanel({
   scanContext,
   articleTextContext = null,
   articleCompareContext = null,
+  siteCompareContext = null,
   analysisType = "site",
+  selectedProviderId = null,
   selectedModelProfile,
   bridgeState,
   bridgePrompt,
@@ -2923,26 +3225,51 @@ export default function ChatPanel({
   const autoInterpretationKey = useRef<string | null>(null);
   const autoArticleTextKey = useRef<string | null>(null);
   const autoArticleCompareKey = useRef<string | null>(null);
+  const autoSiteCompareKey = useRef<string | null>(null);
   const policySessionKey = useRef<string | null>(null);
   const copyResetTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    const nativeIntro =
+      analysisType === "site_compare"
+        ? t("chat.siteCompareIntro", {
+            defaultValue:
+              "API site comparison is open. ToraSEO will collect URL checks first, then AI will form the comparison report.",
+          })
+        : analysisType === "article_compare"
+          ? t("chat.articleCompareIntro", {
+              defaultValue:
+                "API text comparison is open. AI will use the selected checks to form the report.",
+            })
+          : analysisType === "article_text"
+            ? t("chat.articleTextIntro", {
+                defaultValue:
+                  "API text analysis is open. AI will use the selected checks to form the report.",
+              })
+            : t("chat.nativeReady", {
+                defaultValue:
+                  "Native mode is ready. Run a local scan, then ask for interpretation.",
+              });
     setHistory([
       {
         role: "system",
         text:
           executionMode === "native"
-            ? t("chat.nativeReady", {
-                defaultValue:
-                  "Native mode is ready. Run a local scan, then ask for interpretation.",
-              })
+            ? nativeIntro
             : t("chat.bridgeReady", {
                 defaultValue:
                   "Bridge mode is ready. Paste the copied prompt into Claude Desktop to let MCP tools fill the app.",
               }),
       },
     ]);
-  }, [executionMode, t]);
+  }, [
+    analysisType,
+    articleCompareContext?.runId,
+    articleTextContext?.runId,
+    executionMode,
+    siteCompareContext?.runId,
+    t,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -2957,12 +3284,13 @@ export default function ChatPanel({
       analysisType,
       articleTextContextKey(articleTextContext) ?? "",
       articleCompareContextKey(articleCompareContext) ?? "",
+      siteCompareContextKey(siteCompareContext) ?? "",
       scanContextKey(scanContext) ?? "",
     ].join("|");
     if (policySessionKey.current === key) return;
     policySessionKey.current = key;
     setPolicyMode(defaultPolicyModeForSession(analysisType, articleTextContext));
-  }, [analysisType, articleCompareContext, articleTextContext, scanContext]);
+  }, [analysisType, articleCompareContext, articleTextContext, siteCompareContext, scanContext]);
 
   const helperText = useMemo(() => {
     if (executionMode === "bridge") {
@@ -3018,6 +3346,21 @@ export default function ChatPanel({
           "Two texts are ready. Strict mode is used for the comparison report.",
       });
     }
+    if (
+      analysisType === "site_compare" &&
+      siteCompareContext?.urls.length &&
+      siteCompareContext.urls.length >= 2
+    ) {
+      return siteCompareContext.scanResults.length > 0
+        ? t("chat.helper.nativeSiteCompareReady", {
+            defaultValue:
+              "Site comparison scan evidence is ready. AI is forming the comparison report.",
+          })
+        : t("chat.helper.nativeSiteCompareScanning", {
+            defaultValue:
+              "Site comparison started. ToraSEO is collecting URL checks before AI interpretation.",
+          });
+    }
     if (!isScanContextReady(scanContext)) {
       return t("chat.helper.nativeNoScan", {
         defaultValue:
@@ -3037,6 +3380,7 @@ export default function ChatPanel({
     bridgeState,
     executionMode,
     scanContext,
+    siteCompareContext,
     t,
   ]);
 
@@ -3069,12 +3413,13 @@ export default function ChatPanel({
         mode: effectivePolicyMode,
         executionMode,
         analysisType,
-        providerId: RUNTIME_PROVIDER_ID,
+        providerId: selectedProviderId ?? "openrouter",
         modelOverride: selectedModelProfile?.modelId,
         locale,
         scanContext,
         articleTextContext,
         articleCompareContext,
+        siteCompareContext,
       };
 
       let result: OrchestratorMessageResult;
@@ -3147,8 +3492,10 @@ export default function ChatPanel({
       scanContext,
       articleTextContext,
       articleCompareContext,
+      siteCompareContext,
       analysisType,
       selectedModelProfile?.modelId,
+      selectedProviderId,
       t,
     ],
   );
@@ -3183,7 +3530,7 @@ export default function ChatPanel({
           mode: policyModeOverride,
           executionMode,
           analysisType,
-          providerId: RUNTIME_PROVIDER_ID,
+          providerId: selectedProviderId ?? "openrouter",
           modelOverride: selectedModelProfile?.modelId,
           locale,
           scanContext,
@@ -3255,6 +3602,7 @@ export default function ChatPanel({
       onReport,
       scanContext,
       selectedModelProfile?.modelId,
+      selectedProviderId,
       t,
     ],
   );
@@ -3289,7 +3637,7 @@ export default function ChatPanel({
           mode: policyModeOverride,
           executionMode,
           analysisType,
-          providerId: RUNTIME_PROVIDER_ID,
+          providerId: selectedProviderId ?? "openrouter",
           modelOverride: selectedModelProfile?.modelId,
           locale,
           scanContext,
@@ -3362,6 +3710,117 @@ export default function ChatPanel({
       onReport,
       scanContext,
       selectedModelProfile?.modelId,
+      selectedProviderId,
+      t,
+    ],
+  );
+
+  const runSiteCompareScanSequence = useCallback(
+    async (
+      context: RuntimeSiteCompareContext,
+      policyModeOverride: RuntimePolicyMode,
+    ) => {
+      if (busy || executionMode !== "native") return;
+      if (context.scanResults.length === 0) return;
+      setBusy(true);
+      onReport(null, "running");
+      setHistory((prev) => [
+        ...prev,
+        {
+          role: "system",
+          text: t("chat.siteCompareStarted", {
+            defaultValue:
+              "Site scan evidence received. Preparing AI comparison...",
+          }),
+        },
+      ]);
+
+      const reports: RuntimeAuditReport[] = [];
+      for (let index = 0; index < context.selectedTools.length; index += 1) {
+        const toolId = context.selectedTools[index];
+        const toolContext: RuntimeSiteCompareContext = {
+          ...context,
+          selectedTools: [toolId],
+        };
+        const input: OrchestratorMessageInput = {
+          text: buildSiteComparePrompt(toolContext, locale),
+          mode: policyModeOverride,
+          executionMode,
+          analysisType,
+          providerId: selectedProviderId ?? "openrouter",
+          modelOverride: selectedModelProfile?.modelId,
+          locale,
+          scanContext: null,
+          articleTextContext: null,
+          articleCompareContext: null,
+          siteCompareContext: toolContext,
+        };
+
+        let result: OrchestratorMessageResult;
+        try {
+          result = await window.toraseo.runtime.sendMessage(input);
+        } catch (err) {
+          result = {
+            ok: false,
+            errorCode: "ipc_failure",
+            errorMessage:
+              err instanceof Error ? err.message : "Unknown IPC failure",
+          };
+        }
+
+        if (!result.ok || !result.report) {
+          const message =
+            result.errorMessage ||
+            t("chat.articleTextReportParseFailed", {
+              defaultValue:
+                "AI returned a chat answer instead of a structured ToraSEO report.",
+            });
+          onReport(null, "failed", message);
+          setHistory((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              text: t("chat.providerError", {
+                code: result.errorCode ?? "site_compare_report_failed",
+                message,
+                defaultValue: "[error: {{code}}] {{message}}",
+              }),
+            },
+          ]);
+          setBusy(false);
+          return;
+        }
+
+        reports.push(result.report);
+        const partial = mergeSiteCompareReports(reports, context, locale);
+        if (partial) {
+          onReport(
+            partial,
+            index === context.selectedTools.length - 1 ? "complete" : "running",
+          );
+        }
+      }
+
+      const finalReport = mergeSiteCompareReports(reports, context, locale);
+      if (finalReport) {
+        setHistory((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: renderReportText(finalReport, locale),
+          },
+        ]);
+      }
+      setBusy(false);
+    },
+    [
+      analysisType,
+      busy,
+      executionMode,
+      locale,
+      onReport,
+      selectedModelProfile?.modelId,
+      selectedProviderId,
       t,
     ],
   );
@@ -3414,6 +3873,24 @@ export default function ChatPanel({
     busy,
     executionMode,
     runArticleCompareScanSequence,
+  ]);
+
+  useEffect(() => {
+    if (executionMode !== "native" || analysisType !== "site_compare") return;
+    if (!siteCompareContext || siteCompareContext.urls.length < 2) return;
+    if (siteCompareContext.scanResults.length === 0) return;
+    if (busy) return;
+    const key = siteCompareContextKey(siteCompareContext);
+    if (!key || autoSiteCompareKey.current === key) return;
+    autoSiteCompareKey.current = key;
+    setPolicyMode("strict_audit");
+    void runSiteCompareScanSequence(siteCompareContext, "strict_audit");
+  }, [
+    analysisType,
+    busy,
+    executionMode,
+    runSiteCompareScanSequence,
+    siteCompareContext,
   ]);
 
   useEffect(() => {
@@ -3590,7 +4067,11 @@ export default function ChatPanel({
             onChange={(e) => setDraft(e.target.value)}
             placeholder={
               executionMode === "native"
-                ? isScanContextReady(scanContext)
+                ? analysisType === "site_compare"
+                  ? t("chat.inputPlaceholder.siteCompare", {
+                      defaultValue: "Ask about the current site comparison...",
+                    })
+                  : isScanContextReady(scanContext)
                   ? t("chat.inputPlaceholder.native", {
                       defaultValue: "Ask about the current site audit...",
                     })

@@ -67,8 +67,8 @@ let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 800,
+    width: 1400,
+    height: 900,
     minWidth: 800,
     minHeight: 600,
     title: "ToraSEO",

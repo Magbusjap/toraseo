@@ -42,8 +42,26 @@ export const POLL_INTERVAL_MS = 500;
  */
 export const STATE_FILE_SCHEMA_VERSION = 1;
 
+function devSharedStateFilePath(): string | null {
+  const explicit = process.env.TORASEO_BRIDGE_STATE_DIR?.trim();
+  if (explicit) return path.join(explicit, "current-scan.json");
+  if (app.isPackaged) return null;
+
+  const cwd = process.cwd();
+  const candidates = [
+    path.resolve(cwd, "..", ".toraseo-bridge"),
+    path.resolve(cwd, ".toraseo-bridge"),
+  ];
+  const repoLike = candidates.find((candidate) =>
+    candidate.toLowerCase().includes(`${path.sep}toraseo${path.sep}`),
+  );
+  return path.join(repoLike ?? candidates[0], "current-scan.json");
+}
+
 /** Resolve the state-file path inside userData. */
 export function stateFilePath(): string {
+  const shared = devSharedStateFilePath();
+  if (shared) return shared;
   return path.join(app.getPath("userData"), "current-scan.json");
 }
 
@@ -104,6 +122,7 @@ export async function writeState(state: CurrentScanState): Promise<void> {
   const filePath = stateFilePath();
   const tmpPath = filePath + ".tmp";
   const serialized = JSON.stringify(state, null, 2);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(tmpPath, serialized, "utf-8");
   await fs.rename(tmpPath, filePath);
 }
