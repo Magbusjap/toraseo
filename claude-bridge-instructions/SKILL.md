@@ -280,63 +280,37 @@ fallback reference when `verify_skill_loaded` returns `ok: true`.
 
 #### 2.3.1 `app_not_running`
 
-The Desktop App is not running (no alive-file, or its PID is
-dead).
+The Desktop App liveness marker is not reachable.
 
 ```json
 { "ok": false, "error": "app_not_running", "reason": "...", "message": "..." }
 ```
 
-If the user **mentioned the app** in their message, tell them and then
-continue in chat-only fallback if they provided enough text or URL
-details:
+If this happened during setup-check, do not tell the user to click Scan.
+The setup screen may not have a Scan button. Explain that MCP and Bridge
+Instructions may be installed, but ToraSEO app liveness is not reachable
+yet. Ask the user to keep ToraSEO open on `MCP + Instructions -> Claude
+Desktop` and repeat the setup prompt after the app refreshes.
 
-> "Похоже, что приложение ToraSEO не запущено. Запустите его,
-> нажмите Сканировать с нужным URL и инструментами, затем
-> перешлите мне сгенерированный промпт. Если хотите получить
-> SEO-отчёт прямо в чате (без приложения), скажите — я сделаю
-> обычный аудит."
-
-If the user **did not** mention the app (e.g. they typed
-`/toraseo проверь example.com` without referencing the desktop
-app explicitly), proceed silently with the regular Mode A
-workflow (§3) when MCP tools are available — the app is just not part
-of their flow. If MCP tools are unavailable, use the chat-only fallback
-and state that no tool results will be written to the app.
+If the user wants to continue without the app and provided enough text or
+URL details, load `references/chat-only-fallback.md` and continue in chat
+while clearly stating that ToraSEO will not be updated.
 
 #### 2.3.2 `app_running_no_scan`
 
-The Desktop App is running, but the user hasn't clicked Scan
-yet.
+The Desktop App is running, but no analysis run is waiting.
 
 ```json
 { "ok": false, "error": "app_running_no_scan", "appPid": ..., "appVersion": "...", "message": "..." }
 ```
 
-This is an explicit **branch point**. If the user pasted enough text,
-comparison input, or URL details for a useful chat-only analysis, load
-`references/chat-only-fallback.md` and proceed in chat. If not, use
-`ask_user_input_v0` with two options:
+For setup-check this is a successful setup proof: MCP is reachable and
+Claude Bridge Instructions are active. Send a short confirmation and tell
+the user they can return to ToraSEO, choose an analysis type, and start
+analysis from that specific screen. Do not mention a generic Scan button.
 
-- **Option A:** "Хочу получить результат прямо в чате" /
-  "I want results in chat" — fall back to the regular Mode A
-  workflow (§3) using the URL the user mentioned. Don't run
-  Bridge Mode tools; the app won't show data because no scan
-  was started.
-- **Option B:** "Я нажму Сканировать в приложении" /
-  "I'll click Scan in the app" — reply: *"Хорошо, нажмите
-  Сканировать в приложении и пришлите мне любое сообщение,
-  когда будете готовы (например, 'готово' или 'я нажал')."*
-  Then **stop and wait**. Do NOT call any tools. The user will
-  click Scan in the app, then send another message. On that
-  next message, call `verify_skill_loaded` again — by then it
-  should return `ok: true` and Bridge Mode proceeds.
-
-Critical: **do not start a Mode A audit on Option B** — the
-user explicitly chose to wait. Do not call tools without an
-explicit choice. If the user gives an ambiguous response (not
-A or B), ask again with the same selector.
-
+If the user wants to continue without the app, offer the chat-only
+fallback and state that ToraSEO will not be updated.
 #### 2.3.3 `wrong_state`
 
 The state-file exists but isn't in `awaiting_handshake` —
@@ -620,12 +594,11 @@ Desktop) in these moments:
   returns `http_4xx`/`http_5xx`, ask "the page itself isn't
   responding, do you want to audit the rest of the site anyway?"
   with options Yes / No.
-- **Bridge Mode branch (app_running_no_scan)** — see §2.3.2. Two
-  options: "I want results in chat" (Mode A fallback) /
-  "I'll click Scan in the app" (wait for user).
+- **Bridge Mode setup-check (app_running_no_scan)** — see §2.3.2.
+  Treat it as setup success; do not ask the user to click Scan.
 - **Bridge Mode fallback (app_not_running, user mentioned app)** —
-  see §2.3.1. Two options: "Run a regular audit anyway" /
-  "I'll start the app first".
+  see §2.3.1. Offer chat-only fallback if the user provided enough
+  content or URL details.
 
 Do **not** use selectors for:
 

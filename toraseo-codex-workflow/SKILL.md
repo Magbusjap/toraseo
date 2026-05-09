@@ -81,6 +81,17 @@ installation/version problem: tell the user to update or reinstall the
 `toraseo-codex-workflow` package, restart Codex, open a new session, and
 run the setup check again.
 
+For `/toraseo codex-bridge-mode setup-check`, do not tell the user to
+click Scan. This command only verifies reachability of ToraSEO MCP and
+the Codex Workflow Instructions. If the response says `setupVerified`,
+confirm that setup is ready and tell the user they can return to ToraSEO
+and choose an analysis type. If the response says `app_not_running`,
+explain that MCP/Workflow Instructions may be loaded but the ToraSEO app
+liveness marker is not reachable yet; ask the user to keep ToraSEO open
+on `MCP + Instructions -> Codex` and rerun the setup prompt after the app
+refreshes. If the user wants analysis without the app, switch to the
+chat-only fallback instead of sending them to a generic Scan button.
+
 After the handshake succeeds, use the returned `analysisType` and
 `selectedTools` as the contract. For `site_by_url`, call
 `site_url_internal` when it is available; that single MCP call runs the

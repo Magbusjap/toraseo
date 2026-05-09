@@ -56,13 +56,31 @@ interface AliveFileContent {
 let heartbeatTimer: NodeJS.Timeout | null = null;
 let aliveFilePath: string | null = null;
 
+function devSharedAliveFilePath(): string | null {
+  const explicit = process.env.TORASEO_BRIDGE_STATE_DIR?.trim();
+  if (explicit) return path.join(explicit, ALIVE_FILE_NAME);
+  if (app.isPackaged) return null;
+
+  const cwd = process.cwd();
+  const candidates = [
+    path.resolve(cwd, "..", ".toraseo-bridge"),
+    path.resolve(cwd, ".toraseo-bridge"),
+  ];
+  const repoLike = candidates.find((candidate) =>
+    candidate.toLowerCase().includes(`${path.sep}toraseo${path.sep}`),
+  );
+  return path.join(repoLike ?? candidates[0], ALIVE_FILE_NAME);
+}
+
 /**
  * Resolve the alive-file path. Lazy because app.getPath()
  * isn't valid before app is ready.
  */
 function getAliveFilePath(): string {
   if (aliveFilePath) return aliveFilePath;
-  aliveFilePath = path.join(app.getPath("userData"), ALIVE_FILE_NAME);
+  aliveFilePath =
+    devSharedAliveFilePath() ??
+    path.join(app.getPath("userData"), ALIVE_FILE_NAME);
   return aliveFilePath;
 }
 
@@ -74,6 +92,7 @@ function getAliveFilePath(): string {
  */
 async function writeAtomic(filePath: string, data: AliveFileContent): Promise<void> {
   const tempPath = filePath + ".tmp";
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(tempPath, JSON.stringify(data, null, 2), "utf-8");
   await fs.rename(tempPath, filePath);
 }

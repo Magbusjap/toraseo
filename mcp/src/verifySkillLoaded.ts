@@ -19,10 +19,10 @@
  *
  *   - app_not_running        вЂ” App process isn't alive (no alive-file
  *                              or stale PID). Tell user to start app.
- *   - app_running_no_scan    вЂ” App is alive but the user hasn't
- *                              clicked Scan yet. Offer choice: scan
- *                              in chat (Mode A fallback) or wait for
- *                              the user to click Scan.
+ *   - app_running_no_scan    вЂ” App is alive but no analysis run is
+ *                              waiting. In setup-check, this proves
+ *                              the setup path is reachable; do not
+ *                              mention a generic Scan button.
  *   - wrong_state            вЂ” State-file exists but isn't in
  *                              awaiting_handshake (e.g. previous
  *                              scan still in_progress or terminal).
@@ -94,11 +94,12 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                 reason: alive.reason,
                 message:
                   "The ToraSEO Desktop App is not running. " +
-                  "Tell the user: please start the ToraSEO app, " +
-                  "then continue. If they want a regular SEO audit " +
-                  "without the app, you can offer that as an " +
-                  "alternative вЂ” but ask them first; do not silently " +
-                  "fall back.",
+                  "For setup-check, do not tell the user to click Scan. " +
+                  "Tell the user to keep ToraSEO open on MCP + Instructions " +
+                  "-> Claude Desktop and repeat the setup prompt after the " +
+                  "app refreshes. If they want analysis without the app, " +
+                  "offer the Skill-only chat fallback instead of sending " +
+                  "them to a generic Scan button.",
               },
               null,
               2,
@@ -127,14 +128,13 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                 appVersion: alive.version,
                 message:
                   "The ToraSEO Desktop App is running, but the user " +
-                  "hasn't clicked the Scan button yet. " +
-                  "Use ask_user_input_v0 to give them two choices: " +
-                  "(a) 'I want results in chat' вЂ” fall back to a " +
-                  "regular Mode A audit using the URL they mentioned. " +
-                  "(b) 'I'll click Scan in the app' вЂ” pause and wait " +
-                  "for the user's confirmation that they clicked it; " +
-                  "do nothing until they message again. Do NOT start " +
-                  "any tool calls without explicit user choice.",
+                  "has not started an analysis run. For setup-check, treat " +
+                  "this as successful setup proof: MCP is reachable and the " +
+                  "Bridge Instructions are active. Do not mention a generic " +
+                  "Scan button. Tell the user they can return to ToraSEO, " +
+                  "choose an analysis type, and start analysis from that " +
+                  "specific screen. If they want analysis without the app, " +
+                  "offer the Skill-only chat fallback.",
               },
               null,
               2,

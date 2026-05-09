@@ -118,6 +118,15 @@ audit tool into a broader SEO analysis workspace.
 - Packaged builds now use a separate `ToraSEO` user-data profile instead
   of the workspace package name, so locally saved dev API-provider
   settings are not picked up by installed releases on the same machine.
+- MCP bridge path discovery now also checks the explicit `ToraSEO Dev`
+  profile, so Claude Desktop and Codex can still find the app during
+  local development after the dev/prod profile split.
+- Dev bridge liveness and Codex setup verification now use the shared
+  `.toraseo-bridge` directory, avoiding AppData access problems in
+  sandboxed Codex sessions.
+- Codex and Claude setup-check responses no longer tell users to click a
+  generic Scan button; they distinguish setup verification, analysis
+  screens, and Skill-only chat fallback.
 
 ### Documentation
 
