@@ -38,25 +38,25 @@ export default function ActiveSidebar({
   const toolPackages = [
     {
       id: "basic",
-      title: t("sidebar.siteGroups.basic", { defaultValue: "Базовый аудит" }),
+      title: t("sidebar.siteGroups.basic", { defaultValue: "Basic checks" }),
       description: t("sidebar.siteGroups.basicDescription", {
-        defaultValue: "URL, индексация, robots.txt, sitemap и редиректы",
+        defaultValue: "URL, indexability, robots.txt, sitemap, and redirects",
       }),
       tools: TOOLS.filter((tool) => tool.group === "basic").map((tool) => tool.id),
     },
     {
       id: "onPage",
-      title: t("sidebar.siteGroups.onPage", { defaultValue: "SEO на странице" }),
+      title: t("sidebar.siteGroups.onPage", { defaultValue: "On-page SEO" }),
       description: t("sidebar.siteGroups.onPageDescription", {
-        defaultValue: "Meta-теги, canonical, заголовки, контент и ссылки",
+        defaultValue: "Meta tags, canonical, headings, content, and links",
       }),
       tools: TOOLS.filter((tool) => tool.group === "onPage").map((tool) => tool.id),
     },
     {
       id: "advanced",
-      title: t("sidebar.siteGroups.advanced", { defaultValue: "Расширенные" }),
+      title: t("sidebar.siteGroups.advanced", { defaultValue: "Advanced" }),
       description: t("sidebar.siteGroups.advancedDescription", {
-        defaultValue: "Дополнительные проверки, которые нужны не каждому аудиту",
+        defaultValue: "Optional checks that are not needed for every audit",
       }),
       tools: TOOLS.filter((tool) => tool.group === "advanced").map((tool) => tool.id),
     },
@@ -141,7 +141,7 @@ export default function ActiveSidebar({
 
         <SidebarSection
           title={t("plannedAnalysis.sidebar.additionalChecks", {
-            defaultValue: "Дополнительные проверки",
+            defaultValue: "Additional checks",
           })}
         >
           <div className="space-y-2">

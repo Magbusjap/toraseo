@@ -1,258 +1,96 @@
-# FAQ — ToraSEO
+# FAQ - ToraSEO
 
-Часто задаваемые вопросы. Если ответа на ваш вопрос здесь нет —
-[откройте issue на GitHub](https://github.com/Magbusjap/toraseo/issues/new).
+**Language:** English | [Russian](FAQ.ru.md)
 
----
+Short answers about ToraSEO modes, analytics tools, AI providers, reports, exports, and privacy.
 
-## Что такое ToraSEO?
+## Modes
 
-ToraSEO — настольное приложение для SEO-аудита веб-страниц,
-работающее в паре с Claude Desktop. Приложение запускает
-объективные проверки (meta-теги, заголовки, sitemap, редиректы,
-robots.txt, контент), а Claude интерпретирует результаты и
-выдаёт человеко-читаемый отчёт по принципам Google Search
-Essentials.
+### What is MCP + Instructions?
 
-См. также: [README](../README.md), [ARCHITECTURE](./ARCHITECTURE.md).
+`MCP + Instructions` connects ToraSEO with Codex or Claude Desktop. ToraSEO prepares the analysis context, the external AI client calls selected MCP tools, and the app receives structured results.
 
----
+Use this mode when you want tool evidence in the external chat and a structured report in ToraSEO.
 
-## Установка и запуск
+### What is API + AI Chat?
 
-### Что нужно установить, чтобы ToraSEO заработал?
+`API + AI Chat` keeps the workflow inside ToraSEO. The app gathers scan facts, sends only the needed evidence to the selected provider model, and forms the report in the app.
 
-Три компонента:
+Use this mode when you want to avoid bridge commands and continue with follow-up questions in the built-in chat.
 
-1. **ToraSEO desktop app** — берётся из
-   [GitHub Releases](https://github.com/Magbusjap/toraseo/releases),
-   скачайте `ToraSEO-X.Y.Z-setup.exe` и запустите.
-2. **Claude Desktop** — официальное приложение Anthropic.
-   Скачивается с [claude.ai/download](https://claude.ai/download).
-3. **ToraSEO Claude Bridge Instructions** — ZIP-архив с инструкциями для Claude.
-   Скачивается через onboarding-экран самого приложения
-   (кнопка «Скачать ZIP с GitHub») и устанавливается в
-   Claude Desktop через **Settings → Skills → Install ZIP**.
+### What is Skill without MCP and APP?
 
-После установки приложение само проверит, что всё на месте, и
-разблокирует кнопку сканирования.
+This is a chat-only fallback. It is useful when the instruction package is installed, but ToraSEO Desktop App, the MCP server, or an active scan is unavailable.
 
-### Почему Windows ругается на «неизвестный издатель»?
+The AI answers in chat from pasted or visible evidence. The desktop report is not updated.
 
-Приложение пока не подписано сертификатом — code signing на
-v0.0.x отложен (стоит ~$300/год). Windows SmartScreen покажет
-предупреждение «Защитник Windows предотвратил запуск
-неизвестного приложения». Нажмите **«Подробнее» → «Выполнить
-в любом случае»**.
+## Analytics Tools
 
-Это не вирус — исходный код полностью открыт на
-[GitHub](https://github.com/Magbusjap/toraseo). Подписание
-появится после v0.6-beta, когда продукт стабилизируется.
+### Why does the sidebar say Additional checks?
 
-### Поддерживается ли macOS / Linux?
+Core checks belong to the selected analysis package. The sidebar shows optional checks that can expand or narrow the report.
 
-Архитектурно — да, electron-builder собирает под все три
-платформы. Но публикуется в GitHub Releases пока только Windows
-(NSIS installer). macOS / Linux сборки добавим, когда у этих
-аудиторий появится спрос.
+### Why does site comparison not show three full audits side by side?
 
----
+Site comparison is a competitive dashboard, not three separate reports. It should answer:
 
-## Зависимости и подключение
+- who is stronger
+- why
+- where the gaps are
+- what to fix first
 
-### Почему приложение требует Claude Desktop?
+That is why ToraSEO uses compact site cards, comparative metrics, heatmaps, winners, and actionable insights.
 
-ToraSEO — это **companion** для Claude, а не самостоятельный
-инструмент. Приложение запускает технические проверки, а Claude
-выдаёт интерпретацию. Без Claude вы получите голый JSON с
-результатами проверок, но не отчёт.
+## AI Providers
 
-Дизайн-выбор: вместо встроенного AI (который требует API-ключ
-и оплаты) мы используем уже установленный у пользователя
-Claude Desktop. Это экономит юзеру деньги и не требует
-дополнительных учётных записей.
+### Which AI providers are supported?
 
-### Что такое MCP и зачем он нужен?
+OpenRouter is marked as an international model router. RouterAI is marked as a Russian OpenAI-compatible router with ruble billing.
 
-MCP (Model Context Protocol) — стандарт от Anthropic для
-подключения инструментов к Claude. ToraSEO регистрирует свои
-семь SEO-проверок через MCP-сервер, и они появляются у Claude
-как доступные tools.
+Both are configured in Settings. Add a provider key, save one or more model IDs, and choose one model as the app default.
 
-Регистрация происходит в файле `claude_desktop_config.json`.
-Приложение умеет искать его в четырёх стандартных местах
-Windows; если ваш Claude установлен в нестандартной папке —
-используйте кнопку «Указать config вручную» в onboarding.
+### Does RouterAI need special code in settings?
 
-### Что такое Skill и почему он отдельно?
+No for normal chat and analysis. RouterAI exposes an OpenAI-compatible API endpoint, so ToraSEO can use the same chat completions adapter with the RouterAI base URL.
 
-Skill — это набор инструкций для Claude (как должен выглядеть
-отчёт, в каком порядке запускать tools, какие пороги считать
-критическими). Без Skill Claude всё равно может вызвать
-MCP-tools, но интерпретирует результаты «по своему усмотрению»
-без правил ToraSEO.
+RouterAI plugins such as web search can be added later as provider options. They should not require pasting a large function into the model ID field.
 
-Skills в Claude Desktop хранятся на сервере Anthropic и
-привязаны к учётной записи. Их нельзя установить через
-файловую систему — только через
-**Settings → Skills → Install ZIP**.
+## Reports And Exports
 
-### Приложение говорит «Claude Desktop не запущен», но он запущен
+### Where is the analysis version?
 
-Возможные причины:
+Reports show the app version separately from the analysis version. The analysis version identifies which user-facing rules produced the report.
 
-- Приложение Claude установлено из Microsoft Store (имеет
-  sandbox-путь, отличный от обычного installer'а). ToraSEO 0.0.4+
-  поддерживает оба пути автоматически — обновитесь до последней
-  версии через «Проверить обновления».
-- Клод запущен под другим пользователем (admin vs обычный) —
-  ToraSEO видит только процессы текущего юзера.
-- Антивирус блокирует чтение списка процессов — добавьте
-  ToraSEO в исключения.
+### Can reports be exported?
 
-Если ничего не помогло — откройте
-[issue](https://github.com/Magbusjap/toraseo/issues/new) и
-приложите лог из `%APPDATA%\toraseo\logs\main.log`.
+PDF export is available for reports. Site comparison should use landscape layout because a wide comparison dashboard reads better than a narrow vertical page.
 
-### Приложение говорит «MCP не зарегистрирован», но я добавил его в config
+A presentation export is also a strong future fit for competitive comparison reports.
 
-Проверьте:
+## Privacy
 
-- Файл `claude_desktop_config.json` действительно содержит
-  ключ `mcpServers.toraseo` (с маленькой буквы).
-- Claude Desktop был **перезапущен** после изменения config —
-  он читает файл только при старте.
-- Файл лежит по одному из путей, которые ToraSEO проверяет
-  (или укажите ваш через «Указать config вручную»).
+### What is sent to the internet?
 
----
+ToraSEO sends requests to the URLs you choose to analyze. In `API + AI Chat`, the selected provider also receives the scan facts and the prompt needed to form the report.
 
-## Сканирование и отчёты
+Stored API keys are kept through secure provider settings and are not shown back in plain text.
 
-### Какие проверки запускает ToraSEO?
+### Does ToraSEO respect robots.txt?
 
-Семь tools для Mode A (Site Audit):
+Yes. Crawling behavior is governed by [CRAWLING_POLICY.md](../CRAWLING_POLICY.md).
 
-1. **scan_site_minimal** — доступность, базовые meta
-2. **check_robots_txt** — разрешено ли краулить
-3. **analyze_meta** — title, description, OG, Twitter, canonical
-4. **analyze_headings** — структура h1..h6
-5. **analyze_sitemap** — discovery + парсинг
-6. **check_redirects** — цепочка редиректов
-7. **analyze_content** — длина контента, text-to-code, изображения
+## Development
 
-Mode B (анализ статьи: AI-detection, читаемость, стиль) —
-в разработке, появится в `skill-v0.2.0`.
+### Where should I report a bug?
 
-### Можно отключить какие-то проверки?
+Open a GitHub issue and include:
 
-Да. В sidebar при запуске сканирования каждый tool — это
-чекбокс, можно снять галочку. По умолчанию все семь включены.
+- app version
+- steps to reproduce
+- expected result
+- actual result
+- relevant logs or screenshots when possible
 
-### Почему скан долго не завершается?
+### Which parts are still in development?
 
-Сканер уважает **robots.txt** и соблюдает rate-limit (минимум
-2 секунды между запросами к одному хосту, или дольше если
-robots.txt задаёт `Crawl-delay`). Один полный аудит — обычно
-15–30 секунд.
-
-Если скан висит больше 60 секунд — скорее всего проблема с
-сетью или сайт медленно отвечает. У каждого tool свой timeout
-(15s для HTML, 30s для XML, 10s для редиректов).
-
-### Где сохраняются результаты сканов?
-
-Пока **нигде** — результаты живут в RAM на время работы
-приложения и теряются при закрытии. Persistence через SQLite
-запланирован для v0.4+, когда понадобится история и сравнение.
-
----
-
-## Обновления
-
-### Как обновить приложение?
-
-Автоматически. Приложение проверяет GitHub Releases при старте
-(через 3 секунды после запуска) и показывает уведомление в
-правом нижнем углу, если есть новая версия.
-
-Также можно проверить вручную через тулбар:
-**«Проверить обновления»**.
-
-### Обновление установится без моего участия?
-
-Нет, всё через явные клики. Сначала нужно нажать «Скачать»,
-потом «Установить и перезапустить». Скачивание не блокирует
-работу с приложением.
-
-С v0.0.5 установка обновлений идёт **silently** — не выскакивает
-NSIS-окно поверх приложения, всё происходит в фоне, после чего
-приложение перезапускается само.
-
-### Какая разница между «App» и «Skill» релизами?
-
-Это два независимых трека:
-
-- **App** (теги `v0.0.X`) — само desktop-приложение.
-- **Skill** (теги `skill-v0.X.Y`) — ZIP с инструкциями для Claude.
-
-Приложение и Skill эволюционируют отдельно: исправления в UI
-приложения не требуют переустановки Skill, и наоборот.
-
----
-
-## Приватность и безопасность
-
-### Что приложение отправляет в интернет?
-
-Только HTTP-запросы к сайтам, которые вы сканируете
-(прозрачный User-Agent: `ToraSEO/X.Y.Z (+github.com/Magbusjap/toraseo)`).
-Плюс проверка обновлений на GitHub Releases.
-
-**Никакой телеметрии нет** — ни о запусках, ни об URL'ах,
-которые вы сканируете, ни об ошибках. Логи остаются только
-у вас в `%APPDATA%\toraseo\logs\`.
-
-### Приложение использует мой API-ключ Claude?
-
-**Нет.** ToraSEO работает через Claude Desktop (отдельное
-приложение с вашей учёткой Anthropic) — приложение само
-никаких ключей не хранит и в API не ходит.
-
-### Соблюдает ли ToraSEO robots.txt?
-
-Да, всегда. Полная политика —
-[CRAWLING_POLICY.md](../CRAWLING_POLICY.md).
-
----
-
-## Разработка и вклад
-
-### Я нашёл баг — куда писать?
-
-[Откройте issue на GitHub](https://github.com/Magbusjap/toraseo/issues/new)
-и приложите:
-
-- Версию приложения (видно в тулбаре «О ToraSEO»)
-- Шаги для воспроизведения
-- Лог из `%APPDATA%\toraseo\logs\main.log` (последние 100 строк)
-- Скриншот, если применимо
-
-### Я хочу добавить функцию
-
-Откройте issue с тегом `enhancement` или сразу pull request.
-Roadmap описан в [README](../README.md#roadmap).
-
-### Какие технологии используются?
-
-- **App:** Electron 33 + React 19 + TypeScript + Vite + Tailwind
-- **MCP server:** Node.js + TypeScript, библиотека `@toraseo/core`
-- **Skill:** Markdown + frontmatter
-- **CI:** GitHub Actions, electron-builder, electron-updater
-
-Подробности — [ARCHITECTURE.md](./ARCHITECTURE.md).
-
----
-
-_Last updated: 2026-04-27 (v0.0.5)_
-
+`Design and content by URL` and `Image analysis` are currently marked as in development. Tora Rank is a future direction, not a finished public scoring system in this release.

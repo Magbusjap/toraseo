@@ -216,8 +216,13 @@ Pass criteria:
 1. Confirm the release tag will be a plain app tag such as `v0.0.9`,
    not a package-specific tag.
 2. Confirm `.github/workflows/release-app.yml` uses Node.js 22.
-3. Confirm the workflow builds the app and attaches:
-   - desktop installer assets
+3. Confirm the workflow builds the app for Windows, macOS, and Linux
+   and attaches:
+   - `ToraSEO-0.0.9-setup.exe`
+   - `ToraSEO-0.0.9.dmg`
+   - `ToraSEO-0.0.9.AppImage`
+   - updater metadata such as `latest.yml`, `latest-mac.yml`, and
+     `latest-linux.yml` when produced by electron-builder
    - `toraseo-claude-bridge-instructions-v0.0.9.zip`
    - `toraseo-codex-workflow-v0.0.9.zip`
 4. Confirm `release-skill.yml` and `release-codex-workflow.yml` are
@@ -230,7 +235,7 @@ Pass criteria:
 - Users see one release page for app, Claude Bridge Instructions, and
   Codex Workflow Instructions.
 - The instruction/skill ZIPs are present on the same release page as
-  the app installer assets.
+  the app installer assets for all built desktop platforms.
 - No separate public release entry is created for the Claude or Codex
   instruction packages.
 

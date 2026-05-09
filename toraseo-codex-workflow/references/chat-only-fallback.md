@@ -20,7 +20,9 @@ Say plainly:
 - "Для отчета в приложении нужно запустить ToraSEO Desktop App, проверить
   MCP-подключение и повторить запуск из приложения."
 
-Use the user's language.
+Use the interface locale from the pasted ToraSEO prompt as the default
+reply language. Only switch to another language if the user explicitly
+changes language in their own new message.
 
 ## One Text
 

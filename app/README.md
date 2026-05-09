@@ -1,21 +1,23 @@
 # ToraSEO Desktop App
 
-Visual desktop application for ToraSEO. Electron + React + TypeScript.
+Visual desktop application for ToraSEO. Built with Electron, React, TypeScript, Vite, and Tailwind CSS.
 
 ## Status
 
-**App 0.0.9 release candidate - in progress.** The desktop app now
-supports two explicit audit paths and has started the first analysis-type
-expansion pass:
+**App 0.0.9 release candidate.** The app supports two main runtime paths and a chat-only fallback documented in the product docs:
 
-- `MCP + Instructions` for external-agent bridge workflows
-- `API + AI Chat` for the native in-app runtime
+- `MCP + Instructions` for Codex and Claude Desktop bridge workflows
+- `API + AI Chat` for the native in-app provider runtime
+- `Skill without MCP and APP` as an external chat fallback when the app or MCP path is unavailable
 
 See:
-- [SMOKE_TESTS.md](../docs/SMOKE_TESTS.md) - release verification checklist
-- [architecture-stack-decision](../wiki/toraseo/architecture-stack-decision.md) - why Electron
 
-## Quick start
+- [Documentation hub](../docs/README.md)
+- [FAQ](../docs/FAQ.md)
+- [Smoke tests](../docs/SMOKE_TESTS.md)
+- [Architecture](../docs/ARCHITECTURE.md)
+
+## Quick Start
 
 Use Node.js 22 for release verification.
 
@@ -25,123 +27,101 @@ npm install
 npm run dev
 ```
 
-From the repository root, the equivalent workspace command is:
+From the repository root:
 
 ```bash
 npm run dev:app
 ```
 
-On Windows PowerShell, use `npm.cmd` if script execution blocks
-`npm.ps1`:
+On Windows PowerShell, use `npm.cmd` if script execution blocks `npm.ps1`:
 
 ```powershell
 npm.cmd run dev:app
 ```
 
-`npm run dev` will:
-1. Launch Vite dev server (renderer) on `http://127.0.0.1:5173/`
-2. Wait for the renderer to be ready
-3. Launch the Electron main process, which opens a window pointing at the dev server
+`npm run dev` launches the renderer dev server, waits for it to be ready, and opens the Electron window.
 
-DevTools open automatically (detached). Hot reload works for both renderer (React) and main process (Electron).
-
-For Bridge Mode testing, run the MCP watcher in a second terminal:
+For MCP bridge testing, run the MCP watcher in a second terminal:
 
 ```powershell
 npm.cmd run dev:mcp
 ```
 
-## Production build
+## Production Build
 
 ```bash
-npm run build       # build all three (main, preload, renderer) into out/
-npm run dist        # build + package via electron-builder for current OS
-npm run dist:win    # specifically Windows installer (NSIS)
-npm run dist:mac    # specifically macOS DMG
-npm run dist:linux  # specifically Linux AppImage
+npm run build
+npm run dist
+npm run dist:win
+npm run dist:mac
+npm run dist:linux
 ```
 
 Artifacts go to `release/${version}/`.
 
-In production, the renderer is loaded via `file://` from `out/renderer/`, **not** through any HTTP server. VPN clients (Happ, etc.) cannot interfere with app startup.
+In production, the renderer is loaded through `file://` from `out/renderer/`, not through an HTTP dev server.
+
+## Current Analysis Surfaces
+
+| Analysis | Current status |
+|---|---|
+| Text | Active |
+| Compare two texts | Active |
+| Page by URL | Active |
+| Site by URL | Active |
+| Site comparison by URL | Active |
+| Design and content by URL | In development |
+| Image analysis | In development |
+
+## Project Structure
+
+```text
+app/
+|- electron.vite.config.ts
+|- package.json
+|- index.html
+|- electron/
+|  |- main.ts
+|  |- preload.ts
+|  `- bridge/
+`- src/
+   |- App.tsx
+   |- main.tsx
+   |- components/
+   |- config/
+   |- i18n/
+   `- assets/
+```
+
+## Brand Assets
+
+Mascot SVGs and logos live in `../branding/` as the single source of truth. The app imports them through the `@branding` alias:
+
+```tsx
+import neutralMascot from "@branding/mascots/tora-neutral.svg";
+```
+
+## Window Configuration
+
+| Property | Value |
+|---|---|
+| Default size | 1400 x 900 |
+| Minimum size | 800 x 600 |
+| Frame | System title bar |
+| Background color | `#FFF7F0` |
+| Menu bar | Auto-hidden on Windows |
 
 ## Stack
 
-- **Electron 33** (current stable)
-- **electron-vite 2.3** (build orchestration: main + preload + renderer in one config)
-- **React 19** + **TypeScript 5.7**
-- **Vite 5.4** (used internally by electron-vite for renderer)
-- **Tailwind CSS 3** (consistent with OnFlaude frontend)
-- **lucide-react** for iconography
-- **electron-builder** for distribution packaging
-
-## Project structure
-
-```
-app/
-├── electron.vite.config.ts     ← electron-vite config (main + preload + renderer)
-├── tsconfig.json               ← project references root
-├── tsconfig.node.json          ← TS for main + preload (Node.js context)
-├── tsconfig.web.json           ← TS for renderer (browser context)
-├── tailwind.config.js
-├── postcss.config.js
-├── index.html                  ← renderer entry
-├── package.json                ← deps + scripts + electron-builder config
-├── electron/
-│   ├── main.ts                 ← Electron main process: BrowserWindow setup
-│   └── preload.ts              ← preload script (empty until IPC arrives)
-└── src/
-    ├── main.tsx                ← React entry point
-    ├── index.css               ← Tailwind directives
-    ├── vite-env.d.ts           ← SVG import types
-    ├── App.tsx                 ← dual-mode workspace + mode state
-    └── components/
-        ├── Sidebar/
-        │   └── IdleSidebar.tsx     ← overlay state
-        ├── MainArea/
-        │   └── ModeSelection.tsx   ← Initial state main
-        └── Mascot/
-            └── SleepingMascot.tsx  ← imports tora-sleeping.svg via @branding alias
-```
-
-## Brand assets
-
-Mascot SVGs and logos live in `../branding/` (sibling folder, single source of truth). Import via `@branding` alias:
-
-```tsx
-import sleepingMascot from "@branding/mascots/tora-sleeping.svg";
-```
-
-No file duplication — when designs in `branding/` change, the app picks them up automatically.
-
-## Window configuration
-
-| Property | Value | Source |
-|---|---|---|
-| Default size | 1100 × 800 | UIDesign §10 |
-| Minimum size | 800 × 600 | UIDesign §10 |
-| Frame | System (with title bar) | MVP — keep it simple |
-| Background color | `#FFF7F0` | matches `bg-orange-50/30` in renderer |
-| Menu bar | Auto-hidden (Alt to show on Windows) | desktop-app convention |
-
-## Design tokens
-
-Brand colors are defined in `tailwind.config.js`:
-
-| Token | Hex | Usage |
-|---|---|---|
-| `primary` | `#FF6B35` | Tora orange (brand) |
-| `outline-900` | `#1A0F08` | Dark outline / text |
-| `accent` | `#FFB800` | Gold (champion / highlights) |
-| `status-idle` | `#9CA3AF` | Idle status dot |
-| `status-ready` | `#FACC15` | Ready status |
-| `status-working` | `#3B82F6` | Working status |
-| `status-complete` | `#22C55E` | Complete status |
-| `status-issues` | `#F97316` | Issues found status |
-| `status-champion` | `#FFB800` | Champion status |
-
-Source: `branding/BRAND_BOOK.md` and `private/UIDesign.md` §10.
+- Electron 33
+- electron-vite 2.3
+- React 19
+- TypeScript 5.7
+- Vite 5.4
+- Tailwind CSS 3
+- lucide-react
+- electron-builder
 
 ## License
 
-Apache-2.0. See repository LICENSE.
+Apache-2.0. See the repository [LICENSE](../LICENSE).

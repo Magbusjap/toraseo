@@ -153,9 +153,29 @@ export default function TopToolbar({
 
         <nav className="flex items-center gap-1">
           <ToolbarButton
-            icon={<Info size={14} />}
-            label={t("toolbar.about")}
-            onClick={() => setAboutOpen(true)}
+            icon={<Settings size={14} />}
+            label={t("toolbar.settings")}
+            onClick={onOpenSettings}
+          />
+          <ToolbarButton
+            icon={<BookOpen size={14} />}
+            label={t("toolbar.documentation")}
+            onClick={onOpenDocumentation}
+          />
+          <ToolbarButton
+            icon={<ListChecks size={14} />}
+            label={t("toolbar.toolCatalog")}
+            onClick={onOpenToolCatalog}
+          />
+          <ToolbarButton
+            icon={<HelpCircle size={14} />}
+            label={t("toolbar.faq")}
+            onClick={onOpenFaq}
+          />
+          <ToolbarButton
+            icon={<History size={14} />}
+            label={t("toolbar.changelog")}
+            onClick={onOpenChangelog}
           />
           <ToolbarButton
             icon={
@@ -169,29 +189,9 @@ export default function TopToolbar({
             disabled={checking}
           />
           <ToolbarButton
-            icon={<BookOpen size={14} />}
-            label={t("toolbar.documentation")}
-            onClick={onOpenDocumentation}
-          />
-          <ToolbarButton
-            icon={<History size={14} />}
-            label={t("toolbar.changelog")}
-            onClick={onOpenChangelog}
-          />
-          <ToolbarButton
-            icon={<HelpCircle size={14} />}
-            label={t("toolbar.faq")}
-            onClick={onOpenFaq}
-          />
-          <ToolbarButton
-            icon={<ListChecks size={14} />}
-            label={t("toolbar.toolCatalog")}
-            onClick={onOpenToolCatalog}
-          />
-          <ToolbarButton
-            icon={<Settings size={14} />}
-            label={t("toolbar.settings")}
-            onClick={onOpenSettings}
+            icon={<Info size={14} />}
+            label={t("toolbar.about")}
+            onClick={() => setAboutOpen(true)}
           />
           <span
             className="mx-1 h-4 w-px bg-outline/15"
@@ -225,7 +225,7 @@ export default function TopToolbar({
               <dt className="text-outline-900/50">{t("about.version")}</dt>
               <dd className="font-mono">{window.toraseo.version}</dd>
               <dt className="text-outline-900/50">{t("about.license")}</dt>
-              <dd>MIT</dd>
+              <dd>Apache-2.0</dd>
               <dt className="text-outline-900/50">{t("about.author")}</dt>
               <dd>Mikhail Ankudinov</dd>
               <dt className="text-outline-900/50">{t("about.github")}</dt>

@@ -233,8 +233,10 @@ export async function verifyCodexWorkflowLoadedHandler({
               "the user explicitly asks. For two-text comparison, use input.goalMode " +
               "to shape the final report: standard comparison, focus on Text A/B, " +
               "competitor, style, similarity, version, or A/B post. " +
-              "When answering the user, use human-readable Russian check names and " +
-              "avoid backend ids such as trustSignals, syntaxRiskSignals, tool ids, " +
+              "When answering the user, use human-readable check names in the " +
+              "interface language for this run, and switch language only if the " +
+              "user explicitly changes language in their own new message. Avoid " +
+              "backend ids such as trustSignals, syntaxRiskSignals, tool ids, " +
               "or result file paths unless the user asks for debugging details. " +
               "Do not request filesystem access to read temporary workspace or " +
               "results JSON files for a normal final summary; MCP tool responses " +

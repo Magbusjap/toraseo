@@ -8,179 +8,243 @@ interface ChangelogViewProps {
   onReturnHome: () => void;
 }
 
+type ChangeGroup = {
+  title: Record<SupportedLocale, string>;
+  items: Record<SupportedLocale, string[]>;
+};
+
 type ChangelogEntry = {
   version: string;
   date: string;
-  status?: string;
+  status?: "active";
   title: Record<SupportedLocale, string>;
-  points: Record<SupportedLocale, string[]>;
+  summary: Record<SupportedLocale, string>;
+  groups: ChangeGroup[];
 };
 
 const ENTRIES: ChangelogEntry[] = [
   {
-    version: "App 0.0.9",
-    date: "Unreleased",
+    version: "ToraSEO 0.0.9",
+    date: "Release candidate",
     status: "active",
     title: {
-      ru: "Подготовка расширения типов анализа",
-      en: "Analysis-type expansion groundwork",
+      ru: "Новые типы анализа, визуальные отчеты и документация",
+      en: "Analysis expansion, visual reports, and documentation",
     },
-    points: {
-      ru: [
-        "готовится единый релиз приложения с ZIP-пакетами Claude Bridge Instructions и Codex Workflow Instructions;",
-        "добавлена основа для расширения типов анализа и карты инструментов 0.0.9;",
-        "улучшается Codex bridge: подсказки, подтверждение MCP-доступа и сохранение результатов после очистки временного состояния;",
-        "исправляется отображение bridge-результатов, чтобы факты из MCP попадали в видимый отчет.",
-      ],
-      en: [
-        "prepares one app release with Claude Bridge Instructions and Codex Workflow Instructions ZIP assets;",
-        "adds groundwork for analysis-type expansion and the 0.0.9 tool map;",
-        "improves the Codex bridge path with helper prompts, MCP approval guidance, and result persistence;",
-        "fixes bridge result rendering so MCP facts appear in the visible report.",
-      ],
+    summary: {
+      ru: "Версия 0.0.9 превращает ToraSEO из двухрежимного SEO-аудита в более широкое рабочее пространство: больше типов анализа, понятнее режимы, аккуратнее отчеты и сильнее документация.",
+      en: "Version 0.0.9 turns ToraSEO from a dual-mode SEO audit tool into a broader workspace: more analysis types, clearer modes, stronger reports, and better documentation.",
     },
+    groups: [
+      {
+        title: { ru: "Добавлено", en: "Added" },
+        items: {
+          ru: [
+            "Добавлены новые направления анализа: Текст, Сравнение двух текстов, Страница по URL, Сайт по URL и Сравнение сайтов по URL.",
+            "Добавлены карточки будущих анализов: Дизайн и контент по URL и Анализ изображения, пока со статусом «В разработке».",
+            "Добавлен RouterAI как российский OpenAI-compatible провайдер рядом с OpenRouter.",
+            "Добавлены модели провайдера, проверка модели и общая кнопка «Сделать по умолчанию» для модели приложения.",
+            "Добавлена версия анализа в отчетах, отдельно от версии приложения.",
+            "Добавлены визуальные report-блоки и infographic-экран для результатов анализа текста.",
+            "Добавлены третьи окна/подробные представления для отчетов, чтобы основной экран не перегружался.",
+            "Добавлена новая GitHub-документация: центр документации, FAQ на двух языках и обновленные README.",
+          ],
+          en: [
+            "Added new analysis areas: Text, Compare two texts, Page by URL, Site by URL, and Site comparison by URL.",
+            "Added future analysis cards for Design and content by URL and Image analysis, currently marked as In development.",
+            "Added RouterAI as a Russian OpenAI-compatible provider alongside OpenRouter.",
+            "Added provider models, model testing, and one app-wide Set default action.",
+            "Added analysis version display in reports, separate from the app version.",
+            "Added visual report blocks and an infographic result screen for text analysis.",
+            "Added separate detailed report views so the main screen stays lighter.",
+            "Added GitHub documentation hub, bilingual FAQ, and refreshed README files.",
+          ],
+        },
+      },
+      {
+        title: { ru: "Расширено", en: "Expanded" },
+        items: {
+          ru: [
+            "Расширены инструменты аналитики для Текста, Страницы по URL, Сайта по URL и Сравнения сайтов по URL.",
+            "Сравнение сайтов по URL переработано как competitive comparison dashboard: summary, краткие site cards, метрики, heatmap, победители и actionable insights.",
+            "Для Сайта по URL и Сравнения сайтов по URL сайдбар теперь использует смысл «Дополнительные проверки», а не общий термин «Проверки».",
+            "Расширена логика API + AI Chat для анализа, ответа в чате и follow-up после отчета.",
+            "Расширены Codex Workflow Instructions и Claude Bridge Instructions: MCP + Instructions, API path boundaries и Skill fallback.",
+            "Расширена документация внутри приложения: отдельные страницы для MCP + Instructions, API + AI Chat и Skill без MCP и APP.",
+            "Расширена система маскотов: ожидание, готовность к анализу, анализ в процессе, ошибка и успешный отчет.",
+          ],
+          en: [
+            "Expanded analytics tools for Text, Page by URL, Site by URL, and Site comparison by URL.",
+            "Reworked Site comparison by URL as a competitive comparison dashboard: summary, compact site cards, metrics, heatmap, winners, and actionable insights.",
+            "Site by URL and Site comparison by URL now use Additional checks in the sidebar instead of a generic Checks label.",
+            "Expanded API + AI Chat logic for analysis, chat response, and report follow-up.",
+            "Expanded Codex Workflow Instructions and Claude Bridge Instructions for MCP + Instructions, API boundaries, and Skill fallback.",
+            "Expanded in-app documentation with dedicated pages for MCP + Instructions, API + AI Chat, and Skill without MCP and APP.",
+            "Expanded mascot states for waiting, ready, analyzing, error, and completed report states.",
+          ],
+        },
+      },
+      {
+        title: { ru: "Исправлено", en: "Fixed" },
+        items: {
+          ru: [
+            "Исправлена лицензия в окне «О ToraSEO»: теперь Apache-2.0 вместо MIT.",
+            "Исправлено устаревшее описание «О ToraSEO», которое раньше сводило продукт только к Claude Desktop.",
+            "Исправлена языковая логика для Claude Desktop и Codex: ответ должен следовать языку интерфейса/промпта, если пользователь сам не начал писать на другом языке.",
+            "Исправлено отображение результатов bridge: MCP-факты попадают в видимый отчет, а результат не пропадает после очистки временного состояния.",
+            "Исправлен сценарий возврата на главную и повторного открытия анализа, где прогресс мог показываться как завершенный без нового запуска.",
+            "Исправлены устаревшие и битые русские строки в FAQ, документации и README.",
+            "Исправлен порядок пунктов в верхнем тулбаре.",
+          ],
+          en: [
+            "Fixed the About ToraSEO license: Apache-2.0 is now shown instead of MIT.",
+            "Fixed outdated About ToraSEO copy that described the product only as a Claude Desktop companion.",
+            "Fixed Claude Desktop and Codex language rules: responses should follow the interface/prompt language unless the user starts in another language.",
+            "Fixed bridge result rendering so MCP facts appear in the visible report and completed results survive temporary state cleanup.",
+            "Fixed return-home/reopen behavior where progress could appear completed without a fresh run.",
+            "Fixed outdated and broken Russian text in FAQ, documentation, and README files.",
+            "Fixed the top toolbar item order.",
+          ],
+        },
+      },
+      {
+        title: { ru: "Документация и релиз", en: "Documentation and release" },
+        items: {
+          ru: [
+            "README на английском и русском переписаны как визуальный elevator pitch с превью, режимами и маскотами.",
+            "Добавлены preview-изображения для GitHub README с понятными именами файлов.",
+            "Обновлены README для app, mcp, Claude Bridge Instructions и Codex Workflow Instructions.",
+            "Обновлены ARCHITECTURE и FAQ под текущую структуру продукта.",
+            "Подготовлена логика единого релиза: installer assets, Claude Bridge Instructions ZIP и Codex Workflow Instructions ZIP в одном релизе v0.0.9.",
+          ],
+          en: [
+            "Rewrote English and Russian README files as a visual elevator pitch with previews, modes, and mascots.",
+            "Added README preview images with stable descriptive filenames.",
+            "Updated README files for app, mcp, Claude Bridge Instructions, and Codex Workflow Instructions.",
+            "Updated ARCHITECTURE and FAQ for the current product structure.",
+            "Prepared the unified release direction: installer assets, Claude Bridge Instructions ZIP, and Codex Workflow Instructions ZIP under one v0.0.9 release.",
+          ],
+        },
+      },
+    ],
   },
   {
-    version: "App 0.0.8",
+    version: "ToraSEO 0.0.8",
     date: "Released",
     title: {
-      ru: "Фундамент единой публикации и надежности Codex bridge",
-      en: "Unified release and Codex bridge reliability foundation",
+      ru: "Единая публикация и надежность Codex bridge",
+      en: "Unified release and Codex bridge reliability",
     },
-    points: {
-      ru: [
-        "релиз закрепил направление на единый список ассетов приложения;",
-        "усилена надежность Codex bridge и полировка native chat;",
-        "инструкционные пакеты больше не должны жить как отдельные публичные релизы по умолчанию.",
-      ],
-      en: [
-        "established the direction toward one unified app asset list;",
-        "hardened Codex bridge reliability and native chat polish;",
-        "instruction packages should no longer create separate public releases by default.",
-      ],
+    summary: {
+      ru: "Версия закрепила направление на единый релиз приложения с ZIP-пакетами инструкций и улучшила надежность Codex bridge.",
+      en: "This version established the app-led release direction with instruction ZIP assets and hardened Codex bridge reliability.",
     },
+    groups: [
+      {
+        title: { ru: "Главное", en: "Highlights" },
+        items: {
+          ru: [
+            "Единый список assets для релиза приложения.",
+            "Усилена надежность Codex bridge и полировка native chat.",
+            "Instruction packages больше не должны жить как отдельные публичные релизы по умолчанию.",
+          ],
+          en: [
+            "Unified app release asset list.",
+            "Improved Codex bridge reliability and native chat polish.",
+            "Instruction packages should no longer create separate public releases by default.",
+          ],
+        },
+      },
+    ],
   },
   {
-    version: "App 0.0.7",
+    version: "ToraSEO 0.0.7",
     date: "2026-04-30",
     title: {
       ru: "Два режима выполнения",
       en: "Dual execution modes",
     },
-    points: {
-      ru: [
-        "появились режимы MCP + Instructions и API + AI Chat;",
-        "добавлены отдельные setup-пути для Claude Desktop, Codex и native-провайдера;",
-        "OpenRouter получил реальный adapter, хранение ключа и профили моделей;",
-        "добавлены отдельные окна чата и деталей отчета, а также экспорт отчетов.",
-      ],
-      en: [
-        "introduced MCP + Instructions and API + AI Chat modes;",
-        "added separate setup paths for Claude Desktop, Codex, and native providers;",
-        "OpenRouter gained a real adapter, key storage, and model profiles;",
-        "added separate chat/report windows and report export formats.",
-      ],
+    summary: {
+      ru: "Версия добавила основу двух режимов: MCP + Instructions и API + AI Chat.",
+      en: "This version introduced the dual-mode foundation: MCP + Instructions and API + AI Chat.",
     },
+    groups: [
+      {
+        title: { ru: "Главное", en: "Highlights" },
+        items: {
+          ru: [
+            "Появились режимы MCP + Instructions и API + AI Chat.",
+            "Добавлены отдельные setup-пути для Claude Desktop, Codex и native-провайдера.",
+            "OpenRouter получил реальный adapter, хранение ключа и профили моделей.",
+            "Добавлены отдельные окна чата и деталей отчета, а также экспорт отчетов.",
+          ],
+          en: [
+            "Introduced MCP + Instructions and API + AI Chat modes.",
+            "Added separate setup paths for Claude Desktop, Codex, and native providers.",
+            "OpenRouter gained a real adapter, key storage, and model profiles.",
+            "Added separate chat/report windows and report export formats.",
+          ],
+        },
+      },
+    ],
   },
   {
-    version: "App 0.0.6",
+    version: "ToraSEO 0.0.6",
     date: "Unreleased",
     title: {
       ru: "Локализация и настройки",
       en: "Localization and Settings",
     },
-    points: {
-      ru: [
-        "добавлен i18next и переключение языка внутри приложения;",
-        "появился экран настроек с защитой от потери несохраненных изменений;",
-        "строки интерфейса вынесены в английский и русский JSON-бандлы.",
-      ],
-      en: [
-        "added i18next and runtime language switching;",
-        "introduced the Settings screen with unsaved-changes protection;",
-        "moved UI strings into English and Russian JSON bundles.",
-      ],
+    summary: {
+      ru: "Добавлена основа локализации и экран настроек.",
+      en: "Added localization groundwork and the Settings screen.",
     },
+    groups: [
+      {
+        title: { ru: "Главное", en: "Highlights" },
+        items: {
+          ru: [
+            "Добавлен i18next и переключение языка внутри приложения.",
+            "Появился экран настроек с защитой от потери несохраненных изменений.",
+            "Строки интерфейса вынесены в английский и русский JSON-бандлы.",
+          ],
+          en: [
+            "Added i18next and runtime language switching.",
+            "Introduced the Settings screen with unsaved-changes protection.",
+            "Moved UI strings into English and Russian JSON bundles.",
+          ],
+        },
+      },
+    ],
   },
   {
-    version: "App 0.0.5",
+    version: "ToraSEO 0.0.5",
     date: "2026-04-27",
     title: {
       ru: "Верхний тулбар и обновления",
       en: "Top toolbar and updates",
     },
-    points: {
-      ru: [
-        "добавлен верхний тулбар с About, обновлениями, документацией, FAQ, настройками и GitHub;",
-        "release notes в карточке обновлений очищаются от HTML-разметки;",
-        "установка обновления из приложения стала тихой, без лишнего окна NSIS.",
-      ],
-      en: [
-        "added the top toolbar with About, updates, documentation, FAQ, settings, and GitHub;",
-        "release notes in the update card are stripped from raw HTML;",
-        "in-app update installation became silent without an extra NSIS window.",
-      ],
+    summary: {
+      ru: "Добавлен верхний тулбар и улучшен сценарий обновлений.",
+      en: "Added the top toolbar and improved the update flow.",
     },
-  },
-  {
-    version: "App 0.0.4",
-    date: "2026-04-27",
-    title: {
-      ru: "Ручной fallback и иконка приложения",
-      en: "Manual fallback and app icon",
-    },
-    points: {
-      ru: [
-        "добавлен ручной выбор MCP config для нестандартных установок Claude Desktop;",
-        "вернулась гибридная проверка Skill / Instructions;",
-        "исправлены иконки окна, панели задач и установщика.",
-      ],
-      en: [
-        "added manual MCP config selection for non-standard Claude Desktop installs;",
-        "restored hybrid Skill / Instructions detection;",
-        "fixed window, taskbar, and installer icons.",
-      ],
-    },
-  },
-  {
-    version: "App 0.0.3",
-    date: "2026-04-26",
-    title: {
-      ru: "Detector зависимостей и onboarding",
-      en: "Dependency detector and onboarding",
-    },
-    points: {
-      ru: [
-        "приложение начало проверять Claude Desktop и регистрацию ToraSEO MCP;",
-        "добавлен экран onboarding, который блокирует сканирование до готовности компонентов;",
-        "появился launcher для запуска Claude Desktop из приложения.",
-      ],
-      en: [
-        "started checking Claude Desktop and ToraSEO MCP registration;",
-        "added onboarding that blocks scanning until required components are ready;",
-        "introduced a launcher for opening Claude Desktop from the app.",
-      ],
-    },
-  },
-  {
-    version: "App 0.0.2",
-    date: "2026-04-26",
-    title: {
-      ru: "Автообновления",
-      en: "Auto-update infrastructure",
-    },
-    points: {
-      ru: [
-        "добавлен electron-updater и карточка обновления в правом нижнем углу;",
-        "обновления скачиваются и устанавливаются только после явного действия пользователя;",
-        "GitHub Actions начал собирать Windows-релизы приложения.",
-      ],
-      en: [
-        "added electron-updater and the bottom-right update card;",
-        "updates download and install only after explicit user action;",
-        "GitHub Actions started building Windows app releases.",
-      ],
-    },
+    groups: [
+      {
+        title: { ru: "Главное", en: "Highlights" },
+        items: {
+          ru: [
+            "Добавлен верхний тулбар с About, обновлениями, документацией, FAQ, настройками и GitHub.",
+            "Release notes в карточке обновлений очищаются от HTML-разметки.",
+            "Установка обновления из приложения стала тихой, без лишнего окна NSIS.",
+          ],
+          en: [
+            "Added the top toolbar with About, updates, documentation, FAQ, settings, and GitHub.",
+            "Release notes in the update card are stripped from raw HTML.",
+            "In-app update installation became silent without an extra NSIS window.",
+          ],
+        },
+      },
+    ],
   },
 ];
 
@@ -191,10 +255,10 @@ const COPY = {
     eyebrow: "CHANGELOG",
     title: "История обновлений",
     lead:
-      "Краткая история изменений из CHANGELOG до версии 0.0.9. Пока это обзор внутри приложения; полный технический журнал остается в репозитории.",
-    active: "активная",
+      "Краткая история изменений ToraSEO. Для 0.0.9 показаны основные изменения продукта, интерфейса, режимов анализа, документации и релизной подготовки.",
+    active: "активная версия",
     versionMeta:
-      "Версии функций: модули анализа 0.0.1, схемы результата 0.0.1, промпты 0.0.1, формулы score — в разработке.",
+      "Версии функций: модули анализа {{version}}, схемы результата {{version}}, промпты {{version}}, формулы score — в разработке.",
   },
   en: {
     back: "Back home",
@@ -202,10 +266,10 @@ const COPY = {
     eyebrow: "CHANGELOG",
     title: "Changelog",
     lead:
-      "A compact in-app history based on CHANGELOG up to version 0.0.9. The full technical log still lives in the repository.",
-    active: "active",
+      "A compact ToraSEO change history. Version 0.0.9 highlights product, interface, analysis mode, documentation, and release preparation updates.",
+    active: "active version",
     versionMeta:
-      "Feature versions: analysis modules 0.0.1, result schemas 0.0.1, prompts 0.0.1, score formulas in development.",
+      "Feature versions: analysis modules {{version}}, result schemas {{version}}, prompts {{version}}, score formulas in development.",
   },
 } as const;
 
@@ -234,7 +298,7 @@ export default function ChangelogView({
       </aside>
 
       <main className="toraseo-sidebar-scrollbar min-w-0 flex-1 overflow-y-auto px-8 py-8">
-        <article className="mx-auto w-full max-w-4xl rounded-lg border border-outline/10 bg-white px-8 py-7">
+        <article className="mx-auto w-full max-w-5xl rounded-lg border border-outline/10 bg-white px-8 py-7">
           <div className="flex items-start gap-4">
             <span className="rounded-lg bg-primary/10 p-3 text-primary">
               <History size={22} />
@@ -246,13 +310,13 @@ export default function ChangelogView({
               <h2 className="mt-2 font-display text-3xl font-semibold text-outline-900">
                 {copy.title}
               </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-outline-900/65">
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-outline-900/65">
                 {copy.lead}
               </p>
             </div>
           </div>
 
-          <div className="mt-8 space-y-4 border-t border-outline/10 pt-7">
+          <div className="mt-8 space-y-5 border-t border-outline/10 pt-7">
             {ENTRIES.map((entry) => (
               <section
                 key={entry.version}
@@ -274,21 +338,37 @@ export default function ChangelogView({
                 <p className="mt-2 text-sm font-semibold text-outline-900/80">
                   {entry.title[currentLocale]}
                 </p>
-                {entry.version === `App ${APP_VERSION}` && (
-                  <p className="mt-1 text-xs leading-relaxed text-outline-900/45">
+                <p className="mt-1 max-w-3xl text-sm leading-relaxed text-outline-900/60">
+                  {entry.summary[currentLocale]}
+                </p>
+                {entry.version === `ToraSEO ${APP_VERSION}` && (
+                  <p className="mt-2 text-xs leading-relaxed text-outline-900/45">
                     {copy.versionMeta.replaceAll(
-                      "0.0.1",
+                      "{{version}}",
                       DEFAULT_ANALYSIS_VERSION,
                     )}
                   </p>
                 )}
-                <ul className="mt-3 space-y-2 text-sm leading-relaxed text-outline-900/70">
-                  {entry.points[currentLocale].map((point) => (
-                    <li key={point} className="ml-5 list-disc">
-                      {point}
-                    </li>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {entry.groups.map((group) => (
+                    <section
+                      key={group.title.en}
+                      className="rounded-md border border-outline/10 bg-white px-4 py-3"
+                    >
+                      <h4 className="font-display text-sm font-semibold text-outline-900">
+                        {group.title[currentLocale]}
+                      </h4>
+                      <ul className="mt-2 space-y-2 text-sm leading-relaxed text-outline-900/70">
+                        {group.items[currentLocale].map((point) => (
+                          <li key={point} className="ml-4 list-disc">
+                            {point}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
                   ))}
-                </ul>
+                </div>
               </section>
             ))}
           </div>
