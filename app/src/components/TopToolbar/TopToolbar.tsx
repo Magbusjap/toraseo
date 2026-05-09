@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ChevronDown,
   Info,
   RefreshCw,
   Settings,
@@ -10,6 +11,9 @@ import {
   History,
   HelpCircle,
   ListChecks,
+  FlaskConical,
+  Gauge,
+  Sigma,
 } from "lucide-react";
 import { useUpdater } from "../../hooks/useUpdater";
 
@@ -22,6 +26,8 @@ interface TopToolbarProps {
   onOpenDocumentation: () => void;
   onOpenChangelog: () => void;
   onOpenToolCatalog: () => void;
+  onOpenQualityLab: () => void;
+  onOpenFormulas: () => void;
   onOpenFaq: () => void;
 }
 
@@ -66,12 +72,18 @@ export default function TopToolbar({
   onOpenDocumentation,
   onOpenChangelog,
   onOpenToolCatalog,
+  onOpenQualityLab,
+  onOpenFormulas,
   onOpenFaq,
 }: TopToolbarProps) {
   const { t } = useTranslation();
+  const toolbarRef = useRef<HTMLElement | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [updateCheckMsg, setUpdateCheckMsg] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [openMenu, setOpenMenu] = useState<"laboratory" | "updates" | null>(
+    null,
+  );
 
   // Read the updater's lifecycle state so we can produce honest copy
   // when the user clicks "Check for updates" while a previous update
@@ -82,8 +94,21 @@ export default function TopToolbar({
   // an update, it's just no longer remote.
   const { state: updaterState, info: updaterInfo } = useUpdater();
 
+  useEffect(() => {
+    if (!openMenu) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (toolbarRef.current?.contains(event.target as Node)) return;
+      setOpenMenu(null);
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [openMenu]);
+
+  const closeMenus = () => setOpenMenu(null);
+
   const handleCheckUpdates = async () => {
     if (checking) return;
+    closeMenus();
     setChecking(true);
     setUpdateCheckMsg(null);
 
@@ -133,12 +158,19 @@ export default function TopToolbar({
   };
 
   const handleOpenGithub = () => {
+    closeMenus();
     window.open("https://github.com/Magbusjap/toraseo", "_blank");
+  };
+
+  const openPage = (handler: () => void) => {
+    closeMenus();
+    handler();
   };
 
   return (
     <>
       <header
+        ref={toolbarRef}
         className="flex h-9 shrink-0 items-center justify-between border-b border-outline/10 bg-white px-3"
         role="banner"
       >
@@ -155,43 +187,80 @@ export default function TopToolbar({
           <ToolbarButton
             icon={<Settings size={14} />}
             label={t("toolbar.settings")}
-            onClick={onOpenSettings}
+            onClick={() => openPage(onOpenSettings)}
           />
           <ToolbarButton
             icon={<BookOpen size={14} />}
             label={t("toolbar.documentation")}
-            onClick={onOpenDocumentation}
+            onClick={() => openPage(onOpenDocumentation)}
           />
-          <ToolbarButton
-            icon={<ListChecks size={14} />}
-            label={t("toolbar.toolCatalog")}
-            onClick={onOpenToolCatalog}
+          <ToolbarMenu
+            icon={<FlaskConical size={14} />}
+            label={t("toolbar.laboratory")}
+            open={openMenu === "laboratory"}
+            onToggle={() =>
+              setOpenMenu((current) =>
+                current === "laboratory" ? null : "laboratory",
+              )
+            }
+            items={[
+              {
+                icon: <ListChecks size={14} />,
+                label: t("toolbar.toolCatalog"),
+                onClick: () => openPage(onOpenToolCatalog),
+              },
+              {
+                icon: <Gauge size={14} />,
+                label: t("toolbar.qualityLab"),
+                onClick: () => openPage(onOpenQualityLab),
+              },
+              {
+                icon: <Sigma size={14} />,
+                label: t("toolbar.formulas"),
+                onClick: () => openPage(onOpenFormulas),
+              },
+            ]}
           />
           <ToolbarButton
             icon={<HelpCircle size={14} />}
             label={t("toolbar.faq")}
-            onClick={onOpenFaq}
+            onClick={() => openPage(onOpenFaq)}
           />
-          <ToolbarButton
+          <ToolbarMenu
             icon={<History size={14} />}
-            label={t("toolbar.changelog")}
-            onClick={onOpenChangelog}
-          />
-          <ToolbarButton
-            icon={
-              <RefreshCw
-                size={14}
-                className={checking ? "animate-spin" : ""}
-              />
+            label={t("toolbar.updates")}
+            open={openMenu === "updates"}
+            onToggle={() =>
+              setOpenMenu((current) =>
+                current === "updates" ? null : "updates",
+              )
             }
-            label={t("toolbar.checkUpdates")}
-            onClick={handleCheckUpdates}
-            disabled={checking}
+            items={[
+              {
+                icon: <History size={14} />,
+                label: t("toolbar.changelog"),
+                onClick: () => openPage(onOpenChangelog),
+              },
+              {
+                icon: (
+                  <RefreshCw
+                    size={14}
+                    className={checking ? "animate-spin" : ""}
+                  />
+                ),
+                label: t("toolbar.checkUpdates"),
+                onClick: handleCheckUpdates,
+                disabled: checking,
+              },
+            ]}
           />
           <ToolbarButton
             icon={<Info size={14} />}
             label={t("toolbar.about")}
-            onClick={() => setAboutOpen(true)}
+            onClick={() => {
+              closeMenus();
+              setAboutOpen(true);
+            }}
           />
           <span
             className="mx-1 h-4 w-px bg-outline/15"
@@ -266,6 +335,73 @@ function ToolbarButton({ icon, label, onClick, disabled }: ToolbarButtonProps) {
       {icon}
       <span>{label}</span>
     </button>
+  );
+}
+
+interface ToolbarMenuItem {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+interface ToolbarMenuProps {
+  icon: React.ReactNode;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  items: ToolbarMenuItem[];
+}
+
+function ToolbarMenu({
+  icon,
+  label,
+  open,
+  onToggle,
+  items,
+}: ToolbarMenuProps) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs transition ${
+          open
+            ? "bg-orange-50 text-outline-900"
+            : "text-outline-900/70 hover:bg-orange-50 hover:text-outline-900"
+        }`}
+      >
+        {icon}
+        <span>{label}</span>
+        <ChevronDown
+          size={12}
+          className={`transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-52 rounded-md border border-outline/10 bg-white p-1.5 shadow-lg"
+        >
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              onClick={item.onClick}
+              disabled={item.disabled}
+              className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-xs text-outline-900/75 transition hover:bg-orange-50 hover:text-outline-900 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -3,22 +3,22 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const TOOL_LABELS_RU = {
-  detect_text_platform: "Определение платформы",
-  analyze_text_structure: "Структура текста",
-  analyze_text_style: "Стиль текста",
-  analyze_tone_fit: "Соответствие тона",
-  language_audience_fit: "Язык и аудитория",
-  media_placeholder_review: "Размещение медиа",
-  article_uniqueness: "Уникальность статьи",
-  language_syntax: "Синтаксис языка",
-  ai_writing_probability: "Вероятность написания ИИ",
-  naturalness_indicators: "Естественность",
-  logic_consistency_check: "Логическая связность",
-  fact_distortion_check: "Искажение фактов",
-  ai_hallucination_check: "Проверка наличия ИИ и его галлюцинаций",
-  intent_seo_forecast: "Интент и SEO",
-  safety_science_review: "Безопасность и проверка",
+const TOOL_LABELS = {
+  detect_text_platform: "Text platform",
+  analyze_text_structure: "Text structure",
+  analyze_text_style: "Text style",
+  analyze_tone_fit: "Tone fit",
+  language_audience_fit: "Language and audience",
+  media_placeholder_review: "Media placement",
+  article_uniqueness: "Article uniqueness",
+  language_syntax: "Language syntax",
+  ai_writing_probability: "AI writing probability",
+  naturalness_indicators: "Naturalness",
+  logic_consistency_check: "Logic consistency",
+  fact_distortion_check: "Fact distortion",
+  ai_hallucination_check: "AI hallucination check",
+  intent_seo_forecast: "Intent and SEO",
+  safety_science_review: "Safety and expert review",
 };
 
 function printHelp() {
@@ -97,7 +97,7 @@ function bridgeStateToReport(state, label) {
     .map(([toolId, entry]) => {
       const data = isObject(entry.data) ? entry.data : {};
       return {
-        title: firstString(data.title, data.label, data.name, TOOL_LABELS_RU[toolId], toolId),
+        title: firstString(data.title, data.label, data.name, TOOL_LABELS[toolId], toolId),
         detail: firstString(data.detail, data.summary, data.finding, data.message, data.recommendation, safeJson(data)),
         priority: entry.verdict === "critical" ? "high" : entry.verdict === "warning" ? "medium" : "low",
         sourceToolIds: [toolId],
@@ -172,7 +172,7 @@ function truncate(value, max = 180) {
 function sourceLabel(sourceToolIds) {
   const ids = sourceToolIds ?? [];
   if (!ids.length) return "unknown";
-  return ids.map((id) => TOOL_LABELS_RU[id] ?? id).join(", ");
+  return ids.map((id) => TOOL_LABELS[id] ?? id).join(", ");
 }
 
 function markdownTable(headers, rows) {

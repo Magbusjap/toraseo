@@ -13,6 +13,18 @@ copy the real case into `private/eval-lab/cases/article_text/`.
 
 ## First Runner
 
+Build the local dashboard:
+
+```powershell
+npm run eval:dashboard
+```
+
+Open the generated table:
+
+```powershell
+start private/eval-lab/reports/index.html
+```
+
 Inspect one saved article-text report:
 
 ```powershell

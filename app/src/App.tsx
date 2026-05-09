@@ -27,6 +27,7 @@ import PlannedAnalysisView, {
 import ChangelogView from "./components/Changelog/ChangelogView";
 import DocumentationView from "./components/Documentation/DocumentationView";
 import FaqView from "./components/FAQ/FaqView";
+import { LaboratoryPlaceholderView } from "./components/Laboratory";
 import { SettingsView } from "./components/Settings";
 import ToolCatalogView from "./components/ToolCatalog/ToolCatalogView";
 import { TopToolbar } from "./components/TopToolbar";
@@ -79,12 +80,20 @@ export type AppMode =
   | "documentation"
   | "changelog"
   | "toolCatalog"
+  | "qualityLab"
+  | "formulas"
   | "faq";
 
 type NavigationTarget = {
   mode: Exclude<
     AppMode,
-    "settings" | "documentation" | "changelog" | "toolCatalog" | "faq"
+    | "settings"
+    | "documentation"
+    | "changelog"
+    | "toolCatalog"
+    | "qualityLab"
+    | "formulas"
+    | "faq"
   >;
   selectedAnalysisType: AnalysisTypeId | null;
 };
@@ -1214,6 +1223,8 @@ function MainApp() {
       mode === "documentation" ||
       mode === "changelog" ||
       mode === "toolCatalog" ||
+      mode === "qualityLab" ||
+      mode === "formulas" ||
       mode === "faq"
     ) {
       restoreReferenceReturnTarget();
@@ -1423,6 +1434,8 @@ function MainApp() {
       mode !== "documentation" &&
       mode !== "changelog" &&
       mode !== "toolCatalog" &&
+      mode !== "qualityLab" &&
+      mode !== "formulas" &&
       mode !== "faq"
     ) {
       setSettingsReturnTarget({
@@ -1434,12 +1447,19 @@ function MainApp() {
     setMode("settings");
   };
 
-  const openReferencePage = (nextMode: Extract<AppMode, "documentation" | "changelog" | "toolCatalog" | "faq">) => {
+  const openReferencePage = (
+    nextMode: Extract<
+      AppMode,
+      "documentation" | "changelog" | "toolCatalog" | "qualityLab" | "formulas" | "faq"
+    >,
+  ) => {
     if (
       mode !== "settings" &&
       mode !== "documentation" &&
       mode !== "changelog" &&
       mode !== "toolCatalog" &&
+      mode !== "qualityLab" &&
+      mode !== "formulas" &&
       mode !== "faq"
     ) {
       setReferenceReturnTarget({
@@ -1460,6 +1480,14 @@ function MainApp() {
 
   const handleOpenToolCatalog = () => {
     openReferencePage("toolCatalog");
+  };
+
+  const handleOpenQualityLab = () => {
+    openReferencePage("qualityLab");
+  };
+
+  const handleOpenFormulas = () => {
+    openReferencePage("formulas");
   };
 
   const handleOpenFaq = () => {
@@ -2803,6 +2831,8 @@ function MainApp() {
           onOpenDocumentation={handleOpenDocumentation}
           onOpenChangelog={handleOpenChangelog}
           onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenQualityLab={handleOpenQualityLab}
+          onOpenFormulas={handleOpenFormulas}
           onOpenFaq={handleOpenFaq}
         />
         <div className="flex flex-1 overflow-hidden">
@@ -2852,6 +2882,8 @@ function MainApp() {
           onOpenDocumentation={handleOpenDocumentation}
           onOpenChangelog={handleOpenChangelog}
           onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenQualityLab={handleOpenQualityLab}
+          onOpenFormulas={handleOpenFormulas}
           onOpenFaq={handleOpenFaq}
         />
         <div className="flex flex-1 overflow-hidden">
@@ -2880,10 +2912,42 @@ function MainApp() {
           onOpenDocumentation={handleOpenDocumentation}
           onOpenChangelog={handleOpenChangelog}
           onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenQualityLab={handleOpenQualityLab}
+          onOpenFormulas={handleOpenFormulas}
           onOpenFaq={handleOpenFaq}
         />
         <div className="flex flex-1 overflow-hidden">
           <FaqView onReturnHome={handleReturnHome} />
+        </div>
+        {bridgeSetupPromptNotice && (
+          <BridgeSetupPromptNotice
+            bridgeClient={bridgeSetupPromptNotice}
+            onDismiss={dismissBridgeSetupPromptNotice}
+          />
+        )}
+        <WindowSizeOverlay />
+        <UpdateNotification />
+      </div>
+    );
+  }
+
+  if (mode === "qualityLab" || mode === "formulas") {
+    return (
+      <div className="flex h-full flex-col bg-orange-50/30">
+        <TopToolbar
+          onOpenSettings={handleOpenSettings}
+          onOpenDocumentation={handleOpenDocumentation}
+          onOpenChangelog={handleOpenChangelog}
+          onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenQualityLab={handleOpenQualityLab}
+          onOpenFormulas={handleOpenFormulas}
+          onOpenFaq={handleOpenFaq}
+        />
+        <div className="flex flex-1 overflow-hidden">
+          <LaboratoryPlaceholderView
+            kind={mode}
+            onReturnHome={handleReturnHome}
+          />
         </div>
         {bridgeSetupPromptNotice && (
           <BridgeSetupPromptNotice
@@ -2905,6 +2969,8 @@ function MainApp() {
           onOpenDocumentation={handleOpenDocumentation}
           onOpenChangelog={handleOpenChangelog}
           onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenQualityLab={handleOpenQualityLab}
+          onOpenFormulas={handleOpenFormulas}
           onOpenFaq={handleOpenFaq}
         />
         <div className="flex flex-1 overflow-hidden">
@@ -2933,6 +2999,8 @@ function MainApp() {
           onOpenDocumentation={handleOpenDocumentation}
           onOpenChangelog={handleOpenChangelog}
           onOpenToolCatalog={handleOpenToolCatalog}
+          onOpenQualityLab={handleOpenQualityLab}
+          onOpenFormulas={handleOpenFormulas}
           onOpenFaq={handleOpenFaq}
         />
         <div className="flex flex-1 overflow-hidden">
@@ -2960,6 +3028,8 @@ function MainApp() {
         onOpenDocumentation={handleOpenDocumentation}
         onOpenChangelog={handleOpenChangelog}
         onOpenToolCatalog={handleOpenToolCatalog}
+        onOpenQualityLab={handleOpenQualityLab}
+        onOpenFormulas={handleOpenFormulas}
         onOpenFaq={handleOpenFaq}
       />
       <div className="flex flex-1 overflow-hidden">

@@ -34,9 +34,16 @@
       "toxic_content"
     ],
     "requiredRecommendationThemes": [
-      "добавить источники",
-      "вынести служебные элементы",
-      "сфокусировать интент"
-    ]
+      "add sources",
+      "move service elements out of the article body",
+      "focus the search intent"
+    ],
+    "signalKeywords": {
+      "health_risk": ["health", "medical", "diabetes", "hypoglycemia"],
+      "fact_check_required": ["source", "fact", "verify", "expert"],
+      "service_elements_in_body": ["download pdf", "part 1", "service element"],
+      "partial_intent_match": ["intent", "broad", "mixed", "unfocused"],
+      "repetition": ["repetition", "duplicate", "repeated"]
+    }
   }
 }
