@@ -22,10 +22,27 @@
     "documentation": "Documentation",
     "changelog": "Changelog",
     "faq": "FAQ",
+    "laboratory": "Laboratory",
     "toolCatalog": "Analytics tools",
+    "qualityLab": "Quality Lab",
+    "formulas": "Formulas",
+    "updates": "Updates",
     "settings": "Settings",
     "github": "GitHub",
     "checking": "Checking..."
+  },
+  "laboratory": {
+    "sidebarEyebrow": "Product lab",
+    "sidebarBody": "Public-facing quality, formula, and analytics references will live here. Internal eval runs stay outside the public app.",
+    "inDevelopment": "In development",
+    "qualityLab": {
+      "title": "Quality Lab",
+      "body": "This page will show the public part of analysis quality checks: completed checks, comparison progress, confidence notes, and user-safe improvement history."
+    },
+    "formulas": {
+      "title": "Formulas",
+      "body": "Formula documentation is being prepared. This page will explain public scoring principles without exposing private test cases or internal calibration rules."
+    }
   },
   "toolCatalog": {
     "title": "Analytics tools list",

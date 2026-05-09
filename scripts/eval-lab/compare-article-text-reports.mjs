@@ -21,36 +21,36 @@ const ARTICLE_TEXT_TOOL_IDS = [
   "safety_science_review",
 ];
 
-const TOOL_LABELS_RU = {
-  detect_text_platform: "Определение платформы",
-  analyze_text_structure: "Структура текста",
-  analyze_text_style: "Стиль текста",
-  analyze_tone_fit: "Соответствие тона",
-  language_audience_fit: "Язык и аудитория",
-  media_placeholder_review: "Размещение медиа",
-  article_uniqueness: "Уникальность статьи",
-  language_syntax: "Синтаксис языка",
-  ai_writing_probability: "Вероятность написания ИИ",
-  naturalness_indicators: "Естественность",
-  logic_consistency_check: "Логическая связность",
-  fact_distortion_check: "Искажение фактов",
-  ai_hallucination_check: "Проверка наличия ИИ и его галлюцинаций",
-  intent_seo_forecast: "Интент и SEO",
-  safety_science_review: "Безопасность и проверка",
+const TOOL_LABELS = {
+  detect_text_platform: "Text platform",
+  analyze_text_structure: "Text structure",
+  analyze_text_style: "Text style",
+  analyze_tone_fit: "Tone fit",
+  language_audience_fit: "Language and audience",
+  media_placeholder_review: "Media placement",
+  article_uniqueness: "Article uniqueness",
+  language_syntax: "Language syntax",
+  ai_writing_probability: "AI writing probability",
+  naturalness_indicators: "Naturalness",
+  logic_consistency_check: "Logic consistency",
+  fact_distortion_check: "Fact distortion",
+  ai_hallucination_check: "AI hallucination check",
+  intent_seo_forecast: "Intent and SEO",
+  safety_science_review: "Safety and expert review",
 };
 
 const SIGNAL_KEYWORDS = {
-  health_risk: ["медицин", "диабет", "гипоглик", "инсулин", "глюкагон", "health", "medical"],
-  medical_risk: ["медицин", "диабет", "гипоглик", "инсулин", "глюкагон", "health", "medical"],
-  fact_check_required: ["источник", "проверк", "факт", "эксперт", "source", "fact"],
-  missing_sources: ["источник", "source"],
-  service_elements_in_body: ["загрузить pdf", "часть 1", "часть 2", "служеб", "service", "pdf"],
-  partial_intent_match: ["интент", "размыт", "широк", "смешан", "intent", "broad", "mixed"],
-  broad_intent: ["интент", "размыт", "широк", "смешан", "intent", "broad", "mixed"],
-  repetition: ["повтор", "дублир", "однотип", "repetition", "duplicate"],
-  ai_like_generic_text: ["ии", "шаблон", "механичес", "однообраз", "ai", "template"],
-  long_blocks: ["длинн", "перегруж", "абзац", "block"],
-  categorical_medical_advice: ["категорич", "обязательно", "следует", "рекоменд", "медицин"],
+  health_risk: ["health", "medical", "diabetes", "hypoglycemia", "insulin", "glucagon"],
+  medical_risk: ["health", "medical", "diabetes", "hypoglycemia", "insulin", "glucagon"],
+  fact_check_required: ["source", "fact", "expert", "verify", "citation"],
+  missing_sources: ["source", "citation", "reference"],
+  service_elements_in_body: ["download pdf", "part 1", "part 2", "service", "boilerplate", "pdf"],
+  partial_intent_match: ["intent", "broad", "mixed", "unfocused", "unclear"],
+  broad_intent: ["intent", "broad", "mixed", "unfocused", "unclear"],
+  repetition: ["repetition", "duplicate", "repeated", "same idea"],
+  ai_like_generic_text: ["ai", "template", "generic", "mechanical", "pattern"],
+  long_blocks: ["long", "overloaded", "paragraph", "block"],
+  categorical_medical_advice: ["categorical", "must", "should", "recommend", "medical"],
 };
 
 function printHelp() {
@@ -199,7 +199,7 @@ function runtimeReportFromBridgeState(state, label) {
   const completeEntries = Object.entries(state.buffer ?? {}).filter(([, entry]) => entry?.status === "complete");
   const confirmedFacts = completeEntries.map(([toolId, entry]) => {
     const data = isObject(entry.data) ? entry.data : {};
-    const title = firstString(data.title, data.label, data.name, TOOL_LABELS_RU[toolId], toolId);
+    const title = firstString(data.title, data.label, data.name, TOOL_LABELS[toolId], toolId);
     const detail = firstString(
       data.detail,
       data.summary,
@@ -337,22 +337,22 @@ function collectText(value, parts = []) {
 function normalizeText(value) {
   return value
     .toLowerCase()
-    .replace(/ё/g, "е")
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function signalKeywords(signal) {
+function signalKeywords(signal, customKeywords = {}) {
+  if (Array.isArray(customKeywords[signal])) return customKeywords[signal];
   if (SIGNAL_KEYWORDS[signal]) return SIGNAL_KEYWORDS[signal];
   return normalizeText(signal)
     .split(" ")
     .filter((word) => word.length >= 4);
 }
 
-function hasSignal(report, signal) {
+function hasSignal(report, signal, customKeywords = {}) {
   const text = normalizeText(collectText(report).join(" "));
-  const keywords = signalKeywords(signal).map(normalizeText).filter(Boolean);
+  const keywords = signalKeywords(signal, customKeywords).map(normalizeText).filter(Boolean);
   if (keywords.length === 0) return false;
   return keywords.some((keyword) => text.includes(keyword));
 }
@@ -404,20 +404,21 @@ function compareReports({ mcp, api, evalCase, metricDelta }) {
   const requiredSignals = evalCase?.expected?.mustDetect ?? [];
   const forbiddenSignals = evalCase?.expected?.mustNotDetect ?? [];
   const requiredRecommendationThemes = evalCase?.expected?.requiredRecommendationThemes ?? [];
+  const customSignalKeywords = evalCase?.expected?.signalKeywords ?? {};
   const signalChecks = requiredSignals.map((signal) => ({
     signal,
-    mcp: hasSignal(mcp.report, signal),
-    api: hasSignal(api.report, signal),
+    mcp: hasSignal(mcp.report, signal, customSignalKeywords),
+    api: hasSignal(api.report, signal, customSignalKeywords),
   }));
   const forbiddenChecks = forbiddenSignals.map((signal) => ({
     signal,
-    mcp: hasSignal(mcp.report, signal),
-    api: hasSignal(api.report, signal),
+    mcp: hasSignal(mcp.report, signal, customSignalKeywords),
+    api: hasSignal(api.report, signal, customSignalKeywords),
   }));
   const recommendationChecks = requiredRecommendationThemes.map((theme) => ({
     theme,
-    mcp: hasSignal(mcp.report, theme),
-    api: hasSignal(api.report, theme),
+    mcp: hasSignal(mcp.report, theme, customSignalKeywords),
+    api: hasSignal(api.report, theme, customSignalKeywords),
   }));
 
   const mcpSections = sectionStatus(mcp.report);
@@ -511,7 +512,7 @@ function boolMark(value) {
 
 function toolList(ids) {
   if (!ids.length) return "none";
-  return ids.map((id) => `${TOOL_LABELS_RU[id] ?? id} (${id})`).join(", ");
+  return ids.map((id) => `${TOOL_LABELS[id] ?? id} (${id})`).join(", ");
 }
 
 function renderMarkdown(result) {
