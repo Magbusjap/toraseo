@@ -55,7 +55,7 @@ Current roadmap note:
 
 ---
 
-## [ToraSEO 0.0.9] - Unreleased
+## [ToraSEO 0.0.9] - 2026-05-09
 
 Release candidate focused on expanding ToraSEO from a dual-mode site
 audit tool into a broader SEO analysis workspace.
@@ -125,6 +125,57 @@ audit tool into a broader SEO analysis workspace.
 - Refreshed app, MCP, Claude Bridge Instructions, Codex Workflow
   Instructions, and architecture README/docs to match the current
   product shape.
+
+---
+
+## [ToraSEO 0.0.8] - 2026-04-30
+
+Unified release and Codex bridge reliability. This release established
+the app-led release direction with instruction ZIP assets and hardened
+the Codex bridge path.
+
+### Added
+
+- Unified app release workflow that attaches the app installer assets,
+  Claude Bridge Instructions ZIP, and Codex Workflow Instructions ZIP
+  to one `v0.0.8` GitHub release entry.
+- Manual packaging workflows for standalone Claude and Codex ZIP
+  artifacts without creating separate public releases.
+- Persistent Codex copied-prompt helper that stays visible until the
+  user dismisses it or real Codex scan data reaches the app.
+- Codex workflow guidance for one-time chat/session MCP approvals when
+  available.
+
+### Changed
+
+- Native mode no longer depends on Claude Desktop readiness.
+- Bridge mode keeps the live AI conversation in the external MCP client,
+  while `API + AI Chat` owns the in-app chat path.
+- Bridge scan state maps into the shared workspace so MCP facts can
+  populate the analysis view without removing the Claude Desktop path.
+- The app release workflow now uses Node.js 22, matching the root
+  `engines.node` requirement.
+
+### Fixed
+
+- Bridge result rendering now consumes `buffer[toolId].data` and turns
+  core analyzer `issues[]` into visible `Confirmed facts`.
+- Bridge severity summaries now recognize the core `issues[]` contract
+  in addition to the older `verdicts[]` name.
+- Completed bridge results remain visible after the temporary scan state
+  file is cleaned up.
+- Native chat compatibility was hardened for provider/model responses
+  that return stricter or less predictable payloads.
+
+### Security and trust
+
+- API keys remain stored only in the Electron main process using
+  OS-level encrypted storage when available.
+- Provider errors are normalized before reaching the renderer.
+- The UI and report contract keep factual tool output distinct from AI
+  interpretation.
+- Bridge prompt construction keeps the protocol token out of renderer
+  prompt text; the token remains sourced from `SKILL.md`.
 
 ---
 
@@ -882,8 +933,9 @@ These are **deliberately out of scope for v0.1.0-alpha**, not bugs:
 - **OS tested:** Windows, Linux. macOS expected to work but
   not verified
 
-[Unreleased]: https://github.com/Magbusjap/toraseo/compare/v0.0.7...HEAD
-[App 0.0.8]: https://github.com/Magbusjap/toraseo/compare/v0.0.7...v0.0.8
+[Unreleased]: https://github.com/Magbusjap/toraseo/compare/v0.0.9...HEAD
+[ToraSEO 0.0.9]: https://github.com/Magbusjap/toraseo/compare/v0.0.8...v0.0.9
+[ToraSEO 0.0.8]: https://github.com/Magbusjap/toraseo/compare/v0.0.7...v0.0.8
 [App 0.0.7]: https://github.com/Magbusjap/toraseo/compare/v0.0.5...v0.0.7
 [App 0.0.5]: https://github.com/Magbusjap/toraseo/compare/v0.0.4...v0.0.5
 [App 0.0.4]: https://github.com/Magbusjap/toraseo/compare/v0.0.3...v0.0.4

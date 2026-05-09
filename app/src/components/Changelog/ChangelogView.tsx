@@ -25,7 +25,7 @@ type ChangelogEntry = {
 const ENTRIES: ChangelogEntry[] = [
   {
     version: "ToraSEO 0.0.9",
-    date: "Release candidate",
+    date: "2026-05-09",
     status: "active",
     title: {
       ru: "Новые типы анализа, визуальные отчеты и документация",
@@ -130,7 +130,7 @@ const ENTRIES: ChangelogEntry[] = [
   },
   {
     version: "ToraSEO 0.0.8",
-    date: "Released",
+    date: "2026-04-30",
     title: {
       ru: "Единая публикация и надежность Codex bridge",
       en: "Unified release and Codex bridge reliability",
