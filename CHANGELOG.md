@@ -115,6 +115,9 @@ audit tool into a broader SEO analysis workspace.
   synchronized with English.
 - Top toolbar order was updated to prioritize Settings, Documentation,
   Analytics tools, FAQ, Changelog, Updates, and About.
+- Packaged builds now use a separate `ToraSEO` user-data profile instead
+  of the workspace package name, so locally saved dev API-provider
+  settings are not picked up by installed releases on the same machine.
 
 ### Documentation
 

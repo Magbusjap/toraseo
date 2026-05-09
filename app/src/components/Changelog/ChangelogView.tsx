@@ -104,6 +104,7 @@ const ENTRIES: ChangelogEntry[] = [
             "Fixed return-home/reopen behavior where progress could appear completed without a fresh run.",
             "Fixed outdated and broken Russian text in FAQ, documentation, and README files.",
             "Fixed the top toolbar item order.",
+            "Packaged releases now use a separate ToraSEO user-data profile so local development API-provider settings are not picked up by installed builds.",
           ],
         },
       },

@@ -18,6 +18,11 @@ import type { StartScanArgs } from "../src/types/ipc";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Keep packaged releases away from the workspace package name
+// (`@toraseo/app`) so local development credentials do not appear in
+// installed builds on the same machine.
+app.setName(app.isPackaged ? "ToraSEO" : "ToraSEO Dev");
+
 /**
  * Resolve the runtime path to the app icon.
  *
