@@ -51,6 +51,10 @@ jobs:
       - name: Install dependencies (workspaces)
         run: npm ci
 
+      - name: Restore app optional dependencies for this platform
+        if: matrix.os != 'windows-latest'
+        run: npm install --prefix app --include=optional --no-audit --no-fund
+
       - name: Build core
         run: npm run build --workspace=@toraseo/core
 
