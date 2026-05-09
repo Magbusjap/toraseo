@@ -34,7 +34,7 @@ should present one unified asset list.
 
 Current active app release candidate:
 
-- **App 0.0.9 - analysis-type expansion groundwork.**
+- **ToraSEO 0.0.9 - analysis-type expansion groundwork.**
 - The app now shows the approved first-wave `0.0.9` analysis-type map
   on the home screen.
 - `Site by URL` now includes the first approved expansion tool:
@@ -55,28 +55,76 @@ Current roadmap note:
 
 ---
 
-## [App 0.0.9] - Unreleased
+## [ToraSEO 0.0.9] - Unreleased
+
+Release candidate focused on expanding ToraSEO from a dual-mode site
+audit tool into a broader SEO analysis workspace.
 
 ### Added
 
-- Unified app release workflow that attaches the app installer assets,
-  Claude Bridge Instructions ZIP, and Codex Workflow Instructions ZIP
-  to one `v0.0.9` GitHub release entry.
-- Manual packaging workflows for standalone Claude and Codex ZIP
-  artifacts without creating separate public releases.
-- Persistent Codex copied-prompt helper that stays visible until the
-  user dismisses it or real Codex scan data reaches the app.
-- Codex workflow guidance for one-time chat/session MCP approvals when
-  available.
+- New analysis areas: Text, Compare two texts, Page by URL, Site by URL,
+  and Site comparison by URL.
+- Future analysis cards for Design and content by URL and Image analysis,
+  both marked as in development.
+- RouterAI as a Russian OpenAI-compatible provider alongside OpenRouter.
+- Provider model management, model testing, and one app-wide default
+  model action.
+- Analysis version display in reports, separate from the app version.
+- Visual report blocks and an infographic result screen for text
+  analysis.
+- Separate detailed report views so the main screen can stay compact.
+- GitHub documentation hub and bilingual FAQ.
+- README preview images with stable descriptive filenames.
+- Unified release direction: desktop installer assets, Claude Bridge
+  Instructions ZIP, and Codex Workflow Instructions ZIP attached to one
+  `v0.0.9` GitHub release entry.
+
+### Expanded
+
+- Analytics tools for Text, Page by URL, Site by URL, and Site comparison
+  by URL.
+- Site comparison by URL is shaped as a competitive comparison dashboard:
+  summary, compact site cards, comparative metrics, direction heatmap,
+  winners, actionable insights, and drill-down details.
+- Site by URL and Site comparison by URL sidebars now use the
+  user-facing "Additional checks" concept.
+- API + AI Chat handling for analysis start, chat response, and report
+  follow-up.
+- Codex Workflow Instructions and Claude Bridge Instructions now include
+  clearer MCP + Instructions, API boundary, language, and Skill fallback
+  rules.
+- In-app documentation now has separate pages for MCP + Instructions,
+  API + AI Chat, and Skill without MCP and APP.
+- Mascot states now cover waiting, ready for analysis, analysis in
+  progress, error, and completed report.
 
 ### Fixed
 
+- About ToraSEO now shows Apache-2.0 instead of MIT.
+- About ToraSEO no longer describes the product only as a Claude Desktop
+  companion.
+- Claude Desktop and Codex language rules now follow the interface or
+  prompt language unless the user starts in another language.
 - Bridge result rendering now consumes `buffer[toolId].data` and turns
-  core analyzer `issues[]` into visible `Confirmed facts`.
-- Bridge severity summaries now recognize the core `issues[]` contract
-  in addition to the older `verdicts[]` name.
-- Completed bridge results remain visible after the temporary scan state
-  file is cleaned up.
+  MCP facts into visible report data.
+- Completed bridge results remain visible after temporary scan state
+  cleanup.
+- Reopening an analysis after returning home no longer implies a fresh
+  completed run from stale progress state.
+- Russian documentation, FAQ, and README text were cleaned up and
+  synchronized with English.
+- Top toolbar order was updated to prioritize Settings, Documentation,
+  Analytics tools, FAQ, Changelog, Updates, and About.
+
+### Documentation
+
+- Root README and README.ru were rewritten as a visual elevator pitch
+  with product screenshots, mode previews, and mascot callouts.
+- Added `docs/README.md`, `docs/README.ru.md`, `docs/FAQ.md`, and
+  `docs/FAQ.ru.md`.
+- Refreshed app, MCP, Claude Bridge Instructions, Codex Workflow
+  Instructions, and architecture README/docs to match the current
+  product shape.
 
 ---
 

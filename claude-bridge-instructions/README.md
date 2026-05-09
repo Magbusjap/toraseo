@@ -1,114 +1,68 @@
 # ToraSEO Claude Bridge Instructions
 
-Claude-side instruction package for SEO workflows. Once installed,
-Claude knows how to conduct SEO audits using the ToraSEO MCP server's
-seven Mode A tools (robots.txt, sitemap, meta, headings, redirects,
-content, and a quick reachability scan).
+Claude-side instruction package for ToraSEO workflows. It teaches Claude Desktop how to use the ToraSEO MCP server, respect the product boundaries, and summarize audit evidence without inventing unavailable data.
 
-This package is the Claude-side instruction component for ToraSEO.
-Codex has a separate package at `toraseo-codex-workflow/`.
+This package is separate from the Codex package:
+
+- `claude-bridge-instructions/` is for Claude Desktop / Claude.ai style skill installation.
+- `toraseo-codex-workflow/` is for Codex local skill loading.
 
 ## Status
 
-🚧 **v0.1.0-alpha — Mode A only.** Mode B (Content Audit /
-AI-humanizer) is planned for v0.2.
+**0.0.9 release candidate.** The package supports the current ToraSEO analysis families:
+
+- article text
+- compare two texts
+- page by URL
+- site by URL
+- site comparison by URL
+- chat-only fallback when MCP or the app is unavailable
 
 ## Installation
 
 ### 1. Prerequisites
 
-- A working installation of the **ToraSEO MCP server** (see
-  [`../mcp/README.md`](../mcp/README.md)). The skill on its own does
-  nothing — it's a set of instructions that tells Claude how to
-  use the MCP tools effectively.
-- **Claude Desktop**, **Claude.ai** (Pro/Max/Team/Enterprise), or
-  **Claude Code**. Skills are not available on the free tier.
+- ToraSEO MCP server registered in Claude Desktop.
+- ToraSEO desktop app if you want bridge results to appear in the app.
+- Claude Desktop / Claude.ai / Claude Code with skill support.
 
-### 2. Get the skill ZIP
+### 2. Get The ZIP
 
-The easiest path is to download the prebuilt ZIP from the
-[Releases page](https://github.com/Magbusjap/toraseo/releases):
+Download the prebuilt ZIP from the [Releases page](https://github.com/Magbusjap/toraseo/releases):
 
-> **Download:** `toraseo-claude-bridge-instructions-vX.Y.Z.zip`
->
-> Use the asset named `toraseo-claude-bridge-instructions-*.zip`, **not** the
-> auto-generated "Source code (zip)" — the source archive contains
-> the whole repo and won't install as Claude Bridge Instructions.
-
-### 3. Install in Claude Desktop / Claude.ai
-
-1. Open **Settings → Capabilities** and confirm **Code execution
-   and file creation** is enabled.
-2. Go to **Customize → Skills**.
-3. Click the **+** button → **+ Create skill**.
-4. Upload `toraseo-claude-bridge-instructions-vX.Y.Z.zip`.
-5. Toggle the skill to **ON**.
-
-### 4. Install in Claude Code
-
-```bash
-# Unzip the release into your personal skills folder
-unzip toraseo-claude-bridge-instructions-vX.Y.Z.zip -d ~/.claude/skills/
+```text
+toraseo-claude-bridge-instructions-vX.Y.Z.zip
 ```
 
-After unzip you should have `~/.claude/skills/toraseo/SKILL.md`.
-That path is for Claude local skill loading; it is not the Codex skill
-installation path.
+Use the asset named `toraseo-claude-bridge-instructions-*.zip`, not the auto-generated GitHub source archive.
 
-### 5. Verify
+### 3. Install In Claude
 
-Open a new chat and ask:
+1. Open Claude settings.
+2. Go to the Skills area.
+3. Install the ZIP.
+4. Start a new chat after installation.
 
-> What skills do you have available?
+### 4. Verify
 
-Claude should mention `toraseo`. Then for a real test:
+Run the setup check from ToraSEO or ask Claude which skills are available. For a real bridge run, open ToraSEO, choose `MCP + Instructions`, select an analysis, and paste the generated Claude command.
 
-> Run an SEO audit on https://example.com
+## Chat-Only Fallback
 
-Claude should activate the skill, call the seven MCP tools in turn,
-and produce a structured audit report.
+When the skill is installed but the desktop app, MCP server, or active scan is unavailable, use the fallback commands documented in [docs/README.md](../docs/README.md). In this path Claude answers in chat from pasted or visible evidence, and the ToraSEO app report is not updated.
 
-## What's inside
+## Package Layout
 
 ```text
 claude-bridge-instructions/
-├── SKILL.md                       # Main entry point read by Claude
-├── checklists/
-│   └── google-basics.md           # Google Search Essentials checklist
-└── templates/
-    └── audit-report.md            # Structural template for the report
+|- SKILL.md
+|- checklists/
+|- references/
+`- templates/
 ```
 
-Future releases will add:
+## Documentation
 
-- `checklists/yandex-seo.md` — Yandex-specific signals
-- `checklists/bing-seo.md` — Bing webmaster tools
-- `checklists/ai-search-geo.md` — AI-search readiness (ChatGPT,
-  Perplexity, Google AI Overviews)
-- `humanizer/` — Patterns for the v0.2 Content Audit mode
-
-## Building the ZIP yourself
-
-If you cloned the repo and want to build the ZIP locally (for
-testing or contributing):
-
-```bash
-./scripts/build-skill.sh v0.1.0
-```
-
-This produces `toraseo-claude-bridge-instructions-v0.1.0.zip` in the repo root with the
-correct structure for upload to Claude.
-
-CI builds the same ZIP automatically on every `v*` git tag —
-see [`.github/workflows/release-skill.yml`](../.github/workflows/release-skill.yml).
-
-## Architecture
-
-See [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) for the
-full three-component picture (Claude Instructions / MCP / future App).
-
-## Localization
-
-The primary language of this skill is English. Russian and other
-localizations will live under `i18n/<lang>/` once added — they
-will package as separate ZIPs (`toraseo-claude-bridge-instructions-ru-vX.Y.Z.zip`).
+- [Documentation hub](../docs/README.md)
+- [FAQ](../docs/FAQ.md)
+- [Codex workflow package](../toraseo-codex-workflow/README.md)

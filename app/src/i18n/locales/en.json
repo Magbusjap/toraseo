@@ -4,7 +4,7 @@
     "tagline": "See the top. Rank the top.",
     "altMascotIdle": "ToraSEO mascot in idle state",
     "altMascotFocused": "ToraSEO mascot focused on the analysis",
-    "altMascotHappy": "ToraSEO mascot — analysis complete",
+    "altMascotHappy": "ToraSEO mascot - analysis complete",
     "altMascotSleeping": "ToraSEO sleeping mascot",
     "altMascotNeutral": "ToraSEO mascot reviewing warnings",
     "altMascotSurprised": "ToraSEO mascot surprised by issues",
@@ -25,7 +25,7 @@
     "toolCatalog": "Analytics tools",
     "settings": "Settings",
     "github": "GitHub",
-    "checking": "Checking…"
+    "checking": "Checking..."
   },
   "toolCatalog": {
     "title": "Analytics tools list",
@@ -85,7 +85,7 @@
   },
   "about": {
     "title": "About ToraSEO",
-    "description": "ToraSEO is a desktop SEO audit tool that pairs with Claude Desktop.",
+    "description": "ToraSEO is a desktop SEO analysis workspace with MCP + Instructions, API + AI Chat, and structured reports.",
     "version": "Version:",
     "license": "License:",
     "author": "Author:",
@@ -94,7 +94,7 @@
   },
   "settings": {
     "title": "Settings",
-    "comingSoon": "Coming soon — settings will live here:",
+    "comingSoon": "Coming soon - settings will live here:",
     "comingSoonItems": {
       "language": "Language switcher (EN / RU)",
       "persistence": "Remembering selected tools between launches",
@@ -160,7 +160,7 @@
       "status": {
         "configured": "Configured",
         "notConfigured": "Not configured",
-        "lastFour": "ends in …{{value}}",
+        "lastFour": "ends in ...{{value}}",
         "savedJustNow": "Saved",
         "deleted": "Removed",
         "tested": "Connection works"
@@ -226,7 +226,7 @@
       "error": "Error",
       "planned": "0.0.9"
     },
-    "versionFootnote": "App version: ToraSEO {{appVersion}} · individual analysis versions are shown in reports and documentation.",
+    "versionFootnote": "App version: ToraSEO {{appVersion}} - individual analysis versions are shown in reports and documentation.",
     "analysisTypes": {
       "siteByUrl": {
         "title": "Site by URL",
@@ -382,7 +382,8 @@
       "textStyle": "Text style",
       "analysisRole": "AI analysis role",
       "analysisRolePlaceholder": "For example: SEO editor, fact-checker, medical editor",
-      "analysisRoleHint": "Leave empty to let AI use the default ToraSEO analysis settings."
+      "analysisRoleHint": "Leave empty to let AI use the default ToraSEO analysis settings.",
+      "additionalChecks": "Additional checks"
     },
     "platforms": {
       "siteArticle": "Site article",

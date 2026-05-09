@@ -5,78 +5,165 @@
   <img src="https://raw.githubusercontent.com/Magbusjap/toraseo/main/branding/logos/tora-logo-horizontal.svg" alt="ToraSEO" width="480">
 </picture>
 
-**Open-source SEO toolkit built as a desktop app + MCP server + AI instructions**
+**Open-source рабочее пространство для SEO-аудитов, AI-проверок и структурированных отчетов**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Release: v0.1.0-alpha](https://img.shields.io/badge/Release-v0.1.0--alpha-FF6B35.svg)](https://github.com/Magbusjap/toraseo/releases)
-[![Made with Claude](https://img.shields.io/badge/Made_with-Claude-D97757.svg)](https://claude.ai)
-[![Made with Codex](https://img.shields.io/badge/Made_with-Codex-4D6BFE.svg)](https://openai.com/codex/)
+[![Release: v0.0.9 RC](https://img.shields.io/badge/Release-v0.0.9_RC-FF6B35.svg)](https://github.com/Magbusjap/toraseo/releases)
+[![Claude Desktop](https://img.shields.io/badge/Claude-Desktop-D97757.svg)](https://claude.ai)
+[![Codex Workflow](https://img.shields.io/badge/Codex-Workflow-4D6BFE.svg)](https://openai.com/codex/)
+
+[![Windows](https://img.shields.io/badge/Windows-setup.exe-0078D4?logo=windows&logoColor=white)](https://github.com/Magbusjap/toraseo/releases)
+[![macOS](https://img.shields.io/badge/macOS-dmg-000000?logo=apple&logoColor=white)](https://github.com/Magbusjap/toraseo/releases)
+[![Linux](https://img.shields.io/badge/Linux-AppImage-FCC624?logo=linux&logoColor=111111)](https://github.com/Magbusjap/toraseo/releases)
+
+<p>
+  <strong>Язык:</strong> <a href="README.md">English</a> | Русский
+</p>
 
 </div>
 
-**Язык:** [English](README.md) | Русский
-
 ---
 
-ToraSEO - это open-source SEO workspace для структурированных аудитов сайтов. Он объединяет desktop app, MCP server и переиспользуемые AI instruction packages, чтобы аудит можно было запускать через `MCP + Instructions` или через `API + AI Chat`.
+<p align="center">
+  <img src="branding/preview/tora-home-overview.png" alt="Главный экран ToraSEO с режимами MCP и API" width="900">
+</p>
 
-Проект специально разделен на независимые компоненты: app, MCP server и instruction packages можно использовать вместе или по отдельности, в зависимости от сценария.
+<div align="center">
 
-> [!NOTE]
-> **App 0.0.9 сейчас является активным release candidate.** App release по-прежнему считается основной публичной release entry и должен включать сразу три группы assets: desktop installer assets, `Claude Bridge Instructions` ZIP и `Codex Workflow Instructions` ZIP.
+### Исследуйте возможности SEO-анализа
 
-> [!TIP]
-> **ToraSEO поддерживает и Claude, и Codex workflows.** Для Claude используется `claude-bridge-instructions`, для Codex - `toraseo-codex-workflow`, а для встроенного сценария можно идти через `API + AI Chat` прямо внутри desktop app.
+ToraSEO объединяет технические проверки, AI-интерпретацию и визуальные отчеты в одном спокойном desktop workflow. Начните с URL или текста статьи, выберите режим работы AI и получите рекомендации, привязанные к фактам аудита.
 
-## Быстрая навигация
+</div>
 
-- [Что находится в этом репозитории](#что-находится-в-этом-репозитории)
-- [Быстрый старт](#быстрый-старт)
-- [Пути Claude и Codex](#пути-claude-и-codex)
-- [Текущий статус релиза](#текущий-статус-релиза)
-- [Что ToraSEO умеет уже сейчас](#что-toraseo-умеет-уже-сейчас)
-- [Архитектура](#архитектура)
-- [Стандарт release notes](#стандарт-release-notes)
-- [Карта документации](#карта-документации)
-- [Как помочь проекту](#как-помочь-проекту)
-- [Лицензия](#лицензия)
+## Зачем нужен ToraSEO
 
-## Что находится в этом репозитории
+ToraSEO создан для случаев, когда обычный crawler уже слишком сухой, а набор разрозненных SEO-инструментов превращает анализ в шум. Проект объединяет:
 
-ToraSEO - это multi-surface repository. Несколько `README.md` здесь являются нормой, потому что часть директорий - это самостоятельные входные точки, а не просто внутренние папки.
+- desktop-приложение для подготовки анализа, прогресса, отчетов и экспорта
+- MCP-сервер, который выполняет структурированные проверки и возвращает факты в приложение
+- пакеты инструкций для Claude Desktop и Codex, чтобы запускать внешний AI workflow
+- встроенный режим `API + AI Chat` для анализа через выбранного провайдера внутри ToraSEO
 
-| Surface | Назначение | Entry point |
-|---|---|---|
-| **Root repo** | Обзор продукта, статус релиза, карта документации | [`README.md`](README.md) |
-| **Desktop app** | Native UI, bridge mode, native AI runtime | [`app/README.md`](app/README.md) |
-| **MCP server** | Слой исполнения tools для scan и bridge data | [`mcp/README.md`](mcp/README.md) |
-| **Claude Bridge Instructions** | Claude-side setup и workflow package | [`claude-bridge-instructions/README.md`](claude-bridge-instructions/README.md) |
-| **Codex Workflow Instructions** | Codex-side setup и workflow package | [`toraseo-codex-workflow/README.md`](toraseo-codex-workflow/README.md) |
-| **QA docs** | Manual checks и smoke-test support | [`qa/README.md`](qa/README.md) |
+Главная цель простая: показать, что слабое, что сильное и что исправить первым.
 
-Это сделано специально: root README помогает выбрать путь, а component READMEs раскрывают детали для своей аудитории.
+## Превью продукта
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="branding/preview/tora-article-input.png" alt="Экран анализа текста статьи в ToraSEO" width="100%">
+      <br>
+      <strong>Подготовьте анализ</strong>
+      <br>
+      Вставьте статью, выберите контекст и отметьте проверки, которые важны для текущего аудита.
+    </td>
+    <td width="50%" valign="top">
+      <img src="branding/preview/tora-report-infographic.png" alt="Визуальный отчет ToraSEO" width="100%">
+      <br>
+      <strong>Читайте отчет визуально</strong>
+      <br>
+      Превращайте факты проверки в компактный dashboard с готовностью, покрытием, метриками и рекомендациями.
+    </td>
+  </tr>
+</table>
+
+## Два режима работы
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="branding/preview/tora-codex-mcp-mode.png" alt="Пример ToraSEO Codex MCP workflow" width="100%">
+      <br>
+      <strong>Режим MCP + Instructions</strong>
+      <br>
+      Запускайте структурированные проверки через Codex или Claude Desktop. Внешний AI-клиент вызывает MCP-инструменты ToraSEO, а приложение получает структурированные результаты.
+    </td>
+    <td width="50%" valign="top">
+      <img src="branding/preview/tora-api-chat-mode.png" alt="Пример режима ToraSEO API и AI Chat" width="100%">
+      <br>
+      <strong>Режим API + AI Chat</strong>
+      <br>
+      Запускайте анализ внутри ToraSEO через выбранного провайдера и модель, затем смотрите вывод в чате и отчете.
+    </td>
+  </tr>
+</table>
+
+## Чем помогает Tora
+
+<table>
+  <tr>
+    <td width="90" align="center" valign="top">
+      <img src="branding/mascots/tora-neutral.svg" alt="Маскот ToraSEO готов к анализу" width="72">
+    </td>
+    <td valign="top">
+      <strong>Начать с понятного маршрута аудита.</strong>
+      <br>
+      ToraSEO помогает выбрать правильный режим анализа до запуска, чтобы отчет был сфокусированным, а не перегруженным.
+    </td>
+  </tr>
+  <tr>
+    <td width="90" align="center" valign="top">
+      <img src="branding/mascots/tora-focused.svg" alt="Маскот ToraSEO во время анализа" width="72">
+    </td>
+    <td valign="top">
+      <strong>Найти слабые места без угадывания.</strong>
+      <br>
+      Приложение отделяет факты сканирования от AI-интерпретации, поэтому рекомендации проще проверять и использовать.
+    </td>
+  </tr>
+  <tr>
+    <td width="90" align="center" valign="top">
+      <img src="branding/mascots/tora-happy.svg" alt="Маскот ToraSEO после готового отчета" width="72">
+    </td>
+    <td valign="top">
+      <strong>Перейти от находок к следующим шагам.</strong>
+      <br>
+      Отчеты отвечают на главные вопросы: что сломано, что уже хорошо и что стоит улучшить в первую очередь.
+    </td>
+  </tr>
+  <tr>
+    <td width="90" align="center" valign="top">
+      <img src="branding/mascots/tora-champion.svg" alt="Маскот ToraSEO для роста SEO-результатов" width="72">
+    </td>
+    <td valign="top">
+      <strong>Двигаться к более сильной видимости в поиске.</strong>
+      <br>
+      ToraSEO готовит основу для Tora Rank: более понятного сравнения качества, готовности и конкурентных разрывов во времени.
+    </td>
+  </tr>
+</table>
+
+## Текущие направления анализа
+
+Текущая публичная логика покрывает пять групп анализа:
+
+| Анализ | Для чего нужен |
+|---|---|
+| **Текст** | Качество статьи, структура, читаемость, AI-style сигналы, SEO-пакет и риски |
+| **Сравнение двух текстов** | A/B-сравнение текстов, контентные разрывы, риск похожести, различия стиля и план улучшений |
+| **Страница по URL** | Извлечение текста страницы и article-style проверки для конкретного URL |
+| **Сайт по URL** | Технические и on-page проверки одного сайта |
+| **Сравнение сайтов по URL** | Компактный competitive dashboard для сравнения до трех сайтов |
+
+Некоторые направления внутри приложения пока отмечены как находящиеся в разработке. Публичная логика проекта намеренно осторожная: сначала полезные факты и доказательства, затем scoring и ranking-слой.
 
 ## Быстрый старт
 
-Выбери путь в зависимости от того, как ты хочешь использовать ToraSEO.
+Выберите путь, который подходит вашему workflow.
 
-### Путь A - пользователь desktop app
+### Desktop-приложение
 
-Подходит тем, кто хочет визуальный workspace, release assets и один из двух runtime paths:
+Подходит пользователям, которым нужен визуальный workspace и один из двух runtime-путей:
 
-- `MCP + Instructions` для Claude Desktop / Codex bridge-driven audits
-- `API + AI Chat` для встроенного native chat flow
+1. Скачайте последнюю версию на странице [GitHub Releases](https://github.com/Magbusjap/toraseo/releases).
+2. Установите desktop-приложение.
+3. Выберите `MCP + Instructions` или `API + AI Chat` на главном экране.
+4. Если используете `API + AI Chat`, настройте провайдера и модель в Settings.
 
-Начать можно так:
+### MCP-сервер
 
-1. Скачай последний app release из [GitHub Releases](https://github.com/Magbusjap/toraseo/releases).
-2. Установи desktop app.
-3. Если нужен `MCP + Instructions`, дополнительно установи MCP server и нужный instructions ZIP package.
-4. Если нужен `API + AI Chat`, настрой provider в Settings внутри app.
-
-### Путь B - пользователь MCP
-
-Подходит тем, кому нужны сами scan tools без desktop UI.
+Подходит тем, кому нужен отдельный слой инструментов:
 
 ```bash
 git clone https://github.com/Magbusjap/toraseo.git
@@ -85,7 +172,7 @@ npm install
 npm run build
 ```
 
-После этого зарегистрируй server в своем MCP-compatible client:
+Затем зарегистрируйте сервер в MCP-compatible клиенте:
 
 ```json
 {
@@ -98,149 +185,81 @@ npm run build
 }
 ```
 
-Полная настройка описана в [`mcp/README.md`](mcp/README.md).
+Подробности настройки находятся в [mcp/README.md](mcp/README.md).
 
-### Путь C - пользователь bridge instructions
+### Claude и Codex workflows
 
-Подходит тем, кто хочет guided audit workflows внутри AI client.
+Подходит тем, кто хочет запускать аудит внутри AI-клиента:
 
-- Для Claude используй [`claude-bridge-instructions/README.md`](claude-bridge-instructions/README.md)
-- Для Codex используй [`toraseo-codex-workflow/README.md`](toraseo-codex-workflow/README.md)
-
-ZIP assets скачиваются с общей [Releases page](https://github.com/Magbusjap/toraseo/releases). Не используй auto-generated source-code archives для установки.
-
-## Пути Claude и Codex
-
-ToraSEO рассматривает Claude и Codex как first-class workflow paths, а не как второстепенные дополнения.
-
-| Path | Для чего лучше подходит | Entry point |
-|---|---|---|
-| **Claude Bridge Instructions** | Guided audits внутри Claude Desktop / Claude.ai / Claude Code | [`claude-bridge-instructions/README.md`](claude-bridge-instructions/README.md) |
-| **Codex Workflow Instructions** | Repository-aware Codex workflows и bridge-mode доставка scan results в app | [`toraseo-codex-workflow/README.md`](toraseo-codex-workflow/README.md) |
-| **API + AI Chat** | In-app interpretation flow без обязательной внешней chat-среды | [`app/README.md`](app/README.md) |
-
-Если смотреть на ToraSEO как на продукт, это одно из ключевых различий: Claude и Codex могут оркестрировать scan через instructions, а desktop app также умеет запускать собственный provider-backed interpretation path.
-
-## Текущий статус релиза
-
-### Стабильная база
-
-- **`0.0.7`** - это выпущенная dual-mode baseline для desktop app.
-
-### Активный release candidate
-
-- **`0.0.8`** сфокусирован на unified release packaging, Codex bridge result delivery и native chat polish.
-
-### Unified release assets
-
-Начиная с app `0.0.8`, одна GitHub release entry должна включать:
-
-1. Desktop installer assets
-2. `Claude Bridge Instructions` ZIP
-3. `Codex Workflow Instructions` ZIP
-
-Сами instruction packages при этом остаются самостоятельными компонентами в структуре репозитория и в build flows, но публичная дистрибуция группируется под app release.
-
-## Что ToraSEO умеет уже сейчас
-
-Текущий публичный feature set сосредоточен вокруг **Mode A - Site Audit**.
-
-| Tool | Что он проверяет |
+| Workflow | Точка входа |
 |---|---|
-| `scan_site_minimal` | Reachability, title, h1, meta description, status, response timing |
-| `check_robots_txt` | Crawl allowance, crawl-delay, robots availability |
-| `analyze_meta` | Title, description, canonical, Open Graph, Twitter tags, viewport, lang |
-| `analyze_headings` | Heading outline quality, skips, empty headings, h1 sanity |
-| `analyze_sitemap` | Sitemap discovery, structure, fallback behavior, URL sampling |
-| `check_redirects` | Redirect chains, loops, downgrade risks, terminal status |
-| `analyze_content` | Main-text extraction, word count, link inventory, image alt coverage |
+| **Claude Bridge Instructions** | [claude-bridge-instructions/README.md](claude-bridge-instructions/README.md) |
+| **Codex Workflow Instructions** | [toraseo-codex-workflow/README.md](toraseo-codex-workflow/README.md) |
 
-Результаты могут использоваться в двух product paths:
+ZIP-архивы скачиваются с общей страницы [Releases](https://github.com/Magbusjap/toraseo/releases). Не используйте auto-generated source archives для установки.
 
-- **`MCP + Instructions`** - внешний AI client выполняет workflow, а app может получать bridge results
-- **`API + AI Chat`** - app сам выполняет scan и интерпретирует его через настроенный provider
+## Что находится в репозитории
 
-## Что сейчас специально вне scope
+ToraSEO - это multi-surface repository. Несколько папок являются самостоятельными входными точками, поэтому у них есть собственные README.
 
-Это текущие границы продукта, а не скрытые bugs:
-
-- Mode B content-audit и humanizer workflows
-- Site-wide multi-page crawling orchestration
-- Core Web Vitals / PageSpeed analysis
-- Backlink research, keyword tracking и rank monitoring
-- Paid third-party SEO data integrations как обязательная база продукта
-
-Детали по релизам смотри в [CHANGELOG.md](CHANGELOG.md).
+| Surface | Назначение | Точка входа |
+|---|---|---|
+| **Root repo** | Обзор продукта, статус релиза, карта документации | [README.md](README.md) |
+| **Desktop app** | Native UI, bridge mode, настройки провайдера, отчеты | [app/README.md](app/README.md) |
+| **MCP server** | Слой выполнения проверок и bridge data | [mcp/README.md](mcp/README.md) |
+| **Claude Bridge Instructions** | Настройка и workflow package для Claude | [claude-bridge-instructions/README.md](claude-bridge-instructions/README.md) |
+| **Codex Workflow Instructions** | Настройка и bridge workflow package для Codex | [toraseo-codex-workflow/README.md](toraseo-codex-workflow/README.md) |
+| **QA docs** | Manual checks и smoke-test support | [qa/README.md](qa/README.md) |
 
 ## Архитектура
 
 ToraSEO спроектирован так, чтобы каждый слой оставался полезным сам по себе:
 
-- **App** для status, progress, reports и native AI chat
-- **MCP server** для scan execution и structured bridge data
-- **Instruction packages** для Claude-side и Codex-side workflow orchestration
+- **App:** статус, подготовка, прогресс, отчеты, экспорт и встроенный AI chat
+- **MCP server:** выполнение проверок и структурированные bridge data
+- **Instruction packages:** workflow orchestration для Claude и Codex
 
-Три принципа лежат в основе:
+Три принципа лежат в основе проекта:
 
-1. **Loose coupling** - app, MCP и instruction packages должны быть composable, а не жестко слиты
-2. **Structured outputs first** - UI и AI слои потребляют нормализованные findings, а не raw page dumps
-3. **Security and trust boundaries matter** - provider secrets, bridge handshakes и approval flows должны оставаться явными
+1. **Сначала доказательства:** детерминированные факты проверки идут перед интерпретацией модели.
+2. **Составные поверхности:** app, MCP и instruction packages можно использовать вместе или отдельно.
+3. **Явные границы доверия:** provider secrets, bridge handshakes и approval flows остаются видимыми.
 
-Более глубокое объяснение находится в [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Более подробно: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Текущие ограничения
+
+Это текущие границы продукта, а не скрытые обещания:
+
+- ToraSEO не заменяет Search Console, Яндекс Вебмастер, backlink providers или полноценные rank trackers.
+- Приложение не заявляет живую SERP-видимость, клики, показы или популярность без подключенного официального источника.
+- AI-writing probability и AI trace signals являются эвристиками для редактуры, а не доказательством авторства.
+- Tora Rank - будущий вектор, а не готовая публичная scoring-система в этом релизе.
 
 ## Карта документации
 
-- [App README](app/README.md) - настройка desktop app и runtime behavior
-- [MCP README](mcp/README.md) - настройка server и детали tools
-- [Claude Bridge Instructions README](claude-bridge-instructions/README.md) - установка и workflow для Claude
-- [Codex Workflow Instructions README](toraseo-codex-workflow/README.md) - установка и workflow для Codex
+- [Центр документации](docs/README.ru.md)
+- [FAQ](docs/FAQ.ru.md)
+- [App README](app/README.md)
+- [MCP README](mcp/README.md)
+- [Claude Bridge Instructions README](claude-bridge-instructions/README.md)
+- [Codex Workflow Instructions README](toraseo-codex-workflow/README.md)
 - [Architecture overview](docs/ARCHITECTURE.md)
-- [Release notes for App 0.0.8](docs/RELEASE_NOTES_0.0.8.md)
-- [Release template](docs/RELEASE_TEMPLATE.md)
-- [AI model compatibility notes](docs/MODEL_COMPATIBILITY.md)
-- [English release draft for App 0.0.8](docs/releases/0.0.8.en.md)
-- [Русский release draft для App 0.0.8](docs/releases/0.0.8.ru.md)
+- [Model compatibility notes](docs/MODEL_COMPATIBILITY.md)
 - [Crawling policy](CRAWLING_POLICY.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
 
-## Стандарт release notes
-
-Описание релизов ToraSEO должно использовать sectioned GitHub release format:
-
-- короткий summary block вверху
-- `Highlights`
-- `Included assets`
-- `Installation / upgrade notes`
-- `What changed`
-- `Verification`
-- `Known limits`
-- `Docs`
-
-Опционально, но желательно для публичных релизов:
-
-- logo или lightweight header image
-- прямые ссылки на installer, docs и instruction packages
-- компактный status callout, если это release candidate с особыми ожиданиями
-
-Так релизы остаются читаемыми и инженерными, без превращения в marketing pages. На GitHub Releases лучше держать один основной English body, а переводы складывать в [`docs/releases/`](docs/releases/). Рабочий шаблон лежит в [`docs/RELEASE_TEMPLATE.md`](docs/RELEASE_TEMPLATE.md), а первые конкретные drafts для будущего выпуска хранятся в [`docs/releases/0.0.8.en.md`](docs/releases/0.0.8.en.md) и [`docs/releases/0.0.8.ru.md`](docs/releases/0.0.8.ru.md).
-
 ## Как помочь проекту
 
-Самые быстрые и полезные способы помочь прямо сейчас:
+Самые быстрые и полезные способы помочь сейчас:
 
-- Поставить звезду репозиторию
-- Открыть issue с product feedback, bugs или workflow friction
-- Прогнать реальный аудит и поделиться тем, что сработало или сломалось
-- Сообщать о security issues приватно по правилам из [`SECURITY.md`](SECURITY.md)
+- поставить звезду репозиторию
+- открыть issue с product feedback, багом или friction в workflow
+- прогнать реальный аудит и поделиться, что сработало или сломалось
+- сообщать о security issues приватно по правилам из [SECURITY.md](SECURITY.md)
 
 Формальный contribution guide можно расширить позже, но practical feedback и targeted fixes уже уместны.
-
-## SVG workflow
-
-SVG assets в этом репозитории можно править напрямую как код. Для repo-level SVG updates отдельный plugin не нужен, включая подготовку отдельных logo variants под GitHub light/dark surfaces.
-
-Если позже понадобится более сложное редактирование иллюстраций в визуальном редакторе, это будет вопросом удобства, а не ограничением для сопровождения SVG в source control.
 
 ## Лицензия
 
@@ -250,9 +269,9 @@ SVG assets в этом репозитории можно править напр
 
 <div align="center">
 
-**Built by [@Magbusjap](https://github.com/Magbusjap)** ·
-[Report issue](https://github.com/Magbusjap/toraseo/issues) ·
-[Security policy](SECURITY.md) ·
+**Built by [@Magbusjap](https://github.com/Magbusjap)** |
+[Report issue](https://github.com/Magbusjap/toraseo/issues) |
+[Security policy](SECURITY.md) |
 [Latest release](https://github.com/Magbusjap/toraseo/releases)
 
 </div>

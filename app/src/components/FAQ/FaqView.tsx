@@ -25,7 +25,7 @@ const COPY: Record<"en" | "ru", {
     back: "Back home",
     title: "Frequently Asked Questions",
     lead:
-      "Short answers about ToraSEO modes, analytics tools, AI providers, reports, and privacy.",
+      "Short answers about ToraSEO modes, analytics tools, AI providers, reports, exports, and privacy.",
     sections: [
       {
         title: "Modes",
@@ -40,8 +40,15 @@ const COPY: Record<"en" | "ru", {
           {
             question: "What is API + AI Chat?",
             answer: [
-              "This mode opens the built-in chat. ToraSEO collects local scan facts first, then sends those facts to the selected provider model for interpretation.",
+              "This mode opens the built-in chat. ToraSEO collects scan facts first, then sends the needed evidence to the selected provider model for interpretation.",
               "Use it when you want the whole workflow inside ToraSEO without pasting bridge commands into another app.",
+            ],
+          },
+          {
+            question: "What is Skill without MCP and APP?",
+            answer: [
+              "It is a fallback path for Claude Desktop or Codex when the instruction package is available but ToraSEO Desktop App, MCP server, or an active scan is not available.",
+              "The AI answers in chat from pasted or visible evidence. The desktop report is not updated in this path.",
             ],
           },
         ],
@@ -58,7 +65,8 @@ const COPY: Record<"en" | "ru", {
           {
             question: "Why does site comparison not show three full audits side by side?",
             answer: [
-              "Site comparison answers who is stronger, why, where the gaps are, and what to fix first. The UI uses compact site cards, comparative metrics, direction heatmaps, winners, and actionable insights instead of three long reports.",
+              "Site comparison answers who is stronger, why, where the gaps are, and what to fix first.",
+              "The UI uses compact site cards, comparative metrics, direction heatmaps, winners, and actionable insights instead of three long reports.",
             ],
           },
         ],
@@ -95,6 +103,7 @@ const COPY: Record<"en" | "ru", {
             question: "Can reports be exported?",
             answer: [
               "PDF export is available for reports. Site comparison uses landscape layout because a wide comparison dashboard reads better than a narrow vertical page.",
+              "A presentation export is a good future fit for competitive comparison reports.",
             ],
           },
         ],
@@ -117,7 +126,7 @@ const COPY: Record<"en" | "ru", {
     back: "На главную",
     title: "Часто задаваемые вопросы",
     lead:
-      "Короткие ответы про режимы ToraSEO, инструменты аналитики, ИИ-провайдеров, отчёты и приватность.",
+      "Короткие ответы про режимы ToraSEO, инструменты аналитики, ИИ-провайдеров, отчеты, экспорт и приватность.",
     sections: [
       {
         title: "Режимы",
@@ -126,14 +135,21 @@ const COPY: Record<"en" | "ru", {
             question: "Что такое MCP + Instructions?",
             answer: [
               "Этот режим работает через Claude Desktop или Codex. ToraSEO готовит контекст анализа, внешнее ИИ-приложение вызывает MCP-инструменты, а приложение получает структурированные результаты.",
-              "Используйте его, когда нужно явно запускать инструменты ToraSEO и получать итоговую сводку во внешнем чате.",
+              "Используйте его, когда важно явно запускать инструменты ToraSEO и получать итоговую сводку по фактам во внешнем чате.",
             ],
           },
           {
             question: "Что такое API + AI Chat?",
             answer: [
-              "Этот режим открывает встроенный чат. ToraSEO сначала собирает локальные факты сканирования, затем отправляет их выбранной модели провайдера для интерпретации.",
+              "Этот режим открывает встроенный чат. ToraSEO сначала собирает факты сканирования, затем отправляет нужные данные выбранной модели провайдера для интерпретации.",
               "Используйте его, когда нужен весь сценарий внутри ToraSEO без вставки bridge-команд во внешнее приложение.",
+            ],
+          },
+          {
+            question: "Что такое Skill без MCP и APP?",
+            answer: [
+              "Это fallback-путь для Claude Desktop или Codex, когда пакет инструкций доступен, но ToraSEO Desktop App, MCP-сервер или активный запуск недоступны.",
+              "ИИ отвечает в чате по вставленным или видимым фактам. Отчет в desktop-приложении в этом режиме не обновляется.",
             ],
           },
         ],
@@ -142,15 +158,16 @@ const COPY: Record<"en" | "ru", {
         title: "Инструменты аналитики",
         items: [
           {
-            question: "Почему в сайдбаре написано Дополнительные проверки?",
+            question: "Почему в сайдбаре написано «Дополнительные проверки»?",
             answer: [
-              "Базовые проверки входят в пакет выбранного анализа. В сайдбаре показываются дополнительные проверки, которыми можно расширить или сузить отчёт.",
+              "Базовые проверки входят в пакет выбранного анализа. В сайдбаре показываются дополнительные проверки, которыми можно расширить или сузить отчет.",
             ],
           },
           {
             question: "Почему сравнение сайтов не показывает три полных аудита рядом?",
             answer: [
-              "Сравнение сайтов отвечает на вопросы: кто сильнее, почему, где разрыв и что исправить первым. Поэтому интерфейс использует компактные карточки сайтов, сравнительные метрики, heatmap направлений, победителей и практические выводы.",
+              "Сравнение сайтов отвечает на вопросы: кто сильнее, почему, где разрыв и что исправить первым.",
+              "Поэтому интерфейс использует компактные карточки сайтов, сравнительные метрики, heatmap направлений, победителей и практические выводы вместо трех длинных отчетов рядом.",
             ],
           },
         ],
@@ -162,31 +179,32 @@ const COPY: Record<"en" | "ru", {
             question: "Какие ИИ-провайдеры поддерживаются?",
             answer: [
               "OpenRouter — международный роутер моделей. RouterAI — российский OpenAI-compatible роутер с оплатой в рублях.",
-              "Оба настраиваются в разделе настроек: добавьте ключ провайдера, сохраните нужные ID моделей и выберите одну модель по умолчанию для всего приложения.",
+              "Оба настраиваются в Settings: добавьте ключ провайдера, сохраните нужные ID моделей и выберите одну модель по умолчанию для всего приложения.",
             ],
           },
           {
             question: "Для RouterAI нужно вставлять функцию в настройки?",
             answer: [
-              "Для обычного чата и анализов не нужно. RouterAI даёт OpenAI-compatible API endpoint, поэтому ToraSEO использует тот же адаптер chat completions с базовым адресом RouterAI.",
-              "Плагины RouterAI, например web search, лучше добавить позже как отдельные опции провайдера, а не как большой код в поле ID модели.",
+              "Для обычного чата и анализа не нужно. RouterAI дает OpenAI-compatible API endpoint, поэтому ToraSEO использует тот же adapter chat completions с базовым адресом RouterAI.",
+              "Плагины RouterAI, например web search, лучше позже добавить как отдельные опции провайдера, а не как большой код в поле ID модели.",
             ],
           },
         ],
       },
       {
-        title: "Отчёты",
+        title: "Отчеты",
         items: [
           {
             question: "Где указана версия анализа?",
             answer: [
-              "В отчётах отдельно показываются версия приложения и версия анализа. Версия анализа показывает, по каким пользовательским правилам был собран отчёт.",
+              "В отчетах отдельно показываются версия приложения и версия анализа. Версия анализа показывает, по каким пользовательским правилам был собран отчет.",
             ],
           },
           {
-            question: "Можно ли экспортировать отчёт?",
+            question: "Можно ли экспортировать отчет?",
             answer: [
-              "PDF-экспорт доступен для отчётов. Для сравнения сайтов используется горизонтальная ориентация, потому что широкий сравнительный dashboard читается лучше узкого вертикального листа.",
+              "PDF-экспорт доступен для отчетов. Для сравнения сайтов используется горизонтальная ориентация, потому что широкий сравнительный dashboard читается лучше узкого вертикального листа.",
+              "Для competitive comparison в будущем также хорошо подойдет экспорт в презентацию.",
             ],
           },
         ],
@@ -197,8 +215,8 @@ const COPY: Record<"en" | "ru", {
           {
             question: "Что отправляется в интернет?",
             answer: [
-              "ToraSEO отправляет запросы к тем URL, которые вы сами анализируете. В API + AI Chat выбранный провайдер также получает факты сканирования и промпт, нужный для отчёта.",
-              "Сохранённые API-ключи хранятся через настройки провайдеров и не показываются обратно открытым текстом.",
+              "ToraSEO отправляет запросы к тем URL, которые вы сами анализируете. В API + AI Chat выбранный провайдер также получает факты сканирования и промпт, нужный для формирования отчета.",
+              "Сохраненные API-ключи хранятся через защищенные настройки провайдера и не показываются обратно открытым текстом.",
             ],
           },
         ],

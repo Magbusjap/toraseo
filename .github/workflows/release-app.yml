@@ -1,7 +1,7 @@
 name: Release Desktop App
 
 # Builds and publishes the ToraSEO desktop app to GitHub Releases when a
-# clean version tag is pushed (e.g. v0.0.8, v0.1.0, v1.0.0).
+# clean version tag is pushed, for example v0.0.9, v0.1.0, or v1.0.0.
 #
 # Starting with App 0.0.8, this workflow owns the public release asset
 # list for the whole desktop distribution:
@@ -13,23 +13,16 @@ name: Release Desktop App
 # scripts/ and their manual packaging workflows, but public users should
 # see one GitHub release entry for a given app version.
 #
-# IMPORTANT: tag pattern is plain `v*` (no suffix). This matches what
-# electron-builder + electron-updater expect — the tool reads
-# `version` from app/package.json and creates/updates a release with
-# tag `v{version}`. If we tagged `v0.0.3-app`, electron-builder would
-# silently create a *parallel* release `v0.0.3` and our tag-triggered
-# workflow would produce an empty orphan release.
-#
-# electron-builder reads "publish.provider: github" from
-# app/package.json build config and uploads the .exe / .dmg /
-# .AppImage artifacts plus the latest.yml manifest that auto-update
-# consumers (electron-updater in the running app) read to detect new
-# versions.
+# IMPORTANT: tag pattern is plain `v*` with no suffix. This matches what
+# electron-builder + electron-updater expect: the tool reads `version`
+# from app/package.json and creates/updates a release with tag
+# `v{version}`.
+
 on:
   push:
     tags:
       - "v*"
-      - "!skill-v*" # historical package tag namespace, not an app release
+      - "!skill-v*"
 
 permissions:
   contents: write
@@ -37,15 +30,11 @@ permissions:
 jobs:
   build:
     strategy:
-      # Don't cancel other platforms if one fails — useful when, e.g.,
-      # the Mac runner has a transient outage.
       fail-fast: false
       matrix:
-        # Windows is the primary target. macOS and Linux are commented
-        # out for the alpha phase — uncomment when those platforms are
-        # ready to be tested.
-        os: [windows-latest]
-        # os: [windows-latest, macos-latest, ubuntu-latest]
+        # Windows is the primary target. macOS and Linux are also built
+        # so release candidates expose the full desktop asset set.
+        os: [windows-latest, macos-latest, ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -60,9 +49,6 @@ jobs:
           cache: npm
 
       - name: Install dependencies (workspaces)
-        # Install at the repo root because the project uses npm
-        # workspaces (root package.json declares core/, mcp/, app/).
-        # This installs all workspace deps and creates symlinks.
         run: npm ci
 
       - name: Build core
@@ -79,9 +65,6 @@ jobs:
             Format-Table Name, Length
 
       - name: Build app and publish to GitHub Releases
-        # GH_TOKEN is the auto-injected token; electron-builder uses
-        # it via "publish: github" in app/package.json to create or
-        # update the release for this tag.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run release --workspace=@toraseo/app

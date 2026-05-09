@@ -457,28 +457,29 @@ function buildClaudeSkillFallbackArticleTextPrompt(options: {
   selectedTools: string[];
 }): string {
   return joinPromptLines([
-    "Используй ToraSEO Claude Bridge Instructions.",
+    "Use ToraSEO Claude Bridge Instructions.",
     "",
     "/toraseo chat-only-fallback article-text",
     "",
-    "ToraSEO Desktop App и/или MCP сейчас недоступны, но SKILL подключен.",
-    "Если можешь загрузить SKILL, прочитай только references/chat-only-fallback.md и не читай лишние fallback-файлы при рабочем Bridge.",
-    "Не запускай MCP-инструменты, если они недоступны. Не утверждай, что результаты записаны в приложение или results/*.json.",
-    "В ответе пользователю используй нормальные названия проверок, а не технические id инструментов.",
-    "Сделай анализ прямо в чате по правилам ToraSEO: факты отдельно от гипотез, осторожно с медицинскими/юридическими/финансовыми утверждениями, без обещаний ранжирования.",
+    "ToraSEO Desktop App and/or MCP are unavailable right now, but the SKILL is installed.",
+    "If you can load the SKILL, read only references/chat-only-fallback.md and avoid extra fallback files when the bridge path works.",
+    "Do not call MCP tools when they are unavailable. Do not claim that results were written into the app or results/*.json.",
+    "Use normal check names in the user-facing response, not internal tool ids.",
+    "Do the analysis directly in chat using ToraSEO rules: keep facts separate from hypotheses, be careful with medical, legal, and financial claims, and do not promise rankings.",
     "",
-    `Локаль интерфейса: ${options.locale}`,
-    `Тип анализа: ${options.action === "solution" ? "предложить решение по тексту" : "анализ текста"}`,
-    `Платформа: ${options.textPlatform}`,
-    options.customPlatform ? `Своя платформа: ${options.customPlatform}` : null,
-    options.analysisRole ? `Роль/цель анализа: ${options.analysisRole}` : null,
-    `Выбранные проверки ToraSEO: ${fallbackToolNames(options.selectedTools, options.locale)}`,
-    "Проверки ИИ-стиля, карты AI-фрагментов, водности/шаблонности, читаемости/сложности и очереди фактов разделяй в отчёте: это разные редакторские сигналы, а не один детектор.",
+    `Interface locale: ${options.locale}`,
+    "Language rule: reply in the interface language by default. Only switch to another language if the user explicitly changed language in their own new message.",
+    `Analysis type: ${options.action === "solution" ? "propose a text solution" : "text analysis"}`,
+    `Platform: ${options.textPlatform}`,
+    options.customPlatform ? `Custom platform: ${options.customPlatform}` : null,
+    options.analysisRole ? `Analysis role/goal: ${options.analysisRole}` : null,
+    `Selected ToraSEO checks: ${fallbackToolNames(options.selectedTools, options.locale)}`,
+    "Keep AI-writing checks, AI trace map, genericness and watery text, readability and complexity, and claim source queue separate in the report: these are different editorial signals, not one detector.",
     "",
-    "Тема/заголовок:",
-    options.data.topic.trim() || "Не указано.",
+    "Topic/title:",
+    options.data.topic.trim() || "Not specified.",
     "",
-    "Текст:",
+    "Text:",
     options.data.body,
   ]);
 }
@@ -492,38 +493,39 @@ function buildClaudeSkillFallbackArticleComparePrompt(options: {
   selectedTools: string[];
 }): string {
   return joinPromptLines([
-    "Используй ToraSEO Claude Bridge Instructions.",
+    "Use ToraSEO Claude Bridge Instructions.",
     "",
     "/toraseo chat-only-fallback article-compare",
     "",
-    "ToraSEO Desktop App и/или MCP сейчас недоступны, но SKILL подключен.",
-    "Если можешь загрузить SKILL, прочитай только references/chat-only-fallback.md и не читай лишние fallback-файлы при рабочем Bridge.",
-    "Не запускай MCP-инструменты, если они недоступны. Не утверждай, что результаты записаны в приложение или results/*.json.",
-    "В ответе пользователю используй нормальные названия проверок, а не технические id инструментов.",
-    "Сделай сравнительный отчёт прямо в чате. Если цель анализа фокусируется на тексте A или B, не расписывай второй текст сверх того, что нужно для сравнения.",
-    "Не утверждай причины ранжирования только по двум текстам. Пиши про текстовые преимущества, разрывы, риск похожести и план улучшения.",
+    "ToraSEO Desktop App and/or MCP are unavailable right now, but the SKILL is installed.",
+    "If you can load the SKILL, read only references/chat-only-fallback.md and avoid extra fallback files when the bridge path works.",
+    "Do not call MCP tools when they are unavailable. Do not claim that results were written into the app or results/*.json.",
+    "Use normal check names in the user-facing response, not internal tool ids.",
+    "Build the comparison report directly in chat. If the analysis goal focuses on Text A or Text B, do not over-explain the second text beyond what the comparison needs.",
+    "Do not claim ranking causes from two texts alone. Focus on text advantages, gaps, similarity risk, and the improvement plan.",
     "",
-    `Локаль интерфейса: ${options.locale}`,
-    `Режим цели анализа: ${options.goalMode}`,
-    `Цель анализа: ${options.data.goal.trim() || "Не указана. Используй стандартный отчёт сравнения."}`,
-    `Платформа: ${options.textPlatform}`,
-    options.customPlatform ? `Своя платформа: ${options.customPlatform}` : null,
-    `Роль текста A: ${options.data.roleA}`,
-    `Роль текста B: ${options.data.roleB}`,
-    `Выбранные проверки ToraSEO: ${fallbackToolNames(options.selectedTools, options.locale)}`,
+    `Interface locale: ${options.locale}`,
+    "Language rule: reply in the interface language by default. Only switch to another language if the user explicitly changed language in their own new message.",
+    `Analysis goal mode: ${options.goalMode}`,
+    `Analysis goal: ${options.data.goal.trim() || "Not specified. Use the standard comparison report."}`,
+    `Platform: ${options.textPlatform}`,
+    options.customPlatform ? `Custom platform: ${options.customPlatform}` : null,
+    `Role of Text A: ${options.data.roleA}`,
+    `Role of Text B: ${options.data.roleB}`,
+    `Selected ToraSEO checks: ${fallbackToolNames(options.selectedTools, options.locale)}`,
     "",
-    "Обязательные блоки отчёта:",
-    "1. Краткая сводка под цель анализа.",
-    "2. Сравнение интента, структуры, полноты, смыслового покрытия, конкретики, доверия, стиля, заголовка/клика и платформенной пригодности.",
-    "3. Риск похожести: дословные совпадения отдельно от смысловой близости; не называй локальную метрику внешней проверкой плагиата.",
-    "4. Сильные и слабые стороны в удобной одной колонке.",
-    "5. Content Gap простыми словами: что есть в одном тексте и отсутствует в другом.",
-    "6. План улучшения под цель пользователя.",
+    "Required report blocks:",
+    "1. A short summary aligned to the analysis goal.",
+    "2. Compare intent, structure, completeness, semantic coverage, specificity, trust, style, title and click potential, and platform fit.",
+    "3. Similarity risk: keep exact overlap separate from semantic closeness; do not describe a local metric as an external plagiarism check.",
+    "4. Strengths and weaknesses in one compact, readable column.",
+    "5. Content gap in plain language: what exists in one text and is missing from the other.",
+    "6. An improvement plan tied to the user's goal.",
     "",
-    "Текст A:",
+    "Text A:",
     options.data.textA,
     "",
-    "Текст B:",
+    "Text B:",
     options.data.textB,
   ]);
 }
@@ -537,28 +539,29 @@ function buildClaudeSkillFallbackPageByUrlPrompt(options: {
   selectedTools: string[];
 }): string {
   return joinPromptLines([
-    "Используй ToraSEO Claude Bridge Instructions.",
+    "Use ToraSEO Claude Bridge Instructions.",
     "",
     "/toraseo chat-only-fallback page-by-url",
     "",
-    "ToraSEO Desktop App и/или MCP сейчас недоступны, но SKILL подключен.",
-    "Сделай анализ страницы по URL прямо в чате по правилам анализа текста ToraSEO.",
-    "Если выделенный фрагмент ниже заполнен, анализируй его как главный текст страницы. Если есть только URL и нет доступного текста, не притворяйся, что страница была загружена: попроси вставить текст, title/meta или фрагмент страницы.",
-    "Если текст страницы доступен пользователем, игнорируй рекламу, навигацию, комментарии, похожие материалы и служебные блоки. Не обходи авторизацию, paywall, CAPTCHA или robots.txt.",
-    "Не утверждай, что результаты записаны в приложение или results/*.json. Используй нормальные названия проверок, а не технические id инструментов.",
-    "Если публичная выдача Google/Яндекса, клики, показы или частотность недоступны без Search Console/Яндекс Вебмастер/официального SEO-провайдера, честно укажи это как ограничение.",
+    "ToraSEO Desktop App and/or MCP are unavailable right now, but the SKILL is installed.",
+    "Do the page-by-URL analysis directly in chat using ToraSEO text-analysis rules.",
+    "If the excerpt below is filled in, treat it as the main page text. If you only have a URL and no accessible text, do not pretend the page was fetched: ask for pasted text, title/meta, or a page excerpt.",
+    "If the user provides page text, ignore ads, navigation, comments, related materials, and utility blocks. Do not bypass login walls, paywalls, CAPTCHA, or robots.txt.",
+    "Do not claim that results were written into the app or results/*.json. Use normal check names, not internal tool ids.",
+    "If Google or Yandex search visibility, clicks, impressions, or demand data are unavailable without Search Console, Yandex Webmaster, or an official SEO provider, state that honestly as a limitation.",
     "",
-    `Локаль интерфейса: ${options.locale}`,
+    `Interface locale: ${options.locale}`,
+    "Language rule: reply in the interface language by default. Only switch to another language if the user explicitly changed language in their own new message.",
     `URL: ${options.data.url}`,
-    `Платформа: ${options.textPlatform}`,
-    options.customPlatform ? `Своя платформа: ${options.customPlatform}` : null,
-    options.analysisRole ? `Роль/цель анализа: ${options.analysisRole}` : null,
-    `Выбранные проверки ToraSEO: ${fallbackToolNames(options.selectedTools, options.locale)}`,
-    "Проверки ИИ-стиля, карты AI-фрагментов, водности/шаблонности, читаемости/сложности и очереди фактов разделяй в отчёте: это разные редакторские сигналы, а не один детектор.",
+    `Platform: ${options.textPlatform}`,
+    options.customPlatform ? `Custom platform: ${options.customPlatform}` : null,
+    options.analysisRole ? `Analysis role/goal: ${options.analysisRole}` : null,
+    `Selected ToraSEO checks: ${fallbackToolNames(options.selectedTools, options.locale)}`,
+    "Keep AI-writing checks, AI trace map, genericness and watery text, readability and complexity, and claim source queue separate in the report: these are different editorial signals, not one detector.",
     "",
-    "Если пользовательский фрагмент ниже заполнен, анализируй именно его как главный текст страницы:",
+    "If the user-provided excerpt below is filled in, analyze it as the main page text:",
     options.data.textBlock.trim() ||
-      "Фрагмент не указан. Без доступного текста не заявляй, что страница проанализирована; дай чек-лист, что вставить для чатового разбора.",
+      "No excerpt was provided. Without accessible text, do not claim that the page was analyzed; provide a checklist of what to paste for a chat-based review.",
   ]);
 }
 
@@ -578,6 +581,7 @@ function buildClaudeSkillFallbackSiteByUrlPrompt(options: {
     "Return the result directly in chat with normal check names, not internal tool ids. Keep facts separate from assumptions.",
     "",
     `Interface locale: ${options.locale}`,
+    "Language rule: reply in the interface language by default. Only switch to another language if the user explicitly changed language in their own new message.",
     `URL: ${options.url}`,
     `Selected ToraSEO checks: ${fallbackToolNames(options.selectedTools, options.locale)}`,
   ]);
@@ -599,6 +603,7 @@ function buildClaudeSkillFallbackSiteComparePrompt(options: {
     "Do not render three full audits side by side. If browsing is unavailable and only URLs were provided, say that live site facts were not fetched and ask for page text, screenshots, or exported facts.",
     "",
     `Interface locale: ${options.locale}`,
+    "Language rule: reply in the interface language by default. Only switch to another language if the user explicitly changed language in their own new message.",
     `URLs: ${options.data.urls.join(", ")}`,
     `Focus: ${options.data.focus || "Not specified"}`,
     `Selected ToraSEO checks: ${fallbackToolNames(options.selectedTools, options.locale)}`,
@@ -2535,7 +2540,7 @@ function MainApp() {
       setPreflightError(
         t("preflight.pageByUrlExtractionFailed", {
           defaultValue:
-            "Не удалось выделить основной текст страницы. Вставьте нужный фрагмент в поле текста и запустите анализ повторно.",
+            "Could not extract the main page text. Paste the needed excerpt into the text field and run the analysis again.",
         }),
       );
       return;
@@ -3181,7 +3186,7 @@ function BridgeSetupPromptNotice({
               <div className="flex items-start justify-between gap-3">
                 <h3 className="text-sm font-semibold text-outline-900">
                   {t("modeSelection.bridge.setupPromptNoticeTitle", {
-                    defaultValue: "Промпт проверки скопирован",
+                    defaultValue: "Setup prompt copied",
                   })}
                 </h3>
                 <button
@@ -3197,7 +3202,7 @@ function BridgeSetupPromptNotice({
                 {t("modeSelection.bridge.setupPromptNoticeBody", {
                   appName,
                   defaultValue:
-                    "Откройте новую сессию в {{appName}}, вставьте промпт и нажмите Enter. Так можно проверить, видит ли {{appName}} ToraSEO SKILL и MCP.",
+                    "Open a new session in {{appName}}, paste the prompt, and press Enter. This checks whether {{appName}} can see the ToraSEO SKILL and MCP.",
                 })}
               </p>
             </div>

@@ -262,9 +262,12 @@ and sees the structured per-tool data in the app.
 ### 2.3 Interpreting the response — error responses
 
 If `verify_skill_loaded` returns `{ok: false, error: ...}`,
-react based on the `error` code. User-facing replies must be
-in the **user's language** — the templates below are reference
-English; translate on the fly.
+react based on the `error` code. User-facing replies must follow the
+effective ToraSEO reply language for the run: use the interface locale
+from the pasted bridge prompt by default, and switch only if the user
+explicitly changes language in their own new message. The templates
+below are reference English; translate only when the active reply
+language is not English.
 
 If the Skill is loaded but the Desktop App scan is unavailable, load
 `references/chat-only-fallback.md`. When the user has provided enough
@@ -791,11 +794,18 @@ not.
 
 The primary language of this skill is **English**. Russian and
 other localizations will live in `i18n/<lang>/SKILL.md` once
-added. Until then, respond to the user in whatever language they
-wrote in — translate the report on the fly. The tool outputs
-themselves are language-neutral (they return codes and structured
-data, not user-facing prose).
+added. Until then, use this rule:
+
+- In ToraSEO Bridge Mode, the interface locale from the pasted desktop
+  prompt is the default reply language for the run.
+- Only switch to another language if the user explicitly changes
+  language in their own new message.
+- Outside the ToraSEO bridge flow, you can still reply in the user's
+  language as normal.
+
+The tool outputs themselves are language-neutral: they return codes and
+structured data, not user-facing prose.
 
 This applies to Bridge Mode error messages too — the templates
-in §2.3 are reference English. Translate them to match the
-user's language.
+in §2.3 are reference English. Translate them only when the active
+reply language for the run is not English.

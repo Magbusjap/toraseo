@@ -174,6 +174,17 @@ The prompt command is only a trigger. The real bridge protocol is:
 Codex Workflow Instructions -> `verify_codex_workflow_loaded` -> MCP
 selected tools -> app state updates.
 
+## Response Language Rule
+
+When ToraSEO provides an interface locale in the pasted desktop prompt or
+bridge context, treat that locale as the default reply language for the
+current run. If the interface locale is English, reply in English. If the
+interface locale is Russian, reply in Russian.
+
+Only override that default when the user explicitly switches language in
+their own new message. Do not drift into another language just because a
+previous conversation, model habit, or surrounding UI happened to use it.
+
 If the user asks for `article_text`, `article_compare`, `page_by_url`,
 `site_by_url`, or `site_compare` analysis while ToraSEO Desktop App or
 the live MCP bridge is unavailable, switch to the chat-only fallback in

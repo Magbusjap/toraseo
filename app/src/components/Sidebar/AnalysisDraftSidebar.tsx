@@ -84,7 +84,7 @@ export default function AnalysisDraftSidebar({
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-white/45">
               {t("plannedAnalysis.sidebar.version", {
-                defaultValue: "0.0.9 setup",
+                defaultValue: "Additional checks",
               })}
             </p>
             <h2 className="mt-2 font-display text-xl font-semibold leading-snug">
@@ -204,7 +204,7 @@ export default function AnalysisDraftSidebar({
           title={
             useAdditionalChecksTitle
               ? t("plannedAnalysis.sidebar.additionalChecks", {
-                  defaultValue: "Дополнительные проверки",
+                  defaultValue: "Additional checks",
                 })
               : t("sidebar.section.checks")
           }

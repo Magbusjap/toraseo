@@ -43,6 +43,10 @@ toraseo-codex-workflow/
   skill cleanly in its UI. It is not the workflow logic itself.
 - A folder existing on disk is not proof that the current Codex session
   is using the package. ToraSEO uses a live MCP handshake for that.
+- If the desktop app, MCP server, or active scan is unavailable, use
+  the chat-only fallback commands documented in `docs/README.md`. In
+  that path Codex answers in chat from pasted or visible evidence and
+  does not update the ToraSEO app report.
 
 ## Install and verify
 
@@ -88,3 +92,9 @@ chat/session approval option if it is available. In the current Codex
 permission dialog this usually means ticking the chat/session checkbox
 and then clicking Allow. Per-tool approval is only a platform fallback,
 not the intended ToraSEO workflow.
+
+## Documentation
+
+- [Documentation hub](../docs/README.md)
+- [FAQ](../docs/FAQ.md)
+- [Claude Bridge Instructions](../claude-bridge-instructions/README.md)

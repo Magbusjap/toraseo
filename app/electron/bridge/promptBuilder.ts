@@ -328,6 +328,7 @@ const CODEX_TEXT_TEMPLATE_EN = (
 /toraseo codex-bridge-mode article-text
 
 ToraSEO is waiting for ${run.labelEn}.
+Reply in English when the interface locale is English. Only switch to another language if the user explicitly changes language in their own new message.
 ${run.isSolution ? "This was started from Suggest solution: after the handshake and all selected MCP tools complete, propose the solution or draft direction directly in chat using the tool evidence. If the input is only a topic or too thin, ask the minimum necessary clarifying question or give a bounded outline instead of pretending there is a full article." : "After the handshake and all selected MCP tools complete, summarize recommendations in chat using the tool evidence."}
 Use SKILL + MCP for the details.`;
 };
@@ -351,6 +352,7 @@ const CODEX_SETUP_TEMPLATE_EN = (): string =>
 /toraseo codex-bridge-mode setup-check
 
 Check access to ToraSEO MCP and Codex Workflow Instructions.
+Reply in English when the interface locale is English. Only switch to another language if the user explicitly changes language in their own new message.
 Use SKILL + MCP for the details.`;
 
 const CODEX_SETUP_TEMPLATE_RU = (): string =>
@@ -443,6 +445,7 @@ const CLAUDE_SETUP_TEMPLATE_EN = (): string =>
   `/toraseobridge setup-check
 
 The ToraSEO Desktop App is already running in MCP + Instructions -> Claude Desktop mode.
+Reply in English when the interface locale is English. Only switch to another language if the user explicitly changes language in their own new message.
 
 This is a setup check, not a site scan.
 First call verify_skill_loaded(token="bridge-v1-2026-04-27") from the ToraSEO MCP server.
