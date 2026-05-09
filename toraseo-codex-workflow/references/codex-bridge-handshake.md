@@ -49,6 +49,16 @@ the token. The expected token is intentionally not exposed in chat. Ask
 the user to update or reinstall the `toraseo-codex-workflow` package,
 restart Codex, open a new session, and run the setup check again.
 
+For `/toraseo codex-bridge-mode setup-check`, never tell the user to
+click Scan. It is not an analysis run and may be launched from the
+connection/setup screen where no Scan button exists. On `setupVerified`,
+confirm that ToraSEO MCP and Codex Workflow Instructions are reachable in
+the current Codex session. On `app_not_running`, say that app liveness is
+not reachable yet, ask the user to keep ToraSEO open on
+`MCP + Instructions -> Codex`, and rerun the setup prompt after the app
+refreshes. If the user wants work to continue without the app, use the
+chat-only fallback and state that ToraSEO will not be updated.
+
 ## App trust model
 
 The app may show that Codex is running, but that alone is not enough to

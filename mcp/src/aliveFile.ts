@@ -17,8 +17,9 @@
  * Implementation details:
  *
  *   - Path discovery uses the SAME dual-candidate logic as
- *     stateFile.ts (production %APPDATA%\ToraSEO\ vs dev
- *     %APPDATA%\@toraseo\app\). When stateFile.ts has cached a
+ *     stateFile.ts (production %APPDATA%\ToraSEO\, current dev
+ *     %APPDATA%\ToraSEO Dev\, and legacy dev %APPDATA%\@toraseo\app\).
+ *     When stateFile.ts has cached a
  *     working dir, alive-file uses the same dir.
  *   - PID-alive check uses `process.kill(pid, 0)` — a no-op probe
  *     that throws ESRCH if the PID is dead, EPERM if alive but
@@ -36,6 +37,7 @@
 import { promises as fs } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { APP_PRODUCT_NAME } from "./constants.js";
 
@@ -68,7 +70,8 @@ export type AppAliveStatus =
  */
 function userDataDirs(): string[] {
   const product = APP_PRODUCT_NAME;
-  const devSegments = ["@toraseo", "app"];
+  const devProduct = "ToraSEO Dev";
+  const legacyDevSegments = ["@toraseo", "app"];
 
   switch (process.platform) {
     case "win32": {
@@ -77,14 +80,16 @@ function userDataDirs(): string[] {
         path.join(homedir(), "AppData", "Roaming");
       return [
         path.join(appdata, product),
-        path.join(appdata, ...devSegments),
+        path.join(appdata, devProduct),
+        path.join(appdata, ...legacyDevSegments),
       ];
     }
     case "darwin": {
       const base = path.join(homedir(), "Library", "Application Support");
       return [
         path.join(base, product),
-        path.join(base, ...devSegments),
+        path.join(base, devProduct),
+        path.join(base, ...legacyDevSegments),
       ];
     }
     default: {
@@ -92,10 +97,26 @@ function userDataDirs(): string[] {
         process.env.XDG_CONFIG_HOME ?? path.join(homedir(), ".config");
       return [
         path.join(base, product),
-        path.join(base, ...devSegments),
+        path.join(base, devProduct),
+        path.join(base, ...legacyDevSegments),
       ];
     }
   }
+}
+
+function sharedAliveFileCandidates(): string[] {
+  const explicit = process.env.TORASEO_BRIDGE_STATE_DIR?.trim();
+  const dirs = explicit ? [explicit] : [];
+  const cwd = process.cwd();
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  dirs.push(
+    path.resolve(cwd, ".toraseo-bridge"),
+    path.resolve(cwd, "..", ".toraseo-bridge"),
+    path.resolve(moduleDir, "..", "..", ".toraseo-bridge"),
+  );
+  return Array.from(new Set(dirs)).map((dir) =>
+    path.join(dir, ALIVE_FILE_NAME),
+  );
 }
 
 /**
@@ -112,6 +133,16 @@ async function findAliveFilePath(): Promise<string | null> {
       return cachedAliveFilePath;
     } catch {
       cachedAliveFilePath = null;
+    }
+  }
+
+  for (const candidate of sharedAliveFileCandidates()) {
+    try {
+      await fs.access(candidate);
+      cachedAliveFilePath = candidate;
+      return candidate;
+    } catch {
+      // Shared dev bridge file doesn't exist yet, try AppData paths.
     }
   }
 

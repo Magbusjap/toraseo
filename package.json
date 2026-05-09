@@ -45,6 +45,10 @@
     "dev:app": "npm run dev --workspace=@toraseo/app",
     "test:mcp": "npm run test --workspace=@toraseo/mcp",
     "eval:dashboard": "node scripts/eval-lab/dashboard.mjs",
+    "eval:db:init": "node --no-warnings scripts/eval-lab/db-init.mjs",
+    "eval:db:import": "node --no-warnings scripts/eval-lab/db-import.mjs",
+    "eval:db:query": "node --no-warnings scripts/eval-lab/db-query.mjs",
+    "eval:db:dashboard": "node --no-warnings scripts/eval-lab/db-dashboard.mjs",
     "eval:article-text:compare": "node scripts/eval-lab/compare-article-text-reports.mjs",
     "eval:article-text:inspect": "node scripts/eval-lab/inspect-article-text-report.mjs",
     "clean": "npm run clean --workspaces --if-present"

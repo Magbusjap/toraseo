@@ -151,7 +151,8 @@ export interface CurrentScanState {
  * directory names depending on how the app is launched:
  *
  *   Production (installer):  %APPDATA%\ToraSEO\           (productName)
- *   Dev (`npm run dev`):     %APPDATA%\@toraseo\app\      (package.json name)
+ *   Dev (`npm run dev`):     %APPDATA%\ToraSEO Dev\       (explicit app name)
+ *   Legacy dev:              %APPDATA%\@toraseo\app\      (package.json name)
  *
  * The two are mutually exclusive on a single machine in normal use,
  * but a developer running `npm run dev` against a machine that also
@@ -165,18 +166,22 @@ export interface CurrentScanState {
  *   macOS:   ~/Library/Application Support/<dirName>
  *   Linux:   ~/.config/<dirName>     (XDG_CONFIG_HOME if set)
  *
- * The dirName is what differs: prod gets "ToraSEO", dev gets the
- * package.json name with the `@scope/` slash kept (so on Windows it
- * becomes a `@toraseo\app` two-level subfolder, since backslash and
- * forward slash are equivalent in Windows path APIs).
+ * The dirName is what differs: prod gets "ToraSEO", current dev gets
+ * "ToraSEO Dev", and legacy dev gets the package.json name with the
+ * `@scope/` slash kept (so on Windows it becomes a `@toraseo\app`
+ * two-level subfolder, since backslash and forward slash are
+ * equivalent in Windows path APIs).
  */
 export function userDataDirs(): string[] {
   const product = APP_PRODUCT_NAME;
-  // Dev-mode dir: derived from package.json `name` field
-  // "@toraseo/app". Electron joins this directly into the userData
-  // path; on Windows the forward slash becomes a directory separator,
-  // so it produces a nested `@toraseo\app` folder.
-  const devSegments = ["@toraseo", "app"];
+  // Current dev dir: set explicitly by the app so development
+  // credentials do not appear in packaged builds.
+  const devProduct = "ToraSEO Dev";
+  // Legacy dev dir: derived from package.json `name` field
+  // "@toraseo/app". Electron joined this directly into the userData
+  // path; on Windows the forward slash became a directory separator,
+  // producing a nested `@toraseo\app` folder.
+  const legacyDevSegments = ["@toraseo", "app"];
 
   switch (process.platform) {
     case "win32": {
@@ -185,21 +190,24 @@ export function userDataDirs(): string[] {
         path.join(homedir(), "AppData", "Roaming");
       return [
         path.join(appdata, product),
-        path.join(appdata, ...devSegments),
+        path.join(appdata, devProduct),
+        path.join(appdata, ...legacyDevSegments),
       ];
     }
     case "darwin": {
       const base = path.join(homedir(), "Library", "Application Support");
       return [
         path.join(base, product),
-        path.join(base, ...devSegments),
+        path.join(base, devProduct),
+        path.join(base, ...legacyDevSegments),
       ];
     }
     default: {
       const base = process.env.XDG_CONFIG_HOME ?? path.join(homedir(), ".config");
       return [
         path.join(base, product),
-        path.join(base, ...devSegments),
+        path.join(base, devProduct),
+        path.join(base, ...legacyDevSegments),
       ];
     }
   }

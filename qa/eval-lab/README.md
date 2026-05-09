@@ -13,6 +13,21 @@ copy the real case into `private/eval-lab/cases/article_text/`.
 
 ## First Runner
 
+Create or update the local SQLite database:
+
+```powershell
+npm run eval:db:init
+```
+
+The database file is private and ignored by git:
+
+```text
+private/eval-lab/toraseo-eval.sqlite
+```
+
+Open that file in DBeaver as a SQLite database when you want a full
+database table view, filters, SQL queries, and manual notes.
+
 Build the local dashboard:
 
 ```powershell
@@ -35,6 +50,36 @@ Compare an `article_text` MCP report with an API Native report:
 
 ```powershell
 npm run eval:article-text:compare -- --mcp private/eval-lab/runs/text_001.mcp.json --api private/eval-lab/runs/text_001.api.json --case private/eval-lab/cases/article_text/text_001.case.json --out private/eval-lab/reports/text_001.compare.md
+```
+
+Import a private case and saved reports into SQLite:
+
+```powershell
+npm run eval:db:import -- --case private/eval-lab/cases/article_text/text_001.case.json
+npm run eval:db:import -- --run private/eval-lab/runs/text_001.mcp.json --caseId text_001 --mode mcp
+npm run eval:db:import -- --run private/eval-lab/runs/text_001.api.json --caseId text_001 --mode api
+npm run eval:db:import -- --comparison private/eval-lab/reports/text_001.compare.md --caseId text_001 --mcpRun text_001.mcp --apiRun text_001.api
+```
+
+Build the SQL-backed visual dashboard:
+
+```powershell
+npm run eval:db:dashboard
+start private/eval-lab/reports/sql-dashboard.html
+```
+
+The SQL dashboard is a static HTML viewer over the SQLite database. It
+includes tabs, pagination, global search, clickable ID/reference cells,
+and a column-label switch:
+
+- `Human column names`
+- `SQL column keys`
+- `Human + SQL`
+
+Run a quick SQL query from the terminal:
+
+```powershell
+npm run eval:db:query -- --sql "SELECT id, analysis_type, name FROM eval_cases"
 ```
 
 The runner accepts:
@@ -85,4 +130,42 @@ Add these after the first comparison runner is useful:
 - compare-two-texts eval cases;
 - page URL, site URL, up-to-three-sites, and media eval cases;
 - formula tests for future scoring families;
-- a private local dashboard reading `private/eval-lab/runs/`.
+- richer SQL dashboards reading `private/eval-lab/toraseo-eval.sqlite`.
+
+## SQL Model
+
+The public schema lives in `qa/eval-lab/schema.sql`. It is safe to keep
+in git because it contains only structure, not private cases or real
+analysis outputs.
+
+Main tables:
+
+- `eval_cases` - golden cases and expected detections.
+- `eval_runs` - imported MCP/API/manual analysis outputs.
+- `eval_run_metrics` - metric rows extracted from saved reports.
+- `eval_comparisons` - MCP/API comparison reports.
+- `formula_versions` - future formula versions and public-safe metadata.
+- `qa_sessions` - one manual QA session with a final verdict.
+- `qa_findings` - separate issues/observations found during a session.
+- `qa_article_text_reviews` - article text analysis review details.
+- `qa_article_compare_reviews` - two-text comparison review details.
+- `qa_page_url_reviews` - page/article by URL review details.
+- `qa_site_url_reviews` - site by URL review details.
+- `qa_site_compare_reviews` - up-to-three-sites comparison review details.
+- `qa_system_design_reviews` - architecture and data-flow review notes.
+- `qa_ux_ui_reviews` - UI behavior, windows, layout, and interaction notes.
+- `qa_typography_reviews` - font, size, weight, spacing, and readability checks.
+- `automated_test_runs` - future Vitest/Playwright command runs.
+- `automated_test_results` - individual test results from those runs.
+- `manual_reviews` - legacy/simple human QA notes and ratings.
+
+Recommended manual QA flow:
+
+1. Create one row in `qa_sessions` for the check you are performing.
+2. Add each separate problem or observation to `qa_findings`.
+3. If the check belongs to a specific analysis type, add a row to the
+   matching `qa_*_reviews` table.
+4. For design/system work, use `qa_system_design_reviews`,
+   `qa_ux_ui_reviews`, or `qa_typography_reviews`.
+5. After running `npm run eval:db:dashboard`, the HTML dashboard will
+   show these tables as separate tabs.

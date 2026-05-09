@@ -160,20 +160,85 @@ function codexSetupVerificationFile(): string {
   return path.join(app.getPath("userData"), CODEX_SETUP_VERIFICATION_FILE);
 }
 
-async function readManualMcpPath(): Promise<string | null> {
-  try {
-    const raw = await fs.readFile(manualMcpPathFile(), "utf-8");
-    const trimmed = raw.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code !== "ENOENT") {
-      log.warn(
-        `[detector] failed to read manual mcp path: ${(err as Error).message}`,
-      );
-    }
-    return null;
+function userDataCandidateDirs(): string[] {
+  const current = app.getPath("userData");
+  const home = os.homedir();
+  const candidates = [current];
+
+  if (process.platform === "win32") {
+    const appData =
+      process.env.APPDATA ?? path.join(home, "AppData", "Roaming");
+    candidates.push(
+      path.join(appData, "ToraSEO"),
+      path.join(appData, "ToraSEO Dev"),
+      path.join(appData, "@toraseo", "app"),
+    );
+  } else if (process.platform === "darwin") {
+    const base = path.join(home, "Library", "Application Support");
+    candidates.push(
+      path.join(base, "ToraSEO"),
+      path.join(base, "ToraSEO Dev"),
+      path.join(base, "@toraseo", "app"),
+    );
+  } else {
+    const base = process.env.XDG_CONFIG_HOME ?? path.join(home, ".config");
+    candidates.push(
+      path.join(base, "ToraSEO"),
+      path.join(base, "ToraSEO Dev"),
+      path.join(base, "@toraseo", "app"),
+    );
   }
+
+  return Array.from(new Set(candidates));
+}
+
+function userDataCandidateFiles(fileName: string): string[] {
+  return userDataCandidateDirs().map((dir) => path.join(dir, fileName));
+}
+
+function sharedBridgeCandidateFiles(fileName: string): string[] {
+  const explicit = process.env.TORASEO_BRIDGE_STATE_DIR?.trim();
+  const dirs = explicit ? [explicit] : [];
+  const cwd = process.cwd();
+  const candidates = [
+    path.resolve(cwd, "..", ".toraseo-bridge"),
+    path.resolve(cwd, ".toraseo-bridge"),
+  ];
+  const repoLike = candidates.find((candidate) =>
+    candidate.toLowerCase().includes(`${path.sep}toraseo${path.sep}`),
+  );
+  dirs.push(repoLike ?? candidates[0]);
+  dirs.push(...candidates);
+  return Array.from(new Set(dirs)).map((dir) => path.join(dir, fileName));
+}
+
+function setupCandidateFiles(fileName: string): string[] {
+  return Array.from(
+    new Set([
+      ...sharedBridgeCandidateFiles(fileName),
+      ...userDataCandidateFiles(fileName),
+    ]),
+  );
+}
+
+async function readManualMcpPath(): Promise<string | null> {
+  for (const filePath of setupCandidateFiles("manual-mcp-path.txt")) {
+    try {
+      const raw = await fs.readFile(filePath, "utf-8");
+      const trimmed = raw.trim();
+      if (trimmed.length > 0) return trimmed;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") {
+        log.warn(
+          `[detector] failed to read manual mcp path at ${filePath}: ${
+            (err as Error).message
+          }`,
+        );
+      }
+    }
+  }
+  return null;
 }
 
 async function writeManualMcpPath(p: string): Promise<void> {
@@ -181,25 +246,32 @@ async function writeManualMcpPath(p: string): Promise<void> {
 }
 
 async function clearManualMcpPath(): Promise<void> {
-  try {
-    await fs.unlink(manualMcpPathFile());
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code !== "ENOENT") {
-      log.warn(
-        `[detector] failed to clear manual mcp path: ${(err as Error).message}`,
-      );
+  for (const filePath of setupCandidateFiles("manual-mcp-path.txt")) {
+    try {
+      await fs.unlink(filePath);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") {
+        log.warn(
+          `[detector] failed to clear manual mcp path at ${filePath}: ${
+            (err as Error).message
+          }`,
+        );
+      }
     }
   }
 }
 
 async function readSkillConfirmation(): Promise<boolean> {
-  try {
-    await fs.access(skillConfirmationFile());
-    return true;
-  } catch {
-    return false;
+  for (const filePath of setupCandidateFiles("skill-installed.flag")) {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      // try next candidate
+    }
   }
+  return false;
 }
 
 async function writeSkillConfirmation(): Promise<void> {
@@ -211,14 +283,18 @@ async function writeSkillConfirmation(): Promise<void> {
 }
 
 async function clearSkillConfirmationFile(): Promise<void> {
-  try {
-    await fs.unlink(skillConfirmationFile());
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code !== "ENOENT") {
-      log.warn(
-        `[detector] failed to clear skill confirmation: ${(err as Error).message}`,
-      );
+  for (const filePath of setupCandidateFiles("skill-installed.flag")) {
+    try {
+      await fs.unlink(filePath);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") {
+        log.warn(
+          `[detector] failed to clear skill confirmation at ${filePath}: ${
+            (err as Error).message
+          }`,
+        );
+      }
     }
   }
 }
@@ -227,22 +303,27 @@ async function readCodexSetupVerification(): Promise<{
   verified: boolean;
   verifiedAt: string | null;
 }> {
-  try {
-    const raw = await fs.readFile(codexSetupVerificationFile(), "utf-8");
-    const parsed = JSON.parse(raw) as { verifiedAt?: unknown };
-    return {
-      verified: typeof parsed.verifiedAt === "string",
-      verifiedAt: typeof parsed.verifiedAt === "string" ? parsed.verifiedAt : null,
-    };
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code && code !== "ENOENT") {
-      log.warn(
-        `[detector] failed to read Codex setup verification: ${(err as Error).message}`,
-      );
+  for (const filePath of setupCandidateFiles(CODEX_SETUP_VERIFICATION_FILE)) {
+    try {
+      const raw = await fs.readFile(filePath, "utf-8");
+      const parsed = JSON.parse(raw) as { verifiedAt?: unknown };
+      return {
+        verified: typeof parsed.verifiedAt === "string",
+        verifiedAt:
+          typeof parsed.verifiedAt === "string" ? parsed.verifiedAt : null,
+      };
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code && code !== "ENOENT") {
+        log.warn(
+          `[detector] failed to read Codex setup verification at ${filePath}: ${
+            (err as Error).message
+          }`,
+        );
+      }
     }
-    return { verified: false, verifiedAt: null };
   }
+  return { verified: false, verifiedAt: null };
 }
 
 // =====================================================================

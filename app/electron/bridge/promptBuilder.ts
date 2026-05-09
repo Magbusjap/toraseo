@@ -351,7 +351,17 @@ const CODEX_SETUP_TEMPLATE_EN = (): string =>
 
 /toraseo codex-bridge-mode setup-check
 
-Check access to ToraSEO MCP and Codex Workflow Instructions.
+This is a setup check, not an analysis run.
+First call verify_codex_workflow_loaded(token="codex-workflow-v1-2026-04-29") from the ToraSEO MCP server.
+
+If the tool returns setupVerified=true, send a short confirmation:
+1. ToraSEO MCP is reachable from Codex.
+2. ToraSEO Codex Workflow Instructions are active in this session.
+3. Codex bridge setup is ready.
+4. The user can return to ToraSEO and choose an analysis type.
+
+If the tool returns app_not_running, do not tell the user to click Scan. Explain that MCP and the Workflow Instructions are available, but ToraSEO app liveness was not reachable yet. Ask the user to keep ToraSEO open on MCP + Instructions -> Codex and run this setup prompt again after the app refreshes. If the user wants an analysis without the app, offer the Skill-only chat fallback.
+
 Reply in English when the interface locale is English. Only switch to another language if the user explicitly changes language in their own new message.
 Use SKILL + MCP for the details.`;
 
@@ -360,9 +370,18 @@ const CODEX_SETUP_TEMPLATE_RU = (): string =>
 
 /toraseo codex-bridge-mode setup-check
 
-Проверь, есть ли у Codex доступ к ToraSEO MCP и Codex Workflow Instructions.
-Детали возьми из SKILL + MCP.`;
+Это проверка настройки, не запуск анализа.
+Сначала вызови verify_codex_workflow_loaded(token="codex-workflow-v1-2026-04-29") из ToraSEO MCP-сервера.
 
+Если инструмент вернул setupVerified=true, дай короткое подтверждение:
+1. ToraSEO MCP доступен из Codex.
+2. ToraSEO Codex Workflow Instructions активны в этой сессии.
+3. Codex bridge готов.
+4. Пользователь может вернуться в ToraSEO и выбрать тип анализа.
+
+Если инструмент вернул app_not_running, не пиши про кнопку Scan. Объясни, что MCP и Workflow Instructions доступны, но ToraSEO app liveness пока не достижим. Попроси оставить ToraSEO открытым на экране MCP + Instructions -> Codex и повторить setup-prompt после обновления экрана. Если нужен анализ без приложения, предложи Skill-only fallback в чате.
+
+Детали возьми из SKILL + MCP.`;
 /**
  * Build the full prompt for clipboard.
  *

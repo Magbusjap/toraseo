@@ -680,7 +680,7 @@ function BridgeSetup({
                 </div>
               </div>
             </div>
-            <div className="space-y-2 rounded-lg border border-outline/10 bg-orange-50/30 px-4 py-3">
+            <div className="flex flex-col gap-3">
               <CodexReadinessRow
                 satisfied={Boolean(status?.codexRunning)}
                 label={
@@ -753,7 +753,7 @@ function BridgeSetup({
                             })
                           : t("modeSelection.bridge.codexMcpPending", {
                               defaultValue:
-                                "Not checked yet. This is verified only after a Codex bridge scan starts.",
+                                "Not confirmed yet. Run the Codex setup prompt so ToraSEO can verify MCP access.",
                             })
                 }
               />
@@ -785,7 +785,7 @@ function BridgeSetup({
                             })
                           : t("modeSelection.bridge.codexInstructionsPending", {
                               defaultValue:
-                                "Not checked yet. This is verified only after a Codex bridge scan starts.",
+                                "Not confirmed yet. Run the Codex setup prompt so ToraSEO can verify Codex Workflow Instructions.",
                             })
                 }
               />
@@ -910,27 +910,36 @@ function CodexReadinessRow({
   };
   pathWarning?: string;
 }) {
-  const effectiveState =
-    state ?? (satisfied ? "verified" : "failed");
+  const effectiveState = state ?? (satisfied ? "verified" : "failed");
+  const visualState =
+    effectiveState === "pending" ? "failed" : effectiveState;
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-outline/10 bg-white px-3 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          {effectiveState === "verified" ? (
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
-          ) : effectiveState === "waiting" ? (
-            <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-orange-300 border-t-primary" />
-          ) : effectiveState === "pending" ? (
-            <span className="h-5 w-5 shrink-0 rounded-full border-2 border-outline/20 bg-outline-900/5" />
-          ) : (
-            <XCircle className="h-5 w-5 shrink-0 text-orange-500" />
-          )}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-outline/10 bg-white p-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+              visualState === "verified"
+                ? "bg-green-100 text-green-700"
+                : visualState === "waiting"
+                  ? "bg-orange-100 text-orange-600"
+                  : "bg-orange-100 text-orange-600"
+            }`}
+          >
+            {visualState === "verified" ? (
+              <CheckCircle2 size={16} />
+            ) : visualState === "waiting" ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-orange-300 border-t-orange-600" />
+            ) : (
+              <XCircle size={16} />
+            )}
+          </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold text-outline-900">{label}</p>
+              <p className="font-medium text-outline">{label}</p>
             </div>
-            <p className="text-xs leading-relaxed text-outline-900/60">
+            <p className="text-sm leading-relaxed text-outline/60">
               {hint}
             </p>
           </div>

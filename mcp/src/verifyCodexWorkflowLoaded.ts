@@ -65,9 +65,14 @@ export async function verifyCodexWorkflowLoadedHandler({
         error: "app_not_running",
         reason: alive.reason,
         message:
-          "The ToraSEO Desktop App is not running. Ask the user to start " +
-          "the app, choose MCP + Instructions -> Codex, click Scan, then paste " +
-          "the generated Codex bridge prompt again.",
+          "The ToraSEO Desktop App is not reachable from MCP right now. " +
+          "For setup-check, do not tell the user to click Scan. Explain that " +
+          "Codex MCP and Codex Workflow Instructions are loaded, but the app " +
+          "liveness marker is not reachable yet. Ask the user to keep ToraSEO " +
+          "open on MCP + Instructions -> Codex and run the setup prompt again " +
+          "after the app refreshes. If the user wanted an analysis and the app " +
+          "cannot be reached, offer the Skill-only chat fallback instead of " +
+          "sending them to a non-existent Scan button.",
       });
     }
 
@@ -92,8 +97,9 @@ export async function verifyCodexWorkflowLoadedHandler({
                 message:
                   "The ToraSEO Desktop App is running, and Codex successfully " +
                   "reached the ToraSEO MCP server with the active Codex Workflow " +
-                  "Instructions. Setup is verified. To start an analysis, ask the " +
-                  "user to click Scan in ToraSEO and paste the generated prompt.",
+                  "Instructions. Setup is verified. This was only a setup check, " +
+                  "not an analysis run. Tell the user they can return to ToraSEO, " +
+                  "choose an analysis type, and start it from that analysis screen.",
               },
               null,
               2,
@@ -117,8 +123,9 @@ export async function verifyCodexWorkflowLoadedHandler({
                 "Codex setup is verified. The app still has a previous " +
                 "scan state (`" +
                 stateNow.status +
-                "`). Ask the user to cancel or finish it, then start a " +
-                "fresh Codex bridge scan.",
+                "`). Ask the user to cancel or finish that previous run in " +
+                "ToraSEO, then choose the next analysis type from the app. Do " +
+                "not mention a generic Scan button during setup-check.",
             },
             null,
             2,
