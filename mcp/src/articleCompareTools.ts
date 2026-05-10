@@ -209,14 +209,14 @@ function inferCompareGoalMode(goal: string): CompareGoalMode {
 
 function compareGoalModeLabel(mode: CompareGoalMode): string {
   const labels: Record<CompareGoalMode, string> = {
-    standard_comparison: "стандартное сравнение",
-    focus_text_a: "фокус на тексте A",
-    focus_text_b: "фокус на тексте B",
-    beat_competitor: "сравнение с конкурентом",
-    style_match: "подражание стилю",
-    similarity_check: "проверка похожести",
-    version_compare: "сравнение версий",
-    ab_post: "A/B-анализ поста",
+    standard_comparison: "standard comparison",
+    focus_text_a: "focus on Text A",
+    focus_text_b: "focus on Text B",
+    beat_competitor: "competitor comparison",
+    style_match: "style matching",
+    similarity_check: "similarity check",
+    version_compare: "version comparison",
+    ab_post: "A/B post analysis",
   };
   return labels[mode];
 }
@@ -234,7 +234,7 @@ async function getCompareContext(): Promise<CompareContext> {
     throw new Error("No active ToraSEO article_compare context is available.");
   }
   return {
-    goal: state?.input?.goal?.trim() || "стандартный отчет сравнения",
+    goal: state?.input?.goal?.trim() || "standard comparison report",
     goalMode:
       state?.input?.goalMode ?? inferCompareGoalMode(state?.input?.goal ?? ""),
     roleA: state?.input?.roleA ?? "auto",
@@ -267,10 +267,10 @@ function winnerLabel(a: number, b: number, inverse = false): "textA" | "textB" |
 }
 
 function winnerRu(winner: "textA" | "textB" | "tie" | "unclear"): string {
-  if (winner === "textA") return "Текст A";
-  if (winner === "textB") return "Текст B";
-  if (winner === "tie") return "примерно одинаково";
-  return "нужна ручная проверка";
+  if (winner === "textA") return "Text A";
+  if (winner === "textB") return "Text B";
+  if (winner === "tie") return "about equal";
+  return "manual review needed";
 }
 
 function compareBy(
@@ -364,7 +364,7 @@ function analyzeIntentGap(context: CompareContext): CompareToolResult {
       severity: "warning",
       code: "intent_terms_diverge",
       message:
-        "Текст A и текст B делают акцент на разных ключевых понятиях, поэтому интент может совпадать не полностью.",
+        "Text A and Text B emphasize different key concepts, so the intent may overlap only partially.",
     });
   }
   return {
@@ -374,12 +374,12 @@ function analyzeIntentGap(context: CompareContext): CompareToolResult {
       topTermsA: base.termsA,
       topTermsB: base.termsB,
       intentTermOverlap: overlap,
-      likelyWinner: overlap >= 55 ? "примерно одинаково" : "нужна ручная проверка",
+      likelyWinner: overlap >= 55 ? "about equal" : "manual review needed",
     },
     issues,
     recommendations: [
-      "Перед выводом о том, какой текст сильнее, проверьте, что оба текста отвечают на один и тот же запрос.",
-      "Если один текст используется как конкурентный ориентир, берите фокус интента, а не формулировки.",
+      "Before deciding which text is stronger, check whether both texts answer the same request.",
+      "If one text is used as a competitive reference, keep the intent focus, not the wording.",
     ],
   };
 }
@@ -407,13 +407,13 @@ function analyzeStructure(context: CompareContext): CompareToolResult {
               code: "structure_gap",
               message:
                 scoreA > scoreB
-                  ? "У текста A сильнее видимая структура: больше опорных блоков для читателя."
-                  : "У текста B сильнее видимая структура: больше опорных блоков для читателя.",
+                  ? "Text A has a stronger visible structure: more support blocks for the reader."
+                  : "Text B has a stronger visible structure: more support blocks for the reader.",
             },
           ]
         : [],
     recommendations: [
-      "Сравнивайте не только количество заголовков, а путь читателя: проблема, объяснение, шаги, примеры, FAQ и вывод.",
+      "Compare not only the number of headings, but the reader path: problem, explanation, steps, examples, FAQ, and conclusion.",
     ],
   };
 }
@@ -438,12 +438,12 @@ function analyzeContentGap(context: CompareContext): CompareToolResult {
               severity: "warning",
               code: "content_gap_detected",
               message:
-                "Тексты заметно расходятся по тематическому покрытию; перед правкой проверьте отсутствующие разделы.",
+                "The texts differ noticeably in topical coverage; before editing, check the missing sections.",
             },
           ]
         : [],
     recommendations: [
-      "Используйте отсутствующие темы как подсказки для собственных разделов, примеров или FAQ, а не для копирования второго текста.",
+      "Use missing topics as prompts for your own sections, examples, or FAQ, not as material to copy from the other text.",
     ],
   };
 }
@@ -459,7 +459,7 @@ function analyzeSemanticGap(context: CompareContext): CompareToolResult {
     },
     issues: [],
     recommendations: [
-      "Усильте смысловое покрытие через недостающие понятия, но добавляйте собственные объяснения и примеры.",
+      "Strengthen semantic coverage through missing concepts, but add your own explanations and examples.",
     ],
   };
 }
@@ -487,13 +487,13 @@ function analyzeSpecificity(context: CompareContext): CompareToolResult {
               code: "specificity_gap",
               message:
                 scoreA > scoreB
-                  ? "Текст A даёт больше сигналов конкретики: цифр, вопросов, списков или практических деталей."
-                  : "Текст B даёт больше сигналов конкретики: цифр, вопросов, списков или практических деталей.",
+                  ? "Text A provides more specificity signals: numbers, questions, lists, or practical details."
+                  : "Text B provides more specificity signals: numbers, questions, lists, or practical details.",
             },
           ]
         : [],
     recommendations: [
-      "Добавляйте конкретные шаги, сценарии, примеры и цифры только там, где они точны и полезны.",
+      "Add concrete steps, scenarios, examples, and numbers only where they are accurate and useful.",
     ],
   };
 }
@@ -509,7 +509,7 @@ function analyzeTrust(context: CompareContext): CompareToolResult {
     },
     issues: [],
     recommendations: [
-      "Для медицинских, юридических, финансовых, технических и научных утверждений нужны источники, осторожные формулировки и ручная проверка.",
+      "Medical, legal, financial, technical, and scientific claims need sources, careful wording, and human review.",
     ],
   };
 }
@@ -528,7 +528,7 @@ function analyzeStyle(context: CompareContext): CompareToolResult {
     },
     issues: [],
     recommendations: [
-      "Если нужно приблизиться к стилю, переносите уровень ясности, ритм и плотность примеров, но не фразы и порядок абзацев.",
+      "If you need to move closer to the style, transfer clarity level, rhythm, and example density, not phrases or paragraph order.",
     ],
   };
 }
@@ -543,7 +543,7 @@ function analyzeSimilarity(context: CompareContext): CompareToolResult {
       exactOverlap,
       semanticSimilarity: null,
       copyRisk,
-      note: "Локальная проверка точных совпадений фраз; это не внешняя проверка плагиата.",
+      note: "Local exact phrase overlap check; this is not an external plagiarism check.",
     },
     issues:
       copyRisk === "high"
@@ -552,7 +552,7 @@ function analyzeSimilarity(context: CompareContext): CompareToolResult {
               severity: "critical",
               code: "high_exact_overlap",
               message:
-                "Дословных совпадений много. Перед публикацией нужно независимо переработать формулировки, примеры и порядок блоков.",
+                "There are many exact overlaps. Before publication, independently rework wording, examples, and block order.",
             },
           ]
         : copyRisk === "medium"
@@ -561,12 +561,12 @@ function analyzeSimilarity(context: CompareContext): CompareToolResult {
                 severity: "warning",
                 code: "medium_exact_overlap",
                 message:
-                  "Есть заметные дословные совпадения. Оставляйте идеи только как ориентир и переписывайте независимо.",
+                  "There are noticeable exact overlaps. Keep ideas only as reference and rewrite independently.",
               },
             ]
           : [],
     recommendations: [
-      "Используйте похожую логику только как ориентир; добавьте собственные примеры, выводы и формулировки.",
+      "Use similar logic only as a reference; add your own examples, conclusions, and wording.",
     ],
   };
 }
@@ -588,7 +588,7 @@ function analyzeTitleCtr(context: CompareContext): CompareToolResult {
     },
     issues: [],
     recommendations: [
-      "Лучше работает заголовок, который прямо называет интент и пользу без кликбейта.",
+      "A title works better when it directly states the intent and benefit without clickbait.",
     ],
   };
 }
@@ -609,7 +609,7 @@ function analyzePlatformFit(context: CompareContext): CompareToolResult {
     },
     issues: [],
     recommendations: [
-      "Оценивайте пригодность под выбранную площадку: статьям сайта нужны структура и полнота, соцсетям — хук и короткая польза.",
+      "Evaluate fit for the selected platform: site articles need structure and completeness, while social posts need a hook and concise value.",
     ],
   };
 }
@@ -621,22 +621,22 @@ function analyzeStrengthsWeaknesses(context: CompareContext): CompareToolResult 
     summary: {
       textAStrengths: [
         a.avgSentenceWords !== null && a.avgSentenceWords < (b.avgSentenceWords ?? 999)
-          ? "короче средняя длина предложения"
+          ? "shorter average sentence length"
           : "",
-        a.headings.length > b.headings.length ? "больше видимых структурных блоков" : "",
-        a.numberCount > b.numberCount ? "больше числовой конкретики" : "",
+        a.headings.length > b.headings.length ? "more visible structure blocks" : "",
+        a.numberCount > b.numberCount ? "more numerical specificity" : "",
       ].filter(Boolean),
       textBStrengths: [
         b.avgSentenceWords !== null && b.avgSentenceWords < (a.avgSentenceWords ?? 999)
-          ? "короче средняя длина предложения"
+          ? "shorter average sentence length"
           : "",
-        b.headings.length > a.headings.length ? "больше видимых структурных блоков" : "",
-        b.numberCount > a.numberCount ? "больше числовой конкретики" : "",
+        b.headings.length > a.headings.length ? "more visible structure blocks" : "",
+        b.numberCount > a.numberCount ? "more numerical specificity" : "",
       ].filter(Boolean),
     },
     issues: [],
     recommendations: [
-      "Используйте сильные стороны как приоритеты редактирования, а не как повод копировать второй текст.",
+      "Use strengths as editing priorities, not as a reason to copy the other text.",
     ],
   };
 }
@@ -649,18 +649,18 @@ function analyzeImprovementPlan(context: CompareContext): CompareToolResult {
     summary: {
       goal: context.goal,
       firstSteps: [
-        "Проверить общий интент двух текстов.",
-        "Закрыть самые важные content gap через собственные разделы.",
-        "Добавить конкретные примеры, шаги или сценарии там, где они полезны.",
-        "Сохранить независимые формулировки и примеры, чтобы снизить риск копирования.",
+        "Check the shared intent of both texts.",
+        "Close the most important content gaps with your own sections.",
+        "Add concrete examples, steps, or scenarios where they are useful.",
+        "Keep independent wording and examples to reduce copy risk.",
       ],
       contentGap: gap,
       specificity,
     },
     issues: [],
     recommendations: [
-      "Усиливайте более слабый текст добавленной ценностью, а не зеркальным повторением сильного текста.",
-      "После правок запустите сравнение снова и проверьте, сократились ли разрывы.",
+      "Strengthen the weaker text with added value, not by mirroring the stronger text.",
+      "After editing, run the comparison again and check whether the gaps became smaller.",
     ],
   };
 }
@@ -674,8 +674,8 @@ function analyzeCompareTextPlatform(context: CompareContext): CompareToolResult 
       platform,
       textAWordCount: a.wordCount,
       textBWordCount: b.wordCount,
-      textAFormat: a.wordCount > 900 ? "длинная статья" : "короткий текст / пост",
-      textBFormat: b.wordCount > 900 ? "длинная статья" : "короткий текст / пост",
+      textAFormat: a.wordCount > 900 ? "long article" : "short text / post",
+      textBFormat: b.wordCount > 900 ? "long article" : "short text / post",
       platformFitWinner: winnerRu(
         compareBy(Math.min(a.wordCount, 1800), Math.min(b.wordCount, 1800)),
       ),
@@ -685,11 +685,11 @@ function analyzeCompareTextPlatform(context: CompareContext): CompareToolResult 
         severity: "info",
         code: "platform_compared",
         message:
-          "Оба текста проверены как материалы для выбранной площадки. Это локальная оценка формата, а не данные SERP.",
+          "Both texts were checked as materials for the selected platform. This is a local format estimate, not SERP data.",
       },
     ],
     recommendations: [
-      "Сопоставляйте объём и структуру с площадкой: для статьи сайта важны полнота и разделы, для соцсетей — хук, ясность и компактность.",
+      "Compare volume and structure against the platform: site articles need completeness and sections, while social posts need a hook, clarity, and compactness.",
     ],
   };
 }
@@ -721,7 +721,7 @@ function analyzeCompareTone(context: CompareContext): CompareToolResult {
     },
     issues: [],
     recommendations: [
-      "Тон должен соответствовать риску темы: в медицине, финансах, праве и технике лучше звучит точность, осторожность и ясное ограничение советов.",
+      "Tone should match topic risk: in medicine, finance, law, and technical topics, precision, caution, and clear limits work better.",
     ],
   };
 }
@@ -736,11 +736,11 @@ function analyzeCompareLanguageAudience(context: CompareContext): CompareToolRes
       audienceClarityWinner:
         a.avgSentenceWords !== null && b.avgSentenceWords !== null
           ? winnerRu(compareBy(a.avgSentenceWords, b.avgSentenceWords, true))
-          : "нужна ручная проверка",
+          : "manual review needed",
     },
     issues: [],
     recommendations: [
-      "Проверьте, кому адресован каждый текст. Если аудитория разная, сравнивайте не только качество, но и соответствие ожиданиям читателя.",
+      "Check who each text is addressed to. If the audiences differ, compare not only quality, but also fit with reader expectations.",
     ],
   };
 }
@@ -765,12 +765,12 @@ function analyzeCompareMedia(context: CompareContext): CompareToolResult {
               severity: "info",
               code: "no_media_markers",
               message:
-                "В текстах нет явных меток медиа. Для длинной статьи стоит проверить, где нужны изображения, схемы или видео.",
+                "The texts do not contain clear media markers. For a long article, check where images, diagrams, or video are needed.",
             },
           ]
         : [],
     recommendations: [
-      "Для сайта полезно отмечать медиа внутри релевантных разделов, а не складывать все изображения в конец текста.",
+      "For a site article, media markers should sit inside relevant sections, not be pushed to the end of the text.",
     ],
   };
 }
@@ -778,7 +778,7 @@ function analyzeCompareMedia(context: CompareContext): CompareToolResult {
 function analyzeCompareUniqueness(context: CompareContext): CompareToolResult {
   const overlap = shingleOverlap(context.textA, context.textB);
   const copyRisk =
-    overlap >= 35 ? "высокий" : overlap >= 15 ? "средний" : "низкий";
+    overlap >= 35 ? "high" : overlap >= 15 ? "medium" : "low";
   return {
     tool: "article_uniqueness",
     summary: {
@@ -794,12 +794,12 @@ function analyzeCompareUniqueness(context: CompareContext): CompareToolResult {
               severity: overlap >= 35 ? "critical" : "warning",
               code: "copy_risk",
               message:
-                "Есть локальный риск похожести. Это не внешняя проверка плагиата, но формулировки лучше развести сильнее.",
+                "There is a local similarity risk. This is not an external plagiarism check, but the wording should be separated more clearly.",
             },
           ]
         : [],
     recommendations: [
-      "0% в этой метрике означает отсутствие совпавших 4-словных фрагментов в локальной проверке, а не гарантию абсолютной уникальности.",
+      "0% in this metric means no matching 4-word fragments in the local check, not a guarantee of absolute uniqueness.",
     ],
   };
 }
@@ -823,12 +823,12 @@ function analyzeCompareSyntax(context: CompareContext): CompareToolResult {
               severity: "info",
               code: "syntax_risk_signals",
               message:
-                "Найдены локальные синтаксические или пунктуационные сигналы, которые стоит вычитать вручную.",
+                "Local syntax or punctuation signals were found and should be manually reviewed.",
             },
           ]
         : [],
     recommendations: [
-      "Сделайте финальную ручную вычитку пунктуации, границ предложений и перегруженных фраз в обоих текстах.",
+      "Do a final manual pass for punctuation, sentence boundaries, and overloaded phrases in both texts.",
     ],
   };
 }
@@ -848,7 +848,7 @@ function analyzeCompareAiProbability(context: CompareContext): CompareToolResult
     },
     issues: [],
     recommendations: [
-      "Чтобы текст звучал авторски, добавьте конкретный опыт, примеры, контекст и меньше универсальных служебных оборотов.",
+      "To make the text sound more authorial, add concrete experience, examples, context, and fewer generic service phrases.",
     ],
   };
 }
@@ -869,7 +869,7 @@ function analyzeCompareNaturalness(context: CompareContext): CompareToolResult {
     },
     issues: [],
     recommendations: [
-      "Если текст кажется механическим, разнообразьте начала предложений, добавьте живые переходы и уберите повторы без смысловой пользы.",
+      "If the text feels mechanical, vary sentence openings, add natural transitions, and remove repetitions that do not add meaning.",
     ],
   };
 }
@@ -894,12 +894,12 @@ function analyzeCompareLogic(context: CompareContext): CompareToolResult {
               severity: "info",
               code: "logic_transitions_found",
               message:
-                "В текстах есть причинно-следственные переходы. Их нужно проверять на достаточность объяснения, а не считать ошибками автоматически.",
+                "The texts contain cause-and-effect transitions. They should be checked for sufficient support, not treated as automatic errors.",
             },
           ]
         : [],
     recommendations: [
-      "Проверьте места с «поэтому», «следовательно», «всегда» и «никогда»: рядом должно быть обоснование.",
+      "Check places with 'therefore', 'consequently', 'always', and 'never': they need nearby justification.",
     ],
   };
 }
@@ -924,12 +924,12 @@ function analyzeCompareFactDistortion(context: CompareContext): CompareToolResul
               severity: "warning",
               code: "fact_sensitive_claims",
               message:
-                "Есть фактически чувствительные утверждения, числа или медицинско-правовые формулировки. Их нельзя подтверждать только сравнением текстов.",
+                "There are fact-sensitive claims, numbers, or medical/legal statements. They cannot be confirmed by text comparison alone.",
             },
           ]
         : [],
     recommendations: [
-      "Перепроверьте числа, источники и категоричные утверждения; смягчите то, что нельзя подтвердить уверенно.",
+      "Recheck numbers, sources, and categorical claims; soften anything that cannot be confirmed confidently.",
     ],
   };
 }
@@ -949,7 +949,7 @@ function analyzeCompareHallucination(context: CompareContext): CompareToolResult
     },
     issues: [],
     recommendations: [
-      "Расплывчатые ссылки на исследования и экспертов лучше заменить конкретными источниками или убрать.",
+      "Vague references to research and experts should be replaced with specific sources or removed.",
     ],
   };
 }
@@ -967,7 +967,7 @@ function analyzeCompareIntentSeo(context: CompareContext): CompareToolResult {
     },
     issues: [],
     recommendations: [
-      "Это локальный прогноз интента без SERP. Для SEO используйте его как черновой ориентир, а не как доказательство спроса или ранжирования.",
+      "This is a local intent forecast without SERP data. For SEO, use it as a draft direction, not as proof of demand or ranking potential.",
     ],
   };
 }
@@ -982,11 +982,11 @@ function analyzeCompareSafetyScience(context: CompareContext): CompareToolResult
         severity: "info",
         code: "text_only_safety_boundary",
         message:
-          "Сравнение текстов не заменяет медицинскую, юридическую, финансовую или научную экспертизу.",
+          "Text comparison does not replace medical, legal, financial, or scientific expertise.",
       },
     ],
     recommendations: [
-      "Для рискованных тем добавьте предупреждения, источники и формулировки с границами применимости.",
+      "For sensitive topics, add warnings, sources, and wording with clear limits of applicability.",
     ],
   };
 }
@@ -1199,7 +1199,7 @@ function buildInternalCompareSummary(context: CompareContext): {
   aiSignalsA: number;
   aiSignalsB: number;
   exactOverlap: number;
-  copyRisk: "низкий" | "средний" | "высокий";
+  copyRisk: "low" | "medium" | "high";
   termsA: string[];
   termsB: string[];
   missingInA: string[];
@@ -1263,7 +1263,7 @@ function buildInternalCompareSummary(context: CompareContext): {
     aiSignalsB,
     exactOverlap,
     copyRisk:
-      exactOverlap >= 35 ? "высокий" : exactOverlap >= 15 ? "средний" : "низкий",
+      exactOverlap >= 35 ? "high" : exactOverlap >= 15 ? "medium" : "low",
     termsA,
     termsB,
     missingInA: termsB.filter((term) => !termsSetA.has(term)).slice(0, 6),
@@ -1287,37 +1287,37 @@ function renderInternalCompareChatReport(
   completedCount: number,
 ): string {
   return [
-    `Сравнение двух текстов готово: ToraSEO выполнил ${completedCount} проверок и обновил отчет в приложении.`,
+    `Two-text comparison is ready: ToraSEO completed ${completedCount} checks and updated the report in the app.`,
     "",
-    "**Итог сравнения**",
-    `- Режим по цели анализа: ${compareGoalModeLabel(summary.goalMode)}.`,
+    "**Comparison result**",
+    `- Analysis goal mode: ${compareGoalModeLabel(summary.goalMode)}.`,
     `- ${compareGoalModeAdvice(summary.goalMode)}`,
     `- ${compareOverallVerdict(summary)}`,
-    `- Интент и тема: пересечение ключевых понятий — ${summary.termOverlap}%. ${intentAdvice(summary.termOverlap)}`,
-    `- Риск копирования: ${summary.copyRisk}. Дословное совпадение — ${summary.exactOverlap}%. Это локальная проверка совпавших фраз, а не внешняя база плагиата.`,
+    `- Intent and topic: key concept overlap is ${summary.termOverlap}%. ${intentAdvice(summary.termOverlap)}`,
+    `- Copying risk: ${summary.copyRisk}. Exact overlap is ${summary.exactOverlap}%. This is a local matching-phrase check, not an external plagiarism database.`,
     "",
-    "**Сравнение по категориям**",
-    `- Структура: ${winnerRu(summary.structureWinner)}. Заголовки: A — ${summary.headingsA}, B — ${summary.headingsB}; абзацы: A — ${summary.paragraphsA}, B — ${summary.paragraphsB}.`,
-    `- Читаемость: ${winnerRu(summary.readabilityWinner)}. Средняя длина предложения: A — ${summary.avgSentenceA ?? "—"} слов, B — ${summary.avgSentenceB ?? "—"} слов.`,
-    `- Конкретика: ${winnerRu(summary.specificityWinner)}. Числа, списки и вопросы: A — ${summary.specificityA}, B — ${summary.specificityB}.`,
-    `- Доверие и осторожность: ${winnerRu(summary.trustWinner)}. Источники, предупреждения и экспертные маркеры: A — ${summary.trustA}, B — ${summary.trustB}.`,
-    `- Медиа-планирование: ${winnerRu(summary.mediaWinner)}. Медиа-маркеры: A — ${summary.mediaA}, B — ${summary.mediaB}.`,
-    `- Синтаксис и пунктуация: чище ${winnerRu(summary.syntaxWinner)}. Места для ручной вычитки: A — ${summary.syntaxRiskA}, B — ${summary.syntaxRiskB}.`,
-    `- Логическая связность: больше ручной проверки требует ${winnerRu(summary.logicSupportWinner)}. Причинно-следственные связки: A — ${summary.logicSignalsA}, B — ${summary.logicSignalsB}.`,
-    `- Авторская естественность: сильнее ${winnerRu(summary.aiStyleWinner)}. Универсальные служебные обороты: A — ${summary.aiSignalsA}, B — ${summary.aiSignalsB}.`,
+    "**Category comparison**",
+    `- Structure: ${winnerRu(summary.structureWinner)}. Headings: A - ${summary.headingsA}, B - ${summary.headingsB}; paragraphs: A - ${summary.paragraphsA}, B - ${summary.paragraphsB}.`,
+    `- Readability: ${winnerRu(summary.readabilityWinner)}. Average sentence length: A - ${summary.avgSentenceA ?? "-"} words, B - ${summary.avgSentenceB ?? "-"} words.`,
+    `- Specificity: ${winnerRu(summary.specificityWinner)}. Numbers, lists, and questions: A - ${summary.specificityA}, B - ${summary.specificityB}.`,
+    `- Trust and caution: ${winnerRu(summary.trustWinner)}. Sources, warnings, and expert markers: A - ${summary.trustA}, B - ${summary.trustB}.`,
+    `- Media planning: ${winnerRu(summary.mediaWinner)}. Media markers: A - ${summary.mediaA}, B - ${summary.mediaB}.`,
+    `- Syntax and punctuation: cleaner ${winnerRu(summary.syntaxWinner)}. Manual review spots: A - ${summary.syntaxRiskA}, B - ${summary.syntaxRiskB}.`,
+    `- Logic: more manual review is needed in ${winnerRu(summary.logicSupportWinner)}. Cause-and-effect connectors: A - ${summary.logicSignalsA}, B - ${summary.logicSignalsB}.`,
+    `- Authorial naturalness: stronger ${winnerRu(summary.aiStyleWinner)}. Generic service phrases: A - ${summary.aiSignalsA}, B - ${summary.aiSignalsB}.`,
     "",
     ...compareGoalFocusedStrengthBlocks(summary),
     "",
-    "**Разрывы по содержанию**",
-    `- Что есть в B и стоит проверить для A: ${formatTerms(summary.missingInA)}.`,
-    `- Что есть в A и стоит проверить для B: ${formatTerms(summary.missingInB)}.`,
+    "**Content gaps**",
+    `- What exists in B and should be checked for A: ${formatTerms(summary.missingInA)}.`,
+    `- What exists in A and should be checked for B: ${formatTerms(summary.missingInB)}.`,
     "",
-    "**Приоритетный план действий**",
+    "**Priority action plan**",
     compareGoalModeFirstAction(summary.goalMode),
-    "- Закрывайте разрывы по содержанию собственными разделами, примерами и выводами, а не копированием структуры второго текста.",
-    "- Усильте конкретику: добавьте шаги, сценарии, числа и пояснения только там, где они точны и полезны.",
-    "- Проверьте доверие: источники, осторожные формулировки, ограничения советов и экспертную проверку для чувствительных тем.",
-    "- После правок запустите сравнение снова и проверьте, сократились ли разрывы.",
+    "- Close content gaps with your own sections, examples, and conclusions, not by copying the second text's structure.",
+    "- Strengthen specificity: add steps, scenarios, numbers, and explanations only where they are accurate and useful.",
+    "- Check trust: sources, careful wording, advice limits, and expert review for sensitive topics.",
+    "- After edits, run the comparison again and check whether the gaps became smaller.",
   ].join("\n");
 }
 
@@ -1334,31 +1334,31 @@ function compareOverallVerdict(summary: ReturnType<typeof buildInternalCompareSu
   const scoreA = winners.filter((winner) => winner === "textA").length;
   const scoreB = winners.filter((winner) => winner === "textB").length;
   if (Math.abs(scoreA - scoreB) <= 1) {
-    return "Тексты близки по сумме локальных признаков; важнее смотреть разрывы по категориям и цель сравнения.";
+    return "The texts are close by local signals; category gaps and the comparison goal matter more.";
   }
   return scoreA > scoreB
-    ? "Текст A сейчас выглядит сильнее по сумме локальных текстовых признаков."
-    : "Текст B сейчас выглядит сильнее по сумме локальных текстовых признаков.";
+    ? "Text A currently looks stronger by the sum of local text signals."
+    : "Text B currently looks stronger by the sum of local text signals.";
 }
 
 function compareGoalModeAdvice(mode: CompareGoalMode): string {
   const advice: Record<CompareGoalMode, string> = {
     standard_comparison:
-      "Цель не указана, поэтому ToraSEO показывает стандартный отчет по двум текстам: категории, разрывы, похожесть и план улучшения.",
+      "No goal is set, so ToraSEO shows a standard two-text report: categories, gaps, similarity, and an improvement plan.",
     focus_text_a:
-      "Фокус отчета — текст A: текст B используется как сравнительный контекст, а не как равноправный объект аудита.",
+      "The report focuses on Text A: Text B is used as comparison context, not as an equal audit target.",
     focus_text_b:
-      "Фокус отчета — текст B: текст A используется как сравнительный контекст, а не как равноправный объект аудита.",
+      "The report focuses on Text B: Text A is used as comparison context, not as an equal audit target.",
     beat_competitor:
-      "Фокус отчета — текстовые преимущества конкурента и план усиления без копирования чужих формулировок.",
+      "The report focuses on competitor text advantages and a strengthening plan without copying someone else's wording.",
     style_match:
-      "Фокус отчета — стиль, тон, ритм, плотность примеров и приемы подачи, которые можно перенять без копирования фраз.",
+      "The report focuses on style, tone, rhythm, example density, and presentation techniques that can be adapted without copying phrases.",
     similarity_check:
-      "Фокус отчета — дословные совпадения, смысловая близость и риск копирования.",
+      "The report focuses on exact overlaps, semantic closeness, and copying risk.",
     version_compare:
-      "Фокус отчета — что стало лучше или хуже между двумя версиями текста.",
+      "The report focuses on what became better or worse between the two text versions.",
     ab_post:
-      "Фокус отчета — хук, ясность, краткость, CTA, платформенность и потенциал реакции.",
+      "The report focuses on hook, clarity, brevity, CTA, platform fit, and reaction potential.",
   };
   return advice[mode];
 }
@@ -1366,21 +1366,21 @@ function compareGoalModeAdvice(mode: CompareGoalMode): string {
 function compareGoalModeFirstAction(mode: CompareGoalMode): string {
   const actions: Record<CompareGoalMode, string> = {
     standard_comparison:
-      "- Сначала подтвердите общий интент и цель сравнения. Если запросы разные, не делайте вывод “один текст лучше другого” как SEO-факт.",
+      "- First confirm the shared intent and comparison goal. If the requests differ, do not treat 'one text is better' as an SEO fact.",
     focus_text_a:
-      "- Сначала разберите сильные и слабые стороны текста A; текст B используйте только как ориентир для недостающих решений.",
+      "- First review Text A's strengths and weaknesses; use Text B only as a reference for missing solutions.",
     focus_text_b:
-      "- Сначала разберите сильные и слабые стороны текста B; текст A используйте только как ориентир для недостающих решений.",
+      "- First review Text B's strengths and weaknesses; use Text A only as a reference for missing solutions.",
     beat_competitor:
-      "- Сначала определите, какие текстовые преимущества конкурента действительно относятся к вашему интенту, а затем закрывайте разрывы своими разделами и примерами.",
+      "- First identify which competitor advantages truly match your intent, then close the gaps with your own sections and examples.",
     style_match:
-      "- Сначала перенимайте не фразы, а приемы стиля: длину предложений, ритм, уровень ясности, тип примеров и порядок абзацев.",
+      "- First adapt style techniques, not phrases: sentence length, rhythm, clarity level, example type, and paragraph flow.",
     similarity_check:
-      "- Сначала уберите дословные совпадения и слишком близкие смысловые блоки: добавьте собственные примеры, выводы и формулировки.",
+      "- First remove exact overlaps and overly close semantic blocks: add your own examples, conclusions, and wording.",
     version_compare:
-      "- Сначала зафиксируйте, что во второй версии стало лучше и что ухудшилось, затем правьте только подтвержденные разрывы.",
+      "- First record what improved and what worsened in the second version, then fix only confirmed gaps.",
     ab_post:
-      "- Сначала выберите вариант с более сильным хуком и ясной пользой для площадки, затем доработайте CTA и компактность.",
+      "- First choose the version with the stronger hook and clearer platform benefit, then polish CTA and compactness.",
   };
   return actions[mode];
 }
@@ -1390,23 +1390,23 @@ function compareGoalFocusedStrengthBlocks(
 ): string[] {
   if (summary.goalMode === "focus_text_a") {
     return [
-      "**Сильные и слабые стороны текста A**",
+      "**Text A strengths and weaknesses**",
       formatChatList(compareStrengthsForChat(summary, "textA")),
       "",
     ];
   }
   if (summary.goalMode === "focus_text_b") {
     return [
-      "**Сильные и слабые стороны текста B**",
+      "**Text B strengths and weaknesses**",
       formatChatList(compareStrengthsForChat(summary, "textB")),
       "",
     ];
   }
   return [
-    "**Сильные стороны текста A**",
+    "**Text A strengths**",
     formatChatList(compareStrengthsForChat(summary, "textA")),
     "",
-    "**Сильные стороны текста B**",
+    "**Text B strengths**",
     formatChatList(compareStrengthsForChat(summary, "textB")),
     "",
   ];
@@ -1414,12 +1414,12 @@ function compareGoalFocusedStrengthBlocks(
 
 function intentAdvice(overlap: number): string {
   if (overlap < 35) {
-    return "Темы заметно расходятся, поэтому сначала подтвердите, что тексты отвечают на один и тот же запрос.";
+    return "The topics differ noticeably, so first confirm that both texts answer the same request.";
   }
   if (overlap < 60) {
-    return "Темы частично пересекаются, но интент всё равно стоит проверить вручную.";
+    return "The topics partially overlap, but the intent should still be checked manually.";
   }
-  return "Темы достаточно близки для стандартного A/B-сравнения текстовой части.";
+  return "The topics are close enough for a standard A/B comparison of the text layer.";
 }
 
 function compareStrengthsForChat(
@@ -1428,17 +1428,17 @@ function compareStrengthsForChat(
 ): string[] {
   const items: string[] = [];
   const label = side === "textA" ? "A" : "B";
-  if (summary.structureWinner === side) items.push(`у текста ${label} сильнее видимый каркас и опорные блоки`);
-  if (summary.readabilityWinner === side) items.push(`текст ${label} легче сканировать по средней длине предложения`);
-  if (summary.specificityWinner === side) items.push(`в тексте ${label} больше конкретики: чисел, списков или вопросов`);
-  if (summary.trustWinner === side) items.push(`в тексте ${label} больше маркеров доверия и осторожности`);
-  if (summary.mediaWinner === side) items.push(`текст ${label} лучше подготовлен к медиа-сопровождению`);
-  if (summary.syntaxWinner === side) items.push(`текст ${label} чище по локальным пунктуационным и синтаксическим признакам`);
-  if (summary.aiStyleWinner === side) items.push(`текст ${label} выглядит естественнее по локальным признакам`);
+  if (summary.structureWinner === side) items.push(`Text ${label} has a stronger visible framework and support blocks`);
+  if (summary.readabilityWinner === side) items.push(`Text ${label} is easier to scan by average sentence length`);
+  if (summary.specificityWinner === side) items.push(`Text ${label} has more specificity: numbers, lists, or questions`);
+  if (summary.trustWinner === side) items.push(`Text ${label} has more trust and caution markers`);
+  if (summary.mediaWinner === side) items.push(`Text ${label} is better prepared for media support`);
+  if (summary.syntaxWinner === side) items.push(`Text ${label} is cleaner by local punctuation and syntax signals`);
+  if (summary.aiStyleWinner === side) items.push(`Text ${label} looks more natural by local signals`);
   if (summary.logicSupportWinner === side) {
-    items.push(`в тексте ${label} больше причинно-следственных связок, которые стоит вручную проверить на доказательность`);
+    items.push(`Text ${label} has more cause-and-effect connectors that should be manually checked for support`);
   }
-  return items.length > 0 ? items : [`у текста ${label} нет явного преимущества по текущим локальным признакам`];
+  return items.length > 0 ? items : [`Text ${label} has no clear advantage by the current local signals`];
 }
 
 function formatChatList(items: string[]): string {
@@ -1446,7 +1446,7 @@ function formatChatList(items: string[]): string {
 }
 
 function formatTerms(terms: string[]): string {
-  return terms.length > 0 ? terms.join(", ") : "явных локальных разрывов не найдено";
+  return terms.length > 0 ? terms.join(", ") : "no clear local gaps found";
 }
 
 export const compareIntentGapHandler = async (): Promise<McpHandlerResult> =>

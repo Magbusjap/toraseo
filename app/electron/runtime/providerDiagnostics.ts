@@ -76,7 +76,7 @@ export async function testProviderConnection(
       usage: response.usage,
       warningMessage:
         locale === "ru"
-          ? "Модель отвечает, но не вернула структурированный audit-отчет."
+          ? "The model responded, but it did not return a structured audit report."
           : "The model responded, but it did not return a structured audit report.",
     };
   }

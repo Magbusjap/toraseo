@@ -231,7 +231,7 @@ function AuditStatusHero({
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-orange-600">
                 {t("analysisHero.auditMethod", {
-                  defaultValue: "Метод проверки",
+                  defaultValue: "Validation method",
                 })}
               </p>
               <div className="mt-1 flex items-center gap-2">
@@ -373,7 +373,7 @@ function SiteDashboardBoard({
         <DashboardMetricCard
           icon={<CheckCircle2 size={17} />}
           label={t("siteDashboard.cleanTools", {
-            defaultValue: "Clean tools",
+            defaultValue: "{{completed}}/{{total}} tools",
           })}
           value={hasRun ? String(cleanTools) : "--"}
           detail={t("siteDashboard.cleanToolsDetail", {
@@ -384,7 +384,7 @@ function SiteDashboardBoard({
         <DashboardMetricCard
           icon={<ShieldAlert size={17} />}
           label={t("siteDashboard.findings", {
-            defaultValue: "Найдено замечаний",
+            defaultValue: "Issues found",
           })}
           value={hasRun ? String(findingsTotal) : "--"}
           detail={t("siteDashboard.findingsDetail", {
@@ -400,19 +400,18 @@ function SiteDashboardBoard({
             <div>
               <h2 className="text-sm font-semibold text-outline-900">
                 {t("siteDashboard.issueDistribution", {
-                  defaultValue: "Issue distribution",
+                  defaultValue: "Status distribution",
                 })}
               </h2>
               <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
                 {t("siteDashboard.healthNote", {
-                  defaultValue:
-                    "This is a technical audit health view, not a popularity or traffic score.",
+                  defaultValue: "This is a score for selected checks, not a traffic, popularity, or ranking metric.",
                 })}
               </p>
             </div>
             <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-outline-900/60">
               {complete
-                ? t("siteDashboard.complete", { defaultValue: "Готово" })
+                ? t("siteDashboard.complete", { defaultValue: "Ready" })
                 : hasRun
                   ? t("siteDashboard.inProgress", {
                       defaultValue: "In progress",
@@ -460,7 +459,7 @@ function SiteDashboardBoard({
             <ListChecks size={16} className="text-primary" />
             <h2 className="text-sm font-semibold text-outline-900">
               {t("siteDashboard.toolGroups", {
-                defaultValue: "Audit groups",
+                defaultValue: "Audit directions",
               })}
             </h2>
           </div>
@@ -475,7 +474,7 @@ function SiteDashboardBoard({
       <div className="rounded-lg border border-orange-100 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-semibold text-outline-900">
           {t("siteDashboard.topSignals", {
-            defaultValue: "Что исправить первым",
+            defaultValue: "Fix first",
           })}
         </h2>
         {topSignals.length > 0 ? (
@@ -488,12 +487,10 @@ function SiteDashboardBoard({
           <p className="mt-2 text-sm text-outline-900/55">
             {hasRun
               ? t("siteDashboard.noSignalsYet", {
-                  defaultValue:
-                    "Signals will appear here as tools return structured facts.",
+                  defaultValue: "Signals will appear here as tools return structured facts.",
                 })
               : t("siteDashboard.startPrompt", {
-                  defaultValue:
-                    "Run the default audit preset to fill this board with site facts, metrics, and next actions.",
+                  defaultValue: "Run the default audit preset to fill this board with site facts, metrics, and next actions.",
                 })}
           </p>
         )}
@@ -663,11 +660,21 @@ interface ToolCategory {
 }
 
 function ToolCategoryRow({ category }: { category: ToolCategory }) {
+  const { t } = useTranslation();
   const progress =
     category.total > 0
       ? Math.round((category.completed / category.total) * 100)
       : 0;
   const meta = getCategoryMeta(category.severity, progress);
+  const issueText = t("siteDashboard.categoryIssues", {
+    count: category.issues,
+    defaultValue: "{{count}} issues",
+  });
+  const completedText = t("siteDashboard.categoryCompletedChecks", {
+    completed: category.completed,
+    total: category.total,
+    defaultValue: "{{completed}}/{{total}} checks completed",
+  });
   return (
     <div className="rounded-md border border-orange-100 bg-orange-50/30 px-3 py-2">
       <div className="flex items-center justify-between gap-3">
@@ -675,13 +682,11 @@ function ToolCategoryRow({ category }: { category: ToolCategory }) {
           {category.label}
         </span>
         <span className={`text-xs font-semibold ${meta.textClass}`}>
-          {category.issues > 0
-            ? `${category.issues} проблем`
-            : `${category.completed}/${category.total}`}
+          {category.issues > 0 ? issueText : `${category.completed}/${category.total}`}
         </span>
       </div>
       <p className="mt-1 text-xs text-outline-900/50">
-        {category.completed}/{category.total} проверок выполнено
+        {completedText}
       </p>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-outline-900/10">
         <div
@@ -694,21 +699,19 @@ function ToolCategoryRow({ category }: { category: ToolCategory }) {
 }
 
 function SignalCard({ fact }: { fact: RuntimeScanFact }) {
-  const { i18n } = useTranslation();
-  const isRu = i18n.language.startsWith("ru");
-  const meta = getSeverityMeta(fact.severity, isRu);
+  const meta = getSeverityMeta(fact.severity);
   return (
     <article className="rounded-md border border-orange-100 bg-orange-50/30 p-3">
       <div className="flex items-start justify-between gap-3">
         <h3 className="min-w-0 text-sm font-medium text-outline-900">
-          {formatFactTitle(fact, isRu)}
+          {formatFactTitle(fact)}
         </h3>
         <span className={`text-xs font-semibold uppercase ${meta.className}`}>
           {meta.label}
         </span>
       </div>
       <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-outline-900/65">
-        {formatFactDetail(fact.detail, isRu)}
+        {formatFactDetail(fact.detail)}
       </p>
     </article>
   );
@@ -880,7 +883,7 @@ function buildToolCategories(
     {
       id: "structure",
       label: t("siteDashboard.groups.structure", {
-        defaultValue: "Structure",
+        defaultValue: "Structure and links",
       }),
       tools: ["analyze_headings", "analyze_links"],
     },
@@ -988,62 +991,29 @@ function getCategoryMeta(
   return { textClass: "text-outline-900/55", barClass: "bg-primary" };
 }
 
-function getSeverityMeta(severity: RuntimeScanFact["severity"], isRu = false) {
+function getSeverityMeta(severity: RuntimeScanFact["severity"]) {
   if (severity === "error") {
-    return { label: isRu ? "ошибка" : "error", className: "text-red-700" };
+    return { label: "error", className: "text-red-700" };
   }
   if (severity === "critical") {
-    return { label: isRu ? "критично" : "critical", className: "text-red-600" };
+    return { label: "critical", className: "text-red-600" };
   }
   if (severity === "warning") {
-    return { label: isRu ? "предупреждение" : "warning", className: "text-orange-600" };
+    return { label: "warning", className: "text-orange-600" };
   }
-  return { label: isRu ? "информация" : "ok", className: "text-emerald-600" };
+  return { label: "ok", className: "text-emerald-600" };
 }
 
-function formatFactTitle(fact: RuntimeScanFact, isRu = false): string {
+function formatFactTitle(fact: RuntimeScanFact): string {
   const keyBase = getToolI18nKeyBase(fact.toolId);
   if (fact.title === keyBase) return keyBase;
-  if (isRu) {
-    const normalized = fact.title.toLowerCase();
-    if (normalized.includes("no sitemap")) return "Sitemap не найден";
-    if (normalized.includes("thin content")) return "Мало основного текста";
-    if (normalized.includes("title too short")) return "Title слишком короткий";
-    if (normalized.includes("no meta description")) return "Meta description отсутствует";
-    if (normalized.includes("og missing")) return "Open Graph отсутствует";
-    if (normalized.includes("no canonical")) return "Canonical отсутствует";
-    if (normalized.includes("heading level skip")) return "Пропуск уровня заголовка";
-    if (normalized.includes("links checked")) return "Ссылки проверены";
-    if (normalized.includes("stack detected")) return "Стек сайта определён";
-  }
   return fact.title;
 }
 
-function formatFactDetail(detail: string, isRu = false): string {
-  if (!isRu) return detail;
+function formatFactDetail(detail: string): string {
   const normalized = detail.toLowerCase();
-  if (normalized.includes("no sitemap found")) {
-    return "Sitemap не найден. Поисковикам может быть сложнее находить страницы сайта. Создайте sitemap.xml и укажите его в robots.txt.";
-  }
-  if (normalized.includes("page contains only") && normalized.includes("words")) {
-    return "На странице мало основного текста. Проверьте, что важный контент доступен в HTML, и добавьте содержательное описание темы.";
-  }
-  if (normalized.includes("title is") && normalized.includes("characters")) {
-    return "Title короткий. Уточните его так, чтобы он лучше называл страницу и содержал важный поисковый смысл.";
-  }
-  if (normalized.includes("meta name=\"description\"")) {
-    return "На странице нет meta description. Поисковая система может сформировать сниппет автоматически, поэтому добавьте описание на 120-160 символов.";
-  }
-  if (normalized.includes("no open graph")) {
-    return "Open Graph не настроен. При публикации ссылки в соцсетях превью может выглядеть случайным.";
-  }
-  if (normalized.includes("canonical")) {
-    return "Canonical не указан. Если у страницы есть дубли или URL-варианты, добавьте канонический адрес.";
-  }
-  if (normalized.includes("heading-level skip")) {
-    return "В структуре заголовков есть пропуск уровня. Это не всегда SEO-блокер, но лучше сделать иерархию чище.";
-  }
-  return detail.replace(/^Detected likely stack signals:/i, "Найдены вероятные технологии:");
+  if (normalized.includes("http 200")) return detail.replace(/^HTTP 200/i, "HTTP 200");
+  return detail.replace(/^Detected likely stack signals:/i, "Detected likely technology signals:");
 }
 
 function pickMascot({
@@ -1085,7 +1055,7 @@ function pickMascot({
       return {
         src: surprisedMascot,
         alt: t("app.altMascotSurprised", {
-          defaultValue: "ToraSEO mascot surprised by issues",
+          defaultValue: "ToraSEO mascot focused on the analysis",
         }),
       };
     }
@@ -1103,7 +1073,7 @@ function pickMascot({
   return {
     src: neutralMascot,
     alt: t("app.altMascotNeutral", {
-      defaultValue: "ToraSEO mascot ready for analysis",
+      defaultValue: "ToraSEO mascot - analysis complete",
     }),
   };
 }

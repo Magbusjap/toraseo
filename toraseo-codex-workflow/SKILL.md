@@ -94,15 +94,16 @@ chat-only fallback instead of sending them to a generic Scan button.
 
 After the handshake succeeds, use the returned `analysisType` and
 `selectedTools` as the contract. For `site_by_url`, call
-`site_url_internal` when it is available; that single MCP call runs the
-selected site-audit checks inside ToraSEO and writes individual results
-back to the app under normal check names. Do not call separate site URL
-tools unless you are explicitly debugging one check. Do not request
-filesystem access to read JSON result files after the site report is
-already visible in the app unless the user explicitly asks for raw
+`site_url_internal` first; that one MCP permission runs the selected core
+site-audit checks one by one and writes individual results back to the
+app under normal check names, so the progress bar advances per check.
+Then call any additional tools returned after `site_url_internal`. Do not
+request filesystem access to read JSON result files after the site report
+is already visible in the app unless the user explicitly asks for raw
 debugging files. Do not ask the user to paste the report summary, a
-screenshot, JSON, or result files after `site_url_internal` has completed;
-its MCP response contains enough facts for the final user-facing summary.
+screenshot, JSON, or result files after the selected site URL tools have
+completed; their MCP responses and the app report contain enough facts
+for the final user-facing summary.
 For `site_compare`, call `site_compare_internal` when it is available;
 that single MCP call runs the selected site checks for up to three URLs
 and writes compact comparison entries back to the app. Do not render
@@ -158,14 +159,14 @@ rewrite the full article unless the user asks in a later message.
 
 For `page_by_url`, the URL and optional user-highlighted text block are
 already stored in the app state/workspace. Do not ask the user to paste
-the page text into chat. Call `page_url_article_internal` when it is
-returned by the handshake; it extracts the article text, cleans local
-URL/page noise, runs the internal page/text checks, and writes individual
-results back under their normal tool names. If the returned tool list
-also includes Google or Yandex page checks, call those after the
-internal package. Keep the final answer user-facing: do not mention
-handshake details, scan ids, tool ids, or result files unless the user
-asks for debugging.
+the page text into chat. Call each selected page URL MCP tool returned
+by the handshake, in order. `extract_main_text` must run before the
+article-text checks so the temporary article body is available to those
+checks. Google and Yandex page search checks are separate provider-bound
+checks and must not invent clicks, impressions, indexed phrases, or
+mentions without an official connected source. Keep the final answer
+user-facing: do not mention handshake details, scan ids, tool ids, or
+result files unless the user asks for debugging.
 
 Do not confuse `ai_writing_probability` with
 `ai_trace_map`, `genericness_water_check`, `readability_complexity`,
@@ -213,9 +214,10 @@ the user to tick the chat/session approval checkbox and click Allow. Do
 not ask the user to approve each analyzer tool one by one unless Codex
 itself provides no broader approval path.
 
-For `site_by_url`, the only analysis MCP approval should be
-`site_url_internal`. For `site_compare`, the only analysis MCP approval
-should be `site_compare_internal`. After an internal aggregator
+For `site_by_url`, call `site_url_internal` for the core site checks,
+then call any additional tools returned by the handshake.
+For `site_compare`, the only analysis MCP approval should be
+`site_compare_internal`. After an internal aggregator
 completes and ToraSEO has the report, write the final chat summary from
 those results without asking for another MCP tool approval, report
 screenshot, pasted summary, JSON file, or filesystem permission to read
@@ -244,7 +246,11 @@ the temporary bridge cache.
   `место для аудио`.
 - Do not claim that Codex Workflow Instructions are active unless the
   Codex handshake has verified them for the current session.
-- Do not introduce Tora Rank / gamified scoring into an implementation
-  pass unless the user explicitly asks for scoring work.
+- Do not invent or calculate Tora Rank inside chat. If the ToraSEO app
+  already displays a Tora Rank / cgs preview for the active text
+  analysis, describe it as an app-side preview layer built above the
+  completed tool metrics. MCP tools still produce the evidence; the app
+  currently renders the early cgs score. Do not confuse it with raw text
+  counters such as character counts.
 - Keep detailed product rules, handshake notes, and long-form design
   material in `references/`, not in this file.

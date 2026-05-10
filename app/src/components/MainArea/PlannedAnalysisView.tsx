@@ -209,8 +209,7 @@ export default function PlannedAnalysisView({
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-outline-900/65">
                 {t("plannedAnalysis.policyBody", {
-                  defaultValue:
-                    "The standard score remains 0-100%. The dynamic formula changes the evaluation criteria according to selected tools, but it does not pretend that a larger formula automatically means a cleaner or higher score.",
+                  defaultValue: "The standard score remains 0-100%. The dynamic formula changes the evaluation criteria according to selected tools, but it does not pretend that a larger formula automatically means a cleaner or higher score.",
                 })}
               </p>
             </div>
@@ -223,8 +222,7 @@ export default function PlannedAnalysisView({
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-outline-900/65">
                 {t("plannedAnalysis.executionBody", {
-                  defaultValue:
-                    "This screen is selectable in 0.0.9 so the workflow shape is visible. The analysis run button stays locked until the dedicated tools, prompts, and scoring contract are connected.",
+                  defaultValue: "This screen is selectable in 0.0.9 so the workflow shape is visible. The analysis run button stays locked until the dedicated tools, prompts, and scoring contract are connected.",
                 })}
               </p>
             </div>
@@ -520,8 +518,7 @@ function renderInputSurface(
               defaultValue: "Review focus",
             })}
             placeholder={t("plannedAnalysis.forms.designFocusPlaceholder", {
-              defaultValue:
-                "Conversion, readability, page trust, visual hierarchy, or content UX",
+              defaultValue: "Conversion, readability, page trust, visual hierarchy, or content UX",
             })}
             rows={5}
           />
@@ -539,8 +536,7 @@ function renderInputSurface(
         >
           <div className="flex min-h-[170px] items-center justify-center rounded-lg border border-dashed border-outline/20 bg-white/60 px-4 text-center text-sm leading-relaxed text-outline-900/55">
             {t("plannedAnalysis.forms.imageAnalysis.body", {
-              defaultValue:
-                "Image upload, OCR, visual content checks, and media SEO recommendations are in development.",
+              defaultValue: "Image upload, OCR, visual content checks, and media SEO recommendations are in development.",
             })}
           </div>
         </InputPanel>
@@ -672,7 +668,8 @@ function PageByUrlPanel({
   bridgeUnavailable: boolean;
   bridgeUnavailableAppName: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const statsLocale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const urlRef = useRef("");
   const textBlockRef = useRef("");
   const [stats, setStats] = useState("");
@@ -708,7 +705,7 @@ function PageByUrlPanel({
     if (!/^https?:\/\//i.test(data.url)) {
       setNotice(
         t("plannedAnalysis.forms.pageByUrlNeedUrl", {
-          defaultValue: "Введите полный URL страницы: https://...",
+          defaultValue: "Enter the full page URL: https://...",
         }),
       );
       return;
@@ -721,18 +718,15 @@ function PageByUrlPanel({
         setNotice(
           executionMode === "native"
             ? t("plannedAnalysis.forms.pageByUrlSentToApiChat", {
-                defaultValue:
-                  "Анализ страницы по URL запущен в API + AI Chat. Отчет появится здесь после ответа модели.",
+                defaultValue: "Page by URL analysis started in API + AI Chat. The report will appear here after the model responds.",
               })
             : ok === "fallback"
             ? t("plannedAnalysis.forms.pageByUrlSkillFallbackPromptCopied", {
                 appName: bridgeUnavailableAppName,
-                defaultValue:
-                  "Промпт скопирован. Вставьте его в {{appName}}, чтобы ИИ проанализировал страницу по Skill, пока MCP или приложение недоступны.",
+                defaultValue: "Prompt copied. Paste it into {{appName}} so AI can analyze the page through Skill while MCP or the app is unavailable.",
               })
             : t("plannedAnalysis.forms.pageByUrlPromptCopied", {
-                defaultValue:
-                  "Анализ страницы по URL запущен через MCP + Instructions. Результаты появятся здесь после выполнения инструментов.",
+                defaultValue: "Page by URL analysis started through MCP + Instructions. Results will appear here after the tools finish.",
               }),
         );
       }
@@ -747,13 +741,12 @@ function PageByUrlPanel({
         <div>
           <h2 className="font-display text-lg font-semibold text-outline-900">
             {t("plannedAnalysis.forms.pageByUrl.title", {
-              defaultValue: "Источник страницы",
+              defaultValue: "Page source",
             })}
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-outline-900/60">
             {t("plannedAnalysis.forms.pageByUrl.body", {
-              defaultValue:
-                "ToraSEO выделит основной текст статьи из HTML, пропустит рекламные и служебные блоки, затем запустит проверки как в анализе текста.",
+              defaultValue: "ToraSEO will extract the main article text from HTML, skip ads and service blocks, then run checks like text analysis.",
             })}
           </p>
         </div>
@@ -775,22 +768,21 @@ function PageByUrlPanel({
       <div className="mt-4">
         <TextArea
           label={t("plannedAnalysis.forms.optionalTextBlock", {
-            defaultValue: "Необязательный фрагмент текста",
+            defaultValue: "Optional text block",
           })}
           placeholder={t("plannedAnalysis.forms.optionalTextBlockPlaceholder", {
-            defaultValue:
-              "Вставьте конкретный фрагмент, если нужно анализировать только часть страницы.",
+            defaultValue: "Paste a specific fragment if only part of the page should be analyzed.",
           })}
           rows={8}
           actionLabel={t("plannedAnalysis.forms.textBlockAction", {
-            defaultValue: "Фрагмент",
+            defaultValue: "Text block",
           })}
           actionMarker={t("plannedAnalysis.forms.textBlockMarker", {
-            defaultValue: "------------------------- текстовый фрагмент -------------------------",
+            defaultValue: "------------------------- text block -------------------------",
           })}
           onValueChange={(value) => {
             textBlockRef.current = value;
-            setStats(formatTextStats(value));
+            setStats(formatTextStats(value, statsLocale));
           }}
         />
         <p className="mt-2 text-xs text-outline-900/50">{stats}</p>
@@ -814,13 +806,13 @@ function PageByUrlPanel({
           }`}
         >
           {active
-            ? t("sidebar.cancel", { defaultValue: "Отменить" })
+            ? t("sidebar.cancel", { defaultValue: "Cancel" })
             : startedOnce
               ? t("plannedAnalysis.forms.pageByUrlRunAgain", {
-                  defaultValue: "Анализировать страницу повторно",
+                  defaultValue: "Analyze page again",
                 })
               : t("plannedAnalysis.forms.pageByUrlRun", {
-                  defaultValue: "Анализировать страницу",
+                  defaultValue: "Analyze page",
                 })}
         </button>
       </div>
@@ -845,7 +837,8 @@ function ArticleComparePanel({
   bridgeUnavailable: boolean;
   bridgeUnavailableAppName: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const statsLocale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const goalRef = useRef("");
   const textARef = useRef("");
   const textBRef = useRef("");
@@ -904,18 +897,15 @@ function ArticleComparePanel({
         setNotice(
           executionMode === "native"
             ? t("plannedAnalysis.forms.compareSentToApiChat", {
-                defaultValue:
-                  "Comparison started in API + AI Chat. The report will appear here after the model responds.",
+                defaultValue: "Comparison started in API + AI Chat. The report will appear here after the model responds.",
               })
             : ok === "fallback"
             ? t("plannedAnalysis.forms.compareSkillFallbackPromptCopied", {
                 appName: bridgeUnavailableAppName,
-                defaultValue:
-                  "Prompt copied. Paste it into {{appName}} chat so AI can compare the two texts directly in chat while MCP or the app is unavailable.",
+                defaultValue: "Prompt copied. Paste it into {{appName}} chat: the Skill will compare the two texts directly in chat while MCP or the app is unavailable.",
               })
             : t("plannedAnalysis.forms.compareBridgeUnavailable", {
-                defaultValue:
-                  "Сравнение двух текстов запущено через MCP + Instructions. Результаты появятся здесь после выполнения инструментов.",
+                defaultValue: "Two-text comparison started through MCP + Instructions. Results will appear here after the tools finish.",
               }),
         );
       }
@@ -930,13 +920,12 @@ function ArticleComparePanel({
         <div>
           <h2 className="font-display text-lg font-semibold text-outline-900">
             {t("plannedAnalysis.forms.articleCompare.title", {
-              defaultValue: "Две версии статьи",
+              defaultValue: "Two article versions",
             })}
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-outline-900/60">
             {t("plannedAnalysis.forms.articleCompare.body", {
-              defaultValue:
-                "Сравните два текста по интенту, структуре, полноте, стилю, доверию, риску похожести и плану улучшения.",
+              defaultValue: "Compare two texts by intent, structure, completeness, style, trust, similarity risk, and improvement plan.",
             })}
           </p>
         </div>
@@ -948,11 +937,10 @@ function ArticleComparePanel({
       <div className="mt-4">
         <TextArea
           label={t("plannedAnalysis.forms.compareGoal", {
-            defaultValue: "Цель анализа",
+            defaultValue: "Analysis goal",
           })}
           placeholder={t("plannedAnalysis.forms.compareGoalPlaceholder", {
-            defaultValue:
-              "Например: найти слабые стороны статьи B, улучшить мой текст или нейтрально сравнить обе версии.",
+            defaultValue: "For example: find weaknesses in article B, improve my text, or compare both versions neutrally.",
           })}
           rows={3}
           onValueChange={(value) => {
@@ -971,16 +959,16 @@ function ArticleComparePanel({
           <div className="mt-3">
             <TextArea
               label={t("plannedAnalysis.forms.articleA", {
-                defaultValue: "Статья A",
+                defaultValue: "Article A role",
               })}
               placeholder={t("plannedAnalysis.forms.articlePlaceholder", {
-                defaultValue: "Вставьте текст статьи сюда",
+                defaultValue: "Paste the article text here",
               })}
               rows={14}
               mediaToolbar
               onValueChange={(value) => {
                 textARef.current = value;
-                setTextAStats(formatTextStats(value));
+                setTextAStats(formatTextStats(value, statsLocale));
               }}
             />
           </div>
@@ -996,16 +984,16 @@ function ArticleComparePanel({
           <div className="mt-3">
             <TextArea
               label={t("plannedAnalysis.forms.articleB", {
-                defaultValue: "Статья B",
+                defaultValue: "Article B role",
               })}
               placeholder={t("plannedAnalysis.forms.articlePlaceholder", {
-                defaultValue: "Вставьте текст статьи сюда",
+                defaultValue: "Paste the article text here",
               })}
               rows={14}
               mediaToolbar
               onValueChange={(value) => {
                 textBRef.current = value;
-                setTextBStats(formatTextStats(value));
+                setTextBStats(formatTextStats(value, statsLocale));
               }}
             />
           </div>
@@ -1031,13 +1019,13 @@ function ArticleComparePanel({
           }`}
         >
           {active
-            ? t("sidebar.cancel", { defaultValue: "Отменить" })
+            ? t("sidebar.cancel", { defaultValue: "Cancel" })
             : compareStartedOnce
               ? t("plannedAnalysis.forms.compareRunAgain", {
-                  defaultValue: "Сравнить тексты повторно",
+                  defaultValue: "Compare texts again",
                 })
               : t("plannedAnalysis.forms.compareRun", {
-                  defaultValue: "Сравнить тексты",
+                  defaultValue: "Compare texts",
                 })}
         </button>
       </div>
@@ -1070,14 +1058,14 @@ function SiteComparePanel({
   const run = async () => {
     if (active) {
       onCancel();
-      setNotice(t("plannedAnalysis.forms.scanCancelled", { defaultValue: "Анализ отменён." }));
+      setNotice(t("plannedAnalysis.forms.scanCancelled", { defaultValue: "Analysis cancelled." }));
       return;
     }
     if (executionMode === "bridge" && bridgeUnavailable) {
       setNotice(
         t("plannedAnalysis.forms.bridgeUnavailable", {
           appName: bridgeUnavailableAppName,
-          defaultValue: "{{appName}} недоступен. Откройте его перед запуском bridge-анализа.",
+          defaultValue: "{{appName}} is unavailable. Open it before starting bridge analysis.",
         }),
       );
       return;
@@ -1086,7 +1074,7 @@ function SiteComparePanel({
     if (urls.length < 2) {
       setNotice(
         t("plannedAnalysis.forms.siteCompareNeedUrls", {
-          defaultValue: "Добавьте минимум два URL для сравнения.",
+          defaultValue: "Add at least two URLs for comparison.",
         }),
       );
       return;
@@ -1098,12 +1086,10 @@ function SiteComparePanel({
         setNotice(
           executionMode === "native"
             ? t("plannedAnalysis.forms.siteCompareApiStarted", {
-                defaultValue:
-                  "Открыт AI Chat. ToraSEO сканирует сайты, затем ИИ сформирует сравнительный отчет.",
+                defaultValue: "AI Chat opened. ToraSEO is scanning the sites, then AI will form the comparison report.",
               })
             : t("plannedAnalysis.forms.siteCompareStarted", {
-                defaultValue:
-                  "Сравнение запущено через MCP + Instructions. Результат появится ниже как единый сравнительный dashboard.",
+                defaultValue: "Comparison started through MCP + Instructions. The result will appear below as one comparative dashboard.",
               }),
         );
       }
@@ -1118,13 +1104,12 @@ function SiteComparePanel({
         <div>
           <h2 className="font-display text-lg font-semibold text-outline-900">
             {t("plannedAnalysis.forms.siteCompare.title", {
-              defaultValue: "Сравнение сайтов по URL",
+              defaultValue: "Comparable sites",
             })}
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-outline-900/60">
             {t("plannedAnalysis.forms.siteCompare.body", {
-              defaultValue:
-                "Сравните до трёх сайтов через общий dashboard: кто сильнее, почему, где разрыв и что исправить первым.",
+              defaultValue: "Compare up to three sites through one dashboard: who is stronger, why, where the gap is, and what to fix first.",
             })}
           </p>
         </div>
@@ -1155,11 +1140,10 @@ function SiteComparePanel({
       <div className="mt-4">
         <TextArea
           label={t("plannedAnalysis.forms.siteCompareFocus", {
-            defaultValue: "Фокус сравнения",
+            defaultValue: "Comparison focus",
           })}
           placeholder={t("plannedAnalysis.forms.siteCompareFocusPlaceholder", {
-            defaultValue:
-              "Например: сравнить мой сайт с конкурентами, найти разрывы в metadata и контенте, понять что перенять у лидера.",
+            defaultValue: "Example: compare my site with competitors, find metadata and content gaps, and understand what to borrow from the leader.",
           })}
           rows={3}
           onValueChange={(value) => {
@@ -1170,14 +1154,20 @@ function SiteComparePanel({
 
       <div className="mt-5 grid gap-3 md:grid-cols-4">
         {[
-          ["Summary", "Победитель и главный разрыв"],
-          ["Site cards", "Только краткие KPI"],
-          ["Heatmap", "Направления без перегруза"],
-          ["Insights", "Что перенять и исправить"],
-        ].map(([title, detail]) => (
+          ["summary", "Summary"],
+          ["siteCards", "Site cards"],
+          ["heatmap", "Heatmap"],
+          ["insights", "Insights"],
+        ].map(([key, title]) => (
           <div key={title} className="rounded-lg border border-orange-100 bg-orange-50/40 p-3">
-            <p className="text-sm font-semibold text-outline-900">{title}</p>
-            <p className="mt-1 text-xs leading-relaxed text-outline-900/55">{detail}</p>
+            <p className="text-sm font-semibold text-outline-900">
+              {t(`plannedAnalysis.forms.siteComparePreview.${key}.title`, {
+                defaultValue: title,
+              })}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
+              {t(`plannedAnalysis.forms.siteComparePreview.${key}.detail`)}
+            </p>
           </div>
         ))}
       </div>
@@ -1200,13 +1190,13 @@ function SiteComparePanel({
           }`}
         >
           {active
-            ? t("sidebar.cancel", { defaultValue: "Отменить" })
+            ? t("sidebar.cancel", { defaultValue: "Cancel" })
             : startedOnce
               ? t("plannedAnalysis.forms.siteCompareRunAgain", {
-                  defaultValue: "Сравнить сайты повторно",
+                  defaultValue: "Compare sites again",
                 })
               : t("plannedAnalysis.forms.siteCompareRun", {
-                  defaultValue: "Сравнить сайты",
+                  defaultValue: "Compare sites",
                 })}
         </button>
       </div>
@@ -1257,10 +1247,12 @@ function SiteCompareResultsDashboard({
     return (
       <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
         <h2 className="font-display text-lg font-semibold text-outline-900">
-          Ожидаем сайты для сравнения
+          {locale === "ru" ? "Ожидаем сайты для сравнения" : "Waiting for sites to compare"}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
-          Добавьте минимум два URL. Итоговый экран покажет общий dashboard, а не три полных аудита рядом.
+          {locale === "ru"
+            ? "Добавьте минимум два URL. Итоговый экран покажет общий dashboard, а не три полных аудита рядом."
+            : "Add at least two URLs. The final screen will show one shared dashboard, not three full audits side by side."}
         </p>
       </section>
     );
@@ -1296,10 +1288,12 @@ function SiteCompareResultsDashboard({
     return (
       <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
         <h2 className="font-display text-lg font-semibold text-outline-900">
-          API + AI Chat выполняет сравнение
+          {locale === "ru" ? "API + AI Chat выполняет сравнение" : "API + AI Chat is running the comparison"}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
-          Чат открыт отдельно. ToraSEO сначала собирает публичные URL-проверки по каждому сайту, затем ИИ формирует единый сравнительный dashboard.
+          {locale === "ru"
+            ? "Чат открыт отдельно. ToraSEO сначала собирает публичные URL-проверки по каждому сайту, затем ИИ формирует единый сравнительный dashboard."
+            : "The chat is open separately. ToraSEO first collects public URL checks for each site, then AI forms one comparative dashboard."}
         </p>
         <p className="mt-3 text-xs font-semibold text-outline-900/45">
           {getAnalysisVersionText("site_compare", locale)}
@@ -1309,10 +1303,13 @@ function SiteCompareResultsDashboard({
   }
   const openDetails = () => {
     const detailsReport = runtimeReport?.siteCompare
-      ? runtimeReport
+      ? runtimeReport.locale === locale
+        ? runtimeReport
+        : { ...runtimeReport, locale }
       : buildSiteCompareRuntimeReport({
           bridgeState,
           input,
+          locale,
           cards,
           winnerUrl: winner?.url ?? null,
           completedTools,
@@ -1334,10 +1331,15 @@ function SiteCompareResultsDashboard({
               Competitive comparison dashboard
             </p>
             <h2 className="mt-1 font-display text-xl font-semibold text-outline-900">
-              Сравнение сайтов по URL
+              {locale === "ru" ? "Сравнение сайтов по URL" : "Site comparison by URL"}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
-              Победитель: <strong>{winner?.url ?? "ожидаем данные"}</strong>. Главная задача экрана — быстро ответить: кто лучше, почему и что делать дальше.
+              {locale === "ru" ? "Победитель" : "Winner"}:{" "}
+              <strong>{winner?.url ?? (locale === "ru" ? "ожидаем данные" : "waiting for data")}</strong>.
+              {" "}
+              {locale === "ru"
+                ? "Главная задача экрана — быстро ответить: кто лучше, почему и что делать дальше."
+                : "The screen is meant to answer quickly: who is stronger, why, and what to do next."}
             </p>
             <p className="mt-2 text-xs font-semibold text-outline-900/45">
               {getAnalysisVersionText("site_compare", locale)}
@@ -1346,8 +1348,8 @@ function SiteCompareResultsDashboard({
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-outline-900/55">
               {reportCompare
-                ? `${reportCompare.completed}/${reportCompare.total} проверок`
-                : `${completedTools}/${totalTools} проверок`}
+                ? `${reportCompare.completed}/${reportCompare.total} ${locale === "ru" ? "проверок" : "checks"}`
+                : `${completedTools}/${totalTools} ${locale === "ru" ? "проверок" : "checks"}`}
             </span>
             <button
               type="button"
@@ -1355,7 +1357,7 @@ function SiteCompareResultsDashboard({
               disabled={urls.length < 2}
               className="rounded-md border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-800 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              {t("analysisPanel.actions.details", { defaultValue: "Подробнее" })}
+              {t("analysisPanel.actions.details", { defaultValue: "Details" })}
             </button>
           </div>
         </div>
@@ -1375,7 +1377,7 @@ function SiteCompareResultsDashboard({
               </div>
               {winner?.url === card.url && (
                 <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-                  Победитель
+                  {locale === "ru" ? "Победитель" : "Winner"}
                 </span>
               )}
             </div>
@@ -1392,7 +1394,7 @@ function SiteCompareResultsDashboard({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="rounded-lg border border-outline/10 bg-white p-5">
           <h3 className="font-display text-lg font-semibold text-outline-900">
-            Сравнительные метрики
+            {locale === "ru" ? "Сравнительные метрики" : "Comparative metrics"}
           </h3>
           <div className="mt-4 space-y-4">
             {metrics.map(({ label, key }) => (
@@ -1430,7 +1432,7 @@ function SiteCompareResultsDashboard({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="rounded-lg border border-outline/10 bg-white p-5">
           <h3 className="font-display text-lg font-semibold text-outline-900">
-            Delta к лидеру
+            {locale === "ru" ? "Delta к лидеру" : "Delta to leader"}
           </h3>
           <div className="mt-4 space-y-3">
             {cards.map((card) => {
@@ -1453,15 +1455,29 @@ function SiteCompareResultsDashboard({
 
         <section className="rounded-lg border border-outline/10 bg-white p-5">
           <h3 className="font-display text-lg font-semibold text-outline-900">
-            Что делать
+            {locale === "ru" ? "Что делать" : "What to do"}
           </h3>
           <div className="mt-4 space-y-3 text-sm text-outline-900/70">
-            <p><strong>Что перенять у лидера:</strong> стабильные направления без критичных замечаний, полный metadata-пакет и более глубокий контент.</p>
-            <p><strong>Что исправить первым:</strong> красные ячейки в матрице, затем самые большие разрывы по Metadata, Content и Indexability.</p>
+            <p>
+              <strong>{locale === "ru" ? "Что перенять у лидера:" : "What to borrow from the leader:"}</strong>{" "}
+              {locale === "ru"
+                ? "стабильные направления без критичных замечаний, полный metadata-пакет и более глубокий контент."
+                : "stable directions without critical findings, a complete metadata package, and deeper content."}
+            </p>
+            <p>
+              <strong>{locale === "ru" ? "Что исправить первым:" : "What to fix first:"}</strong>{" "}
+              {locale === "ru"
+                ? "красные ячейки в матрице, затем самые большие разрывы по Metadata, Content и Indexability."
+                : "red cells in the matrix, then the largest gaps in Metadata, Content, and Indexability."}
+            </p>
             <p className="rounded-md bg-orange-50 px-3 py-2 text-xs text-outline-900/55">
               {reportReady
-                ? "Сравнение завершено. Можно открывать детали по направлениям и запускать повторный прогон после правок."
-                : "Пока идёт сбор данных. Dashboard уже показывает поступающие сигналы компактно."}
+                ? locale === "ru"
+                  ? "Сравнение завершено. Можно открывать детали по направлениям и запускать повторный прогон после правок."
+                  : "Comparison is complete. You can open direction details and rerun after edits."
+                : locale === "ru"
+                  ? "Пока идёт сбор данных. Dashboard уже показывает поступающие сигналы компактно."
+                  : "Data is still being collected. The dashboard already shows incoming signals compactly."}
             </p>
           </div>
         </section>
@@ -1469,13 +1485,13 @@ function SiteCompareResultsDashboard({
 
       <section className="rounded-lg border border-outline/10 bg-white p-5">
         <h3 className="font-display text-lg font-semibold text-outline-900">
-          Heatmap / матрица направлений
+          {locale === "ru" ? "Heatmap / матрица направлений" : "Heatmap / direction matrix"}
         </h3>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-outline-900/45">
               <tr>
-                <th className="py-2 pr-3">Направление</th>
+                <th className="py-2 pr-3">{locale === "ru" ? "Направление" : "Direction"}</th>
                 {cards.map((card) => (
                   <th key={card.url} className="px-3 py-2">{card.url}</th>
                 ))}
@@ -1488,12 +1504,12 @@ function SiteCompareResultsDashboard({
                   {"values" in direction
                     ? direction.values.map((item) => (
                         <td key={`${direction.label}-${item.url}`} className="px-3 py-3">
-                          <SiteCompareStatusPill status={item.status} />
+                          <SiteCompareStatusPill status={item.status} locale={locale} />
                         </td>
                       ))
                     : cards.map((card) => (
                         <td key={`${direction.tool}-${card.url}`} className="px-3 py-3">
-                          <SiteCompareStatusPill status={statusForSiteTool(bridgeState, direction.tool, card.url)} />
+                          <SiteCompareStatusPill status={statusForSiteTool(bridgeState, direction.tool, card.url)} locale={locale} />
                         </td>
                       ))}
                 </tr>
@@ -1526,12 +1542,27 @@ function SiteCompareKpi({
   );
 }
 
-function SiteCompareStatusPill({ status }: { status: SiteCompareStatus }) {
+function SiteCompareStatusPill({
+  status,
+  locale,
+}: {
+  status: SiteCompareStatus;
+  locale: "ru" | "en";
+}) {
   const map: Record<SiteCompareStatus, { label: string; className: string }> = {
     good: { label: "OK", className: "bg-emerald-50 text-emerald-700" },
-    warn: { label: "Проверить", className: "bg-amber-50 text-amber-700" },
-    bad: { label: "Проблема", className: "bg-red-50 text-red-700" },
-    pending: { label: "Ожидаем", className: "bg-outline-900/5 text-outline-900/45" },
+    warn: {
+      label: locale === "ru" ? "Проверить" : "Review",
+      className: "bg-amber-50 text-amber-700",
+    },
+    bad: {
+      label: locale === "ru" ? "Проблема" : "Problem",
+      className: "bg-red-50 text-red-700",
+    },
+    pending: {
+      label: locale === "ru" ? "Ожидаем" : "Waiting",
+      className: "bg-outline-900/5 text-outline-900/45",
+    },
   };
   const item = map[status];
   return (
@@ -1628,6 +1659,7 @@ function SiteCompareRadar({ cards }: { cards: SiteCompareCardData[] }) {
 function buildSiteCompareRuntimeReport({
   bridgeState,
   input,
+  locale,
   cards,
   winnerUrl,
   completedTools,
@@ -1637,6 +1669,7 @@ function buildSiteCompareRuntimeReport({
 }: {
   bridgeState: CurrentScanState | null;
   input: SiteComparePromptData | null;
+  locale: "ru" | "en";
   cards: SiteCompareCardData[];
   winnerUrl: string | null;
   completedTools: number;
@@ -1656,26 +1689,52 @@ function buildSiteCompareRuntimeReport({
     label: metric.label,
     values: cards.map((card) => ({ url: card.url, value: Number(card[metric.key]) || 0 })),
   }));
-  const insights = [
-    winnerUrl
-      ? `Лучший общий SEO-профиль по выбранным публичным проверкам: ${winnerUrl}.`
-      : "Победитель пока не определён: дождитесь завершения проверок.",
-    "Сначала исправляйте красные направления в heatmap, затем самые большие разрывы по Metadata, Content и Indexability.",
-    "Не воспринимайте сравнение как SERP-истину: это публичные технические и контентные сигналы без Search Console, GA4 и внешних ссылок.",
-  ];
+  const isRu = locale === "ru";
+  const insights = isRu
+    ? [
+        winnerUrl
+          ? `Лучший общий SEO-профиль по выбранным публичным проверкам: ${winnerUrl}.`
+          : "Победитель пока не определён: дождитесь завершения проверок.",
+        "Сначала исправляйте красные направления в heatmap, затем самые большие разрывы по Metadata, Content и Indexability.",
+        "Не воспринимайте сравнение как SERP-истину: это публичные технические и контентные сигналы без Search Console, GA4 и внешних ссылок.",
+      ]
+    : [
+        winnerUrl
+          ? `Best overall SEO profile from the selected public checks: ${winnerUrl}.`
+          : "Winner is not determined yet: wait until the checks finish.",
+        "Fix red directions in the heatmap first, then the largest gaps in Metadata, Content, and Indexability.",
+        "Do not treat the comparison as SERP truth: these are public technical and content signals without Search Console, GA4, or backlink data.",
+      ];
   return {
     analysisType: "site_compare",
     analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    locale,
     mode: "strict_audit",
     providerId: "openrouter",
     model: "MCP + Instructions",
     generatedAt: new Date().toISOString(),
     summary: winnerUrl
-      ? `Сравнение сайтов по URL завершено. Победитель: ${winnerUrl}.`
-      : "Сравнение сайтов по URL ожидает данные.",
-    nextStep: "Откройте матрицу направлений, исправьте красные блоки и повторите сравнение.",
+      ? isRu
+        ? `Сравнение сайтов по URL завершено. Победитель: ${winnerUrl}.`
+        : `Site comparison by URL is complete. Winner: ${winnerUrl}.`
+      : isRu
+        ? "Сравнение сайтов по URL ожидает данные."
+        : "Site comparison by URL is waiting for data.",
+    nextStep: isRu
+      ? "Откройте матрицу направлений, исправьте красные блоки и повторите сравнение."
+      : "Open the direction matrix, fix the red blocks, and run the comparison again.",
     confirmedFacts: insights.map((detail, index) => ({
-      title: index === 0 ? "Сравнительный итог" : index === 1 ? "Приоритет правок" : "Граница анализа",
+      title: isRu
+        ? index === 0
+          ? "Сравнительный итог"
+          : index === 1
+            ? "Приоритет правок"
+            : "Граница анализа"
+        : index === 0
+          ? "Comparison result"
+          : index === 1
+            ? "Fix priority"
+            : "Analysis boundary",
       detail,
       priority: index === 1 ? "high" : "medium",
       sourceToolIds: bridgeState?.selectedTools ?? [],
@@ -1845,7 +1904,7 @@ function ArticleTextPanel({
       onCancel();
       setNotice(
         t("plannedAnalysis.forms.scanCancelled", {
-          defaultValue: "Анализ отменён.",
+          defaultValue: "Analysis cancelled.",
         }),
       );
       return;
@@ -1858,8 +1917,7 @@ function ArticleTextPanel({
     if (bridgeUnavailable) {
       setNotice(
         t("plannedAnalysis.forms.bridgeUnavailable", {
-          defaultValue:
-            "{{appName}} закрыт. Запустите его снова или вернитесь на главную и выберите API + AI Chat.",
+          defaultValue: "{{appName}} is unavailable. Open it before starting bridge analysis.",
           appName: bridgeUnavailableAppName,
         }),
       );
@@ -1878,8 +1936,7 @@ function ArticleTextPanel({
     ) {
       setNotice(
         t("plannedAnalysis.forms.aiDraftNeedContext", {
-          defaultValue:
-            "Добавьте хотя бы тему, запрос или короткую заготовку текста, чтобы ИИ мог предложить решение.",
+          defaultValue: "Add at least a topic, query, or short text draft so AI can suggest a useful solution.",
         }),
       );
       setShake(true);
@@ -1890,7 +1947,7 @@ function ArticleTextPanel({
     if (action === "scan" && data.body.trim().length === 0) {
       setNotice(
         t("plannedAnalysis.forms.scanNeedText", {
-          defaultValue: "Добавьте текст статьи, чтобы подготовить промпт анализа.",
+          defaultValue: "Add article text to prepare the analysis prompt.",
         }),
       );
       return;
@@ -1906,23 +1963,19 @@ function ArticleTextPanel({
         executionMode === "native"
           ? action === "solution"
             ? t("plannedAnalysis.forms.aiDraftSentToApiChat", {
-                defaultValue:
-                  "Запрос отправлен в API + AI Chat, чтобы ИИ смог предоставить вам решение.",
+                defaultValue: "Request sent to API + AI Chat so AI can provide a solution.",
               })
             : t("plannedAnalysis.forms.scanSentToApiChat", {
-                defaultValue:
-                  "Текст отправлен в API + AI Chat, чтобы ИИ проанализировал его.",
+                defaultValue: "Report formed, and the text was sent to API + AI Chat for a short explanation.",
               })
           : action === "solution"
           ? t("plannedAnalysis.forms.aiDraftPromptCopied", {
               appName: bridgeTargetAppName,
-              defaultValue:
-                "Промпт скопирован. Вставьте его в чат {{appName}}, чтобы ИИ продолжил работу по этому анализу.",
+              defaultValue: "Prompt copied. Paste it into {{appName}} chat so AI can provide a solution.",
             })
           : t("plannedAnalysis.forms.scanPromptCopied", {
               appName: bridgeTargetAppName,
-              defaultValue:
-                "Промпт скопирован. Вставьте его в чат {{appName}}, чтобы ИИ продолжил работу по этому анализу.",
+              defaultValue: "Prompt copied. Paste it into {{appName}} chat so AI can continue this analysis.",
             }),
       );
     } catch (err) {
@@ -1930,12 +1983,10 @@ function ArticleTextPanel({
       setNotice(
         executionMode === "native"
           ? t("plannedAnalysis.forms.aiChatOpenFailed", {
-              defaultValue:
-                "Не удалось открыть API + AI Chat. Проверьте провайдера и попробуйте снова.",
+              defaultValue: "Could not open API + AI Chat. Check the provider and try again.",
             })
           : t("plannedAnalysis.forms.bridgeRunFailed", {
-              defaultValue:
-                "Не удалось запустить анализ. Проверьте режим MCP + Instructions и попробуйте снова.",
+              defaultValue: "Could not start analysis. Check MCP + Instructions mode and try again.",
             }),
       );
     } finally {
@@ -1964,10 +2015,10 @@ function ArticleTextPanel({
               } ${shake ? "toraseo-shake" : ""}`}
             >
               {isSolutionRunning
-                ? t("sidebar.cancel", { defaultValue: "Отменить" })
+                ? t("sidebar.cancel", { defaultValue: "Cancel" })
                 : solutionProvidedOnce
                   ? t("plannedAnalysis.forms.aiDraftAgainAction", {
-                      defaultValue: "Предложить решение повторно",
+                      defaultValue: "Suggest solution again",
                     })
                   : t("plannedAnalysis.forms.aiDraftAction")}
             </button>
@@ -1982,10 +2033,10 @@ function ArticleTextPanel({
               }
             >
               {isScanRunning
-                ? t("sidebar.cancel", { defaultValue: "Отменить" })
+                ? t("sidebar.cancel", { defaultValue: "Cancel" })
                 : scanStartedOnce
                   ? t("plannedAnalysis.forms.scanReadyTextAgainAction", {
-                      defaultValue: "Сканировать текст повторно",
+                      defaultValue: "Scan text again",
                     })
                   : t("plannedAnalysis.forms.scanReadyTextAction")}
             </button>
@@ -2000,11 +2051,10 @@ function ArticleTextPanel({
     >
       <TextInput
         label={t("plannedAnalysis.forms.textTopic", {
-          defaultValue: "Text topic (optional)",
+          defaultValue: "Scan text",
         })}
         placeholder={t("plannedAnalysis.forms.textTopicPlaceholder", {
-          defaultValue:
-            "Topic, title, or intent. If the body has its own title, the body title wins.",
+          defaultValue: "Topic, title, or intent. If the body has its own title, the body title wins.",
         })}
         onValueChange={(value) => {
           topicRef.current = value;
@@ -2101,54 +2151,55 @@ function ApiArticleTextReportPanel({
       <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
         <h2 className="font-display text-lg font-semibold text-outline-900">
           {t("plannedAnalysis.results.waitingAiReportTitle", {
-            defaultValue: "Ожидаем отчет от ИИ",
+            defaultValue: "Waiting for the AI report",
           })}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
           {t("plannedAnalysis.results.waitingAiReportBody", {
-            defaultValue:
-              "В API-режиме структурированный отчет формирует выбранная модель. ToraSEO покажет результат здесь после ответа AI Chat.",
+            defaultValue: "In API mode, the selected model forms the structured report. ToraSEO will show it here after the AI Chat response.",
           })}
         </p>
       </section>
     );
   }
-  const article = report.articleText;
-  const reportAnalysisType = (report.analysisType ??
+  const localizedReport: RuntimeAuditReport =
+    report.locale === locale ? report : { ...report, locale };
+  const article = localizedReport.articleText;
+  const reportAnalysisType = (localizedReport.analysisType ??
     "article_text") as AnalysisTypeId;
   const reportComplete = Boolean(
-    report &&
+    localizedReport &&
       completedTools >= totalTools &&
       (!article || article.coverage.completed >= article.coverage.total),
   );
   const highlightFacts =
     article && article.priorities.length > 0
       ? article.priorities.slice(0, 4)
-      : report.confirmedFacts.slice(0, 6);
+      : localizedReport.confirmedFacts.slice(0, 6);
   const hiddenSourceCount =
     article && article.priorities.length > 0
       ? article.priorities.length
-      : report.confirmedFacts.length;
+      : localizedReport.confirmedFacts.length;
   const hiddenFactCount = Math.max(
     0,
     hiddenSourceCount - highlightFacts.length,
   );
-  const visibleEvidenceFacts = report.confirmedFacts;
+  const visibleEvidenceFacts = localizedReport.confirmedFacts;
 
   const openDetails = () => {
     if (!reportComplete) return;
-    void window.toraseo.runtime.openReportWindow(report);
+    void window.toraseo.runtime.openReportWindow(localizedReport);
   };
 
   const exportReport = async () => {
     if (!reportComplete) return;
     setExportStatus(null);
     setCopyStatus(null);
-    const result = await window.toraseo.runtime.exportReportPdf(report);
+    const result = await window.toraseo.runtime.exportReportPdf(localizedReport);
     if (result.ok) {
       setExportStatus(
         t("plannedAnalysis.results.exportReady", {
-          defaultValue: "Отчет экспортирован.",
+          defaultValue: "Report exported.",
         }),
       );
       return;
@@ -2156,13 +2207,13 @@ function ApiArticleTextReportPanel({
     if (result.error === "cancelled") {
       setExportStatus(
         t("plannedAnalysis.results.exportCancelled", {
-          defaultValue: "Экспорт отменен.",
+          defaultValue: "Export cancelled.",
         }),
       );
       return;
     }
     const fallback = t("plannedAnalysis.results.exportFailed", {
-      defaultValue: "Не удалось экспортировать отчет.",
+      defaultValue: "Failed to export the report.",
     });
     setExportStatus(result.error ? `${fallback} ${result.error}` : fallback);
   };
@@ -2171,17 +2222,18 @@ function ApiArticleTextReportPanel({
     if (!reportComplete) return;
     setExportStatus(null);
     setCopyStatus(null);
-    const result = await window.toraseo.runtime.copyArticleSourceText(report);
+    const result =
+      await window.toraseo.runtime.copyArticleSourceText(localizedReport);
     if (result.ok) {
       setCopyStatus(
         t("plannedAnalysis.results.copySourceReady", {
-          defaultValue: "Исходный текст скопирован.",
+          defaultValue: "Source text copied.",
         }),
       );
       return;
     }
     const fallback = t("plannedAnalysis.results.copySourceFailed", {
-      defaultValue: "Не удалось скопировать исходный текст.",
+      defaultValue: "Could not copy the source text.",
     });
     setCopyStatus(result.error ? `${fallback} ${result.error}` : fallback);
   };
@@ -2190,11 +2242,12 @@ function ApiArticleTextReportPanel({
     if (!reportComplete) return;
     setExportStatus(null);
     setCopyStatus(null);
-    const result = await window.toraseo.runtime.exportReportJson(report);
+    const result =
+      await window.toraseo.runtime.exportReportJson(localizedReport);
     if (result.ok) {
       setExportStatus(
         t("plannedAnalysis.results.exportJsonReady", {
-          defaultValue: "QA JSON экспортирован.",
+          defaultValue: "QA JSON exported.",
         }),
       );
       return;
@@ -2202,13 +2255,13 @@ function ApiArticleTextReportPanel({
     if (result.error === "cancelled") {
       setExportStatus(
         t("plannedAnalysis.results.exportCancelled", {
-          defaultValue: "Экспорт отменен.",
+          defaultValue: "Export cancelled.",
         }),
       );
       return;
     }
     const fallback = t("plannedAnalysis.results.exportFailed", {
-      defaultValue: "Не удалось экспортировать отчет.",
+      defaultValue: "Failed to export the report.",
     });
     setExportStatus(result.error ? `${fallback} ${result.error}` : fallback);
   };
@@ -2219,7 +2272,7 @@ function ApiArticleTextReportPanel({
         <div>
           <h2 className="font-display text-lg font-semibold text-outline-900">
             {t("plannedAnalysis.results.title", {
-              defaultValue: "Результаты анализа",
+              defaultValue: "Analysis results",
             })}
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-outline-900/60">
@@ -2236,7 +2289,7 @@ function ApiArticleTextReportPanel({
             disabled={!reportComplete}
             className="rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-semibold text-outline-900/70 transition hover:border-primary/40 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {t("analysisPanel.actions.details", { defaultValue: "Подробнее" })}
+            {t("analysisPanel.actions.details", { defaultValue: "Details" })}
           </button>
           <button
             type="button"
@@ -2245,7 +2298,7 @@ function ApiArticleTextReportPanel({
             className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
           >
             {t("plannedAnalysis.results.export", {
-              defaultValue: "Экспортировать",
+              defaultValue: "Export",
             })}
           </button>
           <button
@@ -2255,7 +2308,7 @@ function ApiArticleTextReportPanel({
             className="rounded-md border border-primary/25 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/45 hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-outline/10 disabled:bg-outline-900/5 disabled:text-outline-900/35"
           >
             {t("plannedAnalysis.results.copySourceText", {
-              defaultValue: "Копировать исходный текст",
+              defaultValue: "Copy source text",
             })}
           </button>
           {evalLabEnabled && (
@@ -2289,7 +2342,7 @@ function ApiArticleTextReportPanel({
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-outline-900/45">
               {t("plannedAnalysis.results.readiness", {
-                defaultValue: "Готовность к публикации",
+                defaultValue: "Publish readiness",
               })}
             </p>
             <h3 className="mt-1 text-base font-semibold text-outline-900">
@@ -2302,7 +2355,7 @@ function ApiArticleTextReportPanel({
           <article className="rounded-lg border border-orange-100 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-outline-900/45">
               {t("plannedAnalysis.results.coverage", {
-                defaultValue: "Покрытие инструментами",
+                defaultValue: "Tool coverage",
               })}
             </p>
             <p className="mt-2 text-3xl font-semibold text-outline-900">
@@ -2330,23 +2383,21 @@ function ApiArticleTextReportPanel({
             <div className="grid gap-3 lg:grid-cols-2">
               <InsightList
                 title={t("plannedAnalysis.results.strengths", {
-                  defaultValue: "Сильные стороны",
+                  defaultValue: "Strengths",
                 })}
                 items={article.strengths}
                 emptyText={t("plannedAnalysis.results.strengthsEmpty", {
-                  defaultValue:
-                    "Сильные стороны появятся после завершения проверок.",
+                  defaultValue: "Strengths will appear after checks finish.",
                 })}
                 tone="good"
               />
               <InsightList
                 title={t("plannedAnalysis.results.weaknesses", {
-                  defaultValue: "Слабые стороны",
+                  defaultValue: "Weaknesses",
                 })}
                 items={article.weaknesses}
                 emptyText={t("plannedAnalysis.results.weaknessesEmpty", {
-                  defaultValue:
-                    "Явных слабых сторон по текущим инструментам не найдено.",
+                  defaultValue: "No clear weaknesses were found by the current tools.",
                 })}
                 tone="warn"
               />
@@ -2365,7 +2416,7 @@ function ApiArticleTextReportPanel({
           <section className="mt-4 rounded-lg border border-outline/10 bg-white p-4">
             <h3 className="text-center text-sm font-semibold text-outline-900">
               {t("plannedAnalysis.results.priorityTitle", {
-                defaultValue: "Что исправить сначала",
+                defaultValue: "What to fix first",
               })}
             </h3>
             <div className="mt-3 grid gap-2 lg:grid-cols-2">
@@ -2377,8 +2428,7 @@ function ApiArticleTextReportPanel({
               <p className="mt-3 text-xs leading-relaxed text-outline-900/50">
                 {t("plannedAnalysis.results.hiddenAiReportItems", {
                   count: hiddenFactCount,
-                  defaultValue:
-                    "Еще {{count}} пунктов доступны в подробном отчете, но здесь показаны только ключевые приоритеты.",
+                  defaultValue: "{{count}} more items are available in the detailed report; only key priorities are shown here.",
                 })}
               </p>
             )}
@@ -2389,7 +2439,7 @@ function ApiArticleTextReportPanel({
               <div className="mt-5">
                 <h3 className="text-center text-sm font-semibold text-outline-900">
                   {t("plannedAnalysis.results.toolEvidenceTitle", {
-                    defaultValue: "Данные инструментов",
+                    defaultValue: "Tool evidence",
                   })}
                 </h3>
               </div>
@@ -2495,11 +2545,165 @@ function copyRiskFromOverlap(overlap: number): "low" | "medium" | "high" {
   return "low";
 }
 
-function copyRiskLabel(risk: RuntimeArticleCompareSummary["similarity"]["copyRisk"]): string {
-  if (risk === "high") return "Высокий риск";
-  if (risk === "medium") return "Средний риск";
-  if (risk === "low") return "Низкий риск";
-  return "Нужна проверка";
+function localizeArticleCompareUiText(value: string, locale: "ru" | "en"): string {
+  if (locale === "ru" || !value.trim()) return value;
+  const exact: Record<string, string> = {
+    "Высокий риск": "High risk",
+    "Средний риск": "Medium risk",
+    "Низкий риск": "Low risk",
+    "Нужна проверка": "Needs review",
+    "лучше A": "A is stronger",
+    "лучше B": "B is stronger",
+    "примерно равно": "about equal",
+    "риск": "risk",
+    "ожидаем": "pending",
+    "Текст A": "Text A",
+    "Текст B": "Text B",
+    "Проверка сравнения завершена.": "Comparison check completed.",
+    "Текст A и текст B делают акцент на разных ключевых понятиях, поэтому интент может совпадать не полностью. Перед выводом о том, какой текст сильнее, проверьте, что оба текста отвечают на один и тот же запрос. Если один текст используется как конкурентный ориентир, берите фокус интента, а не формулировки.": "Text A and Text B emphasize different key concepts, so the intent may overlap only partially. Before deciding which text is stronger, check whether both texts answer the same request. If one text is used as a competitive reference, keep the intent focus, not the wording.",
+    "Для медицинских, юридических, финансовых, технических и научных утверждений нужны источники, осторожные формулировки и ручная проверка.": "Medical, legal, financial, technical, and scientific claims need sources, careful wording, and human review.",
+    "Если нужно приблизиться к стилю, переносите уровень ясности, ритм и плотность примеров, но не фразы и порядок абзацев.": "If you need to move closer to the style, transfer clarity level, rhythm, and example density, not phrases or paragraph order.",
+    "Используйте похожую логику только как ориентир: добавьте собственные примеры, выводы и формулировки.": "Use similar logic only as a reference: add your own examples, conclusions, and wording.",
+    "Лучше работает заголовок, который прямо называет интент и пользу без кликбейта.": "A title works better when it directly states the intent and benefit without clickbait.",
+    "Оценивайте пригодность под выбранную площадку: статьям сайта нужны структура и полнота, соцсетям — хук и короткая польза.": "Evaluate fit for the selected platform: site articles need structure and completeness, while social posts need a hook and concise value.",
+    "Используйте сильные стороны как приоритеты редактирования, а не как повод копировать второй текст.": "Use strengths as editing priorities, not as a reason to copy the other text.",
+    "Усиливайте более слабый текст добавленной ценностью, а не зеркальными повторениями сильного текста. После правок запустите сравнение снова и проверьте, сократились ли разрывы.": "Strengthen the weaker text with added value, not by mirroring the stronger text. After editing, run the comparison again and check whether the gaps became smaller.",
+    "Тексты заметно расходятся по тематическому покрытию; перед правкой проверьте отсутствующие разделы. Что есть у B и может отсутствовать в A: гликогена, углеводов, организм, глюкоза, гипогликемия, кровь, гликоген, запасы. Что есть у A и может отсутствовать в B: боль, боли, если, может, image, placeholder, головной, головную, головную. Используйте отсутствующие темы как подсказки для собственных разделов, примеров или FAQ, а не для копирования второго текста.": "The texts differ noticeably in topical coverage; before editing, check the missing sections. Use absent topics as prompts for your own sections, examples, or FAQ, not as material to copy from the other text.",
+    "Для рискованных тем добавьте предупреждения, источники и формулировки с границами применимости.": "For sensitive topics, add warnings, sources, and wording with clear limits of applicability.",
+    "Чтобы текст звучал авторски, добавьте конкретный опыт, примеры, контекст и меньше универсальных служебных оборотов.": "To make the text sound more authorial, add concrete experience, examples, context, and fewer generic service phrases.",
+    "Если текст кажется механическим, разнообразьте начала предложений, добавьте живые переходы и уберите повторы без смысловой пользы.": "If the text feels mechanical, vary sentence openings, add natural transitions, and remove repetitions that do not add meaning.",
+    "В тексте есть причинно-следственные переходы. Их нужно проверять на достаточность объяснения, а не считать ошибками автоматически. Проверьте места с «поэтому», «следовательно», «всегда» и «никогда»: рядом должно быть обоснование.": "The text contains cause-and-effect transitions. They should be checked for sufficient support, not treated as automatic errors. Check places with 'therefore', 'consequently', 'always', and 'never': they need nearby justification.",
+    "Это локальный прогноз интента без SERP. Для SEO используйте его как черновой ориентир, а не как доказательство спроса или ранжирования.": "This is a local intent forecast without SERP data. For SEO, use it as a draft direction, not as proof of demand or ranking potential.",
+    "Сделайте финальную ручную вычитку пунктуации, границ предложений и перегруженных фраз в обоих текстах.": "Do a final manual pass for punctuation, sentence boundaries, and overloaded phrases in both texts.",
+    "Сопоставляйте не только объём и структуру с площадкой: для статьи сайта важны полнота и разделы, для соцсетей — хук, ясность и компактность.": "Compare not only volume and structure against the platform: site articles need completeness and sections, while social posts need a hook, clarity, and compactness.",
+  };
+  const normalized = value.trim();
+  if (exact[normalized]) return value.replace(normalized, exact[normalized]);
+  if (value.includes("\n")) {
+    return value
+      .split("\n")
+      .map((line) => localizeArticleCompareUiText(line, locale))
+      .join("\n");
+  }
+  const replacements: Array<[RegExp, string]> = [
+    [/^Структура: A — ([^;]+); B — ([^.]+)\. Сравнивайте не только количество заголовков, а путь читателя: проблема, объяснение, шаги, примеры, FAQ и вывод\.$/i, "Structure: A - $1; B - $2. Compare not only the number of headings, but the reader path: problem, explanation, steps, examples, FAQ, and conclusion."],
+    [/^Структура: A — ([^;]+); B — ([^.]+)\.$/i, "Structure: A - $1; B - $2."],
+    [/^Средняя длина предложения: A — ([^,]+), B — ([^.]+)\. Если нужно приблизиться к стилю, переносите уровень ясности, ритм и плотность примеров, а не фразы и порядок абзацев\.$/i, "Average sentence length: A - $1, B - $2. If you need to move closer to the style, transfer clarity level, rhythm, and example density, not phrases or paragraph order."],
+    [/^Средняя длина предложения: A — ([^,]+), B — ([^.]+)\.$/i, "Average sentence length: A - $1, B - $2."],
+    [/^Сигналы конкретики: A — ([^,]+), B — ([^.]+)\. Учитываются числа, списки и шаги\. Конкретику стоит добавлять только там, где она точна и полезна\.$/i, "Specificity signals: A - $1, B - $2. Numbers, lists, and steps are counted. Add specificity only where it is accurate and useful."],
+    [/^Сигналы конкретики: A — ([^,]+), B — ([^.]+)\.$/i, "Specificity signals: A - $1, B - $2."],
+    [/^Конкретика: A — ([^,]+), B — ([^.]+)\.$/i, "Specificity: A - $1, B - $2."],
+    [/^Сигналы доверия: A — ([^,]+), B — ([^.]+)\.$/i, "Trust signals: A - $1, B - $2."],
+    [/^Черновая оценка заголовка: A — ([^,]+), B — ([^.]+)\.$/i, "Draft title score: A - $1, B - $2."],
+    [/^Площадка: ([^.]+)\. Объём: A — ([^,]+), B — ([^.]+)\.$/i, "Platform: $1. Volume: A - $2, B - $3."],
+    [/^Площадка: ([^.]+)\. Объём: A — ([^,]+), B — ([^.]+)\. Сопоставляйте объём и структуру с площадкой: для статьи сайта важны полнота и разделы, для соцсетей — хук, ясность и компактность\.$/i, "Platform: $1. Volume: A - $2, B - $3. Compare volume and structure against the platform: site articles need completeness and sections, while social posts need a hook, clarity, and compactness."],
+    [/^Локальное дословное совпадение: ([^%]+)%\. Риск копирования: ([^.]+)\.$/i, "Local exact phrase overlap: $1%. Copying risk: $2."],
+    [/^Локальное дословное совпадение: ([^%]+)%\. Это проверка совпавших 4-словных фрагментов внутри ToraSEO, а не внешняя база плагиата\. Смысловую похожесть нужно оценивать по разрывам и данным инструментов ниже\.$/i, "Local exact phrase overlap: $1%. This checks matching 4-word fragments inside ToraSEO, not an external plagiarism database. Semantic similarity should be evaluated through gaps and the tool data below."],
+    [/^Пересечение ключевых понятий: ([^%]+)%\.$/i, "Key concept overlap: $1%."],
+    [/^Пересечение ключевых понятий: ([^%]+)%\. Усильте смысловое покрытие через недостающие понятия, но добавляйте собственные объяснения и примеры\.$/i, "Key concept overlap: $1%. Strengthen semantic coverage through missing concepts, but add your own explanations and examples."],
+    [/^Что есть у B и может отсутствовать в A: ([^.]+)\. Что есть у A и может отсутствовать в B: ([^.]+)\.$/i, "What B has that A may miss: $1. What A has that B may miss: $2."],
+    [/^Локальные ключевые понятия A: ([^.]+)\. Локальные ключевые понятия B: ([^.]+)\. Перед правкой проверьте, какие важные темы есть только в одном тексте, и добавляйте недостающие блоки своими формулировками\.$/i, "Local key concepts in A: $1. Local key concepts in B: $2. Before editing, check which important topics appear only in one text, and add missing blocks in your own wording."],
+    [/^Текст A даёт больше сигналов конкретики: ([^.]+)\. Добавляйте конкретные шаги, сценарии, примеры и цифры только там, где они точны и полезны\.$/i, "Text A provides more specificity signals: $1. Add concrete steps, scenarios, examples, and numbers only where they are accurate and useful."],
+    [/^Сравнение текстов не заменяет медицинскую, юридическую, финансовую или научную экспертизу\. Для рискованных тем добавьте предупреждения, источники и формулировки с границами применимости\.$/i, "Text comparison does not replace medical, legal, financial, or scientific expertise. For sensitive topics, add warnings, sources, and wording with clear limits of applicability."],
+    [/^Сравнение доверия: Для медицинских, юридических, финансовых, технических и научных утверждений нужны источники, осторожные формулировки и ручная проверка\.$/i, "Trust comparison: Medical, legal, financial, technical, and scientific claims need sources, careful wording, and human review."],
+    [/^Сравнение стиля: Если нужно приблизиться к стилю, переносите уровень ясности, ритм и плотность примеров, но не фразы и порядок абзацев\.$/i, "Style comparison: If you need to move closer to the style, transfer clarity level, rhythm, and example density, not phrases or paragraph order."],
+    [/^Риск похожести: Используйте похожую логику только как ориентир: добавьте собственные примеры, выводы и формулировки\.$/i, "Similarity risk: Use similar logic only as a reference: add your own examples, conclusions, and wording."],
+    [/^Оценка заголовка: Лучше работает заголовок, который прямо называет интент и пользу без кликбейта\.$/i, "Title score: A title works better when it directly states the intent and benefit without clickbait."],
+    [/^Сравнение под платформу: Оценивайте пригодность под выбранную площадку: статьям сайта нужны структура и полнота, соцсетям — хук и короткая польза\.$/i, "Platform fit comparison: Evaluate fit for the selected platform: site articles need structure and completeness, while social posts need a hook and concise value."],
+    [/^Сильные и слабые стороны: Используйте сильные стороны как приоритеты редактирования, а не как повод копировать второй текст\.$/i, "Strengths and weaknesses: Use strengths as editing priorities, not as a reason to copy the other text."],
+    [/^План улучшений: Усиливайте более слабый текст добавленной ценностью, а не зеркальными повторениями сильного текста\. После правок запустите сравнение снова и проверьте, сократились ли разрывы\.$/i, "Improvement plan: Strengthen the weaker text with added value, not by mirroring the stronger text. After editing, run the comparison again and check whether the gaps became smaller."],
+    [/^Сравнение интента: Текст A и текст B делают акцент на разных ключевых понятиях, поэтому интент может совпадать не полностью\. Перед выводом о том, какой текст сильнее, проверьте, что оба текста отвечают на один и тот же запрос\. Если один текст используется как конкурентный ориентир, берите фокус интента, а не формулировки\.$/i, "Intent comparison: Text A and Text B emphasize different key concepts, so the intent may overlap only partially. Before deciding which text is stronger, check whether both texts answer the same request. If one text is used as a competitive reference, keep the intent focus, not the wording."],
+    [/^Разрывы по содержанию: Тексты заметно расходятся по тематическому покрытию; перед правкой проверьте отсутствующие разделы\./i, "Content gap: The texts differ noticeably in topical coverage; before editing, check the missing sections."],
+    [/^Смысловое покрытие: Пересечение ключевых понятий: ([^%]+)%\. Усильте смысловое покрытие через недостающие понятия, но добавляйте собственные объяснения и примеры\.$/i, "Semantic coverage: Key concept overlap: $1%. Strengthen semantic coverage through missing concepts, but add your own explanations and examples."],
+    [/^Сравнение конкретики: Текст A даёт больше сигналов конкретики: ([^.]+)\. Добавляйте конкретные шаги, сценарии, примеры и цифры только там, где они точны и полезны\.$/i, "Specificity comparison: Text A provides more specificity signals: $1. Add concrete steps, scenarios, examples, and numbers only where they are accurate and useful."],
+    [/Оба текста проверены как материалы для выбранной площадки\. Это локальная оценка формата, а не данные SERP\./gi, "Both texts were checked as materials for the selected platform. This is a local format estimate, not SERP data."],
+    [/Проверьте, кому адресован каждый текст\. Если аудитория разная, сравнивайте не только качество, но и соответствие ожиданиям читателя\./gi, "Check who each text is addressed to. If the audiences differ, compare not only quality, but also fit with reader expectations."],
+    [/У текста A сильнее видимая структура: больше опорных блоков для читателя\./gi, "Text A has stronger visible structure: more support blocks for the reader."],
+    [/У текста B сильнее видимая структура: больше опорных блоков для читателя\./gi, "Text B has stronger visible structure: more support blocks for the reader."],
+    [/Сравнивайте не только количество заголовков, а путь читателя: проблема, объяснение, шаги, примеры, FAQ и вывод\./gi, "Compare not only the number of headings, but the reader path: problem, explanation, steps, examples, FAQ, and conclusion."],
+    [/Тон должен соответствовать риску темы: в медицине, финансах, праве и технике лучше звучит точность, осторожность и ясное ограничение советов\./gi, "Tone should match topic risk: in medicine, finance, law, and technical topics, precision, caution, and clear limits work better."],
+    [/В текстах нет явных меток медиа\./gi, "The texts do not contain clear media markers."],
+    [/В тексте нет явных меток медиа\./gi, "The text does not contain clear media markers."],
+    [/Для длинной статьи стоит проверить, где нужны изображения, схемы или видео\./gi, "For a long article, check where images, diagrams, or video are needed."],
+    [/Для сайта полезно отмечать медиа внутри релевантных разделов, а не складывать все изображения в конец текста\./gi, "For a site article, media markers should sit inside relevant sections, not be pushed to the end of the text."],
+    [/0% в этой метрике означает отсутствие совпавших 4-словных фрагментов в локальной проверке, а не гарантию абсолютной уникальности\./gi, "0% in this metric means no matching 4-word fragments in the local check, not a guarantee of absolute uniqueness."],
+    [/Найдены локальные синтаксические или пунктуационные сигналы, которые стоит вычитать вручную\./gi, "Local syntax or punctuation signals were found and should be manually reviewed."],
+    [/В текстах есть причинно-следственные переходы\. Их нужно проверять на достаточность объяснения, а не считать ошибками автоматически\./gi, "The texts contain cause-and-effect transitions. They should be checked for sufficient support, not treated as automatic errors."],
+    [/В тексте есть причинно-следственные переходы\. Их нужно проверять на достаточность объяснения, а не считать ошибками автоматически\./gi, "The text contains cause-and-effect transitions. They should be checked for sufficient support, not treated as automatic errors."],
+    [/Проверьте места с «поэтому», «следовательно», «всегда» и «никогда»: рядом должно быть обоснование\./gi, "Check places with 'therefore', 'consequently', 'always', and 'never': they need nearby justification."],
+    [/Текст A и текст B делают акцент на разных ключевых понятиях, поэтому интент может совпадать не полностью\./gi, "Text A and Text B emphasize different key concepts, so the intent may overlap only partially."],
+    [/Перед выводом о том, какой текст сильнее, проверьте, что оба текста отвечают на один и тот же запрос\. Если один текст используется как конкурентный ориентир, берите фокус интента, а не формулировки\./gi, "Before deciding which text is stronger, check whether both texts answer the same request. If one text is used as a competitive reference, keep the intent focus, not the wording."],
+    [/Текст A даёт больше сигналов конкретики: ([^.]+)\./gi, "Text A provides more specificity signals: $1."],
+    [/Текст B даёт больше сигналов конкретики: ([^.]+)\./gi, "Text B provides more specificity signals: $1."],
+    [/цифр, вопросов, списков или практических деталей/gi, "numbers, questions, lists, or practical details"],
+    [/цифр, вопросов, списков и практических деталей/gi, "numbers, questions, lists, and practical details"],
+    [/Сравнение текстов не заменяет медицинскую, юридическую, финансовую или научную экспертизу\./gi, "Text comparison does not replace medical, legal, financial, or scientific expertise."],
+    [/Для медицинских, юридических, финансовых, технических и научных утверждений нужны источники, осторожные формулировки и ручная проверка\./gi, "Medical, legal, financial, technical, and scientific claims need sources, careful wording, and human review."],
+    [/Если нужно приблизиться к стилю, переносите уровень ясности, ритм и плотность примеров, но не фразы и порядок абзацев\./gi, "If you need to move closer to the style, transfer clarity level, rhythm, and example density, not phrases or paragraph order."],
+    [/Используйте похожую логику только как ориентир; добавьте собственные примеры, выводы и формулировки\./gi, "Use similar logic only as a reference: add your own examples, conclusions, and wording."],
+    [/Используйте похожую логику только как ориентир: добавьте собственные примеры, выводы и формулировки\./gi, "Use similar logic only as a reference: add your own examples, conclusions, and wording."],
+    [/Лучше работает заголовок, который прямо называет интент и пользу без кликбейта\./gi, "A title works better when it directly states the intent and benefit without clickbait."],
+    [/Оценивайте пригодность под выбранную площадку: статьям сайта нужны структура и полнота, соцсетям — хук и короткая польза\./gi, "Evaluate fit for the selected platform: site articles need structure and completeness, while social posts need a hook and concise value."],
+    [/Используйте сильные стороны как приоритеты редактирования, а не как повод копировать второй текст\./gi, "Use strengths as editing priorities, not as a reason to copy the other text."],
+    [/Усиливайте более слабый текст добавленной ценностью, а не зеркальным повторением сильного текста\. После правок запустите сравнение снова и проверьте, сократились ли разрывы\./gi, "Strengthen the weaker text with added value, not by mirroring the stronger text. After editing, run the comparison again and check whether the gaps became smaller."],
+    [/Усиливайте более слабый текст добавленной ценностью, а не зеркальными повторениями сильного текста\. После правок запустите сравнение снова и проверьте, сократились ли разрывы\./gi, "Strengthen the weaker text with added value, not by mirroring the stronger text. After editing, run the comparison again and check whether the gaps became smaller."],
+    [/Текст A и текст B делают акцент на разных ключевых понятиях, поэтому интент может совпадать не полностью\. Перед выводом о том, какой текст сильнее, проверьте, что оба текста отвечают на один и тот же запрос\. Если один текст используется как конкурентный ориентир, берите фокус интента, а не формулировки\./gi, "Text A and Text B emphasize different key concepts, so the intent may overlap only partially. Before deciding which text is stronger, check whether both texts answer the same request. If one text is used as a competitive reference, keep the intent focus, not the wording."],
+    [/Тексты заметно расходятся по тематическому покрытию; перед правкой проверьте отсутствующие разделы\./gi, "The texts differ noticeably in topical coverage; before editing, check the missing sections."],
+    [/Что есть у B и может отсутствовать в A:/gi, "What B has that A may miss:"],
+    [/Что есть у A и может отсутствовать в B:/gi, "What A has that B may miss:"],
+    [/Используйте отсутствующие темы как подсказки для собственных разделов, примеров или FAQ, а не для копирования второго текста\./gi, "Use missing topics as prompts for your own sections, examples, or FAQ, not as material to copy from the other text."],
+    [/Для рискованных тем добавьте предупреждения, источники и формулировки с границами применимости\./gi, "For sensitive topics, add warnings, sources, and wording with clear limits of applicability."],
+    [/Добавляйте конкретные шаги, сценарии, примеры и цифры только там, где они точны и полезны\./gi, "Add concrete steps, scenarios, examples, and numbers only where they are accurate and useful."],
+    [/[Уу]сильте смысловое покрытие через недостающие понятия, но добавляйте собственные объяснения и примеры\./g, "Strengthen semantic coverage through missing concepts, but add your own explanations and examples."],
+    [/Сопоставляйте объём и структуру с площадкой: для статьи сайта важны полнота и разделы, для соцсетей — хук, ясность и компактность\./gi, "Compare volume and structure against the platform: site articles need completeness and sections, while social posts need a hook, clarity, and compactness."],
+    [/Учитываются числа, списки и шаги\./gi, "Numbers, lists, and steps are counted."],
+    [/Конкретику стоит добавлять только там, где она точна и полезна\./gi, "Add specificity only where it is accurate and useful."],
+    [/^Сравнение стиля: /i, "Style comparison: "],
+    [/^Сравнение доверия: /i, "Trust comparison: "],
+    [/^Риск похожести: /i, "Similarity risk: "],
+    [/^Оценка заголовка: /i, "Title score: "],
+    [/^Сравнение под платформу: /i, "Platform fit comparison: "],
+    [/^Сильные и слабые стороны: /i, "Strengths and weaknesses: "],
+    [/^План улучшений: /i, "Improvement plan: "],
+    [/^Сравнение структуры: /i, "Structure comparison: "],
+    [/^Смысловое покрытие: /i, "Semantic coverage: "],
+    [/^Сравнение конкретики: /i, "Specificity comparison: "],
+    [/^Сравнение интента: /i, "Intent comparison: "],
+    [/^Разрывы по содержанию: /i, "Content gap: "],
+    [/\bзаголовков\b/g, "headings"],
+    [/\bабзацев\b/g, "paragraphs"],
+    [/\bслов\b/g, "words"],
+    [/\bчисловых сигналов\b/g, "numeric signals"],
+    [/нужна проверка/gi, "needs review"],
+    [/низкий/gi, "low"],
+    [/средний/gi, "medium"],
+    [/высокий/gi, "high"],
+  ];
+  return replacements.reduce(
+    (current, [pattern, replacement]) => current.replace(pattern, replacement),
+    value,
+  );
+}
+
+function localizeArticleCompareFact(
+  fact: RuntimeConfirmedFact,
+  locale: "ru" | "en",
+): RuntimeConfirmedFact {
+  return {
+    ...fact,
+    title: localizeArticleCompareUiText(fact.title, locale),
+    detail: localizeArticleCompareUiText(fact.detail, locale),
+  };
+}
+
+function copyRiskLabel(
+  risk: RuntimeArticleCompareSummary["similarity"]["copyRisk"],
+  locale: "ru" | "en",
+): string {
+  if (risk === "high") return locale === "ru" ? "Высокий риск" : "High risk";
+  if (risk === "medium") return locale === "ru" ? "Средний риск" : "Medium risk";
+  if (risk === "low") return locale === "ru" ? "Низкий риск" : "Low risk";
+  return locale === "ru" ? "Нужна проверка" : "Needs review";
 }
 
 function parseCompareToolResult(data: unknown): {
@@ -2519,46 +2723,50 @@ function parseCompareToolResult(data: unknown): {
 function compareSummarySentence(
   toolId: string,
   summary: Record<string, unknown> | undefined,
+  _locale: "ru" | "en",
 ): string {
   if (!summary) return "";
   const value = (key: string) => summary[key];
+  const emptyValue = "-";
   switch (toolId) {
     case "article_uniqueness":
     case "similarity_risk":
-      return `Локальное дословное совпадение: ${value("exactPhraseOverlap") ?? value("exactOverlap") ?? "—"}%. Риск копирования: ${value("copyRisk") ?? "нужна проверка"}.`;
+      return `Local exact phrase overlap: ${value("exactPhraseOverlap") ?? value("exactOverlap") ?? "-"}. Copying risk: ${value("copyRisk") ?? "needs review"}.`;
     case "analyze_text_structure":
     case "compare_article_structure":
-      return `Структура: A — ${value("headingsA") ?? "—"} заголовков, ${value("paragraphsA") ?? "—"} абзацев; B — ${value("headingsB") ?? "—"} заголовков, ${value("paragraphsB") ?? "—"} абзацев.`;
+      return `Structure: A - ${value("headingsA") ?? emptyValue} headings, ${value("paragraphsA") ?? emptyValue} paragraphs; B - ${value("headingsB") ?? emptyValue} headings, ${value("paragraphsB") ?? emptyValue} paragraphs.`;
     case "compare_content_gap":
-      return `Что есть у B и может отсутствовать в A: ${formatListValue(value("missingInA"))}. Что есть у A и может отсутствовать в B: ${formatListValue(value("missingInB"))}.`;
+      return `What B has that A may miss: ${formatListValue(value("missingInA"), "en")}. What A has that B may miss: ${formatListValue(value("missingInB"), "en")}.`;
     case "compare_semantic_gap":
-      return `Пересечение ключевых понятий: ${value("semanticOverlap") ?? "—"}%.`;
+      return `Key concept overlap: ${value("semanticOverlap") ?? "-"}%.`;
     case "compare_specificity_gap":
-      return `Конкретика: A — ${value("numbersA") ?? "—"} числовых сигналов, B — ${value("numbersB") ?? "—"} числовых сигналов.`;
+      return `Specificity: A - ${value("numbersA") ?? emptyValue} numeric signals, B - ${value("numbersB") ?? emptyValue} numeric signals.`;
     case "compare_trust_gap":
-      return `Сигналы доверия: A — ${value("trustSignalsA") ?? "—"}, B — ${value("trustSignalsB") ?? "—"}.`;
+      return `Trust signals: A - ${value("trustSignalsA") ?? emptyValue}, B - ${value("trustSignalsB") ?? emptyValue}.`;
     case "analyze_text_style":
     case "compare_article_style":
-      return `Средняя длина предложения: A — ${value("avgSentenceWordsA") ?? "—"} слов, B — ${value("avgSentenceWordsB") ?? "—"} слов.`;
+      return `Average sentence length: A - ${value("avgSentenceWordsA") ?? emptyValue} words, B - ${value("avgSentenceWordsB") ?? emptyValue} words.`;
     case "compare_title_ctr":
-      return `Черновая оценка заголовка: A — ${value("ctrDraftA") ?? "—"}, B — ${value("ctrDraftB") ?? "—"}.`;
+      return `Draft title score: A - ${value("ctrDraftA") ?? emptyValue}, B - ${value("ctrDraftB") ?? emptyValue}.`;
     case "detect_text_platform":
     case "compare_platform_fit":
-      return `Площадка: ${value("platform") ?? "авто"}. Объём: A — ${value("textAWordCount") ?? "—"} слов, B — ${value("textBWordCount") ?? "—"} слов.`;
+      return `Platform: ${value("platform") ?? "auto"}. Volume: A - ${value("textAWordCount") ?? emptyValue} words, B - ${value("textBWordCount") ?? emptyValue} words.`;
     default:
       return "";
   }
 }
 
-function formatListValue(value: unknown): string {
-  if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : "не выявлено";
-  if (typeof value === "string") return value || "не выявлено";
-  return "не выявлено";
+function formatListValue(value: unknown, locale: "ru" | "en" = "en"): string {
+  const emptyValue = locale === "ru" ? "не выявлено" : "not detected";
+  if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : emptyValue;
+  if (typeof value === "string") return value || emptyValue;
+  return emptyValue;
 }
 
 function buildArticleCompareBridgeReport(
   state: CurrentScanState | null,
   t: ReturnType<typeof useTranslation>["t"],
+  locale: "ru" | "en",
 ): RuntimeAuditReport | null {
   if (state?.analysisType !== "article_compare") return null;
   const entries = Array.from(
@@ -2571,7 +2779,7 @@ function buildArticleCompareBridgeReport(
 
   const confirmedFacts = entries.map(([toolId, entry]) => {
     const result = parseCompareToolResult(entry!.data);
-    const summaryText = compareSummarySentence(toolId, result?.summary);
+    const summaryText = compareSummarySentence(toolId, result?.summary, locale);
     const issueText = (result?.issues ?? [])
       .map((issue) => issue.message)
       .filter(Boolean)
@@ -2581,7 +2789,10 @@ function buildArticleCompareBridgeReport(
       title: textToolLabel(t, toolId),
       detail:
         [issueText, summaryText, recommendationText].filter(Boolean).join("\n\n") ||
-        (entry!.errorMessage ?? "Проверка сравнения завершена."),
+        (entry!.errorMessage ??
+          (locale === "ru"
+            ? "Проверка сравнения завершена."
+            : "Comparison check completed.")),
       priority:
         entry!.status === "error" || entry!.verdict === "critical"
           ? "high" as const
@@ -2595,17 +2806,16 @@ function buildArticleCompareBridgeReport(
   return {
     analysisType: "article_compare",
     analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    locale,
     mode: "strict_audit",
     providerId: "local",
     model: "ToraSEO MCP + Instructions",
     generatedAt: new Date().toISOString(),
     summary: t("plannedAnalysis.compare.bridgeSummary", {
-      defaultValue:
-        "Структурированное сравнение двух текстов по данным MCP-инструментов ToraSEO.",
+      defaultValue: "Structured comparison of two texts based on ToraSEO MCP tool data.",
     }),
     nextStep: t("plannedAnalysis.compare.bridgeNextStep", {
-      defaultValue:
-        "Проверьте разрывы, риск похожести и план улучшения, затем усиливайте нужный текст без копирования второго.",
+      defaultValue: "Review gaps, similarity risk, and the improvement plan, then strengthen the target text without copying the other one.",
     }),
     confirmedFacts,
     expertHypotheses: [],
@@ -2644,71 +2854,78 @@ function topCompareTerms(text: string): string[] {
 function buildLocalArticleCompareFacts(
   input: ArticleComparePromptData,
   t: ReturnType<typeof useTranslation>["t"],
+  locale: "ru" | "en",
 ): RuntimeConfirmedFact[] {
   const statsA = computeTextStats(input.textA);
   const statsB = computeTextStats(input.textB);
   const overlap = exactOverlapPercent(input.textA, input.textB);
   const termsA = topCompareTerms(input.textA);
   const termsB = topCompareTerms(input.textB);
-  return [
+  const facts: RuntimeConfirmedFact[] = [
     {
       title: t("analysisTools.analyze_text_structure.label", {
-        defaultValue: "Структура текста",
+        defaultValue: "Text structure",
       }),
-      detail: `Структура: A — ${statsA.headingCount} заголовков, ${statsA.paragraphCount} абзацев; B — ${statsB.headingCount} заголовков, ${statsB.paragraphCount} абзацев. Сравнивайте не только количество заголовков, а путь читателя: проблема, объяснение, шаги, примеры, FAQ и вывод.`,
+      detail: `Structure: A - ${statsA.headingCount} headings, ${statsA.paragraphCount} paragraphs; B - ${statsB.headingCount} headings, ${statsB.paragraphCount} paragraphs. Compare not only the number of headings, but the reader path: problem, explanation, steps, examples, FAQ, and conclusion.`,
       priority: "low",
       sourceToolIds: ["analyze_text_structure", "compare_article_structure"],
     },
     {
       title: t("analysisTools.compare_content_gap.label", {
-        defaultValue: "Разрывы по содержанию",
+        defaultValue: "Content Gap",
       }),
-      detail: `Локальные ключевые понятия A: ${formatListValue(termsA)}. Локальные ключевые понятия B: ${formatListValue(termsB)}. Перед правкой проверьте, какие важные темы есть только в одном тексте, и добавляйте недостающие блоки своими формулировками.`,
+      detail: `Local key concepts in A: ${formatListValue(termsA, "en")}. Local key concepts in B: ${formatListValue(termsB, "en")}. Before editing, check which important topics appear in only one text, then add missing sections in your own wording.`,
       priority: "medium",
       sourceToolIds: ["compare_content_gap", "compare_semantic_gap"],
     },
     {
       title: t("analysisTools.compare_specificity_gap.label", {
-        defaultValue: "Сравнение конкретики",
+        defaultValue: "Specificity comparison",
       }),
-      detail: `Сигналы конкретики: A — ${statsA.numberCount + statsA.listMarkerCount}, B — ${statsB.numberCount + statsB.listMarkerCount}. Учитываются числа, списки и шаги. Конкретику стоит добавлять только там, где она точна и полезна.`,
+      detail: `Specificity signals: A - ${statsA.numberCount + statsA.listMarkerCount}, B - ${statsB.numberCount + statsB.listMarkerCount}. Numbers, lists, and steps are counted. Add specificity only where it is accurate and useful.`,
       priority: "low",
       sourceToolIds: ["compare_specificity_gap"],
     },
     {
       title: t("analysisTools.analyze_text_style.label", {
-        defaultValue: "Стиль текста",
+        defaultValue: "Text style",
       }),
-      detail: `Средняя длина предложения: A — ${statsA.averageSentenceWords ?? "—"} слов, B — ${statsB.averageSentenceWords ?? "—"} слов. Если нужно приблизиться к стилю, переносите уровень ясности, ритм и плотность примеров, а не фразы и порядок абзацев.`,
+      detail: `Average sentence length: A - ${statsA.averageSentenceWords ?? "-"} words, B - ${statsB.averageSentenceWords ?? "-"} words. If you need to move closer to the style, transfer clarity level, rhythm, and example density, not phrases or paragraph order.`,
       priority: "low",
       sourceToolIds: ["analyze_text_style", "compare_article_style"],
     },
     {
       title: t("analysisTools.similarity_risk.label", {
-        defaultValue: "Риск похожести",
+        defaultValue: "Similarity risk",
       }),
-      detail: `Локальное дословное совпадение: ${overlap}%. Это проверка совпавших 4-словных фрагментов внутри ToraSEO, а не внешняя база плагиата. Смысловую похожесть нужно оценивать по разрывам и данным инструментов ниже.`,
+      detail: `Local exact phrase overlap: ${overlap}%. This checks matching 4-word fragments inside ToraSEO, not an external plagiarism database. Semantic similarity should be evaluated through gaps and the tool data below.`,
       priority: overlap >= 15 ? "medium" : "low",
       sourceToolIds: ["article_uniqueness", "similarity_risk"],
     },
   ];
+  return facts.map((fact) => localizeArticleCompareFact(fact, locale));
 }
 
 function withLocalArticleCompareFacts(
   report: RuntimeAuditReport,
   input: ArticleComparePromptData,
   t: ReturnType<typeof useTranslation>["t"],
+  locale: "ru" | "en",
 ): RuntimeAuditReport {
-  const existingSources = new Set(
-    report.confirmedFacts.flatMap((fact) => fact.sourceToolIds),
+  const localizedFacts = report.confirmedFacts.map((fact) =>
+    localizeArticleCompareFact(fact, locale),
   );
-  const localFacts = buildLocalArticleCompareFacts(input, t).filter((fact) =>
+  const existingSources = new Set(
+    localizedFacts.flatMap((fact) => fact.sourceToolIds),
+  );
+  const localFacts = buildLocalArticleCompareFacts(input, t, locale).filter((fact) =>
     fact.sourceToolIds.every((toolId) => !existingSources.has(toolId)),
   );
-  if (localFacts.length === 0) return report;
   return {
     ...report,
-    confirmedFacts: [...report.confirmedFacts, ...localFacts],
+    summary: localizeArticleCompareUiText(report.summary, locale),
+    nextStep: localizeArticleCompareUiText(report.nextStep, locale),
+    confirmedFacts: [...localizedFacts, ...localFacts],
   };
 }
 
@@ -2753,11 +2970,11 @@ function generatedSideWeaknesses(
   if (own.headingCount + own.listMarkerCount + 2 < other.headingCount + other.listMarkerCount) {
     items.push({
       title: t("plannedAnalysis.compare.weakStructure", {
-        defaultValue: `Текст ${label}: слабее структура`,
+        label,
+        defaultValue: "Text {{label}}: weaker structure",
       }),
       detail: t("plannedAnalysis.compare.weakStructureDetail", {
-        defaultValue:
-          "Меньше видимых разделов, списков или опорных блоков. Проверьте путь читателя от проблемы к решению.",
+        defaultValue: "Fewer visible sections, lists, or support blocks. Check the reader path from problem to solution.",
       }),
       sourceToolIds: ["analyze_text_structure", "compare_article_structure"],
     });
@@ -2769,11 +2986,11 @@ function generatedSideWeaknesses(
   ) {
     items.push({
       title: t("plannedAnalysis.compare.weakReadability", {
-        defaultValue: `Текст ${label}: тяжелее читается`,
+        label,
+        defaultValue: "Text {{label}}: harder to read",
       }),
       detail: t("plannedAnalysis.compare.weakReadabilityDetail", {
-        defaultValue:
-          "Средняя длина предложения выше. Это не всегда ошибка, но длинные фразы стоит проверить на перегруз.",
+        defaultValue: "Average sentence length is higher. This is not always an error, but long sentences should be checked for overload.",
       }),
       sourceToolIds: ["analyze_text_style", "language_audience_fit"],
     });
@@ -2781,11 +2998,11 @@ function generatedSideWeaknesses(
   if (own.numberCount + own.listMarkerCount + 2 < other.numberCount + other.listMarkerCount) {
     items.push({
       title: t("plannedAnalysis.compare.weakSpecificity", {
-        defaultValue: `Текст ${label}: меньше конкретики`,
+        label,
+        defaultValue: "Text {{label}}: less specificity",
       }),
       detail: t("plannedAnalysis.compare.weakSpecificityDetail", {
-        defaultValue:
-          "Меньше чисел, списков, шагов или практических сигналов. Добавляйте их только там, где они точны и полезны.",
+        defaultValue: "Fewer numbers, lists, steps, or practical signals. Add them only where they are accurate and useful.",
       }),
       sourceToolIds: ["compare_specificity_gap"],
     });
@@ -2810,28 +3027,28 @@ function compareGoalModeLabel(
 ): string {
   const labels: Record<RuntimeArticleCompareGoalMode, string> = {
     standard_comparison: t("plannedAnalysis.compare.goalModes.standard", {
-      defaultValue: "Стандартное сравнение",
+      defaultValue: "Standard comparison",
     }),
     focus_text_a: t("plannedAnalysis.compare.goalModes.focusA", {
-      defaultValue: "Фокус на тексте A",
+      defaultValue: "Focus on text A",
     }),
     focus_text_b: t("plannedAnalysis.compare.goalModes.focusB", {
-      defaultValue: "Фокус на тексте B",
+      defaultValue: "Focus on text B",
     }),
     beat_competitor: t("plannedAnalysis.compare.goalModes.beatCompetitor", {
-      defaultValue: "Сравнение с конкурентом",
+      defaultValue: "Competitor comparison",
     }),
     style_match: t("plannedAnalysis.compare.goalModes.styleMatch", {
-      defaultValue: "Подражание стилю",
+      defaultValue: "Style imitation",
     }),
     similarity_check: t("plannedAnalysis.compare.goalModes.similarity", {
-      defaultValue: "Проверка похожести",
+      defaultValue: "Similarity check",
     }),
     version_compare: t("plannedAnalysis.compare.goalModes.version", {
-      defaultValue: "Сравнение версий",
+      defaultValue: "Version comparison",
     }),
     ab_post: t("plannedAnalysis.compare.goalModes.abPost", {
-      defaultValue: "A/B-анализ поста",
+      defaultValue: "A/B post analysis",
     }),
   };
   return labels[mode];
@@ -2843,36 +3060,28 @@ function compareGoalModeDescription(
 ): string {
   const descriptions: Record<RuntimeArticleCompareGoalMode, string> = {
     standard_comparison: t("plannedAnalysis.compare.goalDescriptions.standard", {
-      defaultValue:
-        "Цель не указана: отчет показывает оба текста, ключевые разрывы, риск похожести и план улучшения.",
+      defaultValue: "No goal is set: the report shows both texts, key gaps, similarity risk, and an improvement plan.",
     }),
     focus_text_a: t("plannedAnalysis.compare.goalDescriptions.focusA", {
-      defaultValue:
-        "Отчет сфокусирован на тексте A: второй текст используется как контекст сравнения и источник ориентиров.",
+      defaultValue: "The report is focused on text A: the second text is used as comparison context and a source of reference points.",
     }),
     focus_text_b: t("plannedAnalysis.compare.goalDescriptions.focusB", {
-      defaultValue:
-        "Отчет сфокусирован на тексте B: второй текст используется как контекст сравнения и источник ориентиров.",
+      defaultValue: "The report is focused on text B: the second text is used as comparison context and a source of reference points.",
     }),
     beat_competitor: t("plannedAnalysis.compare.goalDescriptions.beatCompetitor", {
-      defaultValue:
-        "Отчет ищет текстовые преимущества конкурента, разрывы вашего текста и план, как усилить материал без копирования.",
+      defaultValue: "The report looks for competitor text advantages, gaps in your text, and a plan to strengthen the material without copying.",
     }),
     style_match: t("plannedAnalysis.compare.goalDescriptions.styleMatch", {
-      defaultValue:
-        "Отчет делает акцент на тоне, ритме, ясности, плотности примеров и переносимых стилевых приемах без копирования фраз.",
+      defaultValue: "The report focuses on tone, rhythm, clarity, example density, and transferable style techniques without copying phrases.",
     }),
     similarity_check: t("plannedAnalysis.compare.goalDescriptions.similarity", {
-      defaultValue:
-        "Отчет ставит на первое место дословные совпадения, смысловую близость и риск копирования.",
+      defaultValue: "The report prioritizes exact overlap, semantic closeness, and copying risk.",
     }),
     version_compare: t("plannedAnalysis.compare.goalDescriptions.version", {
-      defaultValue:
-        "Отчет показывает, что стало сильнее или слабее между двумя версиями текста.",
+      defaultValue: "The report shows what became stronger or weaker between two text versions.",
     }),
     ab_post: t("plannedAnalysis.compare.goalDescriptions.abPost", {
-      defaultValue:
-        "Отчет оценивает хук, ясность, краткость, платформенность и потенциал реакции.",
+      defaultValue: "The report evaluates hook, clarity, brevity, platform fit, and reaction potential.",
     }),
   };
   return descriptions[mode];
@@ -2892,6 +3101,7 @@ function buildArticleCompareSummary(
   t: ReturnType<typeof useTranslation>["t"],
   completedTools: number,
   totalTools: number,
+  locale: "ru" | "en",
 ): RuntimeArticleCompareSummary {
   const statsA = computeTextStats(input.textA);
   const statsB = computeTextStats(input.textB);
@@ -2936,39 +3146,40 @@ function buildArticleCompareSummary(
       label:
         focusSide === "textA"
           ? t("plannedAnalysis.compare.focusVerdictA", {
-              defaultValue: "Отчет сфокусирован на тексте A",
+              defaultValue: "Report focused on text A",
             })
           : focusSide === "textB"
             ? t("plannedAnalysis.compare.focusVerdictB", {
-                defaultValue: "Отчет сфокусирован на тексте B",
+                defaultValue: "Report focused on text B",
               })
             : goalMode === "similarity_check"
               ? t("plannedAnalysis.compare.similarityVerdict", {
-                  defaultValue: "Главный вывод: риск похожести и заимствований",
+                  defaultValue: "Main finding: similarity and borrowing risk",
                 })
               : goalMode === "style_match"
                 ? t("plannedAnalysis.compare.styleVerdict", {
-                    defaultValue: "Главный вывод: различия стиля и подачи",
+                    defaultValue: "Main finding: style and presentation differences",
                   })
                 : goalMode === "version_compare"
                   ? t("plannedAnalysis.compare.versionVerdict", {
-                      defaultValue: "Главный вывод: что изменилось между версиями",
+                      defaultValue: "Main finding: what changed between versions",
                     })
                   : goalMode === "beat_competitor"
                     ? t("plannedAnalysis.compare.competitorVerdict", {
-                        defaultValue: "Главный вывод: текстовые разрывы с конкурентом",
+                        defaultValue: "Main finding: text gaps against competitor",
                       })
                     : winner === "textA"
-          ? t("plannedAnalysis.compare.winnerA", { defaultValue: "Текст A сильнее по текстовым признакам" })
+          ? t("plannedAnalysis.compare.winnerA", { defaultValue: "Text A is stronger by text signals" })
           : winner === "textB"
-            ? t("plannedAnalysis.compare.winnerB", { defaultValue: "Текст B сильнее по текстовым признакам" })
-            : t("plannedAnalysis.compare.winnerTie", { defaultValue: "Тексты близки: важнее разрывы по категориям" }),
-      detail: report.summary,
+            ? t("plannedAnalysis.compare.winnerB", { defaultValue: "Text B is stronger by text signals" })
+            : t("plannedAnalysis.compare.winnerTie", { defaultValue: "The texts are close: category gaps matter more" }),
+      detail: localizeArticleCompareUiText(report.summary, locale),
       mainGap:
-        gapFact?.detail ??
+        (gapFact?.detail
+          ? localizeArticleCompareUiText(gapFact.detail, locale)
+          : undefined) ??
         t("plannedAnalysis.compare.defaultGap", {
-          defaultValue:
-            "Главный разрыв может быть в интенте, полноте, структуре, конкретике или доверии. Перед правкой проверьте категории ниже.",
+          defaultValue: "The main gap may be intent, completeness, structure, specificity, or trust. Check the categories below before editing.",
         }),
     },
     goal: input.goal,
@@ -2979,19 +3190,18 @@ function buildArticleCompareSummary(
     platform: {
       key: "compare",
       label: t("plannedAnalysis.compare.platform", {
-        defaultValue: "Сравнение текстов",
+        defaultValue: "Text comparison",
       }),
       detail: t("plannedAnalysis.compare.platformDetail", {
-        defaultValue:
-          "Результат сравнивает только текстовую часть: без домена, ссылок, технического SEO и живой выдачи.",
+        defaultValue: "The result compares only text: no domain, links, technical SEO, or live SERP.",
       }),
     },
     coverage: { completed, total, percent: coveragePercent },
     textA: {
       id: "textA",
-      label: "Текст A",
+      label: locale === "ru" ? "Текст A" : "Text A",
       role: input.roleA,
-      title: inferCompareTitle(input.textA, "Текст A"),
+      title: inferCompareTitle(input.textA, locale === "ru" ? "Текст A" : "Text A"),
       text: input.textA,
       ...statsA,
       strengths: factsForSide(report, "A"),
@@ -2999,9 +3209,9 @@ function buildArticleCompareSummary(
     },
     textB: {
       id: "textB",
-      label: "Текст B",
+      label: locale === "ru" ? "Текст B" : "Text B",
       role: input.roleB,
-      title: inferCompareTitle(input.textB, "Текст B"),
+      title: inferCompareTitle(input.textB, locale === "ru" ? "Текст B" : "Text B"),
       text: input.textB,
       ...statsB,
       strengths: factsForSide(report, "B"),
@@ -3011,7 +3221,7 @@ function buildArticleCompareSummary(
       {
         id: "structure",
         label: t("plannedAnalysis.compare.metrics.structure", {
-          defaultValue: "Структура",
+          defaultValue: "Structure",
         }),
         textA: statsA.headingCount + statsA.listMarkerCount,
         textB: statsB.headingCount + statsB.listMarkerCount,
@@ -3022,14 +3232,13 @@ function buildArticleCompareSummary(
           statsB.headingCount + statsB.listMarkerCount,
         ),
         description: t("plannedAnalysis.compare.metrics.structureDetail", {
-          defaultValue:
-            "Учитывает заголовки и списки как локальные признаки структуры. Качество структуры важнее одного количества.",
+          defaultValue: "Uses headings and lists as local structure signals. Structure quality matters more than count alone.",
         }),
       },
       {
         id: "specificity",
         label: t("plannedAnalysis.compare.metrics.specificity", {
-          defaultValue: "Конкретика",
+          defaultValue: "Specificity",
         }),
         textA: statsA.numberCount + statsA.listMarkerCount,
         textB: statsB.numberCount + statsB.listMarkerCount,
@@ -3040,14 +3249,13 @@ function buildArticleCompareSummary(
           statsB.numberCount + statsB.listMarkerCount,
         ),
         description: t("plannedAnalysis.compare.metrics.specificityDetail", {
-          defaultValue:
-            "Локальный сигнал по цифрам, примерам и шагам. Конкретика полезна только при точных формулировках.",
+          defaultValue: "Local signal for numbers, examples, and steps. Specificity helps only when wording is accurate.",
         }),
       },
       {
         id: "readability",
         label: t("plannedAnalysis.compare.metrics.readability", {
-          defaultValue: "Читаемость",
+          defaultValue: "Readability",
         }),
         textA: statsA.averageSentenceWords,
         textB: statsB.averageSentenceWords,
@@ -3062,14 +3270,13 @@ function buildArticleCompareSummary(
           true,
         ),
         description: t("plannedAnalysis.compare.metrics.readabilityDetail", {
-          defaultValue:
-            "Более короткие предложения обычно легче сканировать, но экспертный текст иногда требует длинных объяснений.",
+          defaultValue: "Shorter sentences are usually easier to scan, but expert text sometimes needs longer explanations.",
         }),
       },
       {
         id: "similarity",
         label: t("plannedAnalysis.compare.metrics.similarity", {
-          defaultValue: "Дословные совпадения",
+          defaultValue: "Exact overlap",
         }),
         textA: overlap,
         textB: overlap,
@@ -3077,8 +3284,7 @@ function buildArticleCompareSummary(
         suffix: "%",
         winner: copyRisk === "high" ? "risk" : copyRisk === "medium" ? "risk" : "tie",
         description: t("plannedAnalysis.compare.metrics.similarityDetail", {
-          defaultValue:
-            "Локальная проверка совпавших фраз в двух текстах. Это не внешняя база плагиата.",
+          defaultValue: "Local check of matching phrases in two texts. This is not an external plagiarism database.",
         }),
       },
     ],
@@ -3094,14 +3300,14 @@ function buildArticleCompareSummary(
       )
       .slice(0, 6)
       .map((fact) => ({
-        title: fact.title,
-        detail: fact.detail,
+        title: localizeArticleCompareUiText(fact.title, locale),
+        detail: localizeArticleCompareUiText(fact.detail, locale),
         side: "missing_in_a",
         sourceToolIds: fact.sourceToolIds,
       })),
     priorities: priorityFacts.map((fact) => ({
-      title: fact.title,
-      detail: fact.detail,
+      title: localizeArticleCompareUiText(fact.title, locale),
+      detail: localizeArticleCompareUiText(fact.detail, locale),
       priority: fact.priority,
       sourceToolIds: fact.sourceToolIds,
     })),
@@ -3112,39 +3318,33 @@ function buildArticleCompareSummary(
       detail:
         copyRisk === "high"
           ? t("plannedAnalysis.compare.copyRiskHigh", {
-              defaultValue:
-                "Дословных совпадений много. Используйте сильный текст как ориентир, но независимо перепишите структуру, примеры и формулировки.",
+              defaultValue: "Exact overlap is high. Use the stronger text as a reference, but independently rewrite structure, examples, and wording.",
             })
           : copyRisk === "medium"
             ? t("plannedAnalysis.compare.copyRiskMedium", {
-                defaultValue:
-                  "Есть часть дословных совпадений. Сохраняйте полезные идеи, но добавляйте собственные примеры и не повторяйте формулировки.",
+                defaultValue: "Some exact overlap exists. Keep useful ideas, but add your own examples and do not repeat phrasing.",
               })
             : t("plannedAnalysis.compare.copyRiskLow", {
-                defaultValue:
-                  "В локальной проверке мало точных совпадений фраз. Это не гарантия уникальности: смысловую похожесть всё равно нужно оценивать по выводам ниже.",
+                defaultValue: "Local exact phrase overlap is low. This does not guarantee uniqueness: semantic similarity still needs to be evaluated by the findings below.",
               }),
     },
     actionPlan: (priorityFacts.length > 0 ? priorityFacts : report.confirmedFacts)
       .slice(0, 6)
       .map((fact) => ({
-        title: fact.title,
-        detail: fact.detail,
+        title: localizeArticleCompareUiText(fact.title, locale),
+        detail: localizeArticleCompareUiText(fact.detail, locale),
         priority: fact.priority,
         sourceToolIds: fact.sourceToolIds,
       })),
     limitations: [
       t("plannedAnalysis.compare.limitTextOnly", {
-        defaultValue:
-          "Это сравнение только текста: возраст домена, ссылки, техническое SEO, скорость и поведенческие сигналы не учитываются.",
+        defaultValue: "This is text-only comparison: domain age, links, technical SEO, speed, and behavior signals are not included.",
       }),
       t("plannedAnalysis.compare.limitSimilarity", {
-        defaultValue:
-          "Риск похожести — локальная эвристика, а не интернет-проверка плагиата.",
+        defaultValue: "Similarity risk is a local heuristic, not an internet plagiarism check.",
       }),
       t("plannedAnalysis.compare.limitFacts", {
-        defaultValue:
-          "Фактически чувствительные, юридические, медицинские, финансовые и технические утверждения всё равно требуют источников или экспертной проверки.",
+        defaultValue: "Fact-sensitive, legal, medical, financial, and technical claims still require sources or expert review.",
       }),
     ],
   };
@@ -3173,42 +3373,45 @@ function ArticleCompareResultsDashboard({
       <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
         <h2 className="font-display text-lg font-semibold text-outline-900">
           {t("plannedAnalysis.compare.waitingInputTitle", {
-            defaultValue: "Ожидаем два текста",
+            defaultValue: "Waiting for two texts",
           })}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
           {t("plannedAnalysis.compare.waitingInputBody", {
-            defaultValue:
-              "Добавьте текст A и текст B, затем запустите сравнение. Отчёт будет показан в двух колонках.",
+            defaultValue: "Add text A and text B, then run comparison. The report will be shown in two columns.",
           })}
         </p>
       </section>
     );
   }
 
-  const bridgeReport = buildArticleCompareBridgeReport(bridgeState, t);
-  const effectiveReport = report ?? bridgeReport;
+  const bridgeReport = buildArticleCompareBridgeReport(bridgeState, t, locale);
+  const effectiveReportSource = report ?? bridgeReport;
+  const effectiveReport = effectiveReportSource
+    ? effectiveReportSource.locale === locale
+      ? effectiveReportSource
+      : { ...effectiveReportSource, locale }
+    : null;
 
   if (!effectiveReport) {
     return (
       <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
         <h2 className="font-display text-lg font-semibold text-outline-900">
           {t("plannedAnalysis.compare.waitingReportTitle", {
-            defaultValue: "Ожидаем отчет сравнения",
+            defaultValue: "Waiting for comparison report",
           })}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
           {t("plannedAnalysis.compare.waitingReportBody", {
-            defaultValue:
-              "Выбранный режим сравнивает оба текста. ToraSEO покажет результат здесь после появления структурированных данных.",
+            defaultValue: "The selected mode compares both texts. ToraSEO will show the result here after structured data appears.",
           })}
         </p>
       </section>
     );
   }
 
-  const enrichedReport = withLocalArticleCompareFacts(effectiveReport, input, t);
-  const summary = buildArticleCompareSummary(enrichedReport, input, t, completedTools, totalTools);
+  const enrichedReport = withLocalArticleCompareFacts(effectiveReport, input, t, locale);
+  const summary = buildArticleCompareSummary(enrichedReport, input, t, completedTools, totalTools, locale);
   const goalFocus = compareGoalFocus(summary.goalMode, summary.goal);
   const reportComplete = completedTools >= totalTools;
   const openDetails = () => {
@@ -3229,7 +3432,7 @@ function ArticleCompareResultsDashboard({
     if (result.ok) {
       setExportStatus(
         t("plannedAnalysis.results.exportReady", {
-          defaultValue: "Отчет экспортирован.",
+          defaultValue: "Report exported.",
         }),
       );
       return;
@@ -3237,7 +3440,7 @@ function ArticleCompareResultsDashboard({
     if (result.error === "cancelled") {
       setExportStatus(
         t("plannedAnalysis.results.exportCancelled", {
-          defaultValue: "Экспорт отменён.",
+          defaultValue: "Export cancelled.",
         }),
       );
       return;
@@ -3245,7 +3448,7 @@ function ArticleCompareResultsDashboard({
     setExportStatus(
       result.error ||
         t("plannedAnalysis.results.exportFailed", {
-          defaultValue: "Не удалось экспортировать отчет.",
+          defaultValue: "Failed to export the report.",
         }),
     );
   };
@@ -3259,16 +3462,16 @@ function ArticleCompareResultsDashboard({
       setCopyStatus(
         side.id === "textA"
           ? t("plannedAnalysis.compare.copyAReady", {
-              defaultValue: "Статья A скопирована.",
+              defaultValue: "Article A copied.",
             })
           : t("plannedAnalysis.compare.copyBReady", {
-              defaultValue: "Статья B скопирована.",
+              defaultValue: "Article B copied.",
             }),
       );
     } catch {
       setCopyStatus(
         t("plannedAnalysis.compare.copyFailed", {
-          defaultValue: "Не удалось скопировать статью.",
+          defaultValue: "Could not copy the article.",
         }),
       );
     }
@@ -3280,7 +3483,7 @@ function ArticleCompareResultsDashboard({
         <div>
           <h2 className="font-display text-lg font-semibold text-outline-900">
             {t("plannedAnalysis.compare.title", {
-              defaultValue: "Результат сравнения",
+              defaultValue: "Comparison result",
             })}
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-relaxed text-outline-900/60">
@@ -3289,7 +3492,7 @@ function ArticleCompareResultsDashboard({
           <div className="mt-3 max-w-3xl rounded-md border border-orange-200 bg-orange-50/60 px-3 py-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
               {t("plannedAnalysis.compare.goalMode", {
-                defaultValue: "Режим по цели анализа",
+                defaultValue: "Goal mode",
               })}
             </p>
             <p className="mt-1 text-sm font-semibold text-outline-900">
@@ -3315,7 +3518,7 @@ function ArticleCompareResultsDashboard({
             disabled={!reportComplete}
             className="rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-semibold text-outline-900/70 transition hover:border-primary/40 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {t("analysisPanel.actions.details", { defaultValue: "Подробнее" })}
+            {t("analysisPanel.actions.details", { defaultValue: "Details" })}
           </button>
           <button
             type="button"
@@ -3324,7 +3527,7 @@ function ArticleCompareResultsDashboard({
             className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
           >
             {t("plannedAnalysis.results.export", {
-              defaultValue: "Экспортировать",
+              defaultValue: "Export",
             })}
           </button>
           <button
@@ -3334,7 +3537,7 @@ function ArticleCompareResultsDashboard({
             className="rounded-md border border-primary/25 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/45 hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-outline/10 disabled:bg-outline-900/5 disabled:text-outline-900/35"
           >
             {t("plannedAnalysis.compare.copyA", {
-              defaultValue: "Копировать статью A",
+              defaultValue: "Copy article A",
             })}
           </button>
           <button
@@ -3344,7 +3547,7 @@ function ArticleCompareResultsDashboard({
             className="rounded-md border border-primary/25 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/45 hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-outline/10 disabled:bg-outline-900/5 disabled:text-outline-900/35"
           >
             {t("plannedAnalysis.compare.copyB", {
-              defaultValue: "Копировать статью B",
+              defaultValue: "Copy article B",
             })}
           </button>
         </div>
@@ -3359,7 +3562,7 @@ function ArticleCompareResultsDashboard({
         <div className="rounded-lg border border-orange-200 bg-orange-50/65 p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
             {t("plannedAnalysis.compare.verdict", {
-              defaultValue: "Текстовое преимущество",
+              defaultValue: "Text advantage",
             })}
           </p>
           <h3 className="mt-2 font-display text-2xl font-semibold text-outline-900">
@@ -3375,16 +3578,16 @@ function ArticleCompareResultsDashboard({
         <div className="rounded-lg border border-outline/10 bg-white p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
             {t("plannedAnalysis.compare.similarity", {
-              defaultValue: "Риск похожести",
+              defaultValue: "Similarity risk",
             })}
           </p>
           <p className="mt-3 text-3xl font-semibold text-outline-900">
-            {copyRiskLabel(summary.similarity.copyRisk)}
+            {copyRiskLabel(summary.similarity.copyRisk, locale)}
           </p>
           <p className="mt-2 text-sm font-semibold text-outline-900/70">
             {t("plannedAnalysis.compare.exactOverlap", {
               value: summary.similarity.exactOverlap ?? "—",
-              defaultValue: "Дословные совпадения: {{value}}%",
+              defaultValue: "Exact overlap: {{value}}%",
             })}
           </p>
           <p className="mt-2 text-xs leading-relaxed text-outline-900/55">
@@ -3406,11 +3609,10 @@ function ArticleCompareResultsDashboard({
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <CompareGapList
           title={t("plannedAnalysis.compare.gaps", {
-            defaultValue: "Разрывы по содержанию",
+            defaultValue: "Content gaps",
           })}
           description={t("plannedAnalysis.compare.gapsDescription", {
-            defaultValue:
-              "Какие темы, смысловые блоки и полезные элементы отличаются между текстами A и B.",
+            defaultValue: "Which topics, semantic blocks, and useful elements differ between texts A and B.",
           })}
           gaps={summary.gaps}
         />
@@ -3420,7 +3622,7 @@ function ArticleCompareResultsDashboard({
       <section className="mt-5 rounded-lg border border-outline/10 bg-white p-4">
         <h3 className="text-center text-sm font-semibold text-outline-900">
           {t("plannedAnalysis.results.toolEvidenceTitle", {
-            defaultValue: "Данные инструментов",
+            defaultValue: "Tool evidence",
           })}
         </h3>
         <div className="mt-4 grid gap-3 xl:grid-cols-2">
@@ -3436,7 +3638,7 @@ function ArticleCompareResultsDashboard({
       <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50/80 p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-amber-800/70">
           {t("plannedAnalysis.compare.limitationsTitle", {
-            defaultValue: "Граница текстового сравнения",
+            defaultValue: "Text-comparison boundary",
           })}
         </p>
         <ul className="mt-2 grid gap-1 text-xs leading-relaxed text-amber-900/75">
@@ -3477,7 +3679,8 @@ function compareGoalFocus(
 }
 
 function CompareVisualGraph({ summary }: { summary: RuntimeArticleCompareSummary }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const locale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const maxValue = Math.max(
     1,
     ...summary.metrics.flatMap((metric) => [
@@ -3491,13 +3694,12 @@ function CompareVisualGraph({ summary }: { summary: RuntimeArticleCompareSummary
         <div>
           <h3 className="text-sm font-semibold text-outline-900">
             {t("plannedAnalysis.compare.visualGraphTitle", {
-              defaultValue: "Визуальное сравнение A/B",
+              defaultValue: "Visual A/B comparison",
             })}
           </h3>
           <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
             {t("plannedAnalysis.compare.visualGraphBody", {
-              defaultValue:
-                "Графы показывают относительные локальные признаки. Это не итоговый SEO-скор, а быстрый способ увидеть разрывы.",
+              defaultValue: "Graphs show relative local signals. This is not a final SEO score, but a quick way to see gaps.",
             })}
           </p>
         </div>
@@ -3523,7 +3725,7 @@ function CompareVisualGraph({ summary }: { summary: RuntimeArticleCompareSummary
                   {metric.label}
                 </p>
                 <span className="text-[11px] font-semibold text-outline-900/45">
-                  {compareMetricWinnerLabel(metric.winner)}
+                  {compareMetricWinnerLabel(metric.winner, locale)}
                 </span>
               </div>
               <div className="mt-3 space-y-2">
@@ -3568,12 +3770,15 @@ function CompareBar({
   );
 }
 
-function compareMetricWinnerLabel(metricWinner: RuntimeArticleCompareMetric["winner"]): string {
-  if (metricWinner === "textA") return "лучше A";
-  if (metricWinner === "textB") return "лучше B";
-  if (metricWinner === "risk") return "риск";
-  if (metricWinner === "tie") return "примерно равно";
-  return "ожидаем";
+function compareMetricWinnerLabel(
+  metricWinner: RuntimeArticleCompareMetric["winner"],
+  locale: "ru" | "en",
+): string {
+  if (metricWinner === "textA") return locale === "ru" ? "лучше A" : "A is stronger";
+  if (metricWinner === "textB") return locale === "ru" ? "лучше B" : "B is stronger";
+  if (metricWinner === "risk") return locale === "ru" ? "риск" : "risk";
+  if (metricWinner === "tie") return locale === "ru" ? "примерно равно" : "about equal";
+  return locale === "ru" ? "ожидаем" : "pending";
 }
 
 function CompareSideFindingsBlock({
@@ -3597,22 +3802,20 @@ function CompareSideFindingsBlock({
           <h3 className="text-sm font-semibold text-outline-900">
             {goalFocus === "both"
               ? t("plannedAnalysis.compare.sideFindingsTitle", {
-                  defaultValue: "Сильные и слабые стороны A/B",
+                  defaultValue: "A/B strengths and weaknesses",
                 })
               : t("plannedAnalysis.compare.focusedFindingsTitle", {
                   label: goalFocus === "textA" ? "A" : "B",
-                  defaultValue: "Фокус по цели анализа: текст {{label}}",
+                  defaultValue: "Goal focus: text {{label}}",
                 })}
           </h3>
           <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
             {goalFocus === "both"
               ? t("plannedAnalysis.compare.sideFindingsBody", {
-                  defaultValue:
-                    "Если цель анализа не указана, ToraSEO показывает стандартный сравнительный отчёт по двум текстам.",
+                  defaultValue: "If no analysis goal is set, ToraSEO shows a standard comparative report for both texts.",
                 })
               : t("plannedAnalysis.compare.focusedFindingsBody", {
-                  defaultValue:
-                    "Поскольку цель явно указывает на один текст, блок ниже показывает выводы прежде всего по нему.",
+                  defaultValue: "Because the goal clearly points to one text, the block below primarily shows findings for that text.",
                 })}
           </p>
         </div>
@@ -3624,21 +3827,21 @@ function CompareSideFindingsBlock({
             <div className="mt-3 grid gap-3">
               <InsightList
                 title={t("plannedAnalysis.compare.strengths", {
-                  defaultValue: "Сильные стороны",
+                  defaultValue: "Strengths",
                 })}
                 items={side.strengths}
                 emptyText={t("plannedAnalysis.compare.noStrengths", {
-                  defaultValue: "Явные сильные стороны появятся после завершения проверок.",
+                  defaultValue: "Clear strengths will appear after checks finish.",
                 })}
                 tone="good"
               />
               <InsightList
                 title={t("plannedAnalysis.compare.weaknesses", {
-                  defaultValue: "Слабые стороны",
+                  defaultValue: "Weaknesses",
                 })}
                 items={side.weaknesses}
                 emptyText={t("plannedAnalysis.compare.noWeaknesses", {
-                  defaultValue: "Явных слабых сторон по текущим локальным сигналам не найдено.",
+                  defaultValue: "No clear weaknesses were found by the current local signals.",
                 })}
                 tone="warn"
               />
@@ -3651,7 +3854,8 @@ function CompareSideFindingsBlock({
 }
 
 function CompareTextColumn({ side }: { side: RuntimeArticleCompareTextSide }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const locale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   return (
     <article className="rounded-lg border border-outline/10 bg-white">
       <header className="border-b border-outline/10 p-4">
@@ -3659,12 +3863,12 @@ function CompareTextColumn({ side }: { side: RuntimeArticleCompareTextSide }) {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
               {side.role === "own"
-                ? t("plannedAnalysis.compare.yourText", { defaultValue: "Ваш текст" })
+                ? t("plannedAnalysis.compare.yourText", { defaultValue: "Your text" })
                 : side.role === "competitor"
-                  ? t("plannedAnalysis.compare.competitorText", { defaultValue: "Текст конкурента" })
+                  ? t("plannedAnalysis.compare.competitorText", { defaultValue: "Competitor text" })
                   : side.id === "textA"
-                    ? "Текст A"
-                    : "Текст B"}
+                    ? locale === "ru" ? "Текст A" : "Text A"
+                    : locale === "ru" ? "Текст B" : "Text B"}
             </p>
             <h3 className="mt-1 text-lg font-semibold text-outline-900">
               {side.title}
@@ -3673,7 +3877,7 @@ function CompareTextColumn({ side }: { side: RuntimeArticleCompareTextSide }) {
           <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-outline-900/55">
             {t("plannedAnalysis.compare.words", {
               count: side.wordCount,
-              defaultValue: "{{count}} слов",
+              defaultValue: "{{count}} words",
             })}
           </span>
         </div>
@@ -3681,19 +3885,19 @@ function CompareTextColumn({ side }: { side: RuntimeArticleCompareTextSide }) {
           <span className="rounded-md bg-orange-50 px-2 py-1">
             {t("plannedAnalysis.compare.paragraphs", {
               count: side.paragraphCount,
-              defaultValue: "{{count}} абзацев",
+              defaultValue: "{{count}} paragraphs",
             })}
           </span>
           <span className="rounded-md bg-orange-50 px-2 py-1">
             {t("plannedAnalysis.compare.headings", {
               count: side.headingCount,
-              defaultValue: "{{count}} заголовков",
+              defaultValue: "{{count}} headings",
             })}
           </span>
           <span className="rounded-md bg-orange-50 px-2 py-1">
             {t("plannedAnalysis.compare.wordsPerSentence", {
               count: side.averageSentenceWords ?? "—",
-              defaultValue: "{{count}} слов/предл.",
+              defaultValue: "{{count}} words/sent.",
             })}
           </span>
         </div>
@@ -3710,15 +3914,17 @@ function CompareTextColumn({ side }: { side: RuntimeArticleCompareTextSide }) {
 }
 
 function CompareMetricCard({ metric }: { metric: RuntimeArticleCompareMetric }) {
+  const { i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const winnerLabel =
     metric.winner === "textA"
       ? "A"
       : metric.winner === "textB"
         ? "B"
         : metric.winner === "tie"
-          ? "равно"
-          : metric.winner === "risk"
-            ? "риск"
+          ? locale === "ru" ? "равно" : "tie"
+        : metric.winner === "risk"
+            ? locale === "ru" ? "риск" : "risk"
             : "—";
   return (
     <div className="rounded-lg border border-orange-200/80 bg-orange-50/70 p-4">
@@ -3795,13 +4001,12 @@ function CompareActionPlan({ items }: { items: RuntimeArticleTextPriority[] }) {
     <section className="rounded-lg border border-outline/10 bg-white p-4">
       <h3 className="text-sm font-semibold text-outline-900">
         {t("plannedAnalysis.compare.actionPlan", {
-          defaultValue: "Что улучшить дальше",
+          defaultValue: "What to improve next",
         })}
       </h3>
       <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
         {t("plannedAnalysis.compare.actionPlanDescription", {
-          defaultValue:
-            "Приоритеты правки: усиливаем нужный текст, не копируя второй.",
+          defaultValue: "Editing priorities: strengthen the target text without copying the second one.",
         })}
       </p>
       <ol className="mt-3 grid gap-2">
@@ -3829,6 +4034,8 @@ interface ToraRankResult {
   qualityScore: number;
   positiveSignals: number;
   penaltySignals: number;
+  evidenceCeiling: number;
+  toolDepth: number;
 }
 
 function ToraRankHero({
@@ -3841,8 +4048,9 @@ function ToraRankHero({
   onOpenFormulas: () => void;
 }) {
   const { t } = useTranslation();
+  const toneClass = toraRankToneClass(rank);
   return (
-    <section className="mt-5 rounded-lg border border-primary/25 bg-gradient-to-r from-orange-50 via-white to-amber-50 p-4 shadow-sm">
+    <section className={`mt-5 rounded-lg border bg-gradient-to-r p-4 shadow-sm ${toneClass}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -3850,7 +4058,7 @@ function ToraRankHero({
           </p>
           <p className="mt-2 text-sm text-outline-900/60">
             {t("plannedAnalysis.toraRank.scoreLabel", {
-              defaultValue: "Оценка по данному анализу:",
+              defaultValue: "Score for this analysis:",
             })}{" "}
             <strong className="font-display text-2xl font-semibold text-outline-900">
               {rank.displayValue} cgs
@@ -3863,9 +4071,14 @@ function ToraRankHero({
           >
             <Info size={14} aria-hidden="true" />
             {t("analysisPanel.actions.details", {
-              defaultValue: "Подробнее",
+              defaultValue: "Details",
             })}
           </button>
+          <p className="mt-2 text-xs leading-relaxed text-outline-900/45">
+            {t("plannedAnalysis.toraRank.previewNote", {
+              defaultValue: "Early app score: fewer tools lowers the score ceiling.",
+            })}
+          </p>
         </div>
         <div className="flex justify-end sm:self-end">
           <button
@@ -3874,13 +4087,25 @@ function ToraRankHero({
             className="rounded-md px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-white/80"
           >
             {t("plannedAnalysis.toraRank.about", {
-              defaultValue: "о Tora Rank",
+              defaultValue: "About Tora Rank",
             })}
           </button>
         </div>
       </div>
     </section>
   );
+}
+
+function toraRankToneClass(rank: ToraRankResult): string {
+  const ratio =
+    rank.evidenceCeiling > 0 ? rank.value / rank.evidenceCeiling : 0;
+  if (ratio >= 0.78) {
+    return "border-green-200 from-green-50 via-white to-orange-50";
+  }
+  if (ratio >= 0.55) {
+    return "border-primary/25 from-orange-50 via-white to-amber-50";
+  }
+  return "border-red-200 from-red-50 via-white to-orange-50";
 }
 
 function ToraRankModal({
@@ -3927,7 +4152,7 @@ function ToraRankModal({
               className="mt-2 font-display text-2xl font-semibold text-outline-900"
             >
               {t("plannedAnalysis.toraRank.modalTitle", {
-                defaultValue: "Как читать этот счёт",
+                defaultValue: "How to read this score",
               })}
             </h3>
           </div>
@@ -3936,7 +4161,7 @@ function ToraRankModal({
             onClick={onClose}
             className="rounded-md border border-outline/10 bg-white p-2 text-outline-900/55 transition hover:border-primary/30 hover:text-primary"
             aria-label={t("plannedAnalysis.toraRank.close", {
-              defaultValue: "Закрыть",
+              defaultValue: "Close",
             })}
           >
             <X size={16} aria-hidden="true" />
@@ -3946,7 +4171,7 @@ function ToraRankModal({
         <div className="mt-5 rounded-lg border border-orange-200 bg-orange-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
             {t("plannedAnalysis.toraRank.currentScore", {
-              defaultValue: "Текущий результат",
+              defaultValue: "Current result",
             })}
           </p>
           <p className="mt-2 font-display text-3xl font-semibold text-outline-900">
@@ -3956,8 +4181,12 @@ function ToraRankModal({
 
         <p className="mt-5 text-sm leading-relaxed text-outline-900/70">
           {t("plannedAnalysis.toraRank.modalBody", {
-            defaultValue:
-              "Tora Rank показывает итоговую силу результата именно для анализа текста. Это не позиция в поиске и не гарантия трафика: счёт собирается из найденных преимуществ, штрафов и качества выбранных проверок.",
+            defaultValue: "Tora Rank shows the total strength of this text-analysis result. It is not a search position and not a traffic guarantee: MCP tools provide metrics, and the app combines them into an early cgs score.",
+          })}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
+          {t("plannedAnalysis.toraRank.chatBoundary", {
+            defaultValue: "The AI chat does not calculate Tora Rank as a separate tool. If you ask about the score, it should explain it as an app preview layer above the analysis results.",
           })}
         </p>
 
@@ -3965,25 +4194,25 @@ function ToraRankModal({
           <div className="rounded-lg border border-green-200 bg-green-50/70 p-4">
             <h4 className="text-sm font-semibold text-outline-900">
               {t("plannedAnalysis.toraRank.raisesTitle", {
-                defaultValue: "Что повышает счёт",
+                defaultValue: "What raises the score",
               })}
             </h4>
             <ul className="mt-3 space-y-2 text-sm leading-relaxed text-outline-900/65">
-              <li>{t("plannedAnalysis.toraRank.raiseStructure", { defaultValue: "ясная структура и логичный путь читателя" })}</li>
-              <li>{t("plannedAnalysis.toraRank.raiseIntent", { defaultValue: "понятный intent, сильный hook и SEO-подача" })}</li>
-              <li>{t("plannedAnalysis.toraRank.raiseOriginality", { defaultValue: "естественный стиль, конкретика и полезность" })}</li>
+              <li>{t("plannedAnalysis.toraRank.raiseStructure", { defaultValue: "clear structure and a logical reader path" })}</li>
+              <li>{t("plannedAnalysis.toraRank.raiseIntent", { defaultValue: "clear intent, strong hook, and SEO-ready packaging" })}</li>
+              <li>{t("plannedAnalysis.toraRank.raiseOriginality", { defaultValue: "natural style, specificity, and usefulness" })}</li>
             </ul>
           </div>
           <div className="rounded-lg border border-red-200 bg-red-50/70 p-4">
             <h4 className="text-sm font-semibold text-outline-900">
               {t("plannedAnalysis.toraRank.lowersTitle", {
-                defaultValue: "Что снижает счёт",
+                defaultValue: "What lowers the score",
               })}
             </h4>
             <ul className="mt-3 space-y-2 text-sm leading-relaxed text-outline-900/65">
-              <li>{t("plannedAnalysis.toraRank.lowerRepetition", { defaultValue: "водность, повторы и шаблонные фразы" })}</li>
-              <li>{t("plannedAnalysis.toraRank.lowerLogic", { defaultValue: "слабая логика, противоречия и неясный вывод" })}</li>
-              <li>{t("plannedAnalysis.toraRank.lowerRisk", { defaultValue: "рискованные утверждения и факты без проверки" })}</li>
+              <li>{t("plannedAnalysis.toraRank.lowerRepetition", { defaultValue: "watery text, repetition, and template phrases" })}</li>
+              <li>{t("plannedAnalysis.toraRank.lowerLogic", { defaultValue: "weak logic, contradictions, and unclear conclusions" })}</li>
+              <li>{t("plannedAnalysis.toraRank.lowerRisk", { defaultValue: "risky claims and unchecked facts" })}</li>
             </ul>
           </div>
         </div>
@@ -3991,16 +4220,25 @@ function ToraRankModal({
         <div className="mt-5 rounded-lg border border-outline/10 bg-outline-900/[0.03] p-4">
           <p className="font-mono text-sm leading-relaxed text-outline-900/70">
             {t("plannedAnalysis.toraRank.exampleFormula", {
-              defaultValue:
-                "сила текста + intent + полезность - штрафы = итоговый Tora Rank в cgs",
+              defaultValue: "text strength + intent + usefulness - penalties = final Tora Rank in cgs",
             })}
           </p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-outline-900/55">
             <span className="rounded-full bg-white px-2.5 py-1">
-              +{rank.positiveSignals} {t("plannedAnalysis.toraRank.signalPoints", { defaultValue: "сигналов" })}
+              +{rank.positiveSignals} {t("plannedAnalysis.toraRank.signalPoints", { defaultValue: "signals" })}
             </span>
             <span className="rounded-full bg-white px-2.5 py-1">
-              -{rank.penaltySignals} {t("plannedAnalysis.toraRank.penaltyPoints", { defaultValue: "штрафов" })}
+              -{rank.penaltySignals} {t("plannedAnalysis.toraRank.penaltyPoints", { defaultValue: "penalties" })}
+            </span>
+            <span className="rounded-full bg-white px-2.5 py-1">
+              {t("plannedAnalysis.toraRank.ceiling", {
+                defaultValue: "ceiling",
+              })}: {new Intl.NumberFormat(undefined).format(rank.evidenceCeiling)} cgs
+            </span>
+            <span className="rounded-full bg-white px-2.5 py-1">
+              {t("plannedAnalysis.toraRank.toolDepth", {
+                defaultValue: "depth",
+              })}: {rank.toolDepth}%
             </span>
           </div>
         </div>
@@ -4012,7 +4250,7 @@ function ToraRankModal({
             className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-600"
           >
             {t("plannedAnalysis.toraRank.about", {
-              defaultValue: "о Tora Rank",
+              defaultValue: "About Tora Rank",
             })}
           </button>
         </div>
@@ -4032,6 +4270,7 @@ function ArticleTextResultsDashboard({
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
+  const isRu = locale === "ru";
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [toraRankModalOpen, setToraRankModalOpen] = useState(false);
@@ -4061,7 +4300,7 @@ function ArticleTextResultsDashboard({
     state.buffer.naturalness_indicators?.summary?.warning ?? 0;
   const articleSummary = buildArticleTextSummary(state, t);
   const toraRank = buildArticleTextToraRank(articleSummary);
-  const report = buildArticleTextReport(state, t, articleSummary);
+  const report = buildArticleTextReport(state, t, articleSummary, locale);
   const canUseReport = report !== null && completedCount > 0;
   const canCopySourceText =
     report !== null &&
@@ -4083,7 +4322,7 @@ function ArticleTextResultsDashboard({
     if (result.ok) {
       setExportStatus(
         t("plannedAnalysis.results.exportReady", {
-          defaultValue: "Отчет экспортирован.",
+          defaultValue: "Report exported.",
         }),
       );
       return;
@@ -4091,13 +4330,13 @@ function ArticleTextResultsDashboard({
     if (result.error === "cancelled") {
       setExportStatus(
         t("plannedAnalysis.results.exportCancelled", {
-          defaultValue: "Экспорт отменён.",
+          defaultValue: "Export cancelled.",
         }),
       );
       return;
     }
     const fallback = t("plannedAnalysis.results.exportFailed", {
-      defaultValue: "Не удалось экспортировать отчет.",
+      defaultValue: "Failed to export the report.",
     });
     setExportStatus(result.error ? `${fallback} ${result.error}` : fallback);
   };
@@ -4110,13 +4349,13 @@ function ArticleTextResultsDashboard({
     if (result.ok) {
       setCopyStatus(
         t("plannedAnalysis.results.copySourceReady", {
-          defaultValue: "Исходный текст скопирован.",
+          defaultValue: "Source text copied.",
         }),
       );
       return;
     }
     const fallback = t("plannedAnalysis.results.copySourceFailed", {
-      defaultValue: "Не удалось скопировать исходный текст.",
+      defaultValue: "Could not copy the source text.",
     });
     setCopyStatus(result.error ? `${fallback} ${result.error}` : fallback);
   };
@@ -4129,7 +4368,7 @@ function ArticleTextResultsDashboard({
     if (result.ok) {
       setExportStatus(
         t("plannedAnalysis.results.exportJsonReady", {
-          defaultValue: "QA JSON экспортирован.",
+          defaultValue: "QA JSON exported.",
         }),
       );
       return;
@@ -4137,13 +4376,13 @@ function ArticleTextResultsDashboard({
     if (result.error === "cancelled") {
       setExportStatus(
         t("plannedAnalysis.results.exportCancelled", {
-          defaultValue: "Экспорт отменён.",
+          defaultValue: "Export cancelled.",
         }),
       );
       return;
     }
     const fallback = t("plannedAnalysis.results.exportFailed", {
-      defaultValue: "Не удалось экспортировать отчет.",
+      defaultValue: "Failed to export the report.",
     });
     setExportStatus(result.error ? `${fallback} ${result.error}` : fallback);
   };
@@ -4154,13 +4393,12 @@ function ArticleTextResultsDashboard({
         <div>
           <h2 className="font-display text-lg font-semibold text-outline-900">
             {t("plannedAnalysis.results.title", {
-              defaultValue: "Результаты анализа",
+              defaultValue: "Analysis results",
             })}
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-outline-900/60">
             {t("plannedAnalysis.results.body", {
-              defaultValue:
-                "Здесь отображаются MCP-результаты текущего анализа текста. Ответ в чате может быть короче, но приложение хранит структурные пункты ниже.",
+              defaultValue: "Current structured text-analysis results are shown here. The chat answer may be shorter, but the app keeps the checks below.",
             })}
           </p>
         </div>
@@ -4174,7 +4412,7 @@ function ArticleTextResultsDashboard({
             disabled={!canUseReport}
             className="rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-semibold text-outline-900/70 transition hover:border-primary/40 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {t("analysisPanel.actions.details", { defaultValue: "Подробнее" })}
+            {t("analysisPanel.actions.details", { defaultValue: "Details" })}
           </button>
           <button
             type="button"
@@ -4183,7 +4421,7 @@ function ArticleTextResultsDashboard({
             className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
           >
             {t("plannedAnalysis.results.export", {
-              defaultValue: "Экспортировать",
+              defaultValue: "Export",
             })}
           </button>
           <button
@@ -4193,7 +4431,7 @@ function ArticleTextResultsDashboard({
             className="rounded-md border border-primary/25 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/45 hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-outline/10 disabled:bg-outline-900/5 disabled:text-outline-900/35"
           >
             {t("plannedAnalysis.results.copySourceText", {
-              defaultValue: "Копировать исходный текст",
+              defaultValue: "Copy source text",
             })}
           </button>
           {evalLabEnabled && (
@@ -4255,7 +4493,7 @@ function ArticleTextResultsDashboard({
               <span className="rounded-full border border-red-200 bg-red-50/90 px-2.5 py-1 text-xs font-semibold text-red-700">
                 {t("plannedAnalysis.results.warningCountChip", {
                   count: articleSummary.warningCount,
-                  defaultValue: "Предупреждения: {{count}}",
+                  defaultValue: "Warnings: {{count}}",
                 })}
               </span>
             )}
@@ -4301,21 +4539,21 @@ function ArticleTextResultsDashboard({
         <div className="grid gap-3 lg:grid-cols-2">
           <InsightList
             title={t("plannedAnalysis.results.strengths", {
-              defaultValue: "Сильные стороны",
+              defaultValue: "Strengths",
             })}
             items={articleSummary.strengths}
             emptyText={t("plannedAnalysis.results.strengthsEmpty", {
-              defaultValue: "Сильные стороны появятся после завершения проверок.",
+              defaultValue: "Strengths will appear after checks finish.",
             })}
             tone="good"
           />
           <InsightList
             title={t("plannedAnalysis.results.weaknesses", {
-              defaultValue: "Слабые стороны",
+              defaultValue: "Weaknesses",
             })}
             items={articleSummary.weaknesses}
             emptyText={t("plannedAnalysis.results.weaknessesEmpty", {
-              defaultValue: "Явных слабых сторон по текущим инструментам не найдено.",
+              defaultValue: "No clear weaknesses were found by the current tools.",
             })}
             tone="warn"
           />
@@ -4329,18 +4567,20 @@ function ArticleTextResultsDashboard({
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
                 {t("plannedAnalysis.results.intentForecast.title", {
-                  defaultValue: "Прогноз интента и SEO-пакет",
+                  defaultValue: "Intent forecast and SEO package",
                 })}
               </p>
               <h3 className="mt-1 font-display text-lg font-semibold text-outline-900">
-                {articleSummary.intentForecast.intentLabel}
+                {localizeArticleUiText(articleSummary.intentForecast.intentLabel, isRu)}
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
                 {articleSummary.intentForecast.internetDemandAvailable
-                  ? articleSummary.intentForecast.internetDemandSource
+                  ? localizeArticleUiText(
+                      articleSummary.intentForecast.internetDemandSource,
+                      isRu,
+                    )
                   : t("plannedAnalysis.results.intentForecast.noInternet", {
-                      defaultValue:
-                        "Это локальный прогноз без SERP и соцданных. Интернет-сверку позже можно подключить отдельным внешним источником.",
+                      defaultValue: "This is a local forecast without SERP or social-platform data. Internet verification can be connected later through a separate external source.",
                     })}
               </p>
             </div>
@@ -4348,12 +4588,11 @@ function ArticleTextResultsDashboard({
               {[
                 {
                   label: t("plannedAnalysis.results.intentForecast.hook", {
-                    defaultValue: "Хук",
+                    defaultValue: "Hook",
                   }),
                   value: articleSummary.intentForecast.hookScore,
                   tooltip: t("plannedAnalysis.results.intentForecast.hookTooltip", {
-                    defaultValue:
-                      "Хук показывает, насколько первые строки цепляют читателя: видна ли боль, польза или обещание результата.",
+                    defaultValue: "The hook shows how strongly the opening lines catch the reader: whether the pain, benefit, or promised result is visible.",
                   }),
                 },
                 {
@@ -4362,18 +4601,16 @@ function ArticleTextResultsDashboard({
                   }),
                   value: articleSummary.intentForecast.ctrPotential,
                   tooltip: t("plannedAnalysis.results.intentForecast.ctrTooltip", {
-                    defaultValue:
-                      "CTR — локальная оценка кликабельности заголовка и описания. Это не реальная статистика выдачи.",
+                    defaultValue: "CTR is a local estimate of title and description click potential. It is not real search-result statistics.",
                   }),
                 },
                 {
                   label: t("plannedAnalysis.results.intentForecast.trend", {
-                    defaultValue: "Тренд",
+                    defaultValue: "Trend",
                   }),
                   value: articleSummary.intentForecast.trendPotential,
                   tooltip: t("plannedAnalysis.results.intentForecast.trendTooltip", {
-                    defaultValue:
-                      "Тренд — примерная локальная оценка потенциала темы по формулировкам текста. Интернет-спрос здесь не проверяется.",
+                    defaultValue: "Trend is an approximate local estimate of topic potential from the text wording. Internet demand is not checked here.",
                   }),
                 },
               ].map(({ label, value, tooltip }) => (
@@ -4400,69 +4637,93 @@ function ArticleTextResultsDashboard({
             <div className="rounded-md border border-orange-200/70 bg-orange-50/80 p-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
                 {t("plannedAnalysis.results.intentForecast.cmsPackage", {
-                  defaultValue: "Для WordPress / Laravel CMS",
+                  defaultValue: "For WordPress / Laravel CMS",
                 })}
               </p>
               <dl className="mt-2 grid gap-2 text-xs text-outline-900/65">
                 <div>
                   <dt className="font-semibold text-outline-900">
                     {t("plannedAnalysis.results.intentForecast.seoTitle", {
-                      defaultValue: "SEO-title",
+                      defaultValue: "SEO title",
                     })}
                   </dt>
-                  <dd>{articleSummary.intentForecast.seoPackage.seoTitle || "—"}</dd>
+                  <dd>
+                    {localizeArticleUiText(
+                      articleSummary.intentForecast.seoPackage.seoTitle || "—",
+                      isRu,
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-outline-900">
                     {t("plannedAnalysis.results.intentForecast.description", {
-                      defaultValue: "Описание",
+                      defaultValue: "Description",
                     })}
                   </dt>
-                  <dd>{articleSummary.intentForecast.seoPackage.metaDescription || "—"}</dd>
+                  <dd>
+                    {localizeArticleUiText(
+                      articleSummary.intentForecast.seoPackage.metaDescription || "—",
+                      isRu,
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-outline-900">
                     {t("plannedAnalysis.results.intentForecast.keywords", {
-                      defaultValue: "Ключевые слова",
+                      defaultValue: "Keywords",
                     })}
                   </dt>
                   <dd>
-                    {articleSummary.intentForecast.seoPackage.keywords.join(", ") ||
-                      "—"}
+                    {localizeArticleUiText(
+                      articleSummary.intentForecast.seoPackage.keywords.join(", ") ||
+                        "—",
+                      isRu,
+                    )}
                   </dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-outline-900">
                     {t("plannedAnalysis.results.intentForecast.taxonomy", {
-                      defaultValue: "Категория / метки",
+                      defaultValue: "Category / tags",
                     })}
                   </dt>
                   <dd>
-                    {articleSummary.intentForecast.seoPackage.category}
+                    {localizeArticleUiText(
+                      articleSummary.intentForecast.seoPackage.category,
+                      isRu,
+                    )}
                     {articleSummary.intentForecast.seoPackage.tags.length > 0
-                      ? ` · ${articleSummary.intentForecast.seoPackage.tags.join(", ")}`
+                      ? ` · ${localizeArticleUiText(
+                          articleSummary.intentForecast.seoPackage.tags.join(", "),
+                          isRu,
+                        )}`
                       : ""}
                   </dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-outline-900">
                     {t("plannedAnalysis.results.intentForecast.slug", {
-                      defaultValue: "URL-slug",
+                      defaultValue: "URL slug",
                     })}
                   </dt>
-                  <dd>{articleSummary.intentForecast.seoPackage.slug || "—"}</dd>
+                  <dd>
+                    {localizeSeoSlug(
+                      articleSummary.intentForecast.seoPackage.slug || "—",
+                      isRu,
+                    )}
+                  </dd>
                 </div>
               </dl>
             </div>
             <div className="rounded-md border border-orange-200/70 bg-orange-50/80 p-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
                 {t("plannedAnalysis.results.intentForecast.hooksTitle", {
-                  defaultValue: "Цепляющие хуки",
+                  defaultValue: "Hook ideas",
                 })}
               </p>
               <ul className="mt-2 grid gap-2 text-xs leading-relaxed text-outline-900/65">
                 {articleSummary.intentForecast.hookIdeas.map((hook) => (
-                  <li key={hook}>• {hook}</li>
+                  <li key={hook}>• {localizeArticleUiText(hook, isRu)}</li>
                 ))}
               </ul>
             </div>
@@ -4474,21 +4735,20 @@ function ArticleTextResultsDashboard({
         <div className="rounded-lg border border-orange-100 bg-orange-50/40 p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
             {t("plannedAnalysis.results.uniquenessTitle", {
-              defaultValue: "Уникальность статьи",
+              defaultValue: "Article uniqueness",
             })}
           </p>
           <div className="mt-4 flex items-center justify-center">
             <ScoreDial
               value={uniqueness}
               emptyLabel={t("plannedAnalysis.results.waitingMetric", {
-                defaultValue: "ожидаем",
+                defaultValue: "waiting",
               })}
             />
           </div>
           <p className="mt-4 text-center text-xs leading-relaxed text-outline-900/55">
             {t("plannedAnalysis.results.uniquenessHint", {
-              defaultValue:
-                "Локальная оценка повторов и шаблонности. Это не интернет-проверка плагиата.",
+              defaultValue: "Local repetition and template-risk estimate. This is not an internet plagiarism check.",
             })}
           </p>
         </div>
@@ -4496,7 +4756,7 @@ function ArticleTextResultsDashboard({
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             label={t("plannedAnalysis.results.syntaxTitle", {
-              defaultValue: "Синтаксис языка",
+              defaultValue: "Language syntax",
             })}
             value={syntax}
             suffix="%"
@@ -4504,7 +4764,7 @@ function ArticleTextResultsDashboard({
           />
           <MetricCard
             label={t("plannedAnalysis.results.aiProbabilityTitle", {
-              defaultValue: "Вероятность написания ИИ",
+              defaultValue: "AI writing probability",
             })}
             value={aiProbability}
             suffix="%"
@@ -4512,7 +4772,7 @@ function ArticleTextResultsDashboard({
           />
           <MetricCard
             label={t("plannedAnalysis.results.logicTitle", {
-              defaultValue: "Логическая связность",
+              defaultValue: "Logic consistency",
             })}
             value={logicScore}
             suffix="%"
@@ -4520,7 +4780,7 @@ function ArticleTextResultsDashboard({
           />
           <MetricCard
             label={t("plannedAnalysis.results.naturalnessTitle", {
-              defaultValue: "Естественность",
+              defaultValue: "Naturalness",
             })}
             value={
               typeof naturalnessWarnings === "number"
@@ -4590,7 +4850,8 @@ function IntentForecastPanel({
 }: {
   articleSummary: RuntimeArticleTextSummary;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRu = i18n.language.startsWith("ru");
   const forecast = articleSummary.intentForecast;
   if (!forecast) return null;
 
@@ -4600,18 +4861,17 @@ function IntentForecastPanel({
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
             {t("plannedAnalysis.results.intentForecast.title", {
-              defaultValue: "Прогноз интента и SEO-пакет",
+              defaultValue: "Intent forecast and SEO package",
             })}
           </p>
           <h3 className="mt-1 font-display text-lg font-semibold text-outline-900">
-            {forecast.intentLabel}
+            {localizeArticleUiText(forecast.intentLabel, isRu)}
           </h3>
           <p className="mt-1 text-xs leading-relaxed text-outline-900/55">
             {forecast.internetDemandAvailable
-              ? forecast.internetDemandSource
+              ? localizeArticleUiText(forecast.internetDemandSource, isRu)
               : t("plannedAnalysis.results.intentForecast.noInternet", {
-                  defaultValue:
-                    "Это локальный прогноз без SERP и соцданных. Интернет-сверку позже можно подключить отдельным внешним источником.",
+                  defaultValue: "This is a local forecast without SERP or social-platform data. Internet verification can be connected later through a separate external source.",
                 })}
           </p>
         </div>
@@ -4619,12 +4879,11 @@ function IntentForecastPanel({
           {[
             {
               label: t("plannedAnalysis.results.intentForecast.hook", {
-                defaultValue: "Хук",
+                defaultValue: "Hook",
               }),
               value: forecast.hookScore,
               tooltip: t("plannedAnalysis.results.intentForecast.hookTooltip", {
-                defaultValue:
-                  "Хук показывает, насколько первые строки цепляют читателя: видна ли боль, польза или обещание результата.",
+                defaultValue: "The hook shows how strongly the opening lines catch the reader: whether the pain, benefit, or promised result is visible.",
               }),
             },
             {
@@ -4633,18 +4892,16 @@ function IntentForecastPanel({
               }),
               value: forecast.ctrPotential,
               tooltip: t("plannedAnalysis.results.intentForecast.ctrTooltip", {
-                defaultValue:
-                  "CTR — локальная оценка кликабельности заголовка и описания. Это не реальная статистика выдачи.",
+                defaultValue: "CTR is a local estimate of title and description click potential. It is not real search-result statistics.",
               }),
             },
             {
               label: t("plannedAnalysis.results.intentForecast.trend", {
-                defaultValue: "Тренд",
+                defaultValue: "Trend",
               }),
               value: forecast.trendPotential,
               tooltip: t("plannedAnalysis.results.intentForecast.trendTooltip", {
-                defaultValue:
-                  "Тренд — примерная локальная оценка потенциала темы по формулировкам текста. Интернет-спрос здесь не проверяется.",
+                defaultValue: "Trend is an approximate local estimate of topic potential from the text wording. Internet demand is not checked here.",
               }),
             },
           ].map(({ label, value, tooltip }) => (
@@ -4671,66 +4928,79 @@ function IntentForecastPanel({
         <div className="rounded-md border border-orange-200/70 bg-orange-50/80 p-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
             {t("plannedAnalysis.results.intentForecast.cmsPackage", {
-              defaultValue: "Для WordPress / Laravel CMS",
+              defaultValue: "For WordPress / Laravel CMS",
             })}
           </p>
           <dl className="mt-2 grid gap-2 text-xs text-outline-900/65">
             <div>
               <dt className="font-semibold text-outline-900">
                 {t("plannedAnalysis.results.intentForecast.seoTitle", {
-                  defaultValue: "SEO-title",
+                  defaultValue: "SEO title",
                 })}
               </dt>
-              <dd>{forecast.seoPackage.seoTitle || "—"}</dd>
+              <dd>{localizeArticleUiText(forecast.seoPackage.seoTitle || "—", isRu)}</dd>
             </div>
             <div>
               <dt className="font-semibold text-outline-900">
                 {t("plannedAnalysis.results.intentForecast.description", {
-                  defaultValue: "Описание",
+                  defaultValue: "Description",
                 })}
               </dt>
-              <dd>{forecast.seoPackage.metaDescription || "—"}</dd>
+              <dd>
+                {localizeArticleUiText(
+                  forecast.seoPackage.metaDescription || "—",
+                  isRu,
+                )}
+              </dd>
             </div>
             <div>
               <dt className="font-semibold text-outline-900">
                 {t("plannedAnalysis.results.intentForecast.keywords", {
-                  defaultValue: "Ключевые слова",
+                  defaultValue: "Keywords",
                 })}
               </dt>
-              <dd>{forecast.seoPackage.keywords.join(", ") || "—"}</dd>
+              <dd>
+                {localizeArticleUiText(
+                  forecast.seoPackage.keywords.join(", ") || "—",
+                  isRu,
+                )}
+              </dd>
             </div>
             <div>
               <dt className="font-semibold text-outline-900">
                 {t("plannedAnalysis.results.intentForecast.taxonomy", {
-                  defaultValue: "Категория / метки",
+                  defaultValue: "Category / tags",
                 })}
               </dt>
               <dd>
-                {forecast.seoPackage.category}
+                {localizeArticleUiText(forecast.seoPackage.category, isRu)}
                 {forecast.seoPackage.tags.length > 0
-                  ? ` · ${forecast.seoPackage.tags.join(", ")}`
+                  ? ` · ${localizeArticleUiText(
+                      forecast.seoPackage.tags.join(", "),
+                      isRu,
+                    )}`
                   : ""}
               </dd>
             </div>
             <div>
               <dt className="font-semibold text-outline-900">
                 {t("plannedAnalysis.results.intentForecast.slug", {
-                  defaultValue: "URL-slug",
+                  defaultValue: "URL slug",
                 })}
               </dt>
-              <dd>{forecast.seoPackage.slug || "—"}</dd>
+              <dd>{localizeSeoSlug(forecast.seoPackage.slug || "—", isRu)}</dd>
             </div>
           </dl>
         </div>
         <div className="rounded-md border border-orange-200/70 bg-orange-50/80 p-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
             {t("plannedAnalysis.results.intentForecast.hooksTitle", {
-              defaultValue: "Цепляющие хуки",
+              defaultValue: "Hook ideas",
             })}
           </p>
           <ul className="mt-2 grid gap-2 text-xs leading-relaxed text-outline-900/65">
             {forecast.hookIdeas.map((hook) => (
-              <li key={hook}>• {hook}</li>
+              <li key={hook}>• {localizeArticleUiText(hook, isRu)}</li>
             ))}
           </ul>
         </div>
@@ -4744,7 +5014,8 @@ function PageSearchMentionsAccordion({
 }: {
   state: CurrentScanState;
 }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const isRu = i18n.resolvedLanguage === "ru";
   const searchEntries = [
     state.buffer.analyze_google_page_search,
     state.buffer.analyze_yandex_page_search,
@@ -4781,10 +5052,23 @@ function PageSearchMentionsAccordion({
             owner_metrics?: { note?: string };
           }
         | undefined;
-      const engine = data?.engine === "yandex" ? "Яндекс" : "Google";
-      return `${engine}: ${
-        data?.mentions?.count ?? "н/д"
-      } упоминаний. ${data?.mentions?.note ?? data?.owner_metrics?.note ?? ""}`;
+      const engine =
+        data?.engine === "yandex"
+          ? t("plannedAnalysis.results.yandexEngine", { defaultValue: "Yandex" })
+          : "Google";
+      const count =
+        data?.mentions?.count ??
+        t("plannedAnalysis.results.pageMentionsUnavailable", {
+          defaultValue: "n/a",
+        });
+      const countLabel = t("plannedAnalysis.results.pageMentionsCountLabel", {
+        defaultValue: "mentions",
+      });
+      const note = localizeArticleUiText(
+        data?.mentions?.note ?? data?.owner_metrics?.note ?? "",
+        isRu,
+      );
+      return `${engine}: ${count} ${countLabel}. ${note}`;
     })
     .filter(Boolean);
 
@@ -4792,12 +5076,12 @@ function PageSearchMentionsAccordion({
     <details className="mt-4 rounded-lg border border-outline/10 bg-white p-4">
       <summary className="cursor-pointer text-sm font-semibold text-outline-900">
         {t("plannedAnalysis.results.pageMentionsTitle", {
-          defaultValue: "Упоминания страницы в поиске и на ресурсах",
+          defaultValue: "Page mentions in search and external resources",
         })}
       </summary>
       <div className="mt-3 space-y-2 text-sm leading-relaxed text-outline-900/65">
         {notes.map((note) => (
-          <p key={note}>{note}</p>
+          <p key={note}>{localizeArticleUiText(note, isRu)}</p>
         ))}
         {mentionItems.length > 0 ? (
           <div className="grid gap-2">
@@ -4826,8 +5110,7 @@ function PageSearchMentionsAccordion({
         ) : (
           <p>
             {t("plannedAnalysis.results.pageMentionsEmpty", {
-              defaultValue:
-                "Список ссылок пуст, потому что публичные поисковые упоминания требуют подключенного поискового индекса, SERP API или владелецких данных.",
+              defaultValue: "The link list is empty because public search mentions require a connected search index, SERP API, or owner data.",
             })}
           </p>
         )}
@@ -4839,6 +5122,9 @@ function PageSearchMentionsAccordion({
 function ApiFactRow({ fact }: { fact: RuntimeConfirmedFact }) {
   const { i18n, t } = useTranslation();
   const isRu = i18n.language.startsWith("ru");
+  const locale = isRu ? "ru" : "en";
+  const localizeResultText = (value: string) =>
+    localizeArticleCompareUiText(localizeArticleUiText(value, isRu), locale);
   const toolId = fact.sourceToolIds[0] ?? "";
   const normalizedDetail = fact.detail
     .replace(/^Ключевые данные:\s*/gim, "")
@@ -4854,11 +5140,8 @@ function ApiFactRow({ fact }: { fact: RuntimeConfirmedFact }) {
   const findingText = found || keyData;
   const titledFinding =
     fact.title && !findingText.toLowerCase().includes(fact.title.toLowerCase())
-      ? `${localizeArticleUiText(fact.title, isRu)}: ${localizeArticleUiText(
-          findingText,
-          isRu,
-        )}`
-      : localizeArticleUiText(findingText, isRu);
+      ? `${localizeResultText(fact.title)}: ${localizeResultText(findingText)}`
+      : localizeResultText(findingText);
   const chips =
     keyData.includes(";") && keyData.length <= 260
       ? keyData
@@ -4886,7 +5169,7 @@ function ApiFactRow({ fact }: { fact: RuntimeConfirmedFact }) {
         </div>
         <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
           {t("plannedAnalysis.results.statusComplete", {
-            defaultValue: "Готово",
+            defaultValue: "Done",
           })}
         </span>
       </div>
@@ -4895,7 +5178,7 @@ function ApiFactRow({ fact }: { fact: RuntimeConfirmedFact }) {
         <div className="mt-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
             {t("plannedAnalysis.results.keyFacts", {
-              defaultValue: "Ключевые данные",
+              defaultValue: "Key facts",
             })}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -4904,7 +5187,7 @@ function ApiFactRow({ fact }: { fact: RuntimeConfirmedFact }) {
                 key={chip}
                 className="rounded-full border border-orange-200/70 bg-orange-100 px-2.5 py-1 text-xs text-outline-900/75"
               >
-                {localizeArticleUiText(chip, isRu)}
+                {localizeResultText(chip)}
               </span>
             ))}
           </div>
@@ -4915,7 +5198,7 @@ function ApiFactRow({ fact }: { fact: RuntimeConfirmedFact }) {
         <div className="mt-4 rounded-md border border-orange-200/75 bg-orange-50/90 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-orange-800/75">
             {t("plannedAnalysis.results.findings", {
-              defaultValue: "Что найдено",
+              defaultValue: "Findings",
             })}
           </p>
           <p className="mt-1 text-sm leading-relaxed text-outline-900/70">
@@ -4928,11 +5211,11 @@ function ApiFactRow({ fact }: { fact: RuntimeConfirmedFact }) {
         <div className="mt-4 rounded-md border border-orange-200/75 bg-orange-100/70 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-orange-800/75">
             {t("plannedAnalysis.results.recommendation", {
-              defaultValue: "Что сделать",
+              defaultValue: "What to do",
             })}
           </p>
           <p className="mt-1 text-sm leading-relaxed text-outline-900/70">
-            {localizeArticleUiText(todo, isRu)}
+            {localizeResultText(todo)}
           </p>
         </div>
       )}
@@ -5041,6 +5324,8 @@ function InsightList({
   emptyText: string;
   tone: "good" | "warn";
 }) {
+  const { i18n } = useTranslation();
+  const isRu = i18n.language.startsWith("ru");
   return (
     <div
       className={`rounded-lg border p-4 ${
@@ -5063,9 +5348,11 @@ function InsightList({
               key={`${item.title}-${item.sourceToolIds.join(",")}`}
               className="border-t border-outline/10 pt-2 first:border-t-0 first:pt-0"
             >
-              <strong className="text-sm text-outline-900">{item.title}</strong>
+              <strong className="text-sm text-outline-900">
+                {localizeArticleUiText(item.title, isRu)}
+              </strong>
               <p className="mt-1 text-xs leading-relaxed text-outline-900/60">
-                {item.detail}
+                {localizeArticleUiText(item.detail, isRu)}
               </p>
             </article>
           ))}
@@ -5098,7 +5385,7 @@ function WarningSummaryPanel({
     <div className="mt-3 rounded-lg border border-red-200/75 bg-red-50/70 p-4">
       <p className="text-xs font-semibold uppercase tracking-wider text-red-800/80">
         {t("plannedAnalysis.results.warningDetailsTitle", {
-          defaultValue: "Риски и ограничения проверки",
+          defaultValue: "Risks and review limits",
         })}
       </p>
       <div className="mt-3 grid gap-2">
@@ -5120,16 +5407,14 @@ function WarningSummaryPanel({
           <p className="text-sm leading-relaxed text-outline-900/65">
             {t("plannedAnalysis.results.warningDetailsFallback", {
               count: articleSummary.warningCount,
-              defaultValue:
-                "Найдены предупреждения: {{count}}. Проверьте блок безопасности и экспертной проверки перед публикацией.",
+              defaultValue: "Warnings found: {{count}}. Review safety and expert-check items before publishing.",
             })}
           </p>
         )}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-red-900/60">
         {t("plannedAnalysis.results.warningAiLimitation", {
-          defaultValue:
-            "Это риск-флаг, а не экспертное заключение: ИИ может ошибаться, поэтому юридические, медицинские, инвестиционные, научные, технические и расчётные утверждения нужно проверять вручную.",
+          defaultValue: "This is a risk flag, not an expert conclusion: AI can be wrong, so legal, medical, investment, scientific, technical, and calculation-heavy claims still need human verification.",
         })}
       </p>
     </div>
@@ -5137,9 +5422,138 @@ function WarningSummaryPanel({
 }
 
 function localizeArticleUiText(value: string, isRu: boolean): string {
-  if (!isRu) return value;
+  if (!isRu) {
+    const exact: Record<string, string> = {
+      "Безопасность и проверка": "Safety and review",
+      "Интент и продвижение": "Intent and promotion",
+      "Прогноз интента и продвижения": "Intent and promotion forecast",
+      "Прогноз интента и SEO-пакет": "Intent forecast and SEO package",
+      "Проверка риска": "Risk check",
+      "Проверка рисков": "Risk check",
+      "Проверка юридического риска": "Legal risk check",
+      "Проверка медицинского риска": "Medical risk check",
+      "Проверка инвестиционного риска": "Investment risk check",
+      "Нужна внешняя проверка": "External review needed",
+      "Служебный элемент": "Service element",
+      "Механический повтор": "Mechanical repetition",
+      "Формальная формулировка": "Formal phrasing",
+      "Проверка тона": "Tone check",
+      "Соответствие аудитории": "Audience fit",
+      "Повторяющееся предложение": "Repeated sentence",
+      "Перегруженное предложение": "Overloaded sentence",
+      "Информационный / решение проблемы": "Informational / problem solution",
+      "Тип интента: Информационный / решение проблемы": "Intent type: Informational / problem solution",
+      "SEO-хук заголовка и вступления": "SEO hook for title and intro",
+      "Полезные материалы": "Helpful resources",
+      "Технологии": "Technology",
+      "Здоровье и спорт": "Health and fitness",
+      "Бизнес": "Business",
+      "Предупреждение!": "Warning!",
+      "НЕТ": "no",
+      "ДА": "yes",
+      "да": "yes",
+      "нет": "no",
+      "Есть фактически чувствительные утверждения, числа или медицинско-правовые формулировки. Их нельзя подтверждать только сравнением текстов. Перепроверьте числа, источники и категоричные утверждения; смягчите то, что нельзя подтвердить уверенно.": "The text contains fact-sensitive claims, numbers, or medical/legal wording. They cannot be verified by text comparison alone. Recheck numbers, sources, and categorical claims; soften anything that cannot be confirmed with confidence.",
+      "Перепроверьте числа, источники и категоричные утверждения; смягчите то, что нельзя подтвердить уверенно.": "Recheck numbers, sources, and categorical claims; soften anything that cannot be confirmed with confidence.",
+      "Расплывчатые ссылки на исследования и экспертов лучше заменить конкретными источниками или убрать.": "Vague references to research and experts should be replaced with specific sources or removed.",
+      "Текст может выглядеть как попытка нарушить закон, правила платформы или дать опасные инструкции.": "The text may look like an attempt to break the law, evade platform rules, or provide dangerous instructions.",
+      "Есть технические или конструкторские утверждения, где ошибка может быть критичной.": "Technical or engineering claims were found where mistakes may be critical.",
+      "Первый хук можно усилить: раньше показать проблему читателя, конфликт или понятную выгоду.": "The first hook can be stronger: show the reader's problem, conflict, or clear benefit earlier.",
+      "Усилите первую строку, понятную пользу для читателя и SEO-пакет перед публикацией.": "Strengthen the first line, reader benefit, and SEO package before publishing.",
+      "Это локальный прогноз без SERP и соцданных. Интернет-сверку позже можно подключить отдельным внешним источником.": "This is a local forecast without SERP or social-platform data. Internet verification can be connected later through a separate external source.",
+      "Блокирующих предупреждений по безопасности и экспертной проверке не найдено.": "No blocking safety or expert-review warnings were found.",
+      "Есть юридически чувствительные формулировки.": "Legally sensitive wording was found.",
+      "Есть медицинские или health-sensitive утверждения.": "Medical or health-sensitive claims were found.",
+      "Есть инвестиционно чувствительные формулировки.": "Investment-sensitive wording was found.",
+    };
+    const normalized = value.trim();
+    if (exact[normalized]) return value.replace(normalized, exact[normalized]);
+    const metaReplacements: Array<[RegExp, string]> = [
+      [/\bСТИЛЬ\b/g, "STYLE"],
+      [/\bТОН\b/g, "TONE"],
+      [/\bАУДИТОРИЯ\b/g, "AUDIENCE"],
+      [/\bЧИТАЕМОСТЬ\b/g, "READABILITY"],
+      [/\bНАТУРАЛЬНОСТЬ\b/g, "NATURALNESS"],
+      [/\bЛОГИКА\b/g, "LOGIC"],
+      [/\bИНТЕНТ\b/g, "INTENT"],
+      [/\bЮРИДИЧЕСКИЙ РИСК\b/g, "LEGAL RISK"],
+      [/\bМЕДИЦИНСКИЙ РИСК\b/g, "MEDICAL RISK"],
+      [/\bИНВЕСТИЦИОННЫЙ РИСК\b/g, "INVESTMENT RISK"],
+      [/\bСЛУЖЕБНЫЙ ЭЛЕМЕНТ\b/g, "SERVICE ELEMENT"],
+      [/\bПРЕДУПРЕЖДЕНИЕ\b/g, "WARNING"],
+      [/\bЗАМЕТКА\b/g, "NOTE"],
+      [/\bАБЗАЦ\b/g, "PARAGRAPH"],
+    ];
+    let localized = metaReplacements.reduce(
+      (current, [pattern, replacement]) => current.replace(pattern, replacement),
+      value,
+    );
+    const replacements: Array<[RegExp, string]> = [
+      [/Информационный \/ решение проблемы/g, "Informational / problem solution"],
+      [/SEO-хук заголовка и вступления/g, "SEO hook for title and intro"],
+      [/Полезные материалы/g, "Helpful resources"],
+      [/Технологии/g, "Technology"],
+      [/Здоровье и спорт/g, "Health and fitness"],
+      [/Бизнес/g, "Business"],
+      [/что важно знать/gi, "what to know"],
+      [/:\s*НЕТ\b/g, ": no"],
+      [/:\s*ДА\b/g, ": yes"],
+      [/:\s*нет\b/g, ": no"],
+      [/:\s*да\b/g, ": yes"],
+      [/Есть инвестиционно чувствительные формулировки\./g, "Investment-sensitive wording was found."],
+      [/Есть юридически чувствительные формулировки\./g, "Legally sensitive wording was found."],
+      [/Есть медицинские или health-sensitive утверждения\./g, "Medical or health-sensitive claims were found."],
+      [/Интернет-сверка и проверка внешних источников не выполнялись в этом локальном анализе\./g, "Internet and external-source verification were not performed by this local analysis."],
+      [/Интернет-сверка позже можно подключить отдельным внешним источником\./g, "Internet verification can be connected later through a separate external source."],
+      [/^Повторяющиеся термины могут делать текст механическим:\s*/i, "Repeated terms may make the text feel mechanical: "],
+      [/^Проверьте, что примеры, термины и глубина объяснения подходят целевому читателю\.$/i, "Check that examples, terminology, and explanation depth fit the intended reader."],
+      [/^Это предложение несёт много смыслов сразу и может требовать разделения\.$/i, "This sentence carries many ideas at once and may need splitting."],
+      [/^Это слово часто делает фразу механической или канцелярской\.$/i, "This word often makes the sentence sound mechanical or bureaucratic."],
+      [/^Тон осторожный и экспертный; оставляйте предупреждения точными, а не оборонительными\.$/i, "The tone is cautious and expert-oriented; keep warnings precise, not defensive."],
+      [/^Первый экран даёт достаточно локальных сигналов для полезного превью\.$/i, "The first screen gives enough local signals for a useful preview."],
+      [/^В тексте есть несколько чисел или формул: расчёты лучше вынести в отдельную проверку\.$/i, "The text contains several numeric or formula-like fragments; calculations may need a dedicated check."],
+      [/^В тексте есть технические или конструкторские утверждения: проверьте их по документации, стандартам, чертежам или у специалиста\.$/i, "The text contains technical or engineering claims that may need expert verification, drawings, standards, or manufacturer documentation."],
+      [/^В тексте есть научные или исследовательские утверждения: проверьте методику, источники и расчёты\.$/i, "The text contains research or scientific-method claims that may need methodology, sources, or calculation review."],
+      [/^Внешняя проверка источников, правил площадки, страны, SERP или аналитики в этом локальном анализе не выполнялась\.$/i, "External source, jurisdiction, platform, SERP, or analytics verification was not performed by this local text scan."],
+      [/^В тексте есть юридически чувствительные формулировки\. Их нельзя подавать как юридическую консультацию без проверки\.$/i, "The text contains legally sensitive claims. It should not be presented as legal advice without review."],
+      [/^В тексте есть медицинские или health-sensitive утверждения\. Они не должны заменять проверку врачом или источниками\.$/i, "The text contains medical or health-sensitive claims. It should not replace clinician review or source verification."],
+      [/^В тексте есть инвестиционно чувствительные формулировки\. Их нельзя подавать как индивидуальную инвестиционную рекомендацию\.$/i, "The text contains investment-sensitive claims. It should not be presented as personal investment advice."],
+      [/^Есть фактически чувствительные утверждения, числа или медицинско-правовые формулировки\. Их нельзя подтверждать только сравнением текстов\. Перепроверьте числа, источники и категоричные утверждения; смягчите то, что нельзя подтвердить уверенно\.$/i, "The text contains fact-sensitive claims, numbers, or medical/legal wording. They cannot be verified by text comparison alone. Recheck numbers, sources, and categorical claims; soften anything that cannot be confirmed with confidence."],
+      [/^Fact distortion:\s*Перепроверьте числа, источники и категоричные утверждения; смягчите то, что нельзя подтвердить уверенно\.$/i, "Fact distortion: Recheck numbers, sources, and categorical claims; soften anything that cannot be confirmed with confidence."],
+      [/^AI and hallucination check:\s*Расплывчатые ссылки на исследования и экспертов лучше заменить конкретными источниками или убрать\.$/i, "AI and hallucination check: Vague references to research and experts should be replaced with specific sources or removed."],
+      [/^Первый хук можно усилить:\s*/i, "The first hook can be stronger: "],
+      [/^Начните с проблемы читателя:\s*«Почему\s+([^»]+?)\s+мешает получить результат\?»$/i, "Start with the reader's problem: \"Why $1 blocks the result?\""],
+      [/^Начните с проблемы читателя:\s*"Почему\s+([^"]+?)\s+мешает получить результат\?"$/i, "Start with the reader's problem: \"Why $1 blocks the result?\""],
+      [/^Начните с проблемы читателя:\s*/i, "Start with the reader's problem: "],
+      [/^Покажите обещание пользы в первой строке:\s*что человек пойм[её]т или сможет сделать после чтения\.$/i, "Show the benefit promise in the first line: what the reader will understand or be able to do after reading."],
+      [/^Покажите обещание пользы в первой строке:\s*что человек поймет и сможет сделать после чтения\.$/i, "Show the payoff in the first line: what the reader will understand and be able to do after reading."],
+      [/^Покажите обещание пользы в первой строке:\s*/i, "Show the benefit promise in the first line: "],
+      [/^Если это пост или рилс, вынесите конфликт\/боль в первые 1–2 секунды или первую строку\.$/i, "If this is a post or reel, move the conflict/pain into the first 1-2 seconds or first line."],
+      [/^Если это пост или рилс,\s*/i, "If this is a post or reel, "],
+      [/: что важно знать\b/gi, ": what to know"],
+      [/^Риски запрещённого контента, обхода правил, юридических, медицинских, инвестиционных, технических, научных выводов, расчётов и внешней сверки\.$/i, "Risks around prohibited content, rule evasion, legal, medical, investment, technical, scientific, calculation, and external-source review."],
+      [/^Насколько понятно, зачем читать текст, какой интент он закрывает и насколько сильна первая подача\.$/i, "How clearly the text explains why to read it, what intent it satisfies, and how strong the opening presentation is."],
+      [/^Сохраните текущий интент и используйте SEO-пакет как черновик для CMS\.$/i, "Keep the current intent and use the SEO package as a CMS draft."],
+      [/^Для WordPress \/ Laravel CMS$/i, "For WordPress / Laravel CMS"],
+      [/^Описание$/i, "Description"],
+      [/^Ключевые слова$/i, "Keywords"],
+      [/^Категория \/ метки$/i, "Category / tags"],
+      [/^Цепляющие хуки$/i, "Hook ideas"],
+    ];
+    for (const [pattern, replacement] of replacements) {
+      localized = localized.replace(pattern, replacement);
+    }
+    return localized;
+  }
   const replacements: Array<[RegExp, string]> = [
+    [/:\s*no\b/gi, ": нет"],
+    [/:\s*yes\b/gi, ": да"],
     [/^Risk check$/i, "Проверка риска"],
+    [/^Helpful resources$/i, "Полезные материалы"],
+    [/^Technology$/i, "Технологии"],
+    [/^Health and fitness$/i, "Здоровье и спорт"],
+    [/^Business$/i, "Бизнес"],
+    [/: what to know\b/gi, ": что важно знать"],
     [/^Repeated sentence$/i, "Повторяющееся предложение"],
     [/^Intent and promotion forecast$/i, "Прогноз интента и продвижения"],
     [/^This word often makes the sentence sound mechanical or bureaucratic\.$/i, "Это слово часто делает фразу механической или канцелярской."],
@@ -5159,6 +5573,11 @@ function localizeArticleUiText(value: string, isRu: boolean): string {
   return value;
 }
 
+function localizeSeoSlug(value: string, isRu: boolean): string {
+  if (isRu) return value;
+  return value.replace(/chto-vazhno-znat/gi, "what-to-know");
+}
+
 function ResultRow({
   toolId,
   entry,
@@ -5168,7 +5587,11 @@ function ResultRow({
   entry: ToolBufferEntry;
   label: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRu = i18n.language.startsWith("ru");
+  const locale = isRu ? "ru" : "en";
+  const localizeResultText = (value: string) =>
+    localizeArticleCompareUiText(localizeArticleUiText(value, isRu), locale);
   const data = parseTextResult(entry.data);
   const issues = data?.issues ?? [];
   const recommendations = data?.recommendations ?? [];
@@ -5213,7 +5636,7 @@ function ResultRow({
             <div className="mt-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
                 {t("plannedAnalysis.results.keyFacts", {
-                  defaultValue: "Ключевые данные",
+                  defaultValue: "Key facts",
                 })}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -5222,7 +5645,8 @@ function ResultRow({
                     key={key}
                     className="rounded-full border border-orange-200/70 bg-orange-100 px-2.5 py-1 text-xs text-outline-900/75"
                   >
-                    {summaryLabel(t, key)}: {formatSummaryValue(t, key, value)}
+                    {summaryLabel(t, key)}:{" "}
+                    {localizeResultText(formatSummaryValue(t, key, value))}
                   </span>
                 ))}
               </div>
@@ -5232,14 +5656,16 @@ function ResultRow({
             <div className="mt-4 rounded-md border border-orange-200/75 bg-orange-50/90 px-3 py-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-orange-800/75">
                 {t("plannedAnalysis.results.findings", {
-                  defaultValue: "Что найдено",
+                  defaultValue: "Findings",
                 })}
               </p>
               <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-outline-900/75">
                 {issues.slice(0, 3).map((issue) => (
                   <li key={`${issue.code}-${issue.message}`} className="flex gap-2">
                     <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
-                    <span>{textIssueMessage(t, issue)}</span>
+                    <span>
+                      {localizeResultText(textIssueMessage(t, issue))}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -5249,11 +5675,11 @@ function ResultRow({
             <div className="mt-4 rounded-md border border-orange-200/75 bg-orange-100/70 px-3 py-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-orange-800/75">
                 {t("plannedAnalysis.results.recommendation", {
-                  defaultValue: "Что сделать",
+                  defaultValue: "What to do",
                 })}
               </p>
               <p className="mt-1 text-sm leading-relaxed text-outline-900/70">
-                {textRecommendation(t, toolId, recommendations[0])}
+                {localizeResultText(textRecommendation(t, toolId, recommendations[0]))}
               </p>
             </div>
           )}
@@ -5262,8 +5688,7 @@ function ResultRow({
             recommendations.length === 0 && (
               <p className="mt-3 text-sm leading-relaxed text-outline-900/55">
                 {t("plannedAnalysis.results.noDetails", {
-                  defaultValue:
-                    "Проверка завершилась без дополнительных замечаний.",
+                  defaultValue: "The check completed without extra notes.",
                 })}
               </p>
             )}
@@ -5341,16 +5766,16 @@ function dimensionStatusLabel(
 ): string {
   if (status === "healthy") {
     return t("plannedAnalysis.results.dimensionStatus.healthy", {
-      defaultValue: "Норма",
+      defaultValue: "Healthy",
     });
   }
   if (status === "problem") {
     return t("plannedAnalysis.results.dimensionStatus.problem", {
-      defaultValue: "Проблема",
+      defaultValue: "Problem",
     });
   }
   return t("plannedAnalysis.results.dimensionStatus.watch", {
-    defaultValue: "Нужно проверить",
+    defaultValue: "Watch",
   });
 }
 
@@ -5359,12 +5784,13 @@ function DimensionCard({
 }: {
   dimension: RuntimeArticleTextDimension;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRu = i18n.language.startsWith("ru");
   return (
     <article className={`rounded-lg border p-4 ${dimensionClass(dimension.status)}`}>
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-outline-900">
-          {dimension.label}
+          {localizeArticleUiText(dimension.label, isRu)}
         </h3>
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${dimensionBadgeClass(
@@ -5375,17 +5801,18 @@ function DimensionCard({
         </span>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-outline-900/60">
-        {dimension.detail}
+        {localizeArticleUiText(dimension.detail, isRu)}
       </p>
       <p className="mt-3 text-xs font-medium leading-relaxed text-outline-900/70">
-        {dimension.recommendation}
+        {localizeArticleUiText(dimension.recommendation, isRu)}
       </p>
     </article>
   );
 }
 
 function PriorityRow({ item }: { item: RuntimeArticleTextPriority }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRu = i18n.language.startsWith("ru");
   const firstToolId = item.sourceToolIds[0] ?? "";
   const toolTitle = firstToolId ? textToolLabel(t, firstToolId) : "";
   const title = toolTitle && toolTitle !== firstToolId ? toolTitle : item.title;
@@ -5399,13 +5826,15 @@ function PriorityRow({ item }: { item: RuntimeArticleTextPriority }) {
   return (
     <article className={`rounded-md border px-3 py-2 ${tone}`}>
       <div className="flex items-start justify-between gap-3">
-        <h4 className="text-sm font-semibold text-outline-900">{title}</h4>
+        <h4 className="text-sm font-semibold text-outline-900">
+          {localizeArticleUiText(title, isRu)}
+        </h4>
         <span className="shrink-0 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-outline-900/50">
           {priorityUiLabel(t, item.priority)}
         </span>
       </div>
       <p className="mt-1 text-xs leading-relaxed text-outline-900/65">
-        {item.detail}
+        {localizeArticleUiText(item.detail, isRu)}
       </p>
     </article>
   );
@@ -5416,12 +5845,12 @@ function priorityUiLabel(
   priority: RuntimeArticleTextPriority["priority"],
 ): string {
   if (priority === "high") {
-    return t("plannedAnalysis.results.priority.high", { defaultValue: "Важно" });
+    return t("plannedAnalysis.results.priority.high", { defaultValue: "High" });
   }
   if (priority === "low") {
-    return t("plannedAnalysis.results.priority.low", { defaultValue: "Низко" });
+    return t("plannedAnalysis.results.priority.low", { defaultValue: "Low" });
   }
-  return t("plannedAnalysis.results.priority.medium", { defaultValue: "Средне" });
+  return t("plannedAnalysis.results.priority.medium", { defaultValue: "Medium" });
 }
 
 function statusClass(entry: ToolBufferEntry): string {
@@ -5438,21 +5867,21 @@ function statusLabel(
 ): string {
   if (status === "complete") {
     return t("plannedAnalysis.results.statusComplete", {
-      defaultValue: "Готово",
+      defaultValue: "Done",
     });
   }
   if (status === "running") {
     return t("plannedAnalysis.results.statusRunning", {
-      defaultValue: "В процессе",
+      defaultValue: "Running",
     });
   }
   if (status === "error") {
     return t("plannedAnalysis.results.statusError", {
-      defaultValue: "Ошибка",
+      defaultValue: "Error",
     });
   }
   return t("plannedAnalysis.results.statusPending", {
-    defaultValue: "Ожидает",
+    defaultValue: "Waiting",
   });
 }
 
@@ -5466,166 +5895,165 @@ function summaryLabel(
 ): string {
   const labels: Record<string, string> = {
     topic: t("plannedAnalysis.results.summary.topic", {
-      defaultValue: "Тема",
+      defaultValue: "Topic",
     }),
     analysisRole: t("plannedAnalysis.results.summary.analysisRole", {
-      defaultValue: "Роль",
+      defaultValue: "Role",
     }),
     wordCount: t("plannedAnalysis.results.summary.wordCount", {
-      defaultValue: "Слов",
+      defaultValue: "Words",
     }),
     paragraphCount: t("plannedAnalysis.results.summary.paragraphCount", {
-      defaultValue: "Абзацев",
+      defaultValue: "Paragraphs",
     }),
     headingCount: t("plannedAnalysis.results.summary.headingCount", {
-      defaultValue: "Заголовков",
+      defaultValue: "Heading-like lines",
     }),
     hasMarkdown: t("plannedAnalysis.results.summary.hasMarkdown", {
       defaultValue: "Markdown",
     }),
     inferredPlatform: t("plannedAnalysis.results.summary.platform", {
-      defaultValue: "Платформа",
+      defaultValue: "Platform",
     }),
     platform: t("plannedAnalysis.results.summary.platform", {
-      defaultValue: "Платформа",
+      defaultValue: "Platform",
     }),
     intent: t("plannedAnalysis.results.summary.intent", {
-      defaultValue: "Интент",
+      defaultValue: "Intent",
     }),
     intentLabel: t("plannedAnalysis.results.summary.intentLabel", {
-      defaultValue: "Тип интента",
+      defaultValue: "Intent type",
     }),
     hookType: t("plannedAnalysis.results.summary.hookType", {
-      defaultValue: "Тип хука",
+      defaultValue: "Hook type",
     }),
     hookScore: t("plannedAnalysis.results.summary.hookScore", {
-      defaultValue: "Хук",
+      defaultValue: "Hook",
     }),
     ctrPotential: t("plannedAnalysis.results.summary.ctrPotential", {
       defaultValue: "CTR",
     }),
     trendPotential: t("plannedAnalysis.results.summary.trendPotential", {
-      defaultValue: "Тренд",
+      defaultValue: "Trend",
     }),
     internetDemandAvailable: t("plannedAnalysis.results.summary.internetDemandAvailable", {
-      defaultValue: "Интернет-сверка",
+      defaultValue: "Internet demand",
     }),
     internetDemandSource: t("plannedAnalysis.results.summary.internetDemandSource", {
-      defaultValue: "Источник спроса",
+      defaultValue: "Demand source",
     }),
     warningCount: t("plannedAnalysis.results.summary.warningCount", {
-      defaultValue: "Предупреждения",
+      defaultValue: "Warnings",
     }),
     jurisdictionContext: t("plannedAnalysis.results.summary.jurisdictionContext", {
-      defaultValue: "Правовой контекст",
+      defaultValue: "Legal context",
     }),
     externalSourcesUsed: t("plannedAnalysis.results.summary.externalSourcesUsed", {
-      defaultValue: "Внешние источники",
+      defaultValue: "External sources",
     }),
     externalVerificationNeeded: t(
       "plannedAnalysis.results.summary.externalVerificationNeeded",
-      { defaultValue: "Нужна внешняя проверка" },
+      { defaultValue: "Needs external review" },
     ),
     medicalSignals: t("plannedAnalysis.results.summary.medicalSignals", {
-      defaultValue: "Медицина",
+      defaultValue: "Medicine",
     }),
     investmentSignals: t("plannedAnalysis.results.summary.investmentSignals", {
-      defaultValue: "Инвестиции",
+      defaultValue: "Investments",
     }),
     technicalEngineeringSignals: t(
       "plannedAnalysis.results.summary.technicalEngineeringSignals",
-      { defaultValue: "Техника / инженерия" },
+      { defaultValue: "Technical / engineering" },
     ),
     detectedStyle: t("plannedAnalysis.results.summary.style", {
-      defaultValue: "Стиль",
+      defaultValue: "Style",
     }),
     detectedTone: t("plannedAnalysis.results.summary.tone", {
-      defaultValue: "Тон",
+      defaultValue: "Tone",
     }),
     score: t("plannedAnalysis.results.summary.score", {
-      defaultValue: "Оценка",
+      defaultValue: "Score",
     }),
     probability: t("plannedAnalysis.results.summary.probability", {
-      defaultValue: "Вероятность",
+      defaultValue: "Probability",
     }),
     traceScore: t("plannedAnalysis.results.summary.traceScore", {
-      defaultValue: "AI-сигналы",
+      defaultValue: "Trace score",
     }),
     genericSignals: t("plannedAnalysis.results.summary.genericSignals", {
-      defaultValue: "Общие фразы",
+      defaultValue: "Generic phrases",
     }),
     formalSignals: t("plannedAnalysis.results.summary.formalSignals", {
-      defaultValue: "Формальность",
+      defaultValue: "Formal phrasing",
     }),
     repeatedTerms: t("plannedAnalysis.results.summary.repeatedTerms", {
-      defaultValue: "Повторы",
+      defaultValue: "Repeated terms",
     }),
-    sentenceLengthVariance: t(
-      "plannedAnalysis.results.summary.sentenceLengthVariance",
-      { defaultValue: "Разброс фраз" },
+    sentenceLengthVariance: t("plannedAnalysis.results.summary.sentenceLengthVariance",
+      { defaultValue: "Phrase variance" },
     ),
     genericnessScore: t("plannedAnalysis.results.summary.genericnessScore", {
-      defaultValue: "Шаблонность",
+      defaultValue: "Genericness",
     }),
     waterySignals: t("plannedAnalysis.results.summary.waterySignals", {
-      defaultValue: "Водные фразы",
+      defaultValue: "Watery phrases",
     }),
     concreteSignals: t("plannedAnalysis.results.summary.concreteSignals", {
-      defaultValue: "Конкретика",
+      defaultValue: "Concrete details",
     }),
     authorialSignals: t("plannedAnalysis.results.summary.authorialSignals", {
-      defaultValue: "Авторский опыт",
+      defaultValue: "Authorial signals",
     }),
     avgSentenceWords: t("plannedAnalysis.results.summary.avgSentenceWords", {
-      defaultValue: "Слов в фразе",
+      defaultValue: "Words per sentence",
     }),
     longSentences: t("plannedAnalysis.results.summary.longSentences", {
-      defaultValue: "Длинные фразы",
+      defaultValue: "Long sentences",
     }),
     heavyParagraphs: t("plannedAnalysis.results.summary.heavyParagraphs", {
-      defaultValue: "Тяжёлые абзацы",
+      defaultValue: "Heavy paragraphs",
     }),
     sentenceCount: t("plannedAnalysis.results.summary.sentenceCount", {
-      defaultValue: "Фраз",
+      defaultValue: "Sentences",
     }),
     risk: t("plannedAnalysis.results.summary.risk", {
-      defaultValue: "Риск",
+      defaultValue: "Risk",
     }),
     queueSize: t("plannedAnalysis.results.summary.queueSize", {
-      defaultValue: "В очереди",
+      defaultValue: "Claims queued",
     }),
     exactNumbers: t("plannedAnalysis.results.summary.exactNumbers", {
-      defaultValue: "Числа",
+      defaultValue: "Numbers",
     }),
     absoluteClaims: t("plannedAnalysis.results.summary.absoluteClaims", {
-      defaultValue: "Категоричность",
+      defaultValue: "Absolute claims",
     }),
     vagueAuthorities: t("plannedAnalysis.results.summary.vagueAuthorities", {
-      defaultValue: "Размытые источники",
+      defaultValue: "Vague authorities",
     }),
     sensitiveClaims: t("plannedAnalysis.results.summary.sensitiveClaims", {
-      defaultValue: "Чувствительные тезисы",
+      defaultValue: "Sensitive claims",
     }),
     sourceSignals: t("plannedAnalysis.results.summary.sourceSignals", {
-      defaultValue: "Источники",
+      defaultValue: "Sources",
     }),
     uniqueWordRatio: t("plannedAnalysis.results.summary.uniqueWordRatio", {
-      defaultValue: "Уникальные слова",
+      defaultValue: "Unique words",
     }),
     duplicateSentenceRate: t("plannedAnalysis.results.summary.duplicates", {
-      defaultValue: "Повторы",
+      defaultValue: "Duplicates",
     }),
     suspectedIssues: t("plannedAnalysis.results.summary.suspectedIssues", {
-      defaultValue: "Подозрения",
+      defaultValue: "Suspected issues",
     }),
     warning: t("plannedAnalysis.results.summary.warning", {
-      defaultValue: "Предупреждения",
+      defaultValue: "Warnings",
     }),
     markers: t("plannedAnalysis.results.summary.markers", {
-      defaultValue: "Метки медиа",
+      defaultValue: "Media markers",
     }),
     suggestedMarkerTypes: t("plannedAnalysis.results.summary.markerTypes", {
-      defaultValue: "Типы медиа",
+      defaultValue: "Media types",
     }),
   };
   return labels[key] ?? key;
@@ -5640,12 +6068,16 @@ function formatSummaryValue(
     return Number.isInteger(value) ? String(value) : value.toFixed(2);
   }
   if (Array.isArray(value)) return value.join(", ") || "-";
-  if (typeof value === "boolean") return value ? "да" : "нет";
+  if (typeof value === "boolean") return yesNoLabel(t, value);
   if (typeof value === "string") {
+    const localizedValue = localizeArticleUiText(value, false);
+    const normalizedValue = localizedValue.trim().toLowerCase();
+    if (["yes", "true"].includes(normalizedValue)) return yesNoLabel(t, true);
+    if (["no", "false"].includes(normalizedValue)) return yesNoLabel(t, false);
     if (key === "inferredPlatform" || key === "platform") {
       return platformLabel(t, value);
     }
-    if (key === "intent") return intentValueLabel(t, value);
+    if (key === "intent" || key === "intentLabel") return intentValueLabel(t, value);
     if (key === "hookType") return hookTypeLabel(t, value);
     if (key === "jurisdictionContext") return jurisdictionContextLabel(t, value);
     if (key === "detectedStyle") return styleLabel(t, value);
@@ -5653,9 +6085,18 @@ function formatSummaryValue(
     if (key === "action") return actionLabel(t, value);
     if (key === "dominantScript") return scriptLabel(t, value);
     if (key === "method") return methodLabel(t, value);
-    return value;
+    return localizedValue;
   }
   return "-";
+}
+
+function yesNoLabel(
+  t: ReturnType<typeof useTranslation>["t"],
+  value: boolean,
+): string {
+  return value
+    ? t("common.yes", { defaultValue: "yes" })
+    : t("common.no", { defaultValue: "no" });
 }
 
 function platformLabel(
@@ -5664,25 +6105,24 @@ function platformLabel(
 ): string {
   const labels: Record<string, string> = {
     site_article: t("plannedAnalysis.platformLabels.site_article", {
-      defaultValue: "Статья для сайта",
+      defaultValue: "Site article",
     }),
     markdown_article: t("plannedAnalysis.platformLabels.markdown_article", {
-      defaultValue: "Markdown-статья",
+      defaultValue: "Markdown article",
     }),
     short_social_post: t("plannedAnalysis.platformLabels.short_social_post", {
-      defaultValue: "Короткий пост",
+      defaultValue: "Short post",
     }),
-    short_article_or_long_social_post: t(
-      "plannedAnalysis.platformLabels.short_article_or_long_social_post",
-      { defaultValue: "Короткая статья или длинный пост" },
+    short_article_or_long_social_post: t("plannedAnalysis.platformLabels.short_article_or_long_social_post",
+      { defaultValue: "Short article or long post" },
     ),
-    x_short: t("plannedAnalysis.platforms.xShort", { defaultValue: "X: короткий пост" }),
-    x_long: t("plannedAnalysis.platforms.xLong", { defaultValue: "X: длинный пост" }),
+    x_short: t("plannedAnalysis.platforms.xShort", { defaultValue: "X / Twitter short post" }),
+    x_long: t("plannedAnalysis.platforms.xLong", { defaultValue: "X / Twitter long post" }),
     facebook: t("plannedAnalysis.platforms.facebook", { defaultValue: "Facebook" }),
     linkedin: t("plannedAnalysis.platforms.linkedin", { defaultValue: "LinkedIn" }),
-    habr: t("plannedAnalysis.platforms.habr", { defaultValue: "Хабр" }),
+    habr: t("plannedAnalysis.platforms.habr", { defaultValue: "Habr" }),
     reddit: t("plannedAnalysis.platforms.reddit", { defaultValue: "Reddit" }),
-    custom: t("plannedAnalysis.platforms.custom", { defaultValue: "Своя платформа" }),
+    custom: t("plannedAnalysis.platforms.custom", { defaultValue: "Custom" }),
   };
   return labels[key] ?? key;
 }
@@ -5691,60 +6131,74 @@ function intentValueLabel(
   t: ReturnType<typeof useTranslation>["t"],
   key: string,
 ): string {
+  const normalizedKey = localizeArticleUiText(key, false);
   const labels: Record<string, string> = {
     informational_how_to: t("plannedAnalysis.intentValues.informationalHowTo", {
-      defaultValue: "Информационный / решение проблемы",
+      defaultValue: "Informational / problem solution",
     }),
     commercial: t("plannedAnalysis.intentValues.commercial", {
-      defaultValue: "Коммерческий",
+      defaultValue: "Commercial",
     }),
     expert_opinion: t("plannedAnalysis.intentValues.expertOpinion", {
-      defaultValue: "Экспертное мнение",
+      defaultValue: "Expert opinion",
     }),
     social_engagement: t("plannedAnalysis.intentValues.socialEngagement", {
-      defaultValue: "Социальное вовлечение",
+      defaultValue: "Social engagement",
     }),
     informational: t("plannedAnalysis.intentValues.informational", {
-      defaultValue: "Информационный",
+      defaultValue: "Informational",
     }),
     informational_problem_solution: t("plannedAnalysis.intentValues.problemSolution", {
-      defaultValue: "Информационный / решение проблемы",
+      defaultValue: "Informational / problem solution",
+    }),
+    "Informational / problem solution": t("plannedAnalysis.intentValues.problemSolution", {
+      defaultValue: "Informational / problem solution",
     }),
     educational_guide: t("plannedAnalysis.intentValues.educationalGuide", {
-      defaultValue: "Обучающий материал",
+      defaultValue: "Educational material",
     }),
     opinion_discussion: t("plannedAnalysis.intentValues.opinionDiscussion", {
-      defaultValue: "Мнение / обсуждение",
+      defaultValue: "Opinion / discussion",
     }),
     promotion_or_conversion: t("plannedAnalysis.intentValues.promotionConversion", {
-      defaultValue: "Продвижение / конверсия",
+      defaultValue: "Promotion / conversion",
     }),
   };
-  return labels[key] ?? key;
+  return labels[normalizedKey] ?? labels[key] ?? normalizedKey;
 }
 
 function hookTypeLabel(
   t: ReturnType<typeof useTranslation>["t"],
   key: string,
 ): string {
+  const normalizedKey = localizeArticleUiText(key, false);
   const labels: Record<string, string> = {
     question_problem: t("plannedAnalysis.hookTypes.questionProblem", {
-      defaultValue: "Вопрос / проблема",
+      defaultValue: "Question / problem",
     }),
     statement: t("plannedAnalysis.hookTypes.statement", {
-      defaultValue: "Прямое утверждение",
+      defaultValue: "Direct claim",
     }),
     list_or_steps: t("plannedAnalysis.hookTypes.listSteps", {
-      defaultValue: "Список / шаги",
+      defaultValue: "List / steps",
     }),
     story_context: t("plannedAnalysis.hookTypes.storyContext", {
-      defaultValue: "История / контекст",
+      defaultValue: "Story / context",
     }),
     weak_or_missing: t("plannedAnalysis.hookTypes.weakMissing", {
-      defaultValue: "Слабый или отсутствует",
+      defaultValue: "Weak or missing",
+    }),
+    "problem-solution": t("plannedAnalysis.hookTypes.problemSolution", {
+      defaultValue: "SEO hook for title and intro",
+    }),
+    problem_solution: t("plannedAnalysis.hookTypes.problemSolution", {
+      defaultValue: "SEO hook for title and intro",
+    }),
+    "SEO hook for title and intro": t("plannedAnalysis.hookTypes.problemSolution", {
+      defaultValue: "SEO hook for title and intro",
     }),
   };
-  return labels[key] ?? key;
+  return labels[normalizedKey] ?? labels[key] ?? normalizedKey;
 }
 
 function jurisdictionContextLabel(
@@ -5753,23 +6207,22 @@ function jurisdictionContextLabel(
 ): string {
   const labels: Record<string, string> = {
     ru_language_assumed: t("plannedAnalysis.jurisdiction.ruLanguageAssumed", {
-      defaultValue: "Русский язык: нужна проверка применимой страны",
+      defaultValue: "Russian language: applicable country needs review",
     }),
     ru_law_context: t("plannedAnalysis.jurisdiction.ruLawContext", {
-      defaultValue: "Вероятен российский правовой контекст",
+      defaultValue: "Likely Russian legal context",
     }),
     ru_language_international_platform: t(
       "plannedAnalysis.jurisdiction.ruLanguageInternationalPlatform",
       {
-        defaultValue:
-          "Русский текст для международной платформы: нужны правила площадки и страны публикации",
+        defaultValue: "Russian text for an international platform: platform and publication-country rules are needed",
       },
     ),
     platform_rules_first: t("plannedAnalysis.jurisdiction.platformRulesFirst", {
-      defaultValue: "Сначала проверить правила площадки",
+      defaultValue: "Check platform rules first",
     }),
     unspecified: t("plannedAnalysis.jurisdiction.unspecified", {
-      defaultValue: "Страна и правила не определены",
+      defaultValue: "Country and rules are unknown",
     }),
   };
   return labels[key] ?? key;
@@ -5781,38 +6234,33 @@ function platformDetail(
 ): string {
   const details: Record<string, string> = {
     site_article: t("plannedAnalysis.platformDetails.site_article", {
-      defaultValue:
-        "Подходит для длинного материала с заголовком, разделами и поисковым интентом.",
+      defaultValue: "Fits a long-form article with a title, sections, and search intent.",
     }),
     markdown_article: t("plannedAnalysis.platformDetails.markdown_article", {
-      defaultValue:
-        "Текст похож на статью с Markdown-разметкой: важно сохранить структуру заголовков.",
+      defaultValue: "The text looks like a Markdown article; preserve heading structure.",
     }),
     short_social_post: t("plannedAnalysis.platformDetails.short_social_post", {
-      defaultValue:
-        "Похоже на короткий пост: заголовок обычно не нужен, важны ясность и быстрый смысл.",
+      defaultValue: "Looks like a short post: a title is usually unnecessary, while clarity and fast meaning matter.",
     }),
-    short_article_or_long_social_post: t(
-      "plannedAnalysis.platformDetails.short_article_or_long_social_post",
+    short_article_or_long_social_post: t("plannedAnalysis.platformDetails.short_article_or_long_social_post",
       {
-        defaultValue:
-          "Формат на границе статьи и длинного поста: упаковка зависит от площадки публикации.",
+        defaultValue: "Sits between article and long-post formats; packaging depends on the publishing platform.",
       },
     ),
   };
   return details[key] ??
     t("plannedAnalysis.platformDetails.default", {
-      defaultValue: "Формат определен по текущему тексту и выбранным инструментам.",
+      defaultValue: "The format is inferred from the current text and selected tools.",
     });
 }
 
 function styleLabel(t: ReturnType<typeof useTranslation>["t"], key: string): string {
   const labels: Record<string, string> = {
-    personal: t("plannedAnalysis.styles.personal", { defaultValue: "Личный" }),
-    analytical: t("plannedAnalysis.styles.analytical", { defaultValue: "Аналитический" }),
-    educational: t("plannedAnalysis.styles.educational", { defaultValue: "Обучающий" }),
-    business: t("plannedAnalysis.styles.business", { defaultValue: "Деловой" }),
-    informational: t("plannedAnalysis.styles.informational", { defaultValue: "Информационный" }),
+    personal: t("plannedAnalysis.styles.personal", { defaultValue: "Personal" }),
+    analytical: t("plannedAnalysis.styles.analytical", { defaultValue: "Analytical" }),
+    educational: t("plannedAnalysis.styles.educational", { defaultValue: "Educational" }),
+    business: t("plannedAnalysis.styles.business", { defaultValue: "Business" }),
+    informational: t("plannedAnalysis.styles.informational", { defaultValue: "Informational" }),
   };
   return labels[key] ?? key;
 }
@@ -5820,12 +6268,12 @@ function styleLabel(t: ReturnType<typeof useTranslation>["t"], key: string): str
 function toneLabel(t: ReturnType<typeof useTranslation>["t"], key: string): string {
   const labels: Record<string, string> = {
     cautious_expert: t("plannedAnalysis.tones.cautiousExpert", {
-      defaultValue: "Осторожный экспертный",
+      defaultValue: "Cautious expert",
     }),
-    energetic: t("plannedAnalysis.tones.energetic", { defaultValue: "Энергичный" }),
-    personal: t("plannedAnalysis.tones.personal", { defaultValue: "Личный" }),
+    energetic: t("plannedAnalysis.tones.energetic", { defaultValue: "Energetic" }),
+    personal: t("plannedAnalysis.tones.personal", { defaultValue: "Personal" }),
     neutral_explaining: t("plannedAnalysis.tones.neutralExplaining", {
-      defaultValue: "Нейтрально-объясняющий",
+      defaultValue: "Neutral explaining",
     }),
   };
   return labels[key] ?? key;
@@ -5834,20 +6282,20 @@ function toneLabel(t: ReturnType<typeof useTranslation>["t"], key: string): stri
 function actionLabel(t: ReturnType<typeof useTranslation>["t"], key: string): string {
   if (key === "solution") {
     return t("plannedAnalysis.actionLabels.solution", {
-      defaultValue: "Предложить решение",
+      defaultValue: "Suggest solution",
     });
   }
   return t("plannedAnalysis.actionLabels.scan", {
-    defaultValue: "Сканировать текст",
+    defaultValue: "Scan text",
   });
 }
 
 function scriptLabel(t: ReturnType<typeof useTranslation>["t"], key: string): string {
   if (key === "cyrillic") {
-    return t("plannedAnalysis.scriptLabels.cyrillic", { defaultValue: "Кириллица" });
+    return t("plannedAnalysis.scriptLabels.cyrillic", { defaultValue: "Cyrillic" });
   }
   if (key === "latin") {
-    return t("plannedAnalysis.scriptLabels.latin", { defaultValue: "Латиница" });
+    return t("plannedAnalysis.scriptLabels.latin", { defaultValue: "Latin" });
   }
   return key;
 }
@@ -5855,21 +6303,19 @@ function scriptLabel(t: ReturnType<typeof useTranslation>["t"], key: string): st
 function methodLabel(t: ReturnType<typeof useTranslation>["t"], key: string): string {
   const labels: Record<string, string> = {
     local_repetition_risk: t("plannedAnalysis.methodLabels.local_repetition_risk", {
-      defaultValue: "Локальные повторы",
+      defaultValue: "Local repetition",
     }),
-    heuristic_style_probability: t(
-      "plannedAnalysis.methodLabels.heuristic_style_probability",
-      { defaultValue: "Эвристика ИИ-стиля" },
+    heuristic_style_probability: t("plannedAnalysis.methodLabels.heuristic_style_probability",
+      { defaultValue: "AI-style heuristic" },
     ),
     claim_risk_heuristic: t("plannedAnalysis.methodLabels.claim_risk_heuristic", {
-      defaultValue: "Риск фактических утверждений",
+      defaultValue: "Claim-risk heuristic",
     }),
     internal_logic_heuristic: t("plannedAnalysis.methodLabels.internal_logic_heuristic", {
-      defaultValue: "Внутренняя логика",
+      defaultValue: "Internal logic",
     }),
-    ai_claim_hallucination_heuristic: t(
-      "plannedAnalysis.methodLabels.ai_claim_hallucination_heuristic",
-      { defaultValue: "Риск ИИ-деталей" },
+    ai_claim_hallucination_heuristic: t("plannedAnalysis.methodLabels.ai_claim_hallucination_heuristic",
+      { defaultValue: "AI-detail risk" },
     ),
   };
   return labels[key] ?? key;
@@ -5886,21 +6332,21 @@ function annotationStatusLabel(
   ).length;
   if (issueCount > 0 && recommendationCount > 0) {
     return t("plannedAnalysis.results.annotationStatus.issuesAndRecommendations", {
-      defaultValue: "Есть замечания и рекомендации",
+      defaultValue: "Notes and recommendations found",
     });
   }
   if (styleCount > 0) {
     return t("plannedAnalysis.results.annotationStatus.styleIssues", {
-      defaultValue: "Есть нарушения стиля",
+      defaultValue: "Style issues found",
     });
   }
   if (recommendationCount > 0) {
     return t("plannedAnalysis.results.annotationStatus.recommendations", {
-      defaultValue: "Есть рекомендации",
+      defaultValue: "Recommendations found",
     });
   }
   return t("plannedAnalysis.results.annotationStatus.almostClean", {
-    defaultValue: "Почти нет замечаний и рекомендаций",
+    defaultValue: "Almost no notes or recommendations",
   });
 }
 
@@ -5910,21 +6356,21 @@ function annotationKindLabel(
 ): string {
   if (kind === "issue") {
     return t("plannedAnalysis.results.annotationKinds.issue", {
-      defaultValue: "Ошибка",
+      defaultValue: "Issue",
     });
   }
   if (kind === "style") {
     return t("plannedAnalysis.results.annotationKinds.style", {
-      defaultValue: "Стиль",
+      defaultValue: "Style",
     });
   }
   if (kind === "note") {
     return t("plannedAnalysis.results.annotationKinds.note", {
-      defaultValue: "Примечание",
+      defaultValue: "Note",
     });
   }
   return t("plannedAnalysis.results.annotationKinds.recommendation", {
-    defaultValue: "Рекомендация",
+    defaultValue: "Recommendation",
   });
 }
 
@@ -5934,207 +6380,154 @@ function textIssueMessage(
 ): string {
   const labels: Record<string, string> = {
     thin_text: t("plannedAnalysis.results.issueMessages.thin_text", {
-      defaultValue:
-        "Текст коротковат для поисковой статьи: стоит раскрыть ответ полезнее перед оптимизацией.",
+      defaultValue: "The text is short for a search-oriented article; expand the useful answer before optimizing.",
     }),
-    low_paragraph_structure: t(
-      "plannedAnalysis.results.issueMessages.low_paragraph_structure",
+    low_paragraph_structure: t("plannedAnalysis.results.issueMessages.low_paragraph_structure",
       {
-        defaultValue:
-          "В тексте мало чётких абзацев, поэтому его сложнее быстро просмотреть.",
+        defaultValue: "The text has too few clear paragraphs, which makes scanning harder.",
       },
     ),
-    weak_heading_structure: t(
-      "plannedAnalysis.results.issueMessages.weak_heading_structure",
+    weak_heading_structure: t("plannedAnalysis.results.issueMessages.weak_heading_structure",
       {
-        defaultValue:
-          "Добавьте понятные разделы или подзаголовки, чтобы структура быстрее считывалась.",
+        defaultValue: "Add clear sections or subheadings so structure is easier to read.",
       },
     ),
     long_sentences: t("plannedAnalysis.results.issueMessages.long_sentences", {
-      defaultValue:
-        "Средняя длина предложения высокая: плотные фразы лучше разделить.",
+      defaultValue: "Average sentence length is high; split dense phrases.",
     }),
     formal_phrasing: t("plannedAnalysis.results.issueMessages.formal_phrasing", {
-      defaultValue:
-        "Есть формальные или механические формулировки: ключевые объяснения лучше сделать прямее.",
+      defaultValue: "The text contains formal or mechanical phrasing; make key explanations more direct.",
     }),
     tone_review: t("plannedAnalysis.results.issueMessages.tone_review", {
-      defaultValue:
-        "Тон нужно держать в рамках темы и риска: предупреждения должны помогать, а не утяжелять весь текст.",
+      defaultValue: "Keep tone aligned with topic risk: caveats should help the reader without weighing down every paragraph.",
     }),
     audience_fit: t("plannedAnalysis.results.issueMessages.audience_fit", {
-      defaultValue:
-        "Проверьте, что примеры, термины и уровень объяснения подходят целевому читателю.",
+      defaultValue: "Check that examples, terminology, and explanation level fit the intended reader.",
     }),
-    media_markers_present: t(
-      "plannedAnalysis.results.issueMessages.media_markers_present",
+    media_markers_present: t("plannedAnalysis.results.issueMessages.media_markers_present",
       {
-        defaultValue:
-          "Медиа-метки уже есть в тексте: держите их рядом с соответствующими объяснениями.",
+        defaultValue: "Media markers are already present in the body; keep them near the relevant explanation.",
       },
     ),
     no_media_markers: t("plannedAnalysis.results.issueMessages.no_media_markers", {
-      defaultValue:
-        "Медиа-метки не найдены. Добавляйте их только там, где изображение, видео, анимация или аудио помогают понять текст.",
+      defaultValue: "No media markers were found. Add them only where image, video, animation, or audio improves understanding.",
     }),
     uniqueness_risk: t("plannedAnalysis.results.issueMessages.uniqueness_risk", {
-      defaultValue:
-        "Есть риск локальных повторов или шаблонности. Это не интернет-проверка плагиата.",
+      defaultValue: "The text has local repetition or duplicate-pattern risk. This is not an internet plagiarism check.",
     }),
     duplicate_sentences: t("plannedAnalysis.results.issueMessages.duplicate_sentences", {
-      defaultValue: "Некоторые предложения почти дословно повторяются внутри текста.",
+      defaultValue: "Some sentences repeat almost exactly inside the article.",
     }),
     syntax_risk: t("plannedAnalysis.results.issueMessages.syntax_risk", {
-      defaultValue:
-        "Есть заметные синтаксические или пунктуационные риски, которые стоит проверить перед публикацией.",
+      defaultValue: "The text has visible syntax or punctuation risks that should be checked before publishing.",
     }),
     dense_sentences: t("plannedAnalysis.results.issueMessages.dense_sentences", {
-      defaultValue:
-        "Некоторые предложения плотные: грамматика может быть нормальной, но читаемость страдает.",
+      defaultValue: "Several sentences are dense; grammar may be correct, but readability suffers.",
     }),
-    ai_style_probability: t(
-      "plannedAnalysis.results.issueMessages.ai_style_probability",
+    ai_style_probability: t("plannedAnalysis.results.issueMessages.ai_style_probability",
       {
-        defaultValue:
-          "Текст содержит признаки ИИ-стиля: шаблонные переходы, ровный ритм или повторяющиеся слова.",
+        defaultValue: "The text has AI-style signals: generic transitions, uniform rhythm, or repeated words.",
       },
     ),
-    fact_distortion_risk: t(
-      "plannedAnalysis.results.issueMessages.fact_distortion_risk",
+    fact_distortion_risk: t("plannedAnalysis.results.issueMessages.fact_distortion_risk",
       {
-        defaultValue:
-          "В тексте есть фактически чувствительные утверждения, которым может понадобиться проверка источников.",
+        defaultValue: "The text contains fact-sensitive claims that may need source verification before publication.",
       },
     ),
     absolute_claims: t("plannedAnalysis.results.issueMessages.absolute_claims", {
-      defaultValue:
-        "Категоричные формулировки могут искажать смысл, если текст их не доказывает.",
+      defaultValue: "Absolute wording can distort meaning when the text does not prove the claim.",
     }),
-    sensitive_claims_without_sources: t(
-      "plannedAnalysis.results.issueMessages.sensitive_claims_without_sources",
+    sensitive_claims_without_sources: t("plannedAnalysis.results.issueMessages.sensitive_claims_without_sources",
       {
-        defaultValue:
-          "Медицинские, юридические, финансовые или технические утверждения лучше поддержать источниками или осторожной формулировкой.",
+        defaultValue: "Medical, legal, financial, or technical claims should be supported by sources or cautious wording.",
       },
     ),
-    possible_internal_contradiction: t(
-      "plannedAnalysis.results.issueMessages.possible_internal_contradiction",
-      { defaultValue: "В тексте могут быть утверждения, которые тянут выводы в разные стороны." },
+    possible_internal_contradiction: t("plannedAnalysis.results.issueMessages.possible_internal_contradiction",
+      { defaultValue: "The text may contain statements that pull conclusions in different directions." },
     ),
-    unsupported_causality: t(
-      "plannedAnalysis.results.issueMessages.unsupported_causality",
+    unsupported_causality: t("plannedAnalysis.results.issueMessages.unsupported_causality",
       {
-        defaultValue:
-          "Некоторые причинно-следственные переходы могут требовать примера, данных или промежуточного объяснения.",
+        defaultValue: "Some cause-and-effect transitions may need examples, data, or intermediate reasoning.",
       },
     ),
     hallucination_risk: t("plannedAnalysis.results.issueMessages.hallucination_risk", {
-      defaultValue:
-        "Есть признаки, что фактические детали, созданные или обработанные ИИ, нужно перепроверить.",
+      defaultValue: "Factual details created or processed by AI may need verification.",
     }),
     ai_trace_map_risk: t("plannedAnalysis.results.issueMessages.ai_trace_map_risk", {
-      defaultValue:
-        "Несколько фрагментов выглядят как AI-черновик: служебные переходы, формальность, повторы или слишком ровный ритм.",
+      defaultValue: "Several fragments look AI-assisted: generic transitions, formal wording, repetition, or overly even rhythm.",
     }),
     generic_watery_text: t("plannedAnalysis.results.issueMessages.generic_watery_text", {
-      defaultValue:
-        "Текст может звучать водянисто: много общих мыслей и служебных фраз, мало конкретики.",
+      defaultValue: "The text may feel watery: it uses broad statements or service phrases instead of concrete evidence.",
     }),
     low_concrete_evidence: t("plannedAnalysis.results.issueMessages.low_concrete_evidence", {
-      defaultValue:
-        "Для такого объёма в тексте мало примеров, цифр, источников, кейсов или практических деталей.",
+      defaultValue: "The article has few examples, numbers, sources, cases, or practical details for its length.",
     }),
-    readability_complexity_risk: t(
-      "plannedAnalysis.results.issueMessages.readability_complexity_risk",
+    readability_complexity_risk: t("plannedAnalysis.results.issueMessages.readability_complexity_risk",
       {
-        defaultValue:
-          "Плотные предложения или тяжёлые абзацы мешают быстро понять текст.",
+        defaultValue: "Dense sentences or heavy paragraphs make the text harder to read than it needs to be.",
       },
     ),
     heavy_paragraphs: t("plannedAnalysis.results.issueMessages.heavy_paragraphs", {
-      defaultValue:
-        "Один или несколько абзацев слишком тяжёлые для быстрого сканирования.",
+      defaultValue: "One or more paragraphs are heavy enough to slow scanning.",
     }),
     claim_source_queue: t("plannedAnalysis.results.issueMessages.claim_source_queue", {
-      defaultValue:
-        "Часть утверждений стоит вынести в редакторскую очередь проверки источников.",
+      defaultValue: "Some claims should enter an editor's source-check queue before publication.",
     }),
     vague_authorities: t("plannedAnalysis.results.issueMessages.vague_authorities", {
-      defaultValue:
-        "Фразы вроде «эксперты считают» или «исследования показывают» лучше привязать к конкретному источнику.",
+      defaultValue: "Phrases like \"experts say\" or \"studies show\" should point to a concrete source.",
     }),
     low_ctr_potential: t("plannedAnalysis.results.issueMessages.low_ctr_potential", {
-      defaultValue:
-        "Заголовок и начало текста могут недостаточно ясно показывать пользу для выдачи или ленты.",
+      defaultValue: "The title or opening does not yet create enough click or reading motivation.",
     }),
     weak_hook: t("plannedAnalysis.results.issueMessages.weak_hook", {
-      defaultValue:
-        "Первый хук можно усилить: раньше показать проблему читателя, конфликт или понятную выгоду.",
+      defaultValue: "The opening hook can be stronger: show the reader problem, conflict, or clear benefit earlier.",
     }),
-    unsafe_or_evasion_intent: t(
-      "plannedAnalysis.results.issueMessages.unsafe_or_evasion_intent",
+    unsafe_or_evasion_intent: t("plannedAnalysis.results.issueMessages.unsafe_or_evasion_intent",
       {
-        defaultValue:
-          "В тексте есть риск опасных инструкций, обхода правил платформы или незаконного применения.",
+        defaultValue: "The text may contain unsafe or rule-evasion intent and needs manual review.",
       },
     ),
     legal_review_needed: t("plannedAnalysis.results.issueMessages.legal_review_needed", {
-      defaultValue:
-        "В тексте есть юридически чувствительные формулировки. Их нельзя подавать как юридическую консультацию без проверки.",
+      defaultValue: "The text contains legally sensitive claims. It should not be presented as legal advice without review.",
     }),
     medical_review_needed: t("plannedAnalysis.results.issueMessages.medical_review_needed", {
-      defaultValue:
-        "В тексте есть медицинские или health-sensitive утверждения. Они не должны заменять проверку врачом или источниками.",
+      defaultValue: "The text contains medical or health-sensitive claims. It should not replace clinician review or source verification.",
     }),
-    investment_review_needed: t(
-      "plannedAnalysis.results.issueMessages.investment_review_needed",
+    investment_review_needed: t("plannedAnalysis.results.issueMessages.investment_review_needed",
       {
-        defaultValue:
-          "В тексте есть инвестиционно чувствительные формулировки. Их нельзя подавать как индивидуальную инвестиционную рекомендацию.",
+        defaultValue: "The text contains investment-sensitive claims. It should not be presented as personal investment advice.",
       },
     ),
-    technical_engineering_review_needed: t(
-      "plannedAnalysis.results.issueMessages.technical_engineering_review_needed",
+    technical_engineering_review_needed: t("plannedAnalysis.results.issueMessages.technical_engineering_review_needed",
       {
-        defaultValue:
-          "В тексте есть технические или конструкторские утверждения: проверьте их по документации, стандартам, чертежам или у специалиста.",
+        defaultValue: "The text contains technical or engineering claims that may need expert verification, drawings, standards, or manufacturer documentation.",
       },
     ),
-    scientific_review_needed: t(
-      "plannedAnalysis.results.issueMessages.scientific_review_needed",
+    scientific_review_needed: t("plannedAnalysis.results.issueMessages.scientific_review_needed",
       {
-        defaultValue:
-          "В тексте есть научные или исследовательские утверждения: проверьте методику, источники и расчёты.",
+        defaultValue: "The text contains research or scientific-method claims that may need methodology, sources, or calculation review.",
       },
     ),
-    calculation_review_needed: t(
-      "plannedAnalysis.results.issueMessages.calculation_review_needed",
+    calculation_review_needed: t("plannedAnalysis.results.issueMessages.calculation_review_needed",
       {
-        defaultValue:
-          "В тексте есть числа или формулы: расчёты лучше вынести в отдельную проверку.",
+        defaultValue: "The text contains several numeric or formula-like fragments; calculations may need a dedicated check.",
       },
     ),
-    custom_resource_rules_needed: t(
-      "plannedAnalysis.results.issueMessages.custom_resource_rules_needed",
+    custom_resource_rules_needed: t("plannedAnalysis.results.issueMessages.custom_resource_rules_needed",
       {
-        defaultValue:
-          "Ресурс публикации задан пользователем: правила площадки, модерацию и доступные реакции аудитории нужно проверить отдельно.",
+        defaultValue: "A custom platform or resource may require manual rule verification.",
       },
     ),
-    external_verification_needed: t(
-      "plannedAnalysis.results.issueMessages.external_verification_needed",
+    external_verification_needed: t("plannedAnalysis.results.issueMessages.external_verification_needed",
       {
-        defaultValue:
-          "Внешняя проверка источников, правил площадки, страны, SERP или соцаналитики в этом локальном анализе не выполнялась.",
+        defaultValue: "External source, jurisdiction, platform, SERP, or analytics verification was not performed by this local text scan.",
       },
     ),
     repeated_terms: issue.message.replace(
-      /^Repeated terms may make the text feel mechanical:\s*/i,
-      t("plannedAnalysis.results.issueMessages.repeated_termsPrefix", {
-        defaultValue:
-          "Повторяющиеся термины могут делать текст механическим: ",
-      }),
+      /^Repeated terms may make the text feel mechanical:?\s*/i,
+      `${t("plannedAnalysis.results.issueMessages.repeated_termsPrefix", {
+        defaultValue: "Repeated terms may make the text feel mechanical:",
+      }).replace(/:?\s*$/, ": ")}`
     ),
   };
   return labels[issue.code] ?? issue.message;
@@ -6147,83 +6540,63 @@ function textRecommendation(
 ): string {
   const recommendations: Record<string, string> = {
     detect_text_platform: t("plannedAnalysis.results.recommendations.platform", {
-      defaultValue:
-        "Держите служебные элементы площадки отдельно от тела текста: название, описание, теги и превью.",
+      defaultValue: "Keep platform metadata separate from the body: title, description, tags, and preview text.",
     }),
     analyze_text_structure: t("plannedAnalysis.results.recommendations.structure", {
-      defaultValue:
-        "Соберите один понятный главный заголовок и сгруппируйте разделы по интенту.",
+      defaultValue: "Use one clear main title and group sections by intent.",
     }),
     analyze_text_style: t("plannedAnalysis.results.recommendations.style", {
-      defaultValue:
-        "Добавьте конкретные глаголы, более короткие предложения и примеры там, где читатель может остановиться.",
+      defaultValue: "Add concrete verbs, shorter sentences, and examples where the reader may hesitate.",
     }),
     analyze_tone_fit: t("plannedAnalysis.results.recommendations.tone", {
-      defaultValue:
-        "Оставляйте предупреждения точечно: они должны защищать читателя, а не делать весь текст оборонительным.",
+      defaultValue: "Use caveats precisely: they should protect the reader without making the whole text defensive.",
     }),
     language_audience_fit: t("plannedAnalysis.results.recommendations.audience", {
-      defaultValue:
-        "Назовите целевого читателя во вступлении, если тема подходит нескольким аудиториям.",
+      defaultValue: "Name the target reader in the introduction when the topic can serve several audiences.",
     }),
     media_placeholder_review: t("plannedAnalysis.results.recommendations.media", {
-      defaultValue:
-        "Размещайте медиа-метки внутри подходящих разделов, а не в конце текста.",
+      defaultValue: "Place media markers inside relevant sections, not at the end of the text.",
     }),
     article_uniqueness: t("plannedAnalysis.results.recommendations.uniqueness", {
-      defaultValue:
-        "Повторяющиеся фрагменты лучше переписать через новые примеры, более узкие тезисы или переходы.",
+      defaultValue: "Rewrite repeated fragments with new examples, narrower claims, or clearer transitions.",
     }),
     language_syntax: t("plannedAnalysis.results.recommendations.syntax", {
-      defaultValue:
-        "Сделайте финальную ручную вычитку пунктуации, границ предложений и перегруженных фраз.",
+      defaultValue: "Run a final human pass for punctuation, sentence boundaries, and overloaded phrases.",
     }),
     ai_writing_probability: t("plannedAnalysis.results.recommendations.ai", {
-      defaultValue:
-        "Чтобы текст звучал авторски, добавьте специфичные примеры, контекст и разнообразьте ритм фраз.",
+      defaultValue: "To sound more authorial, add specific examples, context, and more varied sentence rhythm.",
     }),
     ai_trace_map: t("plannedAnalysis.results.recommendations.aiTrace", {
-      defaultValue:
-        "Используйте карту AI-фрагментов как редакторский маршрут: замените шаблонные переходы примерами, источниками или авторским суждением.",
+      defaultValue: "Use the trace map as an editing guide: replace generic transitions with examples, sources, or sharper author judgment.",
     }),
     genericness_water_check: t("plannedAnalysis.results.recommendations.genericness", {
-      defaultValue:
-        "Превратите общие абзацы в полезные: добавьте пример, источник, цифру или действие для читателя.",
+      defaultValue: "Turn broad paragraphs into useful ones by adding a concrete example, source, number, or reader action.",
     }),
-    readability_complexity: t(
-      "plannedAnalysis.results.recommendations.readabilityComplexity",
+    readability_complexity: t("plannedAnalysis.results.recommendations.readabilityComplexity",
       {
-        defaultValue:
-          "Сначала укоротите плотные предложения и разбейте тяжёлые абзацы, потом полируйте стиль.",
+        defaultValue: "Shorten dense sentences and split heavy paragraphs before polishing style.",
       },
     ),
     claim_source_queue: t("plannedAnalysis.results.recommendations.claimQueue", {
-      defaultValue:
-        "Проверьте все утверждения из очереди по источникам; если источник слабый, смягчите или уберите тезис.",
+      defaultValue: "Verify queued claims against sources; if a source is weak, soften or remove the claim.",
     }),
     naturalness_indicators: t("plannedAnalysis.results.recommendations.naturalness", {
-      defaultValue:
-        "Разнообразьте начала предложений и уберите служебные фразы, которые не добавляют смысла.",
+      defaultValue: "Vary sentence openings and remove service phrases that do not add meaning.",
     }),
     logic_consistency_check: t("plannedAnalysis.results.recommendations.logic", {
-      defaultValue:
-        "Проверьте места с «поэтому», «потому что», «всегда» и «никогда»: там должно хватать обоснования.",
+      defaultValue: "Check places with “therefore”, “because”, “always”, and “never”; they need enough support.",
     }),
     fact_distortion_check: t("plannedAnalysis.results.recommendations.facts", {
-      defaultValue:
-        "Перепроверьте числа, имена и чувствительные утверждения; смягчите то, что нельзя уверенно подтвердить.",
+      defaultValue: "Verify numbers, names, and sensitive claims; soften statements that cannot be supported confidently.",
     }),
     ai_hallucination_check: t("plannedAnalysis.results.recommendations.hallucination", {
-      defaultValue:
-        "Замените расплывчатые источники конкретными или удалите детали, которые нельзя проверить.",
+      defaultValue: "Replace vague authorities with concrete sources or remove details that cannot be verified.",
     }),
     intent_seo_forecast: t("plannedAnalysis.results.recommendations.intentSeo", {
-      defaultValue:
-        "Усилите первую строку, понятную пользу для читателя и SEO-пакет перед публикацией.",
+      defaultValue: "Strengthen the first line, clear reader benefit, and SEO package before publishing.",
     }),
     safety_science_review: t("plannedAnalysis.results.recommendations.safetyScience", {
-      defaultValue:
-        "Проверьте юридические, медицинские, инвестиционные, технические, научные и страновые чувствительные места по экспертам, правилам площадки или официальным источникам.",
+      defaultValue: "Check legal, medical, investment, technical, scientific, and country-sensitive areas with experts, platform rules, or official sources.",
     }),
   };
   return recommendations[toolId] ?? fallback;
@@ -6329,13 +6702,12 @@ function inferArticleTitle(
     return { title: titleCandidate, titleNote: null };
   }
   return {
-    title: t("plannedAnalysis.results.untitled", { defaultValue: "Без названия" }),
+    title: t("plannedAnalysis.results.untitled", { defaultValue: "Untitled" }),
     titleNote:
       platformKey === "short_social_post"
         ? null
         : t("plannedAnalysis.results.titleMissingNote", {
-            defaultValue:
-              "Название не найдено в тексте. В будущей версии ИИ сможет предложить вариант справа от заголовка.",
+            defaultValue: "No title was found in the text. A future AI layer can suggest one beside the heading.",
           }),
   };
 }
@@ -6436,71 +6808,66 @@ function resultDescription(
 ): string {
   const descriptions: Record<string, string> = {
     detect_text_platform: t("plannedAnalysis.results.descriptions.platform", {
-      defaultValue: "Определяет площадку и контекст публикации.",
+      defaultValue: "Detects the publishing platform and context.",
     }),
     analyze_text_structure: t("plannedAnalysis.results.descriptions.structure", {
-      defaultValue: "Проверяет заголовки, абзацы и каркас статьи.",
+      defaultValue: "Checks headings, paragraphs, and article structure.",
     }),
     analyze_text_style: t("plannedAnalysis.results.descriptions.style", {
-      defaultValue: "Определяет стиль текста и его слабые места.",
+      defaultValue: "Detects text style and weak spots.",
     }),
     analyze_tone_fit: t("plannedAnalysis.results.descriptions.tone", {
-      defaultValue: "Смотрит, подходит ли тон теме и аудитории.",
+      defaultValue: "Reviews whether the tone fits the topic and audience.",
     }),
     language_audience_fit: t("plannedAnalysis.results.descriptions.audience", {
-      defaultValue: "Проверяет язык, аудиторию и уровень объяснения.",
+      defaultValue: "Checks language, audience, and explanation level.",
     }),
     media_placeholder_review: t("plannedAnalysis.results.descriptions.media", {
-      defaultValue: "Проверяет, где и как размещены медиа-метки.",
+      defaultValue: "Checks where and how media markers are placed.",
     }),
     article_uniqueness: t("plannedAnalysis.results.descriptions.uniqueness", {
-      defaultValue: "Оценивает локальные повторы и шаблонность.",
+      defaultValue: "Estimates local repetition and template risk.",
     }),
     language_syntax: t("plannedAnalysis.results.descriptions.syntax", {
-      defaultValue: "Проверяет синтаксис и явные языковые риски.",
+      defaultValue: "Checks syntax and clear language risks.",
     }),
     ai_writing_probability: t("plannedAnalysis.results.descriptions.ai", {
-      defaultValue: "Оценивает признаки ИИ-стиля в тексте.",
+      defaultValue: "Estimates AI-style signals in the text.",
     }),
     ai_trace_map: t("plannedAnalysis.results.descriptions.aiTrace", {
-      defaultValue:
-        "Показывает локальные AI-похожие фрагменты без вердикта об авторстве.",
+      defaultValue: "Maps local AI-like fragments without claiming authorship proof.",
     }),
     genericness_water_check: t("plannedAnalysis.results.descriptions.genericness", {
-      defaultValue:
-        "Проверяет, не слишком ли текст общий, водянистый и шаблонный.",
+      defaultValue: "Checks whether the text is too broad, watery, or template-like.",
     }),
     readability_complexity: t("plannedAnalysis.results.descriptions.readabilityComplexity", {
-      defaultValue:
-        "Проверяет плотность фраз и тяжёлые абзацы.",
+      defaultValue: "Checks sentence density and heavy paragraphs.",
     }),
     claim_source_queue: t("plannedAnalysis.results.descriptions.claimQueue", {
-      defaultValue:
-        "Собирает утверждения, которые нужно перепроверить по источникам.",
+      defaultValue: "Queues claims that need source verification.",
     }),
     naturalness_indicators: t("plannedAnalysis.results.descriptions.naturalness", {
-      defaultValue: "Ищет механические формулировки и повторы.",
+      defaultValue: "Looks for mechanical phrasing and repetition.",
     }),
     logic_consistency_check: t("plannedAnalysis.results.descriptions.logic", {
-      defaultValue: "Проверяет противоречия и скачки вывода.",
+      defaultValue: "Checks contradictions and reasoning jumps.",
     }),
     intent_seo_forecast: t("plannedAnalysis.results.descriptions.intent", {
-      defaultValue: "Оценивает интент, первую подачу и SEO-пакет.",
+      defaultValue: "Evaluates intent, opening pitch, and SEO package.",
     }),
     safety_science_review: t("plannedAnalysis.results.descriptions.safety", {
-      defaultValue:
-        "Ищет юридические, медицинские, научные и технические риски.",
+      defaultValue: "Finds legal, medical, scientific, and technical risks.",
     }),
     fact_distortion_check: t("plannedAnalysis.results.descriptions.facts", {
-      defaultValue: "Ищет спорные факты и слишком уверенные утверждения.",
+      defaultValue: "Looks for disputed facts and overconfident claims.",
     }),
     ai_hallucination_check: t("plannedAnalysis.results.descriptions.hallucination", {
-      defaultValue: "Ищет признаки выдуманных деталей и ИИ-галлюцинаций.",
+      defaultValue: "Looks for invented details and AI hallucination signals.",
     }),
   };
   return descriptions[toolId] ??
     t("plannedAnalysis.results.descriptions.default", {
-      defaultValue: "Проверка текста ToraSEO.",
+      defaultValue: "ToraSEO text check.",
     });
 }
 
@@ -6529,15 +6896,15 @@ function isWeakSeoCategory(value: string): boolean {
 function inferCategoryFromKeywords(keywords: string[]): string {
   const joined = keywords.join(" ");
   if (/seo|cms|laravel|wordpress|api|код|разработ|техн|python|css|html/i.test(joined)) {
-    return "Технологии";
+    return "Technology";
   }
   if (/здоров|организм|диабет|трениров|питани|медиц|гликоген|глюкоз|углевод|спорт|упражнен|health|diet|fitness/i.test(joined)) {
-    return "Здоровье и спорт";
+    return "Health and fitness";
   }
   if (/бизнес|продаж|маркет|клиент|conversion|sales/i.test(joined)) {
-    return "Бизнес";
+    return "Business";
   }
-  return "Полезные материалы";
+  return "Helpful resources";
 }
 
 function inferSeoTitleFromInput(text: string, topic?: string): string {
@@ -6566,13 +6933,16 @@ function capitalizeTitleStart(value: string): string {
 
 function fallbackSeoTitleFromKeywords(text: string, keywords: string[]): string {
   const lowered = text.toLowerCase();
-  if (/гликоген/u.test(lowered) && /трениров|упражнен|нагруз/u.test(lowered)) {
-    return "Восстановление гликогена после тренировки";
+  if (/гликоген|glycogen/u.test(lowered) && /трениров|упражнен|нагруз|training|exercise|workout/u.test(lowered)) {
+    return "Glycogen recovery after training";
+  }
+  if (/glycogen/i.test(text) && /training|exercise|workout/i.test(text)) {
+    return "Glycogen recovery after training";
   }
   if (keywords.length >= 3) {
-    return `${capitalizeTitleStart(keywords.slice(0, 3).join(" "))}: что важно знать`;
+    return `${capitalizeTitleStart(keywords.slice(0, 3).join(" "))}: what to know`;
   }
-  if (keywords[0]) return `${capitalizeTitleStart(keywords[0])}: что важно знать`;
+  if (keywords[0]) return `${capitalizeTitleStart(keywords[0])}: what to know`;
   return "";
 }
 
@@ -6753,8 +7123,7 @@ function buildArticleStrengths(
     strengths.push({
       title: strongMetric.label,
       detail: t("plannedAnalysis.results.strengthMetricDetail", {
-        defaultValue:
-          "Этот показатель выглядит сильным по текущим инструментам анализа.",
+        defaultValue: "This metric looks strong across the current analysis tools.",
       }),
       sourceToolIds: [strongMetric.id],
     });
@@ -6855,50 +7224,44 @@ function buildArticleTextSummary(
     {
       id: "safety",
       label: t("plannedAnalysis.results.dimensions.safety", {
-        defaultValue: "Безопасность и проверка",
+        defaultValue: "Safety and review",
       }),
       status: dimensionStatus([
         warningCount > 1 ? "problem" : warningCount > 0 ? "watch" : "healthy",
         entryStatus(state, "safety_science_review"),
       ]),
       detail: t("plannedAnalysis.results.dimensions.safetyDetail", {
-        defaultValue:
-          "Риски запрещённого контента, обхода правил, юридических, медицинских, инвестиционных, технических, научных выводов, расчётов и внешней сверки.",
+        defaultValue: "Risks around prohibited content, rule evasion, legal, medical, investment, technical, scientific, calculation, and external-source review.",
       }),
       recommendation:
         warningCount > 0
           ? t("plannedAnalysis.results.dimensions.safetyFix", {
-              defaultValue:
-                "Проверьте предупреждения перед публикацией; ИИ не заменяет юриста, врача, инвестиционного консультанта, инженера, научного эксперта или ручную проверку источников.",
+              defaultValue: "Review warnings before publishing; AI does not replace a lawyer, doctor, investment adviser, engineer, scientific expert, or manual source check.",
             })
           : t("plannedAnalysis.results.dimensions.safetyKeep", {
-              defaultValue:
-                "Блокирующих предупреждений по безопасности и экспертной проверке не найдено.",
+              defaultValue: "No blocking safety or expert-review warnings were found.",
             }),
       sourceToolIds: ["safety_science_review"],
     },
     {
       id: "intent",
       label: t("plannedAnalysis.results.dimensions.intent", {
-        defaultValue: "Интент и продвижение",
+        defaultValue: "Intent and promotion",
       }),
       status: dimensionStatus([
         scoreStatus(intentForecast?.ctrPotential ?? null, false),
         scoreStatus(intentForecast?.hookScore ?? null, false),
       ]),
       detail: t("plannedAnalysis.results.dimensions.intentDetail", {
-        defaultValue:
-          "Насколько понятно, зачем читать текст, какой интент он закрывает и насколько сильна первая подача.",
+        defaultValue: "How clearly the text explains why to read it, what intent it satisfies, and how strong the opening presentation is.",
       }),
       recommendation:
         intentForecast && (intentForecast.ctrPotential ?? 0) >= 70
           ? t("plannedAnalysis.results.dimensions.intentKeep", {
-              defaultValue:
-                "Сохраните текущий интент и используйте SEO-пакет как черновик для CMS.",
+              defaultValue: "Keep the current intent and use the SEO package as a CMS draft.",
             })
           : t("plannedAnalysis.results.dimensions.intentFix", {
-              defaultValue:
-                "Усилите первую строку, пользу для читателя и SEO-title перед публикацией.",
+              defaultValue: "Strengthen the first line, reader benefit, and SEO title before publishing.",
             }),
       sourceToolIds: ["intent_seo_forecast"],
     },
@@ -6919,18 +7282,15 @@ function buildArticleTextSummary(
             : "healthy",
       ]),
       detail: t("plannedAnalysis.results.dimensions.originalityDetail", {
-        defaultValue:
-          "Local repetition, template risk, naturalness, and AI-style signals.",
+        defaultValue: "Local repetition, template risk, naturalness, and AI-style signals.",
       }),
       recommendation:
         uniqueness !== null && uniqueness < 80
           ? t("plannedAnalysis.results.dimensions.originalityFix", {
-              defaultValue:
-                "Rewrite repeated fragments with fresher examples and less uniform phrasing.",
+              defaultValue: "Rewrite repeated fragments with fresher examples and less uniform phrasing.",
             })
           : t("plannedAnalysis.results.dimensions.originalityKeep", {
-              defaultValue:
-                "Keep the specific examples and avoid adding generic filler in later edits.",
+              defaultValue: "Keep the specific examples and avoid adding generic filler in later edits.",
             }),
       sourceToolIds: [
         "article_uniqueness",
@@ -6952,18 +7312,15 @@ function buildArticleTextSummary(
         entryStatus(state, "analyze_text_style"),
       ]),
       detail: t("plannedAnalysis.results.dimensions.clarityDetail", {
-        defaultValue:
-          "Syntax, sentence density, structure, headings, and scanability.",
+        defaultValue: "Syntax, sentence density, structure, headings, and scanability.",
       }),
       recommendation:
         syntax !== null && syntax < 80
           ? t("plannedAnalysis.results.dimensions.clarityFix", {
-              defaultValue:
-                "Shorten dense sentences and add clearer section breaks before polishing style.",
+              defaultValue: "Shorten dense sentences and add clearer section breaks before polishing style.",
             })
           : t("plannedAnalysis.results.dimensions.clarityKeep", {
-              defaultValue:
-                "Use the current structure as the base and polish only the weak sections.",
+              defaultValue: "Use the current structure as the base and polish only the weak sections.",
             }),
       sourceToolIds: [
         "language_syntax",
@@ -6982,18 +7339,15 @@ function buildArticleTextSummary(
         entryStatus(state, "logic_consistency_check"),
       ]),
       detail: t("plannedAnalysis.results.dimensions.logicDetail", {
-        defaultValue:
-          "Internal contradictions, weak transitions, and unsupported conclusions.",
+        defaultValue: "Internal contradictions, weak transitions, and unsupported conclusions.",
       }),
       recommendation:
         logicScore !== null && logicScore < 80
           ? t("plannedAnalysis.results.dimensions.logicFix", {
-              defaultValue:
-                "Add missing intermediate reasoning where the text jumps from claim to conclusion.",
+              defaultValue: "Add missing intermediate reasoning where the text jumps from claim to conclusion.",
             })
           : t("plannedAnalysis.results.dimensions.logicKeep", {
-              defaultValue:
-                "Preserve the current argument chain and verify new claims after editing.",
+              defaultValue: "Preserve the current argument chain and verify new claims after editing.",
             }),
       sourceToolIds: ["logic_consistency_check"],
     },
@@ -7012,18 +7366,15 @@ function buildArticleTextSummary(
         scoreStatus(claimQueueRisk, true),
       ]),
       detail: t("plannedAnalysis.results.dimensions.trustDetail", {
-        defaultValue:
-          "Fact-sensitive claims, vague authorities, exact numbers, and hallucination risk.",
+        defaultValue: "Fact-sensitive claims, vague authorities, exact numbers, and hallucination risk.",
       }),
       recommendation:
         state.buffer.fact_distortion_check || state.buffer.ai_hallucination_check
           ? t("plannedAnalysis.results.dimensions.trustFix", {
-              defaultValue:
-                "Verify exact numbers and soften claims that are not supported by concrete evidence.",
+              defaultValue: "Verify exact numbers and soften claims that are not supported by concrete evidence.",
             })
           : t("plannedAnalysis.results.dimensions.trustOptional", {
-              defaultValue:
-                "Run optional trust checks for claim-heavy medical, legal, finance, or technical articles.",
+              defaultValue: "Run optional trust checks for claim-heavy medical, legal, finance, or technical articles.",
             }),
       sourceToolIds: [
         "fact_distortion_check",
@@ -7043,18 +7394,15 @@ function buildArticleTextSummary(
         entryStatus(state, "media_placeholder_review"),
       ]),
       detail: t("plannedAnalysis.results.dimensions.platformDetail", {
-        defaultValue:
-          "Publishing context, tone, audience, language, and media placement.",
+        defaultValue: "Publishing context, tone, audience, language, and media placement.",
       }),
       recommendation:
         entryStatus(state, "media_placeholder_review") !== "healthy"
           ? t("plannedAnalysis.results.dimensions.platformFix", {
-              defaultValue:
-                "Add media markers only where they clarify the article, not as decoration.",
+              defaultValue: "Add media markers only where they clarify the article, not as decoration.",
             })
           : t("plannedAnalysis.results.dimensions.platformKeep", {
-              defaultValue:
-                "Keep platform-specific packaging separate from the article body.",
+              defaultValue: "Keep platform-specific packaging separate from the article body.",
             }),
       sourceToolIds: [
         "detect_text_platform",
@@ -7108,8 +7456,7 @@ function buildArticleTextSummary(
         suffix: "%",
         tone: scoreTone(uniqueness),
         description: t("plannedAnalysis.results.uniquenessHint", {
-          defaultValue:
-            "Локальная оценка повторов и шаблонности. Это не интернет-проверка плагиата.",
+          defaultValue: "Local repetition and template-risk estimate. This is not an internet plagiarism check.",
         }),
       },
       {
@@ -7121,8 +7468,7 @@ function buildArticleTextSummary(
         suffix: "%",
         tone: scoreTone(syntax),
         description: t("plannedAnalysis.results.syntaxHint", {
-          defaultValue:
-            "Показывает риск пунктуации, границ предложений и перегруженных фраз.",
+          defaultValue: "Shows punctuation, sentence-boundary, and overloaded-phrase risk.",
         }),
       },
       {
@@ -7134,8 +7480,7 @@ function buildArticleTextSummary(
         suffix: "%",
         tone: inverseScoreTone(aiProbability),
         description: t("plannedAnalysis.results.aiProbabilityHint", {
-          defaultValue:
-            "Оценивает, насколько текст звучит как ИИ-черновик по ритму и шаблонам.",
+          defaultValue: "Uses AI-style signals: rhythm, templates, and mechanical repetition. This is not proof of authorship.",
         }),
       },
       {
@@ -7147,8 +7492,7 @@ function buildArticleTextSummary(
         suffix: "%",
         tone: scoreTone(logicScore),
         description: t("plannedAnalysis.results.logicHint", {
-          defaultValue:
-            "Проверяет противоречия, скачки вывода и слабые причинно-следственные переходы.",
+          defaultValue: "Shows text coherence, contradictions, conclusion jumps, and weak cause-and-effect transitions.",
         }),
       },
       {
@@ -7160,8 +7504,7 @@ function buildArticleTextSummary(
         suffix: "%",
         tone: scoreTone(naturalness),
         description: t("plannedAnalysis.results.naturalnessHint", {
-          defaultValue:
-            "Показывает риск механических формулировок, повторов и однообразного ритма.",
+          defaultValue: "Shows mechanical phrasing, repetition, and uniform-rhythm risk.",
         }),
       },
     ],
@@ -7182,6 +7525,8 @@ function buildArticleTextSummary(
 function buildArticleTextToraRank(
   articleSummary: RuntimeArticleTextSummary,
 ): ToraRankResult {
+  const defaultToolDepth = 15;
+  const extendedToolDepth = 19;
   const metric = (id: string) =>
     articleSummary.metrics.find((item) => item.id === id)?.value ?? null;
   const normalMetricIds = ["uniqueness", "syntax", "logic", "naturalness"];
@@ -7218,20 +7563,44 @@ function buildArticleTextToraRank(
   const mediumPriorities = articleSummary.priorities.filter(
     (priority) => priority.priority === "medium",
   ).length;
-  const coverageFactor = 0.72 + (articleSummary.coverage.percent / 100) * 0.28;
+  const completedDepth = Math.min(
+    1,
+    articleSummary.coverage.completed / defaultToolDepth,
+  );
+  const selectedDepth = Math.min(
+    1,
+    articleSummary.coverage.total / defaultToolDepth,
+  );
+  const toolDepth = Math.min(completedDepth, selectedDepth);
+  const extendedDepth = Math.min(
+    1,
+    articleSummary.coverage.completed / extendedToolDepth,
+  );
+  const evidenceCeiling = Math.round(1600 + toolDepth * 5200 + extendedDepth * 700);
   const positiveSignals = Math.round(
-    qualityScore * 82 + healthyDimensions * 360 + intentSignals.length * 180,
+    qualityScore * 36 + healthyDimensions * 220 + intentSignals.length * 120,
   );
   const penaltySignals = Math.round(
-    problemDimensions * 950 +
-      watchDimensions * 360 +
-      highPriorities * 760 +
-      mediumPriorities * 280 +
-      articleSummary.warningCount * 260,
+    problemDimensions * 520 +
+      watchDimensions * 210 +
+      highPriorities * 430 +
+      mediumPriorities * 160 +
+      articleSummary.warningCount * 140,
   );
+  const verdictGate =
+    articleSummary.verdict === "high_risk"
+      ? 0.72
+      : articleSummary.verdict === "needs_revision"
+        ? 0.86
+        : 1;
   const rawValue =
-    (3600 + positiveSignals - penaltySignals) * coverageFactor;
-  const value = Math.max(500, Math.min(24000, Math.round(rawValue / 10) * 10));
+    (qualityScore / 100) * evidenceCeiling * verdictGate +
+    positiveSignals -
+    penaltySignals;
+  const value = Math.max(
+    250,
+    Math.min(evidenceCeiling, Math.round(rawValue / 10) * 10),
+  );
 
   return {
     value,
@@ -7239,6 +7608,8 @@ function buildArticleTextToraRank(
     qualityScore: Math.round(qualityScore),
     positiveSignals,
     penaltySignals,
+    evidenceCeiling,
+    toolDepth: Math.round(toolDepth * 100),
   };
 }
 
@@ -7323,25 +7694,21 @@ function verdictDetail(
 ): string {
   if (verdict === "ready") {
     return t("plannedAnalysis.results.verdict.readyDetail", {
-      defaultValue:
-        "The available tool evidence does not show blocking problems. Final human review is still recommended.",
+      defaultValue: "The available tool evidence does not show blocking problems. Final human review is still recommended.",
     });
   }
   if (verdict === "high_risk") {
     return t("plannedAnalysis.results.verdict.highRiskDetail", {
-      defaultValue:
-        "One or more core dimensions show serious risk. Fix the priority items before publishing.",
+      defaultValue: "One or more core dimensions need attention. Check warnings and priority items before publishing.",
     });
   }
   if (coveragePercent < 80) {
     return t("plannedAnalysis.results.verdict.lowCoverageDetail", {
-      defaultValue:
-        "The analysis has useful signals, but evidence coverage is partial. Treat the result as a guided editing pass.",
+      defaultValue: "The analysis has useful signals, but evidence coverage is partial. Treat the result as a guided editing pass.",
     });
   }
   return t("plannedAnalysis.results.verdict.needsRevisionDetail", {
-    defaultValue:
-      "The article can improve materially if the highlighted issues are fixed before publication.",
+    defaultValue: "The article can improve materially if the highlighted issues are fixed before publication.",
   });
 }
 
@@ -7390,8 +7757,7 @@ function buildArticleTextPriorities(
         defaultValue: "Keep the result stable",
       }),
       detail: t("plannedAnalysis.results.priorityDefaultDetail", {
-        defaultValue:
-          "No blocking findings were detected. Keep edits focused and re-run analysis after the final draft.",
+        defaultValue: "No blocking findings were detected. Keep edits focused and re-run analysis after the final draft.",
       }),
       priority: "low",
       sourceToolIds: dimensions.flatMap((dimension) => dimension.sourceToolIds),
@@ -7403,6 +7769,7 @@ function buildArticleTextReport(
   state: CurrentScanState,
   t: ReturnType<typeof useTranslation>["t"],
   articleSummary: RuntimeArticleTextSummary,
+  locale: "ru" | "en",
 ): RuntimeAuditReport | null {
   const entries = state.selectedTools
     .map((toolId) => [toolId, state.buffer[toolId]] as const)
@@ -7426,11 +7793,10 @@ function buildArticleTextReport(
       detail: textRecommendation(t, toolId, recommendation),
       priority: entry!.verdict === "critical" ? "high" : "medium",
       expectedImpact: t("plannedAnalysis.results.reportExpectedImpact", {
-        defaultValue: "Повысить понятность, доверие и SEO-качество текста.",
+        defaultValue: "Improve clarity, trust, and SEO content quality.",
       }),
       validationMethod: t("plannedAnalysis.results.reportValidationMethod", {
-        defaultValue:
-          "Перепроверить текст после правок повторным анализом ToraSEO.",
+        defaultValue: "Run ToraSEO text analysis again after edits.",
       }),
     }));
   });
@@ -7439,17 +7805,16 @@ function buildArticleTextReport(
     analysisType:
       state.analysisType === "page_by_url" ? "page_by_url" : "article_text",
     analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    locale,
     mode: "audit_plus_ideas",
     providerId: "local",
     model: "ToraSEO MCP + Instructions",
     generatedAt: new Date().toISOString(),
     summary: t("plannedAnalysis.results.reportSummary", {
-      defaultValue:
-        "Структурированный отчет по анализу текста статьи в ToraSEO.",
+      defaultValue: "Structured report for the ToraSEO article text analysis.",
     }),
     nextStep: t("plannedAnalysis.results.reportNextStep", {
-      defaultValue:
-        "Открыть рекомендации, выбрать приоритетные правки и повторить сканирование текста.",
+      defaultValue: "Review recommendations, choose priority edits, and scan the text again.",
     }),
     confirmedFacts,
     expertHypotheses,
@@ -7484,7 +7849,12 @@ function textResultDetail(
   if (issueText) chunks.push(issueText);
   const recommendation = data?.recommendations?.[0];
   if (recommendation) chunks.push(textRecommendation(t, toolId, recommendation));
-  return chunks.join("\n\n") || "Проверка завершилась без дополнительных замечаний.";
+  return (
+    chunks.join("\n\n") ||
+    t("plannedAnalysis.results.noDetails", {
+      defaultValue: "The check completed without extra notes.",
+    })
+  );
 }
 
 function textToolLabel(
@@ -7492,18 +7862,18 @@ function textToolLabel(
   toolId: string,
 ): string {
   const compareLabels: Record<string, string> = {
-    compare_intent_gap: "Сравнение интента",
-    compare_article_structure: "Сравнение структуры",
-    compare_content_gap: "Разрывы по содержанию",
-    compare_semantic_gap: "Смысловое покрытие",
-    compare_specificity_gap: "Сравнение конкретики",
-    compare_trust_gap: "Сравнение доверия",
-    compare_article_style: "Сравнение стиля",
-    similarity_risk: "Риск похожести",
-    compare_title_ctr: "Заголовок и клик",
-    compare_platform_fit: "Сравнение под платформу",
-    compare_strengths_weaknesses: "Сильные и слабые стороны",
-    compare_improvement_plan: "Что улучшить дальше",
+    compare_intent_gap: "Intent comparison",
+    compare_article_structure: "Structure comparison",
+    compare_content_gap: "Content gaps",
+    compare_semantic_gap: "Semantic coverage",
+    compare_specificity_gap: "Specificity comparison",
+    compare_trust_gap: "Trust comparison",
+    compare_article_style: "Style comparison",
+    similarity_risk: "Similarity risk",
+    compare_title_ctr: "Title and click",
+    compare_platform_fit: "Platform fit comparison",
+    compare_strengths_weaknesses: "Strengths and weaknesses",
+    compare_improvement_plan: "Improvement plan",
   };
   if (compareLabels[toolId]) {
     return t(`analysisTools.${toolId}.label`, {
@@ -7512,43 +7882,43 @@ function textToolLabel(
   }
   const labels: Record<string, string> = {
     article_uniqueness: t("analysisTools.article_uniqueness.label", {
-      defaultValue: "Уникальность статьи",
+      defaultValue: "Article uniqueness",
     }),
     language_syntax: t("analysisTools.language_syntax.label", {
-      defaultValue: "Синтаксис языка",
+      defaultValue: "Language syntax",
     }),
     ai_writing_probability: t("analysisTools.ai_writing_probability.label", {
-      defaultValue: "Вероятность написания ИИ",
+      defaultValue: "AI writing probability",
     }),
     ai_trace_map: t("analysisTools.ai_trace_map.label", {
-      defaultValue: "Карта AI-фрагментов",
+      defaultValue: "AI trace map",
     }),
     genericness_water_check: t("analysisTools.genericness_water_check.label", {
-      defaultValue: "Водность и шаблонность",
+      defaultValue: "Genericness and watery text",
     }),
     readability_complexity: t("analysisTools.readability_complexity.label", {
-      defaultValue: "Читаемость и сложность",
+      defaultValue: "Readability and complexity",
     }),
     claim_source_queue: t("analysisTools.claim_source_queue.label", {
-      defaultValue: "Очередь фактов на проверку",
+      defaultValue: "Claim source queue",
     }),
     fact_distortion_check: t("analysisTools.fact_distortion_check.label", {
-      defaultValue: "Искажение фактов",
+      defaultValue: "Fact distortion",
     }),
     logic_consistency_check: t("analysisTools.logic_consistency_check.label", {
-      defaultValue: "Проверка логики",
+      defaultValue: "Logic check",
     }),
     ai_hallucination_check: t("analysisTools.ai_hallucination_check.label", {
-      defaultValue: "Проверка наличия ИИ и его галлюцинаций",
+      defaultValue: "AI and hallucination check",
     }),
     naturalness_indicators: t("analysisTools.naturalness_indicators.label", {
-      defaultValue: "Естественность",
+      defaultValue: "Naturalness",
     }),
     intent_seo_forecast: t("analysisTools.intent_seo_forecast.label", {
-      defaultValue: "Прогноз интента и продвижения",
+      defaultValue: "Intent and promotion forecast",
     }),
     safety_science_review: t("analysisTools.safety_science_review.label", {
-      defaultValue: "Проверка рисков",
+      defaultValue: "Risk and expert review",
     }),
   };
   return (
@@ -7662,7 +8032,7 @@ function TextArea({
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-t-md border border-b-0 border-outline/15 bg-orange-50/55 px-2 py-2">
           <span className="text-xs font-medium text-outline-900/55">
             {t("plannedAnalysis.forms.mediaToolbarLabel", {
-              defaultValue: "Поставить метку:",
+              defaultValue: "Insert marker:",
             })}
           </span>
           <MediaButton
@@ -7884,10 +8254,13 @@ function normalizePastedContent(text: string): string {
     .trim();
 }
 
-function formatTextStats(text: string): string {
+function formatTextStats(text: string, locale: "ru" | "en"): string {
   const stats = computeTextStats(text);
   if (stats.wordCount === 0) return "";
-  return `${stats.wordCount} слов · ${stats.paragraphCount} абзацев · ${stats.headingCount} заголовков`;
+  if (locale === "ru") {
+    return `${stats.wordCount} words · ${stats.paragraphCount} paragraphs · ${stats.headingCount} headings`;
+  }
+  return `${stats.wordCount} words · ${stats.paragraphCount} paragraphs · ${stats.headingCount} headings`;
 }
 
 function MediaButton({

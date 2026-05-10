@@ -25,11 +25,10 @@
  * COMMAND PREFIX: The prompt begins with `/toraseo bridge-mode`,
  * which SKILL.md §2.1 recognizes as an unambiguous trigger. This
  * is more robust than relying on Claude to parse natural-language
- * mentions of "приложение ToraSEO" — slash-prefixed commands are
+ * mentions of the ToraSEO app in natural language: slash-prefixed commands are
  * the closest thing to a wire protocol Claude can reliably detect.
  *
- * The phrase "Приложение ToraSEO запущено" / "The ToraSEO Desktop
- * App is running" is also kept in the body as a fallback signal
+ * The app-is-running phrase is also kept in the body as a fallback signal
  * for free-form interpretation (e.g. if the user truncates the
  * paste before the slash command for some reason). SKILL.md
  * recognizes both.
@@ -62,15 +61,15 @@ import type {
  * imperative instructions more reliably than questions, and a
  * shorter prompt is easier to paste without truncation.
  *
- * The `/toraseo bridge-mode` prefix is the primary trigger —
- * SKILL.md §2.1 treats it as definitive. The "Приложение ToraSEO
- * запущено" phrase is a secondary natural-language trigger.
+ * The `/toraseo bridge-mode` prefix is the primary trigger:
+ * SKILL.md §2.1 treats it as definitive. The app-is-running phrase
+ * is a secondary natural-language trigger.
  */
 const TEMPLATE_RU = (_url: string, _tools: string): string =>
   `/toraseo bridge-mode site-by-url
 
 ToraSEO ожидает: анализ сайта по URL.
-После handshake запусти только site_url_internal и дай рекомендации в чате на основе результатов.
+After the handshake, run site_url_internal first; it writes each core site-audit check into ToraSEO separately so progress moves per check. Then run any additional tools returned after site_url_internal. Give chat recommendations based on the results.
 Детали возьми из SKILL + MCP. Не проси пользователя присылать сводку, скрин или JSON.`;
 
 /**
@@ -81,7 +80,8 @@ const TEMPLATE_EN = (_url: string, _tools: string): string =>
   `/toraseo bridge-mode site-by-url
 
 ToraSEO is waiting for: site by URL analysis.
-After the handshake, run only site_url_internal and give chat recommendations based on the results.
+Use the interface language for the final chat recommendations. Switch language only if the user explicitly changes language in their own message.
+After the handshake, run site_url_internal first; it writes each core site-audit check into ToraSEO separately so progress moves per check. Then run any additional tools returned after site_url_internal. Give chat recommendations based on the results.
 Take details from SKILL + MCP. Do not ask the user to send a summary, screenshot, or JSON.`;
 
 const CODEX_TEMPLATE_EN = (_url: string): string =>
@@ -90,7 +90,8 @@ const CODEX_TEMPLATE_EN = (_url: string): string =>
 /toraseo codex-bridge-mode site-by-url
 
 ToraSEO is waiting for: site by URL analysis.
-After the handshake, run only site_url_internal and give chat recommendations based on the results.
+Use the interface language for the final chat recommendations. Switch language only if the user explicitly changes language in their own message.
+After the handshake, run site_url_internal first; it writes each core site-audit check into ToraSEO separately so progress moves per check. Then run any additional tools returned after site_url_internal. Give chat recommendations based on the results.
 Take details from SKILL + MCP. Do not ask the user to send a summary, screenshot, or JSON.`;
 
 const CODEX_TEMPLATE_RU = (_url: string): string =>
@@ -99,7 +100,7 @@ const CODEX_TEMPLATE_RU = (_url: string): string =>
 /toraseo codex-bridge-mode site-by-url
 
 ToraSEO ожидает: анализ сайта по URL.
-После handshake запусти только site_url_internal и дай рекомендации в чате на основе результатов.
+After the handshake, run site_url_internal first; it writes each core site-audit check into ToraSEO separately so progress moves per check. Then run any additional tools returned after site_url_internal. Give chat recommendations based on the results.
 Детали возьми из SKILL + MCP. Не проси пользователя присылать сводку, скрин или JSON.`;
 
 const SITE_COMPARE_TEMPLATE_EN = (): string =>
@@ -198,6 +199,7 @@ Goal: ${compareGoalLabel(state, "standard comparison report")}.
 Goal mode: ${compareGoalModeLabel(state, "en")}.
 Texts, roles, selected tools, and boundaries are already inside ToraSEO MCP + Instructions.
 Use the required ToraSEO connection check, then run the comparison checks.
+The interface locale is English. Write the final chat summary and all user-facing comparison wording in English; do not switch to Russian unless the user explicitly asks in a new message.
 In the final chat answer, do not mention service details of the connection check, scan identifiers, tool ids, aggregate comparison tools, or result files. Write a normal user-facing comparison summary.`;
 
 const COMPARE_TEMPLATE_RU = (
@@ -225,6 +227,7 @@ Goal: ${compareGoalLabel(state, "standard comparison report")}.
 Goal mode: ${compareGoalModeLabel(state, "en")}.
 Texts, roles, selected tools, and boundaries are already inside the app, SKILL, and MCP.
 Use the required ToraSEO connection check, then run the comparison checks.
+The interface locale is English. Write the final chat summary and all user-facing comparison wording in English; do not switch to Russian unless the user explicitly asks in a new message.
 In the final chat answer, do not mention service details of the connection check, scan identifiers, tool ids, aggregate comparison tools, or result files. Write a normal user-facing comparison summary.`;
 
 const CODEX_COMPARE_TEMPLATE_RU = (
@@ -245,7 +248,9 @@ const PAGE_URL_TEMPLATE_EN = (_url: string, _tools: string): string =>
   `/toraseobridge page-by-url
 
 ToraSEO is waiting for page article analysis by URL.
-After handshake and all selected MCP tools, give recommendations in chat based on tool results.
+Reply in English when the interface locale is English. Only switch to another language if the user explicitly changes language in their own message.
+After handshake, run each tool returned by MCP in order. For page-by-URL, these are separate MCP calls; run extract_main_text before article-text checks so the extracted article is available. Do not call page_url_article_internal unless MCP explicitly returns it.
+After the selected MCP tools complete, give recommendations in chat based on tool results.
 Use SKILL + MCP for the URL, selected tools, extracted article text, and page URL cleanup details.`;
 
 const PAGE_URL_TEMPLATE_RU = (_url: string, _tools: string): string =>
@@ -261,7 +266,9 @@ const CODEX_PAGE_URL_TEMPLATE_EN = (_url: string): string =>
 /toraseo codex-bridge-mode page-by-url
 
 ToraSEO is waiting for page article analysis by URL.
-After handshake and all selected MCP tools, give recommendations in chat based on tool results.
+Reply in English when the interface locale is English. Only switch to another language if the user explicitly changes language in their own message.
+After handshake, run each tool returned by MCP in order. For page-by-URL, these are separate MCP calls; run extract_main_text before article-text checks so the extracted article is available. Do not call page_url_article_internal unless MCP explicitly returns it.
+After the selected MCP tools complete, give recommendations in chat based on tool results.
 Use SKILL + MCP for the URL, selected tools, extracted article text, and page URL cleanup details.`;
 
 const CODEX_PAGE_URL_TEMPLATE_RU = (_url: string): string =>
@@ -451,12 +458,8 @@ export function buildScanPrompt(
   }
   const template =
     bridgeClient === "codex"
-      ? locale === "ru"
-        ? CODEX_TEMPLATE_RU
-        : CODEX_TEMPLATE_EN
-      : locale === "ru"
-        ? TEMPLATE_RU
-        : TEMPLATE_EN;
+      ? CODEX_TEMPLATE_EN
+      : TEMPLATE_EN;
   return template(url, toolsList);
 }
 

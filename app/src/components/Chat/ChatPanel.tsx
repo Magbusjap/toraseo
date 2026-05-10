@@ -1194,9 +1194,9 @@ function fallbackSeoTitleFromKeywords(text: string, keywords: string[]): string 
     return "Glycogen recovery after training";
   }
   if (keywords.length >= 3) {
-    return `${capitalizeTitleStart(keywords.slice(0, 3).join(" "))}: что важно знать`;
+    return `${capitalizeTitleStart(keywords.slice(0, 3).join(" "))}: what to know`;
   }
-  if (keywords[0]) return `${capitalizeTitleStart(keywords[0])}: что важно знать`;
+  if (keywords[0]) return `${capitalizeTitleStart(keywords[0])}: what to know`;
   return "";
 }
 
@@ -1229,15 +1229,15 @@ function inferMetaDescriptionFromInput(text: string): string {
 function inferCategoryFromKeywords(keywords: string[]): string {
   const joined = keywords.join(" ");
   if (/seo|cms|laravel|wordpress|api|код|разработ|техн|python|css|html/i.test(joined)) {
-    return "Технологии";
+    return "Technology";
   }
   if (/здоров|организм|диабет|трениров|питани|медиц|гликоген|глюкоз|углевод|спорт|упражнен|health|diet|fitness/i.test(joined)) {
-    return "Здоровье и спорт";
+    return "Health and fitness";
   }
   if (/бизнес|продаж|маркет|клиент|conversion|sales/i.test(joined)) {
-    return "Бизнес";
+    return "Business";
   }
-  return "Полезные материалы";
+  return "Helpful resources";
 }
 
 const CYRILLIC_SLUG_MAP: Record<string, string> = {
@@ -2565,6 +2565,7 @@ function mergeArticleTextReports(
     analysisType:
       context.sourceType === "page_by_url" ? "page_by_url" : "article_text",
     analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    locale,
     mode: last.mode,
     providerId: last.providerId,
     model: last.model,
@@ -2896,6 +2897,7 @@ function mergeArticleCompareReports(
   return {
     analysisType: "article_compare",
     analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    locale,
     mode: last.mode,
     providerId: last.providerId,
     model: last.model,
@@ -3091,6 +3093,7 @@ function mergeSiteCompareReports(
   return {
     analysisType: "site_compare",
     analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    locale,
     mode: last.mode,
     providerId: last.providerId,
     model: last.model,

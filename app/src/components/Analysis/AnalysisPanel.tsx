@@ -50,20 +50,7 @@ interface DisplayFact {
   sourceToolIds: string[];
 }
 
-function toolLabel(toolId: string, locale: SupportedLocale): string {
-  const ru: Record<string, string> = {
-    scan_site_minimal: "Базовый скан",
-    analyze_indexability: "Индексация",
-    check_robots_txt: "Robots.txt",
-    analyze_sitemap: "Sitemap",
-    check_redirects: "Редиректы",
-    analyze_meta: "Meta-теги",
-    analyze_canonical: "Canonical",
-    analyze_headings: "Заголовки",
-    analyze_content: "Контент",
-    analyze_links: "Ссылки",
-    detect_stack: "Стек сайта",
-  };
+function toolLabel(toolId: string): string {
   const en: Record<string, string> = {
     scan_site_minimal: "Basic scan",
     analyze_indexability: "Indexability",
@@ -77,76 +64,27 @@ function toolLabel(toolId: string, locale: SupportedLocale): string {
     analyze_links: "Links",
     detect_stack: "Site stack",
   };
-  return (locale === "ru" ? ru : en)[toolId] ?? toolId;
+  return en[toolId] ?? toolId;
 }
 
-function readableTitle(title: string, locale: SupportedLocale): string {
-  if (locale !== "ru") return title;
-  const normalized = title.toLowerCase();
-  if (normalized.includes("no sitemap")) return "Sitemap не найден";
-  if (normalized.includes("thin content")) return "Мало основного текста";
-  if (normalized.includes("no meta description")) return "Meta description отсутствует";
-  if (normalized.includes("no canonical")) return "Canonical отсутствует";
-  if (normalized.includes("og missing")) return "Open Graph отсутствует";
-  if (normalized.includes("twitter card missing")) return "Twitter Card отсутствует";
-  if (normalized.includes("title too short")) return "Title слишком короткий";
-  if (normalized.includes("heading level skip")) return "Пропуск уровня заголовка";
-  if (normalized.includes("no redirects")) return "Редиректов нет";
-  if (normalized.includes("indexability clear")) return "Индексация разрешена";
-  if (normalized.includes("robots") && normalized.includes("completed")) {
-    return "Robots.txt разрешает обход";
-  }
-  if (normalized.includes("minimal scan completed")) return "Базовый скан выполнен";
-  if (normalized.includes("links checked")) return "Ссылки проверены";
-  if (normalized.includes("stack detected")) return "Стек сайта определён";
+function readableTitle(title: string): string {
   return title
-    .replace(/^Meta tags:/i, "Meta-теги:")
-    .replace(/^Headings:/i, "Заголовки:")
-    .replace(/^Content:/i, "Контент:")
-    .replace(/^Redirects:/i, "Редиректы:")
-    .replace(/^Indexability:/i, "Индексация:");
+    .replace(/^Meta tags:/i, "Meta tags:")
+    .replace(/^Headings:/i, "Headings:")
+    .replace(/^Content:/i, "Content:")
+    .replace(/^Redirects:/i, "Redirects:")
+    .replace(/^Indexability:/i, "Indexability:");
 }
 
-function readableDetail(detail: string, locale: SupportedLocale): string {
-  if (locale !== "ru") return detail;
+function readableDetail(detail: string): string {
   const normalized = detail.toLowerCase();
-  if (normalized.includes("no sitemap found")) {
-    return "Sitemap не найден. Поисковикам может быть сложнее находить страницы сайта. Создайте sitemap.xml и укажите его в robots.txt.";
-  }
-  if (normalized.includes("page contains only") && normalized.includes("words")) {
-    return "На странице мало основного текста. Проверьте, что важный контент доступен в HTML, и добавьте содержательное описание темы.";
-  }
-  if (normalized.includes("meta name=\"description\"")) {
-    return "На странице нет meta description. Поисковая система может сформировать сниппет автоматически, поэтому добавьте описание на 120-160 символов.";
-  }
-  if (normalized.includes("canonical")) {
-    return "Canonical не указан. Если у страницы есть дубли или URL-варианты, добавьте канонический адрес.";
-  }
-  if (normalized.includes("no open graph")) {
-    return "Open Graph не настроен. При публикации ссылки в соцсетях превью может выглядеть случайным.";
-  }
-  if (normalized.includes("twitter:card")) {
-    return "Twitter Card не настроен. В X/Twitter ссылка может отображаться как обычный текст без нормального превью.";
-  }
-  if (normalized.includes("title is") && normalized.includes("characters")) {
-    return "Title короткий. Уточните его так, чтобы он лучше называл страницу и содержал важный поисковый смысл.";
-  }
-  if (normalized.includes("heading-level skip")) {
-    return "В структуре заголовков есть пропуск уровня. Это не всегда SEO-блокер, но лучше сделать иерархию чище.";
-  }
-  if (normalized.includes("no robots.txt block") || normalized.includes("locally indexable")) {
-    return "Блокировок индексации через robots.txt или meta robots не найдено.";
-  }
-  if (normalized.includes("crawling is allowed")) {
-    return "Robots.txt разрешает обход этой страницы.";
-  }
   if (normalized.includes("http 200")) {
     return detail.replace(/^HTTP 200/i, "HTTP 200");
   }
   if (normalized.includes("detected likely stack signals")) {
     return detail.replace(
       /^Detected likely stack signals:/i,
-      "Найдены вероятные технологии:",
+      "Detected likely technology signals:",
     );
   }
   return detail;
@@ -167,7 +105,7 @@ function dedupeKey(fact: RuntimeConfirmedFact): string {
   if (text.includes("robots") && text.includes("completed")) return "robots_ok";
   if (text.includes("minimal scan completed")) return "basic_scan_ok";
   if (text.includes("links checked")) return "links_checked";
-  return fact.title.toLowerCase().replace(/[^a-z0-9а-яё]+/giu, "_");
+  return fact.title.toLowerCase().replace(/[^a-z0-9]+/giu, "_");
 }
 
 function statusFromFact(fact: RuntimeConfirmedFact): DisplayStatus {
@@ -200,15 +138,14 @@ function statusFromFact(fact: RuntimeConfirmedFact): DisplayStatus {
 
 function aggregateFacts(
   facts: RuntimeConfirmedFact[],
-  locale: SupportedLocale,
 ): DisplayFact[] {
   const byKey = new Map<string, DisplayFact>();
   for (const fact of facts) {
     const key = dedupeKey(fact);
     const existing = byKey.get(key);
     const next: DisplayFact = {
-      title: readableTitle(fact.title, locale),
-      detail: readableDetail(fact.detail, locale),
+      title: readableTitle(fact.title),
+      detail: readableDetail(fact.detail),
       priority: fact.priority,
       status: statusFromFact(fact),
       sourceToolIds: fact.sourceToolIds,
@@ -240,7 +177,6 @@ function statusWeight(status: DisplayStatus): number {
 function summarizeFacts(
   executionMode: AuditExecutionMode,
   facts: RuntimeScanFact[],
-  locale: SupportedLocale,
 ): string {
   const totals = facts.reduce(
     (acc, fact) => {
@@ -254,10 +190,6 @@ function summarizeFacts(
   );
   const sourceTools = new Set(facts.map((fact) => fact.toolId)).size;
 
-  if (locale === "ru") {
-    return `Проверка сайта завершена: найдено ${totals.critical} критичных проблем, ${totals.warning} предупреждений, ${totals.info} информационных результатов. Выполнено направлений: ${sourceTools}.`;
-  }
-
   return `Site check complete: ${totals.critical} critical issues, ${totals.warning} warnings, ${totals.info} informational results. Completed directions: ${sourceTools}.`;
 }
 
@@ -268,7 +200,7 @@ function buildFallbackReport(
   bridgeFacts: RuntimeScanFact[],
   locale: SupportedLocale,
 ): RuntimeAuditReport | null {
-  if (report) return report;
+  if (report) return report.locale === locale ? report : { ...report, locale };
 
   const factsSource =
     executionMode === "native" ? scanContext?.facts ?? [] : bridgeFacts;
@@ -289,15 +221,13 @@ function buildFallbackReport(
   return {
     analysisType: "site_by_url",
     analysisVersion: DEFAULT_ANALYSIS_VERSION,
+    locale,
     mode: "strict_audit",
     providerId: executionMode === "native" ? "openrouter" : "openrouter",
     model: executionMode === "native" ? "pending-ai-chat" : "bridge-facts-only",
     generatedAt: new Date().toISOString(),
-    summary: summarizeFacts(executionMode, factsSource, locale),
-    nextStep:
-      locale === "ru"
-        ? "Исправьте приоритетные проблемы из отчёта и запустите повторный скан."
-        : "Fix the priority issues in the report and run the scan again.",
+    summary: summarizeFacts(executionMode, factsSource),
+    nextStep: "Fix the priority issues in the report and run the scan again.",
     confirmedFacts,
     expertHypotheses: [],
   };
@@ -338,7 +268,7 @@ export default function AnalysisPanel({
   const displayFacts = useMemo(
     () =>
       effectiveReport
-        ? aggregateFacts(effectiveReport.confirmedFacts, locale)
+        ? aggregateFacts(effectiveReport.confirmedFacts)
         : [],
     [effectiveReport, locale],
   );
@@ -359,18 +289,17 @@ export default function AnalysisPanel({
   const detailFacts = displayFacts.filter((fact) => fact.status !== "passed");
   const nextStep =
     priorityFixes.length > 0
-      ? locale === "ru"
-        ? `Исправьте сначала: ${priorityFixes
+      ? t("analysisPanel.nextStepFix", {
+          items: priorityFixes
             .slice(0, 3)
             .map((fact) => fact.title)
-            .join(", ")}. После правок запустите повторный скан.`
-        : `Fix first: ${priorityFixes
-            .slice(0, 3)
-            .map((fact) => fact.title)
-            .join(", ")}. Run the scan again after edits.`
-      : locale === "ru"
-        ? "Критичных проблем не найдено. Проверьте информационные замечания и запустите повторный скан после правок."
-        : "No critical issues found. Review informational notes and run the scan again after edits.";
+            .join(", "),
+          defaultValue: "Fix first: {{items}}. Run the scan again after edits.",
+        })
+      : t("analysisPanel.nextStepClean", {
+          defaultValue:
+            "No critical issues found. Review informational notes and run the scan again after edits.",
+        });
 
   const totals =
     executionMode === "native"
@@ -443,8 +372,7 @@ export default function AnalysisPanel({
       <section className="bg-transparent py-6">
         <p className="rounded-lg border border-orange-100 bg-white/70 px-5 py-4 text-sm text-outline-900/65 shadow-sm">
           {t("analysisPanel.startHint", {
-            defaultValue:
-              "Enter a site URL, select tools, and click Scan.",
+            defaultValue: "Enter a site URL, select tools, and click Scan.",
           })}
         </p>
       </section>
@@ -496,10 +424,10 @@ export default function AnalysisPanel({
               <span>
                 {secondScreenOpen
                   ? t("analysisPanel.actions.closeDetails", {
-                      defaultValue: "Закрыть детали",
+                      defaultValue: "Close details",
                     })
                   : t("analysisPanel.actions.details", {
-                      defaultValue: "Подробнее",
+                      defaultValue: "Details",
                     })}
               </span>
             </button>
@@ -511,7 +439,7 @@ export default function AnalysisPanel({
               <FileDown size={14} />
               <span>
                 {t("analysisPanel.actions.exportPdf", {
-                  defaultValue: "Экспорт PDF",
+                  defaultValue: "Export PDF",
                 })}
               </span>
             </button>
@@ -551,7 +479,7 @@ export default function AnalysisPanel({
         {effectiveReport && (
         <SectionCard
           title={t("analysisPanel.priorityFixes", {
-            defaultValue: "Что исправить первым",
+            defaultValue: "What to fix first",
           })}
           icon={<ShieldCheck className="h-4 w-4" />}
         >
@@ -561,7 +489,6 @@ export default function AnalysisPanel({
                 <DisplayFactCard
                   key={`${fact.title}-${index}`}
                   fact={fact}
-                  locale={locale}
                   index={index + 1}
                 />
               ))}
@@ -569,7 +496,7 @@ export default function AnalysisPanel({
           ) : (
             <EmptyMessage
               text={t("analysisPanel.noPriorityFixes", {
-                defaultValue: "Критичных действий пока нет.",
+                defaultValue: "No critical actions yet.",
               })}
             />
           )}
@@ -579,7 +506,7 @@ export default function AnalysisPanel({
         {effectiveReport && detailFacts.length > 0 && (
         <SectionCard
           title={t("analysisPanel.checkResults", {
-            defaultValue: "Результаты проверки",
+            defaultValue: "Check results",
           })}
           icon={<ShieldCheck className="h-4 w-4" />}
         >
@@ -588,7 +515,6 @@ export default function AnalysisPanel({
               <DisplayFactCard
                 key={`${fact.title}-${index}`}
                 fact={fact}
-                locale={locale}
               />
             ))}
           </div>
@@ -598,7 +524,7 @@ export default function AnalysisPanel({
         {effectiveReport && passedFacts.length > 0 && (
         <SectionCard
           title={t("analysisPanel.passedChecks", {
-            defaultValue: "Пройденные проверки",
+            defaultValue: "Passed checks",
           })}
           icon={<ShieldCheck className="h-4 w-4" />}
         >
@@ -627,7 +553,6 @@ export default function AnalysisPanel({
               <HypothesisCard
                 key={`${item.title}-${index}`}
                 item={item}
-                locale={locale}
               />
             ))}
           </div>
@@ -638,7 +563,7 @@ export default function AnalysisPanel({
         <div className="rounded-xl border border-orange-200 bg-white p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-orange-700">
             {t("analysisPanel.nextStep", {
-              defaultValue: "Следующий шаг",
+              defaultValue: "Next step",
             })}
           </h3>
           <p className="mt-2 text-sm leading-relaxed text-orange-950/80">
@@ -721,23 +646,15 @@ function ReportVersionLine({
 
 function DisplayFactCard({
   fact,
-  locale,
   index,
 }: {
   fact: DisplayFact;
-  locale: SupportedLocale;
   index?: number;
 }) {
-  const statusLabel =
-    locale === "ru"
-      ? fact.status === "critical"
-        ? "Критично"
-        : fact.status === "warning"
-          ? "Предупреждение"
-          : fact.status === "passed"
-            ? "Пройдено"
-            : "Информация"
-      : fact.status;
+  const { t } = useTranslation();
+  const statusLabel = t(`analysisPanel.status.${fact.status}`, {
+    defaultValue: fact.status,
+  });
   const statusClass =
     fact.status === "critical"
       ? "text-red-600"
@@ -759,8 +676,8 @@ function DisplayFactCard({
       </div>
       <p className="text-sm leading-relaxed text-orange-950/80">{fact.detail}</p>
       <p className="mt-2 text-[11px] uppercase tracking-wide text-orange-700/70">
-        {locale === "ru" ? "Проверки" : "Checks"}:{" "}
-        {fact.sourceToolIds.map((toolId) => toolLabel(toolId, locale)).join(", ")}
+        {t("analysisPanel.checks", { defaultValue: "Checks" })}:{" "}
+        {fact.sourceToolIds.map((toolId) => toolLabel(toolId)).join(", ")}
       </p>
     </article>
   );
@@ -768,27 +685,26 @@ function DisplayFactCard({
 
 function HypothesisCard({
   item,
-  locale,
 }: {
   item: RuntimeExpertHypothesis;
-  locale: SupportedLocale;
 }) {
-  const expectedImpactLabel =
-    locale === "ru" ? "Ожидаемый эффект" : "Expected impact";
-  const validationLabel = locale === "ru" ? "Проверка" : "Validation";
+  const { t } = useTranslation();
+  const expectedImpactLabel = t("analysisPanel.expectedImpact", {
+    defaultValue: "Expected impact",
+  });
+  const validationLabel = t("analysisPanel.validation", {
+    defaultValue: "Validation",
+  });
+  const priorityLabel = t(`analysisPanel.priority.${item.priority}`, {
+    defaultValue: item.priority,
+  });
 
   return (
     <article className="rounded-lg border border-orange-100 bg-orange-50/30 p-3">
       <div className="mb-1 flex items-start justify-between gap-3">
         <h4 className="text-sm font-medium text-orange-950">{item.title}</h4>
         <span className={`text-xs font-semibold uppercase ${priorityClass(item.priority)}`}>
-          {locale === "ru"
-            ? item.priority === "high"
-              ? "высокий"
-              : item.priority === "medium"
-                ? "средний"
-                : "низкий"
-            : item.priority}
+          {priorityLabel}
         </span>
       </div>
       <p className="text-sm leading-relaxed text-orange-950/80">{item.detail}</p>

@@ -26,7 +26,10 @@ function shouldRetainStateAfterCleanup(
   previous: CurrentScanState | null,
   next: CurrentScanState | null,
 ): boolean {
-  return next === null && previous?.status === "complete";
+  return (
+    next === null &&
+    (previous?.status === "complete" || previous?.status === "error")
+  );
 }
 
 interface UseBridgeScanReturn {

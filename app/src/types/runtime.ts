@@ -491,6 +491,7 @@ export interface RuntimeSiteCompareSummary {
 export interface RuntimeAuditReport {
   analysisType?: RuntimeReportAnalysisType;
   analysisVersion?: string;
+  locale?: SupportedLocale;
   mode: RuntimePolicyMode;
   providerId: ProviderId;
   model: string;

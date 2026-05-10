@@ -231,9 +231,12 @@ async function runBufferedTool<T>(
       content: [
         {
           type: "text",
-          text: updated
-            ? `Проверка страницы по URL завершена: ${toolId}. Результаты записаны в ToraSEO.`
-            : JSON.stringify(result, null, 2),
+          text:
+            typeof (result as { report?: unknown }).report === "string"
+              ? (result as { report: string }).report
+              : updated
+                ? `Page-by-URL check completed: ${toolId}. Results were written to ToraSEO.`
+                : JSON.stringify(result, null, 2),
         },
       ],
     };
@@ -335,7 +338,7 @@ export async function extractMainTextHandler(): Promise<McpHandlerResult> {
   return runBufferedTool<PageExtractionResult>("extract_main_text", async () => {
     const state = await readState();
     if (state?.analysisType !== "page_by_url") {
-      throw new Error("Активный контекст ToraSEO не является анализом страницы по URL.");
+      throw new Error("The active ToraSEO context is not a page-by-URL analysis.");
     }
 
     const userBlock =
@@ -354,7 +357,7 @@ export async function extractMainTextHandler(): Promise<McpHandlerResult> {
         text_blocks: textBlocksFromText(userBlock),
         preview: userBlock.slice(0, 700),
         limits: [
-          "Пользователь выделил конкретный фрагмент, поэтому ToraSEO анализирует его как основной текст страницы.",
+          "The user selected a specific fragment, so ToraSEO analyzes it as the main page text.",
         ],
       };
     }
@@ -363,7 +366,7 @@ export async function extractMainTextHandler(): Promise<McpHandlerResult> {
     const extractedText =
       content.text_blocks?.join("\n\n").trim() || content.main_text?.trim() || "";
     if (!extractedText) {
-      throw new Error("Не удалось выделить основной текст статьи из HTML страницы.");
+      throw new Error("Could not extract the main article text from the page HTML.");
     }
 
     await writeActiveInputMarkdown(state, extractedText);
@@ -377,7 +380,7 @@ export async function extractMainTextHandler(): Promise<McpHandlerResult> {
       text_blocks: content.text_blocks ?? [],
       preview: extractedText.slice(0, 700),
       limits: [
-        "ToraSEO удаляет локальные рекламные, навигационные, социальные и служебные блоки из HTML, но не обходит авторизацию, paywall, CAPTCHA или robots.txt.",
+        "ToraSEO removes local ad, navigation, social, and service blocks from HTML, but it does not bypass authentication, paywalls, CAPTCHA, or robots.txt.",
       ],
     };
   });
@@ -387,7 +390,7 @@ export async function pageUrlArticleInternalHandler(): Promise<McpHandlerResult>
   return runBufferedTool("page_url_article_internal", async () => {
     const state = await readState();
     if (state?.analysisType !== "page_by_url") {
-      throw new Error("Активный контекст ToraSEO не является анализом страницы по URL.");
+      throw new Error("The active ToraSEO context is not a page-by-URL analysis.");
     }
 
     const selected = new Set(state.selectedTools);
@@ -402,7 +405,7 @@ export async function pageUrlArticleInternalHandler(): Promise<McpHandlerResult>
       tool: "page_url_article_internal",
       completedTools: completed,
       summary:
-        "Внутренний пакет анализа страницы по URL завершен: извлечение статьи, технические проверки страницы и текстовые проверки записаны в ToraSEO.",
+        "The legacy page-by-URL helper completed: article extraction, page checks, and text checks were written to ToraSEO.",
     };
   });
 }
@@ -433,14 +436,14 @@ function buildSearchProbe(
       impressions_per_month: null,
       note:
         engine === "google"
-          ? "Клики, показы и частотность доступны через Google Search Console или официальный SEO-провайдер, а не из публичной выдачи."
-          : "Клики, показы и частотность доступны через Яндекс Вебмастер/Метрику или официальный SEO-провайдер, а не из публичной выдачи.",
+          ? "Clicks, impressions, and frequency are available through Google Search Console or an official SEO provider, not public search results."
+          : "Clicks, impressions, and frequency are available through Yandex Webmaster, Metrica, or an official SEO provider, not public search results.",
     },
     mentions: {
       count: null,
       items: [],
       note:
-        "Для полного списка упоминаний нужен подключенный поисковый индекс, SERP API или владелецкие данные. ToraSEO не подменяет это скрейпингом поисковика.",
+        "A connected search index, SERP API, or owner data is required for a complete mention list. ToraSEO does not replace that with search-engine scraping.",
     },
   };
 }
@@ -450,7 +453,7 @@ export async function analyzeGooglePageSearchHandler(): Promise<McpHandlerResult
     "analyze_google_page_search",
     async () => {
       const state = await readState();
-      if (!state?.url) throw new Error("Нет активного URL для проверки Google.");
+      if (!state?.url) throw new Error("No active URL is available for the Google check.");
       return buildSearchProbe("google", state.url);
     },
   );
@@ -461,7 +464,7 @@ export async function analyzeYandexPageSearchHandler(): Promise<McpHandlerResult
     "analyze_yandex_page_search",
     async () => {
       const state = await readState();
-      if (!state?.url) throw new Error("Нет активного URL для проверки Яндекса.");
+      if (!state?.url) throw new Error("No active URL is available for the Yandex check.");
       return buildSearchProbe("yandex", state.url);
     },
   );

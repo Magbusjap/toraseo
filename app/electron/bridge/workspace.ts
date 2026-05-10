@@ -45,7 +45,7 @@ function buildInputMarkdown(options: CreateWorkspaceOptions): string {
     return [
       "# ToraSEO Article Compare Input",
       "",
-      `Goal: ${options.input?.goal?.trim() || "стандартный отчет сравнения"}`,
+      `Goal: ${options.input?.goal?.trim() || "standard comparison report"}`,
       `Goal mode: ${options.input?.goalMode ?? "standard_comparison"}`,
       `Text A role: ${options.input?.roleA ?? "auto"}`,
       `Text B role: ${options.input?.roleB ?? "auto"}`,
@@ -68,10 +68,10 @@ function buildInputMarkdown(options: CreateWorkspaceOptions): string {
     const topic = options.input?.topic?.trim() ?? "";
     if (topic && options.input?.action === "solution") {
       return [
-        `Тема / запрос: ${topic}`,
+        `Topic / request: ${topic}`,
         "",
-        "Задача пользователя: предложить решение или черновик статьи на основе этой темы и настроек ToraSEO.",
-        "Если контекста недостаточно для готового текста, ИИ должен честно назвать, чего не хватает, и предложить следующий шаг.",
+        "User task: propose a solution or article draft from this topic and the current ToraSEO settings.",
+        "If there is not enough context for a finished text, the AI should say what is missing and propose the next step.",
         "",
       ].join("\n");
     }

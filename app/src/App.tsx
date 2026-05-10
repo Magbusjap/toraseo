@@ -98,6 +98,18 @@ type NavigationTarget = {
   selectedAnalysisType: AnalysisTypeId | null;
 };
 
+type SettingsTab = "general" | "language" | "providers";
+
+type ReferenceMode = Extract<
+  AppMode,
+  "documentation" | "changelog" | "toolCatalog" | "qualityLab" | "formulas" | "faq"
+>;
+
+type PendingAnalysisExitTarget =
+  | { type: "home" }
+  | { type: "settings"; tab: SettingsTab }
+  | { type: "reference"; mode: ReferenceMode };
+
 type ProviderModelOption = {
   id: string;
   sourceProfileId: string;
@@ -768,6 +780,8 @@ function MainApp() {
     useState<NavigationTarget | null>(null);
   const [referenceReturnTarget, setReferenceReturnTarget] =
     useState<NavigationTarget | null>(null);
+  const [pendingAnalysisExitTarget, setPendingAnalysisExitTarget] =
+    useState<PendingAnalysisExitTarget | null>(null);
   const [returnHomeShortcutsEnabled, setReturnHomeShortcutsEnabled] =
     useState(readReturnHomeShortcutsEnabled);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -948,6 +962,42 @@ function MainApp() {
     setCodexClosedNotice(message);
   }, []);
 
+  const bridgeAnalysisBusy =
+    bridge.state?.status === "awaiting_handshake" ||
+    bridge.state?.status === "in_progress";
+  const nativeAnalysisBusy =
+    scanState === "scanning" ||
+    nativeArticleTextActiveRun !== null ||
+    nativePageByUrlActiveRun !== null ||
+    nativeArticleCompareActiveRun !== null ||
+    nativeSiteCompareActiveRun !== null;
+  const bridgeSelectedAnalysisComplete =
+    executionMode === "bridge" &&
+    bridge.state?.status === "complete" &&
+    bridge.state.analysisType === selectedAnalysisType;
+  const nativeSelectedAnalysisComplete =
+    executionMode === "native" && runtimeReport !== null;
+  const startedAnalysisWithoutResult =
+    mode === "analysis" &&
+    !bridgeSelectedAnalysisComplete &&
+    !nativeSelectedAnalysisComplete &&
+    ((selectedAnalysisType === "article_text" && articleTextScanStartedOnce) ||
+      (selectedAnalysisType === "page_by_url" && pageByUrlStartedOnce) ||
+      (selectedAnalysisType === "article_compare" && articleCompareStartedOnce) ||
+      (selectedAnalysisType === "site_compare" && siteCompareStartedOnce));
+  const hasActiveUnfinishedAnalysis =
+    mode !== "idle" &&
+    mode !== "settings" &&
+    mode !== "documentation" &&
+    mode !== "changelog" &&
+    mode !== "toolCatalog" &&
+    mode !== "qualityLab" &&
+    mode !== "formulas" &&
+    mode !== "faq" &&
+    ((executionMode === "bridge" && bridgeAnalysisBusy) ||
+      (executionMode === "native" && nativeAnalysisBusy) ||
+      startedAnalysisWithoutResult);
+
   useEffect(() => {
     const codexBridgeBusy =
       codexBridgeState?.status === "awaiting_handshake" ||
@@ -1089,6 +1139,7 @@ function MainApp() {
       );
       return;
     }
+    await resetAnalysisSession();
     if (selected !== "site_by_url") {
       setSelectedAnalysisType(selected);
       setMode("analysis");
@@ -1147,30 +1198,19 @@ function MainApp() {
     setMode("site");
   };
 
-  const handleReturnHome = () => {
-    const bridgeBusy =
-      bridge.state?.status === "awaiting_handshake" ||
-      bridge.state?.status === "in_progress";
-    if (
-      (executionMode === "native" && scanState === "scanning") ||
-      (executionMode === "bridge" && bridgeBusy)
-    ) {
-      const confirmed = window.confirm(t("siteAudit.confirmCancelScan"));
-      if (!confirmed) return;
-      if (executionMode === "bridge") {
-        void bridge.cancelScan();
-        setCodexPromptHelperVisible(false);
-        setCodexPromptHelperScanId(null);
-      }
-    }
-    if (executionMode === "bridge" && bridge.state) {
-      void bridge.cancelScan();
+  const resetAnalysisSession = async () => {
+    if (bridge.state) {
+      await bridge.cancelScan();
       bridge.clearRetainedState();
-      setCodexPromptHelperVisible(false);
-      setCodexPromptHelperScanId(null);
     }
-    setMode("idle");
-    setSelectedAnalysisType(null);
+    setCodexPromptHelperVisible(false);
+    setCodexPromptHelperScanId(null);
+    setCodexClosedNotice(null);
+    setCodexClosedNoticeShake(false);
+    if (codexClosedNoticeShakeTimer.current) {
+      window.clearTimeout(codexClosedNoticeShakeTimer.current);
+      codexClosedNoticeShakeTimer.current = null;
+    }
     setArticleTextScanStartedOnce(false);
     setArticleTextSolutionProvidedOnce(false);
     setNativeArticleTextState(null);
@@ -1185,15 +1225,28 @@ function MainApp() {
     setSiteCompareStartedOnce(false);
     setSiteCompareInput(null);
     setNativeSiteCompareActiveRun(null);
-    setAnalysisRole("");
-    setReferenceReturnTarget(null);
-    setUrl("");
     setRuntimeReport(null);
     setPreflightError(null);
-    if (executionMode === "native") {
-      void window.toraseo.runtime.endChatWindowSession();
+    setAnalysisRole("");
+    setReferenceReturnTarget(null);
+    setSettingsReturnTarget(null);
+    setUrl("");
+    await window.toraseo.runtime.endChatWindowSession();
+    await window.toraseo.runtime.endReportWindowSession();
+  };
+
+  const performReturnHome = async () => {
+    await resetAnalysisSession();
+    setMode("idle");
+    setSelectedAnalysisType(null);
+  };
+
+  const handleReturnHome = () => {
+    if (hasActiveUnfinishedAnalysis) {
+      setPendingAnalysisExitTarget({ type: "home" });
+      return;
     }
-    void window.toraseo.runtime.endReportWindowSession();
+    void performReturnHome();
   };
 
   const handleRestoreSettingsReturnTarget = () => {
@@ -1428,9 +1481,7 @@ function MainApp() {
     await bridge.startScan(url.trim(), orderedIds, "claude");
   };
 
-  const handleOpenSettings = (
-    tab: "general" | "language" | "providers" = "general",
-  ) => {
+  const performOpenSettings = (tab: SettingsTab = "general") => {
     if (
       mode !== "settings" &&
       mode !== "documentation" &&
@@ -1449,12 +1500,11 @@ function MainApp() {
     setMode("settings");
   };
 
-  const openReferencePage = (
-    nextMode: Extract<
-      AppMode,
-      "documentation" | "changelog" | "toolCatalog" | "qualityLab" | "formulas" | "faq"
-    >,
-  ) => {
+  const handleOpenSettings = (tab: SettingsTab = "general") => {
+    performOpenSettings(tab);
+  };
+
+  const performOpenReferencePage = (nextMode: ReferenceMode) => {
     if (
       mode !== "settings" &&
       mode !== "documentation" &&
@@ -1470,6 +1520,36 @@ function MainApp() {
       });
     }
     setMode(nextMode);
+  };
+
+  const openReferencePage = (nextMode: ReferenceMode) => {
+    performOpenReferencePage(nextMode);
+  };
+
+  const handleConfirmAnalysisExit = () => {
+    const target = pendingAnalysisExitTarget;
+    setPendingAnalysisExitTarget(null);
+    if (!target) return;
+    void (async () => {
+      if (target.type === "home") {
+        await performReturnHome();
+        return;
+      }
+      await resetAnalysisSession();
+      setSelectedAnalysisType(null);
+      if (target.type === "settings") {
+        setSettingsReturnTarget(null);
+        setSettingsInitialTab(target.tab);
+        setMode("settings");
+        return;
+      }
+      setReferenceReturnTarget(null);
+      setMode(target.mode);
+    })();
+  };
+
+  const handleStayInAnalysis = () => {
+    setPendingAnalysisExitTarget(null);
   };
 
   const handleOpenDocumentation = () => {
@@ -1755,9 +1835,10 @@ function MainApp() {
           }).length
       : displayedArticleTextState?.analysisType === "article_text" ||
           displayedArticleTextState?.analysisType === "page_by_url"
-        ? Object.values(displayedArticleTextState.buffer).filter(
-            (entry) => entry.status === "complete" || entry.status === "error",
-          ).length
+        ? displayedArticleTextState.selectedTools.filter((toolId) => {
+            const entry = displayedArticleTextState.buffer[toolId];
+            return entry?.status === "complete" || entry?.status === "error";
+          }).length
       : 0;
   const plannedTotalTools =
     executionMode === "native" && selectedAnalysisType === "article_text"
@@ -2652,7 +2733,7 @@ function MainApp() {
       if (mode === "idle") return;
       if (isEditableTarget(event.target)) return;
       const now = Date.now();
-      if (now - backShortcutTimerRef.current < 250) {
+      if (now - backShortcutTimerRef.current < 900) {
         event.preventDefault();
         event.stopPropagation();
         return;
@@ -2689,7 +2770,15 @@ function MainApp() {
       window.removeEventListener("mouseup", handleMouseBack, true);
       window.removeEventListener("auxclick", handleMouseBack, true);
     };
-  }, [mode, returnHomeShortcutsEnabled, settingsReturnTarget]);
+  }, [
+    activeArticleTextRun,
+    bridgeStatus,
+    hasActiveUnfinishedAnalysis,
+    mode,
+    returnHomeShortcutsEnabled,
+    scanState,
+    settingsReturnTarget,
+  ]);
 
   useEffect(() => {
     const unsubscribe = window.toraseo.runtime.onChatWindowSessionUpdate(
@@ -2837,6 +2926,13 @@ function MainApp() {
       />
     );
 
+  const analysisExitModal = pendingAnalysisExitTarget ? (
+    <AnalysisExitModal
+      onExit={handleConfirmAnalysisExit}
+      onStay={handleStayInAnalysis}
+    />
+  ) : null;
+
   if (mode === "settings") {
     return (
       <div className="flex h-full flex-col bg-orange-50/30">
@@ -2857,19 +2953,8 @@ function MainApp() {
             onReturnHomeShortcutsChange={handleReturnHomeShortcutsChange}
             onReturnHome={() => {
               setSettingsReturnTarget(null);
-              setMode("idle");
-              setSelectedAnalysisType(null);
-              setArticleTextScanStartedOnce(false);
-              setArticleTextSolutionProvidedOnce(false);
-              setNativeArticleTextState(null);
-              setNativeArticleTextActiveRun(null);
-              setPageByUrlStartedOnce(false);
-              setPageByUrlInput(null);
-              setNativePageByUrlActiveRun(null);
-              pageByUrlChatRunRef.current = null;
+              void performReturnHome();
               void refreshProviders();
-              void window.toraseo.runtime.endChatWindowSession();
-              void window.toraseo.runtime.endReportWindowSession();
             }}
             onSaveLocale={handleSaveLocale}
             nativeRuntimeEnabled={true}
@@ -2882,6 +2967,7 @@ function MainApp() {
             onDismiss={dismissBridgeSetupPromptNotice}
           />
         )}
+        {analysisExitModal}
         <WindowSizeOverlay />
         <UpdateNotification />
       </div>
@@ -3202,7 +3288,78 @@ function MainApp() {
           onDismiss={dismissBridgeSetupPromptNotice}
         />
       )}
+      {analysisExitModal}
       <WindowSizeOverlay />
+    </div>
+  );
+}
+
+function AnalysisExitModal({
+  onExit,
+  onStay,
+}: {
+  onExit: () => void;
+  onStay: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30"
+      onClick={onStay}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="analysis-exit-modal-title"
+    >
+      <div
+        className="relative w-[420px] max-w-[90vw] rounded-lg border border-outline/15 bg-white p-5 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onStay}
+          aria-label={t("common.close")}
+          className="absolute right-3 top-3 rounded p-1 text-outline-900/40 hover:bg-orange-50 hover:text-outline-900"
+        >
+          <X size={16} />
+        </button>
+
+        <div className="mb-3 flex items-center gap-2">
+          <AlertTriangle className="text-orange-500" size={20} />
+          <h2
+            id="analysis-exit-modal-title"
+            className="font-display text-base font-semibold text-outline-900"
+          >
+            {t("analysisExit.title", {
+              defaultValue: "Analysis is still running",
+            })}
+          </h2>
+        </div>
+
+        <p className="mb-4 text-sm leading-relaxed text-outline-900/70">
+          {t("analysisExit.body", {
+            defaultValue:
+              "If you leave now, the unfinished analysis will be stopped and the next launch will start from scratch.",
+          })}
+        </p>
+
+        <div className="flex flex-col gap-2 sm:flex-row-reverse">
+          <button
+            type="button"
+            onClick={onStay}
+            className="flex-1 rounded-md bg-orange-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-orange-600"
+          >
+            {t("analysisExit.stay", { defaultValue: "Back" })}
+          </button>
+          <button
+            type="button"
+            onClick={onExit}
+            className="flex-1 rounded-md border border-outline/20 px-3 py-2 text-sm text-outline-900/70 transition hover:bg-orange-50"
+          >
+            {t("analysisExit.exit", { defaultValue: "Leave anyway" })}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

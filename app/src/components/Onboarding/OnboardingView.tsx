@@ -398,9 +398,6 @@ export default function OnboardingView({
         </div>
       )}
 
-      <footer className="text-center text-xs text-outline/40">
-        {t("onboarding.footer")}
-      </footer>
     </div>
   );
 }

@@ -145,9 +145,17 @@ Main tables:
 - `eval_run_metrics` - metric rows extracted from saved reports.
 - `eval_comparisons` - MCP/API comparison reports.
 - `formula_versions` - future formula versions and public-safe metadata.
+- `formula_test_runs` - manual formula and score checks, including AI model,
+  optional model-power notes, repeated scans of the same text, formula parts,
+  and manually entered AI-difference percentages.
+- `formula_test_repeat_deltas` - SQL view that compares repeated formula
+  checks against the first run in the same `same_text_group_id`.
 - `qa_sessions` - one manual QA session with a final verdict.
 - `qa_findings` - separate issues/observations found during a session.
 - `qa_article_text_reviews` - article text analysis review details.
+- `qa_article_preview_reviews` - visual article preview and annotation QA.
+- `qa_article_annotation_checks` - individual marker, highlight, and
+  recommendation-link checks inside the article preview.
 - `qa_article_compare_reviews` - two-text comparison review details.
 - `qa_page_url_reviews` - page/article by URL review details.
 - `qa_site_url_reviews` - site by URL review details.
@@ -165,7 +173,25 @@ Recommended manual QA flow:
 2. Add each separate problem or observation to `qa_findings`.
 3. If the check belongs to a specific analysis type, add a row to the
    matching `qa_*_reviews` table.
-4. For design/system work, use `qa_system_design_reviews`,
+4. For article preview checks, use `qa_article_preview_reviews` for the
+   whole preview state and `qa_article_annotation_checks` for each
+   visible marker or highlighted fragment.
+5. Set `check_language` on `eval_cases`, `qa_sessions`, and preview
+   reviews when language-specific rules matter, for example `ru` or `en`.
+6. For design/system work, use `qa_system_design_reviews`,
    `qa_ux_ui_reviews`, or `qa_typography_reviews`.
-5. After running `npm run eval:db:dashboard`, the HTML dashboard will
+7. For Tora Rank/formula calibration, add one `formula_test_runs` row per
+   formula result. Use `same_text_group_id` for repeated scans of identical
+   text, `formula_name` and `formula_score` before the JSON formula parts,
+   and `ai_difference_percent` for the manually judged difference between
+   AI models.
+8. Put the second AI verification question in
+   `formula_explanation_question`: ask which formula was used, which parts
+   were added, subtracted, multiplied, and divided, and the separate numbers
+   for each formula. Store the answer in `formula_explanation_answer` and
+   the machine-readable numbers in `formula_numbers_json`.
+9. `ai_power_*` fields are intentionally optional. Use them only when you
+   have a public benchmark/source you trust; otherwise leave them empty and
+   rely on your manual `ai_difference_percent`.
+10. After running `npm run eval:db:dashboard`, the HTML dashboard will
    show these tables as separate tabs.

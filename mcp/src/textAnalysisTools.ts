@@ -430,34 +430,34 @@ function inferContentIntent(text: string): string {
 
 function humanIntentLabel(intent: string): string {
   const labels: Record<string, string> = {
-    informational_how_to: "Информационный / решение проблемы",
-    commercial: "Коммерческий",
-    expert_opinion: "Экспертное мнение",
-    social_engagement: "Социальное вовлечение",
-    informational: "Информационный",
+    informational_how_to: "Informational / problem solution",
+    commercial: "Commercial",
+    expert_opinion: "Expert opinion",
+    social_engagement: "Social engagement",
+    informational: "Informational",
   };
   return labels[intent] ?? intent;
 }
 
 function platformHookLabel(platform: string): string {
-  if (platform === "short_social_post") return "короткий хук для поста";
-  if (platform === "x_short") return "хук первой строки";
-  if (platform.includes("social")) return "хук для ленты";
-  return "SEO-хук заголовка и вступления";
+  if (platform === "short_social_post") return "short post hook";
+  if (platform === "x_short") return "first-line hook";
+  if (platform.includes("social")) return "feed hook";
+  return "SEO hook for title and intro";
 }
 
 function inferCategory(terms: string[], intent: string): string {
   const joined = terms.join(" ");
   if (/seo|cms|laravel|wordpress|api|код|разработ|техн|python|css|html/i.test(joined)) {
-    return "Технологии";
+    return "Technology";
   }
   if (/здоров|организм|диабет|трениров|питани|медиц|гликоген|глюкоз|углевод|спорт|упражнен|health|diet|fitness/i.test(joined)) {
-    return "Здоровье и спорт";
+    return "Health and fitness";
   }
   if (/бизнес|продаж|маркет|клиент|conversion|sales/i.test(joined)) {
-    return "Бизнес";
+    return "Business";
   }
-  return intent === "commercial" ? "Обзоры и покупки" : "Полезные материалы";
+  return intent === "commercial" ? "Reviews and buying guides" : "Helpful resources";
 }
 
 const CYRILLIC_SLUG_MAP: Record<string, string> = {
@@ -520,12 +520,12 @@ function slugSuggestion(title: string, terms: string[]): string {
 function generatedSeoTitleFromTerms(text: string, terms: string[]): string {
   const lowered = text.toLowerCase();
   if (/гликоген/u.test(lowered) && /трениров|упражнен|нагруз/u.test(lowered)) {
-    return "Восстановление гликогена после тренировки";
+    return "Glycogen recovery after exercise";
   }
   if (terms.length >= 3) {
-    return `${capitalizeFirst(terms.slice(0, 3).join(" "))}: что важно знать`;
+    return `${capitalizeFirst(terms.slice(0, 3).join(" "))}: what to know`;
   }
-  if (terms.length > 0) return `${capitalizeFirst(terms[0] ?? "")}: что важно знать`;
+  if (terms.length > 0) return `${capitalizeFirst(terms[0] ?? "")}: what to know`;
   return "";
 }
 
@@ -675,7 +675,7 @@ function safetyScienceAnnotation(
     severity,
     marker: severity === "critical" ? "outline" : "note",
     paragraphId: "p001",
-    title: severity === "critical" ? "Предупреждение!" : "Проверка риска",
+    title: severity === "critical" ? "Warning!" : "Risk check",
     shortMessage,
     recommendation,
     confidence: severity === "critical" ? 0.78 : 0.68,
@@ -2107,10 +2107,10 @@ export const intentSeoForecastHandler = () =>
     const hookType = platformHookLabel(platform);
     const hookIdeas = [
       primaryKeyword
-        ? `Начните с проблемы читателя: «Почему ${primaryKeyword} мешает получить результат?»`
-        : "Начните с проблемы читателя, а не с общего вступления.",
-      "Покажите обещание пользы в первой строке: что человек поймёт или сможет сделать после чтения.",
-      "Если это пост или рилс, вынесите конфликт/боль в первые 1–2 секунды или первую строку.",
+        ? `Start with the reader's problem: "Why does ${primaryKeyword} block the result?"`
+        : "Start with the reader's problem, not a generic introduction.",
+      "Show the benefit promise in the first line: what the reader will understand or be able to do after reading.",
+      "If this is a post or reel, move the conflict or pain into the first 1-2 seconds or first line.",
     ];
     const issues: TextIssue[] = [];
     if (ctrPotential < 60) {
@@ -2253,8 +2253,8 @@ export const safetyScienceReviewHandler = () =>
         safetyScienceAnnotation(
           "safety",
           "critical",
-          "Текст может выглядеть как попытка нарушить закон, правила платформы или дать опасные инструкции.",
-          "Остановите публикацию и перепишите материал в безопасный, образовательный или профилактический формат.",
+          "The text may look like an attempt to break the law, evade platform rules, or provide dangerous instructions.",
+          "Stop publication and rewrite the material in a safe, educational, or preventive format.",
         ),
       );
     }
@@ -2270,8 +2270,8 @@ export const safetyScienceReviewHandler = () =>
         safetyScienceAnnotation(
           "legal",
           "warning",
-          "Есть юридически чувствительные формулировки.",
-          "Добавьте дисклеймер, источники и ручную проверку специалистом; не выдавайте текст за юридическую консультацию.",
+          "Legally sensitive wording was found.",
+          "Add a disclaimer, sources, and expert review; do not present the text as legal advice.",
         ),
       );
     }
@@ -2287,8 +2287,8 @@ export const safetyScienceReviewHandler = () =>
         safetyScienceAnnotation(
           "medical",
           "warning",
-          "Есть медицинские или health-sensitive утверждения.",
-          "Добавьте источники, осторожные формулировки и ручную проверку специалистом; текст не должен выглядеть как персональная медицинская рекомендация.",
+          "Medical or health-sensitive claims were found.",
+          "Add sources, careful wording, and expert review; the text should not look like personal medical advice.",
         ),
       );
     }
@@ -2304,8 +2304,8 @@ export const safetyScienceReviewHandler = () =>
         safetyScienceAnnotation(
           "investment",
           "warning",
-          "Есть инвестиционно чувствительные формулировки.",
-          "Добавьте оговорку, что материал не является индивидуальной инвестиционной рекомендацией, и проверьте требования юрисдикции и площадки публикации.",
+          "Investment-sensitive wording was found.",
+          "Add a note that the material is not personal investment advice, and check jurisdiction and publication-platform requirements.",
         ),
       );
     }
@@ -2321,8 +2321,8 @@ export const safetyScienceReviewHandler = () =>
         safetyScienceAnnotation(
           "engineering",
           "warning",
-          "Есть технические или конструкторские утверждения, где ошибка может быть критичной.",
-          "Если ИИ не уверен в устройстве узла, стандарте, чертеже или расположении детали, отметьте это как гипотезу и проверьте по документации, чертежам или у инженера.",
+          "Technical or engineering claims were found where a mistake may be critical.",
+          "If AI is not certain about a component, standard, drawing, or part placement, mark it as a hypothesis and verify it against documentation, drawings, or an engineer.",
         ),
       );
     }
@@ -2338,8 +2338,8 @@ export const safetyScienceReviewHandler = () =>
         safetyScienceAnnotation(
           "science",
           "warning",
-          "Есть научные или методологические утверждения, которым нужна проверка.",
-          "Проверьте метод, выборку, источники, расчёты и границы вывода. ИИ может ошибаться, поэтому финальная проверка должна быть ручной.",
+          "Scientific or methodological claims were found and need review.",
+          "Check the method, sample, sources, calculations, and conclusion limits. AI can be wrong, so final verification should be manual.",
         ),
       );
     }
@@ -2355,8 +2355,8 @@ export const safetyScienceReviewHandler = () =>
         safetyScienceAnnotation(
           "source_context",
           "info",
-          "Ресурс публикации задан пользователем или отличается от стандартных площадок.",
-          "Проверьте правила площадки, формат реакции аудитории и доступные механики: комментарии, лайки, дизлайки, рейтинги, модерацию и ограничения тематики.",
+          "The publication resource is user-defined or differs from standard platforms.",
+          "Check the platform rules, audience reaction format, and available mechanics: comments, likes, dislikes, ratings, moderation, and topic restrictions.",
         ),
       );
     }
@@ -2372,8 +2372,8 @@ export const safetyScienceReviewHandler = () =>
         safetyScienceAnnotation(
           "external_verification",
           "info",
-          "Интернет-сверка и проверка внешних источников не выполнялись в этом локальном анализе.",
-          "Для реальной проверки спроса, правил площадки, законов страны, источников, лайков/дизлайков и SERP подключите внешний источник: GSC, SERP API, соц-API, официальные документы или ручной research.",
+          "Internet and external-source verification were not performed by this local analysis.",
+          "For real checks of demand, platform rules, country laws, sources, reactions, and SERP, connect an external source: GSC, SERP API, social API, official documents, or manual research.",
         ),
       );
     }
@@ -2389,8 +2389,8 @@ export const safetyScienceReviewHandler = () =>
         safetyScienceAnnotation(
           "calculation",
           "info",
-          "В тексте есть несколько чисел или формул.",
-          "Если вывод зависит от расчётов, добавьте отдельную проверку формул, единиц измерения и промежуточных шагов.",
+          "The text contains several numbers or formulas.",
+          "If the conclusion depends on calculations, add a separate review of formulas, units, and intermediate steps.",
         ),
       );
     }

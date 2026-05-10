@@ -1,5 +1,5 @@
 ﻿/**
- * verify_skill_loaded вЂ” the Bridge Mode handshake tool.
+ * verify_skill_loaded - the Bridge Mode handshake tool.
  *
  * Called by Claude as the first action when handling a ToraSEO scan
  * request. Confirms that:
@@ -10,23 +10,23 @@
  *
  * On success, the tool returns the scan parameters (url,
  * selectedTools) to Claude, so Claude can proceed without those
- * fields being in the user's prompt вЂ” the prompt only references
+ * fields being in the user's prompt - the prompt only references
  * the scan abstractly.
  *
  * On failure, it returns a structured error to Claude. The error
  * includes a reason code so Claude can give the user a useful
  * actionable message:
  *
- *   - app_not_running        вЂ” App process isn't alive (no alive-file
+ *   - app_not_running        - App process isn't alive (no alive-file
  *                              or stale PID). Tell user to start app.
- *   - app_running_no_scan    вЂ” App is alive but no analysis run is
+ *   - app_running_no_scan    - App is alive but no analysis run is
  *                              waiting. In setup-check, this proves
  *                              the setup path is reachable; do not
  *                              mention a generic Scan button.
- *   - wrong_state            вЂ” State-file exists but isn't in
+ *   - wrong_state            - State-file exists but isn't in
  *                              awaiting_handshake (e.g. previous
  *                              scan still in_progress or terminal).
- *   - token_mismatch         вЂ” Skill version is out of sync with MCP.
+ *   - token_mismatch         - Skill version is out of sync with MCP.
  *                              Tell user to update the Skill.
  */
 
@@ -36,8 +36,29 @@ import { probeAppAlive } from "./aliveFile.js";
 import { BRIDGE_PROTOCOL_TOKEN } from "./constants.js";
 import { readActiveInputMarkdown } from "./workspace.js";
 
+const SITE_BY_URL_INTERNAL_TOOL_IDS = new Set([
+  "scan_site_minimal",
+  "analyze_indexability",
+  "check_robots_txt",
+  "analyze_sitemap",
+  "check_redirects",
+  "analyze_meta",
+  "analyze_canonical",
+  "analyze_headings",
+  "analyze_content",
+  "analyze_links",
+  "detect_stack",
+]);
+
+function siteByUrlHandshakeTools(selectedTools: string[]): string[] {
+  const extraTools = selectedTools.filter(
+    (toolId) => !SITE_BY_URL_INTERNAL_TOOL_IDS.has(toolId),
+  );
+  return ["site_url_internal", ...extraTools];
+}
+
 /**
- * Input schema. The token is the only argument вЂ” Claude reads it
+ * Input schema. The token is the only argument - Claude reads it
  * from SKILL.md and passes it verbatim.
  */
 export const verifySkillLoadedInputSchema = {
@@ -185,7 +206,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                 "an outdated SKILL.md file. They need to update the " +
                 "ToraSEO Claude Bridge Instructions: download the latest skill ZIP from " +
                 "GitHub Releases, then in Claude Desktop go to " +
-                "Settings в†’ Skills, delete the existing toraseo instructions, " +
+                "Settings -> Skills, delete the existing toraseo instructions, " +
                 "and install the new ZIP. For security, the expected token " +
                 "is not returned by MCP.",
             },
@@ -197,7 +218,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
     };
   }
 
-  // Success вЂ” return scan parameters so Claude can proceed.
+  // Success - return scan parameters so Claude can proceed.
   if (result === "wrong_client") {
     return {
       isError: true,
@@ -258,23 +279,13 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               analysisType === "article_compare"
                 ? ["article_compare_internal"]
                 : analysisType === "site_by_url"
-                  ? ["site_url_internal"]
+                  ? siteByUrlHandshakeTools(state!.selectedTools)
                 : analysisType === "site_compare"
                   ? ["site_compare_internal"]
-                : analysisType === "page_by_url"
-                  ? [
-                      "page_url_article_internal",
-                      ...state!.selectedTools.filter((toolId) =>
-                        [
-                          "analyze_google_page_search",
-                          "analyze_yandex_page_search",
-                        ].includes(toolId),
-                      ),
-                    ]
                 : state!.selectedTools,
             internalSelectedTools:
               analysisType === "article_compare" ||
-              analysisType === "page_by_url" ||
+              analysisType === "site_by_url" ||
               analysisType === "site_compare"
                 ? state!.selectedTools
                 : undefined,
@@ -304,19 +315,18 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               "Text A and Text B from the temporary ToraSEO workspace. Keep " +
               "the comparison text-evidence only: do not claim ranking causes " +
               "from text alone and do not rewrite the full article. " +
-              "For site-by-URL runs, call site_url_internal; it runs the " +
-              "selected site-audit checks and writes individual results under " +
-              "normal user-facing tool names. Do not call separate site URL " +
-              "tools unless explicitly debugging one check. Do not read " +
-              "workspace JSON files after site_url_internal; use the MCP " +
-              "tool response and the app report as the source of facts. Do not " +
-              "ask the user to paste a report summary, screenshot, or JSON after " +
-              "site_url_internal has completed. " +
-              "For page-by-URL runs, call page_url_article_internal; it runs " +
-              "the internal URL/page extraction and article text checks as MCP " +
-              "checks and writes individual results under normal user-facing " +
-              "tool names. If the app provided a page text block, use " +
-              "that block as the article focus. Ignore ads/navigation/comments " +
+              "For site-by-URL runs, call site_url_internal first; it runs " +
+              "the selected core site-audit checks one by one and writes each " +
+              "individual tool result to the ToraSEO app so progress advances " +
+              "per check. Then call any additional tools returned after " +
+              "site_url_internal. Do not ask the user to paste a report " +
+              "summary, screenshot, or JSON after the selected tools complete; " +
+              "use the MCP tool responses and the app report as the source of facts. " +
+              "For page-by-URL runs, call each selected page URL MCP tool " +
+              "returned in this response, in order. Run extract_main_text " +
+              "before article-text checks so the temporary article text is " +
+              "prepared. If the app provided a page text block, use that block " +
+              "as the article focus. Ignore ads/navigation/comments " +
               "and respect robots.txt; do not bypass auth, paywalls, CAPTCHA, " +
               "or private content. Do not invent Google/Yandex clicks, impressions, " +
               "views, or indexed phrases without an official connected source. " +

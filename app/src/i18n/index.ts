@@ -31,6 +31,23 @@ import ru from "./locales/ru.json";
 
 import type { SupportedLocale } from "../types/ipc";
 
+const LOCALE_IPC_TIMEOUT_MS = 1_200;
+
+function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      resolve(fallback);
+    }, LOCALE_IPC_TIMEOUT_MS);
+
+    promise
+      .then(resolve)
+      .catch(() => resolve(fallback))
+      .finally(() => {
+        window.clearTimeout(timer);
+      });
+  });
+}
+
 /**
  * Resolve the initial language using the three-step fallback chain.
  * Defensive against preload being unavailable (e.g. dev sandbox
@@ -42,7 +59,7 @@ async function resolveInitialLocale(): Promise<SupportedLocale> {
     return "en";
   }
   try {
-    const persisted = await window.toraseo.locale.get();
+    const persisted = await withTimeout(window.toraseo.locale.get(), null);
     if (persisted) {
       return persisted;
     }
@@ -50,7 +67,7 @@ async function resolveInitialLocale(): Promise<SupportedLocale> {
     // fall through to OS detection
   }
   try {
-    return await window.toraseo.locale.getOs();
+    return await withTimeout(window.toraseo.locale.getOs(), "en");
   } catch {
     return "en";
   }
