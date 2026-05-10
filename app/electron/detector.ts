@@ -80,12 +80,14 @@ const POLL_INTERVAL_MS = 5000;
 export const DETECTOR_CHANNELS = {
   // renderer → main
   checkNow: "toraseo:detector:check-now",
+  installMcpConfig: "toraseo:detector:install-mcp-config",
   pickMcpConfig: "toraseo:detector:pick-mcp-config",
   clearManualMcpConfig: "toraseo:detector:clear-manual-mcp-config",
   getManualMcpConfig: "toraseo:detector:get-manual-mcp-config",
   confirmSkillInstalled: "toraseo:detector:confirm-skill-installed",
   clearSkillConfirmation: "toraseo:detector:clear-skill-confirmation",
   downloadSkillZip: "toraseo:detector:download-skill-zip",
+  downloadCodexWorkflowZip: "toraseo:detector:download-codex-workflow-zip",
   openSkillReleasesPage: "toraseo:detector:open-skill-releases-page",
   // main → renderer (push)
   statusUpdate: "toraseo:detector:status-update",
@@ -138,7 +140,7 @@ export interface DownloadSkillZipResult {
   ok: boolean;
   /** Path on disk where the ZIP was saved (in user's Downloads). */
   filePath?: string;
-  /** Tag name of the release that was downloaded (e.g., "skill-v0.2.0"). */
+  /** Tag name of the release that was downloaded (e.g., "v0.0.9"). */
   releaseTag?: string;
   /** Set when ok=false. */
   error?: string;
@@ -158,6 +160,35 @@ function skillConfirmationFile(): string {
 
 function codexSetupVerificationFile(): string {
   return path.join(app.getPath("userData"), CODEX_SETUP_VERIFICATION_FILE);
+}
+
+function packagedMcpEntryPath(): string {
+  if (app.isPackaged) {
+    return path.join(
+      process.resourcesPath,
+      "mcp-runtime",
+      "mcp",
+      "dist",
+      "index.js",
+    );
+  }
+
+  return path.resolve(app.getAppPath(), "..", "mcp", "dist", "index.js");
+}
+
+async function resolveNodeCommand(): Promise<string> {
+  if (process.platform === "win32") {
+    const programFiles = process.env.ProgramFiles ?? "C:\\Program Files";
+    const candidate = path.join(programFiles, "nodejs", "node.exe");
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      return "node";
+    }
+  }
+
+  return "node";
 }
 
 function userDataCandidateDirs(): string[] {
@@ -632,18 +663,11 @@ export async function checkAll(): Promise<DetectorStatus> {
 
 let pollInterval: NodeJS.Timeout | null = null;
 
-/**
- * GitHub Releases API endpoint for the skill track. We list all
- * releases, filter to those whose tag starts with `skill-v`, take
- * the first non-prerelease/non-draft. There's no
- * `releases/latest` endpoint that respects our two-track scheme
- * (it would return the latest release of any track).
- */
 const GITHUB_RELEASES_URL =
   "https://api.github.com/repos/Magbusjap/toraseo/releases";
 
 const SKILL_RELEASES_PAGE_URL =
-  "https://github.com/Magbusjap/toraseo/releases?q=skill-v&expanded=true";
+  "https://github.com/Magbusjap/toraseo/releases";
 
 interface GitHubAsset {
   name: string;
@@ -657,21 +681,32 @@ interface GitHubRelease {
   assets: GitHubAsset[];
 }
 
+type InstructionZipKind = "claude" | "codex";
+
+const INSTRUCTION_ZIP_ASSETS: Record<
+  InstructionZipKind,
+  { assetPrefix: string; label: string }
+> = {
+  claude: {
+    assetPrefix: "toraseo-claude-bridge-instructions-",
+    label: "Claude Bridge Instructions",
+  },
+  codex: {
+    assetPrefix: "toraseo-codex-workflow-",
+    label: "Codex Workflow Instructions",
+  },
+};
+
 /**
- * Find the latest skill-v* release on GitHub and download its ZIP
- * asset to the user's Downloads folder.
- *
- * What "latest" means: the first release in the chronologically-
- * sorted-desc API response whose tag starts with `skill-v` and is
- * neither a draft nor a prerelease. If nothing matches, return an
- * error so the UI can suggest the manual GitHub link instead.
- *
- * Asset selection: we look for the first .zip asset attached to the
- * release. The skill release workflow always produces one ZIP, so
- * "first" is unambiguous in practice.
+ * Download the latest instruction ZIP attached to the canonical app
+ * release (`v0.0.x+`). Older standalone `skill-v*` releases remain
+ * historical downloads, but the app now owns the public asset list.
  */
-async function downloadLatestSkillZip(): Promise<DownloadSkillZipResult> {
+async function downloadLatestInstructionZip(
+  kind: InstructionZipKind,
+): Promise<DownloadSkillZipResult> {
   let releases: GitHubRelease[];
+  const assetConfig = INSTRUCTION_ZIP_ASSETS[kind];
   try {
     const response = await fetch(GITHUB_RELEASES_URL, {
       headers: {
@@ -693,26 +728,27 @@ async function downloadLatestSkillZip(): Promise<DownloadSkillZipResult> {
     };
   }
 
-  const skillRelease = releases.find(
+  const appRelease = releases.find(
     (r) =>
-      r.tag_name.startsWith("skill-v") && !r.draft && !r.prerelease,
+      /^v\d+\.\d+\.\d+/.test(r.tag_name) && !r.draft && !r.prerelease,
   );
 
-  if (!skillRelease) {
+  if (!appRelease) {
     return {
       ok: false,
       error:
-        "No Claude Bridge Instructions release found on GitHub. Open the releases page manually.",
+        "No ToraSEO app release found on GitHub. Open the releases page manually.",
     };
   }
 
-  const zipAsset = skillRelease.assets.find((a) =>
+  const zipAsset = appRelease.assets.find((a) =>
+    a.name.toLowerCase().startsWith(assetConfig.assetPrefix) &&
     a.name.toLowerCase().endsWith(".zip"),
   );
   if (!zipAsset) {
     return {
       ok: false,
-      error: `Release ${skillRelease.tag_name} does not contain a ZIP file`,
+      error: `Release ${appRelease.tag_name} does not contain ${assetConfig.label} ZIP`,
     };
   }
 
@@ -740,18 +776,145 @@ async function downloadLatestSkillZip(): Promise<DownloadSkillZipResult> {
   }
 
   log.info(
-    `[detector] skill ZIP downloaded: ${destPath} (${skillRelease.tag_name})`,
+    `[detector] ${assetConfig.label} ZIP downloaded: ${destPath} (${appRelease.tag_name})`,
   );
 
-  // Open the Downloads folder with the file selected so the user
-  // can immediately drag it into Claude Desktop's Settings → Skills.
+  // Open the Downloads folder with the file selected so the user can
+  // immediately install it in Claude Desktop or unpack it for Codex.
   shell.showItemInFolder(destPath);
 
   return {
     ok: true,
     filePath: destPath,
-    releaseTag: skillRelease.tag_name,
+    releaseTag: appRelease.tag_name,
   };
+}
+
+function primaryClaudeConfigPath(): string {
+  return claudeConfigPaths()[0] ?? path.join(os.homedir(), ".claude", "claude_desktop_config.json");
+}
+
+async function backupConfigFile(configPath: string): Promise<void> {
+  try {
+    await fs.access(configPath);
+  } catch {
+    return;
+  }
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  await fs.copyFile(configPath, `${configPath}.toraseo-backup-${stamp}`);
+}
+
+async function installClaudeMcpConfig(): Promise<InstallMcpConfigResult> {
+  const configPath = (await readManualMcpPath()) ?? primaryClaudeConfigPath();
+  const mcpEntryPath = packagedMcpEntryPath();
+  const command = await resolveNodeCommand();
+
+  try {
+    await fs.mkdir(path.dirname(configPath), { recursive: true });
+    let parsed: { mcpServers?: Record<string, unknown>; [key: string]: unknown } = {};
+    try {
+      parsed = JSON.parse(await fs.readFile(configPath, "utf8")) as typeof parsed;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") {
+        return {
+          ok: false,
+          target: "claude",
+          configPath,
+          mcpEntryPath,
+          error: `Could not parse Claude Desktop config: ${(err as Error).message}`,
+        };
+      }
+    }
+
+    await backupConfigFile(configPath);
+    parsed.mcpServers = {
+      ...(parsed.mcpServers ?? {}),
+      toraseo: {
+        command,
+        args: [mcpEntryPath],
+      },
+    };
+    await fs.writeFile(configPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
+    await writeManualMcpPath(configPath);
+    return { ok: true, target: "claude", configPath, mcpEntryPath };
+  } catch (err) {
+    return {
+      ok: false,
+      target: "claude",
+      configPath,
+      mcpEntryPath,
+      error: (err as Error).message,
+    };
+  }
+}
+
+function codexConfigPath(): string {
+  return path.join(os.homedir(), ".codex", "config.toml");
+}
+
+function tomlLiteral(value: string): string {
+  return `'${value.replace(/'/g, "\\'")}'`;
+}
+
+function upsertCodexMcpBlock(raw: string, command: string, mcpEntryPath: string): string {
+  const block = [
+    "[mcp_servers.toraseo]",
+    `command = ${tomlLiteral(command)}`,
+    `args = [${tomlLiteral(mcpEntryPath)}]`,
+    "",
+  ].join("\n");
+  const lines = raw.split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim() === "[mcp_servers.toraseo]");
+  if (start === -1) {
+    const prefix = raw.trimEnd();
+    return `${prefix}${prefix ? "\n\n" : ""}${block}`;
+  }
+
+  let end = start + 1;
+  while (end < lines.length && !/^\s*\[/.test(lines[end] ?? "")) {
+    end += 1;
+  }
+
+  return [...lines.slice(0, start), ...block.trimEnd().split("\n"), ...lines.slice(end)].join("\n").trimEnd() + "\n";
+}
+
+async function installCodexMcpConfig(): Promise<InstallMcpConfigResult> {
+  const configPath = codexConfigPath();
+  const mcpEntryPath = packagedMcpEntryPath();
+  const command = await resolveNodeCommand();
+
+  try {
+    await fs.mkdir(path.dirname(configPath), { recursive: true });
+    let raw = "";
+    try {
+      raw = await fs.readFile(configPath, "utf8");
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") throw err;
+    }
+
+    await backupConfigFile(configPath);
+    await fs.writeFile(configPath, upsertCodexMcpBlock(raw, command, mcpEntryPath), "utf8");
+    return { ok: true, target: "codex", configPath, mcpEntryPath };
+  } catch (err) {
+    return {
+      ok: false,
+      target: "codex",
+      configPath,
+      mcpEntryPath,
+      error: (err as Error).message,
+    };
+  }
+}
+
+export interface InstallMcpConfigResult {
+  ok: boolean;
+  target: "claude" | "codex";
+  configPath?: string;
+  mcpEntryPath?: string;
+  error?: string;
 }
 
 /**
@@ -763,6 +926,24 @@ export function setupDetector(getMainWindow: () => BrowserWindow | null): void {
   ipcMain.handle(DETECTOR_CHANNELS.checkNow, async () => {
     return checkAll();
   });
+
+  ipcMain.handle(
+    DETECTOR_CHANNELS.installMcpConfig,
+    async (
+      _event,
+      target: "claude" | "codex",
+    ): Promise<InstallMcpConfigResult> => {
+      const result =
+        target === "codex"
+          ? await installCodexMcpConfig()
+          : await installClaudeMcpConfig();
+      log.info(
+        `[detector] install MCP config target=${target} ok=${result.ok}`,
+      );
+      void pushFreshStatus(getMainWindow);
+      return result;
+    },
+  );
 
   // ----- Manual MCP config picker -----
 
@@ -857,8 +1038,20 @@ export function setupDetector(getMainWindow: () => BrowserWindow | null): void {
   ipcMain.handle(
     DETECTOR_CHANNELS.downloadSkillZip,
     async (): Promise<DownloadSkillZipResult> => {
-      log.info("[detector] downloading latest skill ZIP from GitHub");
-      return downloadLatestSkillZip();
+      log.info(
+        "[detector] downloading latest Claude Bridge Instructions ZIP from GitHub",
+      );
+      return downloadLatestInstructionZip("claude");
+    },
+  );
+
+  ipcMain.handle(
+    DETECTOR_CHANNELS.downloadCodexWorkflowZip,
+    async (): Promise<DownloadSkillZipResult> => {
+      log.info(
+        "[detector] downloading latest Codex Workflow Instructions ZIP from GitHub",
+      );
+      return downloadLatestInstructionZip("codex");
     },
   );
 

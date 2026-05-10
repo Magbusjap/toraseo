@@ -10,11 +10,12 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "lint": "tsc --noEmit",
-    "dist": "electron-vite build && electron-builder",
-    "dist:win": "electron-vite build && electron-builder --win",
-    "dist:mac": "electron-vite build && electron-builder --mac",
-    "dist:linux": "electron-vite build && electron-builder --linux",
-    "release": "electron-vite build && electron-builder --publish always"
+    "prepare:mcp-runtime": "npm run build --workspace=@toraseo/core && npm run build --workspace=@toraseo/mcp && node ../scripts/prepare-mcp-runtime.mjs",
+    "dist": "npm run prepare:mcp-runtime && electron-vite build && electron-builder",
+    "dist:win": "npm run prepare:mcp-runtime && electron-vite build && electron-builder --win",
+    "dist:mac": "npm run prepare:mcp-runtime && electron-vite build && electron-builder --mac",
+    "dist:linux": "npm run prepare:mcp-runtime && electron-vite build && electron-builder --linux",
+    "release": "npm run prepare:mcp-runtime && electron-vite build && electron-builder --publish always"
   },
   "dependencies": {
     "@toraseo/core": "file:../core",
@@ -52,6 +53,12 @@
       "out/**/*",
       "package.json",
       "build/icons/**"
+    ],
+    "extraResources": [
+      {
+        "from": "build/mcp-runtime",
+        "to": "mcp-runtime"
+      }
     ],
     "publish": {
       "provider": "github",

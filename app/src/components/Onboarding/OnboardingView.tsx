@@ -5,6 +5,7 @@ import DependencyCheck from "./DependencyCheck";
 import type {
   DetectorStatus,
   DownloadSkillZipResult,
+  InstallMcpConfigResult,
   OpenClaudeResult,
   PickAppPathResult,
   PickMcpConfigResult,
@@ -15,6 +16,7 @@ interface OnboardingViewProps {
   onOpenClaude: () => Promise<OpenClaudeResult>;
   onPickClaudePath: () => Promise<PickAppPathResult>;
   onPickMcpConfig: () => Promise<PickMcpConfigResult>;
+  onInstallMcpConfig: (target: "claude") => Promise<InstallMcpConfigResult>;
   onClearManualMcpConfig: () => Promise<{ ok: boolean }>;
   onDownloadSkillZip: () => Promise<DownloadSkillZipResult>;
   onOpenSkillReleasesPage: () => Promise<{ ok: boolean }>;
@@ -45,6 +47,7 @@ export default function OnboardingView({
   onOpenClaude,
   onPickClaudePath,
   onPickMcpConfig,
+  onInstallMcpConfig,
   onClearManualMcpConfig,
   onDownloadSkillZip,
   onOpenSkillReleasesPage,
@@ -59,6 +62,7 @@ export default function OnboardingView({
   const [pickingConfig, setPickingConfig] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
   const [pickInfo, setPickInfo] = useState<string | null>(null);
+  const [installingMcp, setInstallingMcp] = useState(false);
 
   const [downloadingSkill, setDownloadingSkill] = useState(false);
   const [skillDownloadError, setSkillDownloadError] = useState<string | null>(
@@ -116,6 +120,27 @@ export default function OnboardingView({
       }
     } finally {
       setPickingConfig(false);
+    }
+  };
+  const handleInstallMcp = async () => {
+    setPickError(null);
+    setPickInfo(null);
+    setInstallingMcp(true);
+    try {
+      const result = await onInstallMcpConfig("claude");
+      if (!result.ok) {
+        setPickError(result.error ?? t("onboarding.mcp.installError"));
+        return;
+      }
+      setPickInfo(
+        t("onboarding.mcp.installInfo", {
+          configPath: result.configPath,
+          defaultValue:
+            "ToraSEO MCP entry was added to {{configPath}}. Restart Claude Desktop to reload MCP servers.",
+        }),
+      );
+    } finally {
+      setInstallingMcp(false);
     }
   };
 
@@ -222,6 +247,17 @@ export default function OnboardingView({
           />
 
           <div className="flex flex-wrap items-center gap-2 pl-11 text-xs text-outline/60">
+            <button
+              type="button"
+              onClick={handleInstallMcp}
+              disabled={installingMcp}
+              className="rounded-md border border-outline/20 bg-white px-2 py-1 hover:bg-orange-50 disabled:opacity-50"
+            >
+              {installingMcp
+                ? t("onboarding.mcp.installing")
+                : t("onboarding.mcp.installButton")}
+            </button>
+
             <button
               type="button"
               onClick={handlePickConfig}

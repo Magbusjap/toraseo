@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import type {
   DetectorStatus,
   DownloadSkillZipResult,
+  InstallMcpConfigResult,
   OpenClaudeResult,
   OpenCodexResult,
   PickAppPathResult,
@@ -30,8 +31,10 @@ import type {
  *   - pickMcpConfig() — open file dialog and persist user choice
  *   - clearManualMcpConfig() — revert to canonical-only lookup
  *
- * Skill (hybrid detect-or-confirm):
- *   - downloadSkillZip() — fetch latest skill-v* ZIP into Downloads
+ * Instruction packages:
+ *   - downloadSkillZip() — fetch latest Claude Bridge ZIP into Downloads
+ *   - downloadCodexWorkflowZip() — fetch latest Codex Workflow ZIP
+ *     into Downloads
  *   - openSkillReleasesPage() — fallback to GitHub UI
  *   - confirmSkillInstalled() — write manual marker
  *   - clearSkillConfirmation() — undo manual marker
@@ -42,6 +45,9 @@ import type {
 export interface UseDetectorReturn {
   status: DetectorStatus | null;
   checkNow: () => Promise<DetectorStatus>;
+  installMcpConfig: (
+    target: "claude" | "codex",
+  ) => Promise<InstallMcpConfigResult>;
   openClaude: () => Promise<OpenClaudeResult>;
   openCodex: () => Promise<OpenCodexResult>;
   pickClaudePath: () => Promise<PickAppPathResult>;
@@ -49,6 +55,7 @@ export interface UseDetectorReturn {
   pickMcpConfig: () => Promise<PickMcpConfigResult>;
   clearManualMcpConfig: () => Promise<{ ok: boolean }>;
   downloadSkillZip: () => Promise<DownloadSkillZipResult>;
+  downloadCodexWorkflowZip: () => Promise<DownloadSkillZipResult>;
   openSkillReleasesPage: () => Promise<{ ok: boolean }>;
   confirmSkillInstalled: () => Promise<{ ok: boolean }>;
   clearSkillConfirmation: () => Promise<{ ok: boolean }>;
@@ -112,6 +119,19 @@ export function useDetector(): UseDetectorReturn {
     return window.toraseo.detector.downloadSkillZip();
   }, []);
 
+  const installMcpConfig = useCallback(
+    async (target: "claude" | "codex") => {
+      const result = await window.toraseo.detector.installMcpConfig(target);
+      void checkNow();
+      return result;
+    },
+    [checkNow],
+  );
+
+  const downloadCodexWorkflowZip = useCallback(async () => {
+    return window.toraseo.detector.downloadCodexWorkflowZip();
+  }, []);
+
   const openSkillReleasesPage = useCallback(async () => {
     return window.toraseo.detector.openSkillReleasesPage();
   }, []);
@@ -127,6 +147,7 @@ export function useDetector(): UseDetectorReturn {
   return {
     status,
     checkNow,
+    installMcpConfig,
     openClaude,
     openCodex,
     pickClaudePath,
@@ -134,6 +155,7 @@ export function useDetector(): UseDetectorReturn {
     pickMcpConfig,
     clearManualMcpConfig,
     downloadSkillZip,
+    downloadCodexWorkflowZip,
     openSkillReleasesPage,
     confirmSkillInstalled,
     clearSkillConfirmation,
