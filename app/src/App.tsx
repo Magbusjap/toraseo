@@ -1934,38 +1934,41 @@ function MainApp() {
         );
         return false;
       }
-    } else if (detectorStatus && !detectorStatus.allGreen) {
-      if (detectorStatus.skillInstalled) {
-        const copied = await copyTextToClipboard(
-          buildClaudeSkillFallbackArticleTextPrompt({
-            action,
-            data,
-            locale: currentLocale,
-            analysisRole: analysisRole.trim() || undefined,
-            textPlatform,
-            customPlatform: customPlatform.trim() || undefined,
-            selectedTools: toolIds,
-          }),
-        );
-        if (!copied) {
-          setPreflightError(
-            t("preflight.skillFallbackCopyFailed", {
-              defaultValue:
-                "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+    } else {
+      const fresh = await checkNow();
+      if (!fresh.allGreen) {
+        if (fresh.skillInstalled) {
+          const copied = await copyTextToClipboard(
+            buildClaudeSkillFallbackArticleTextPrompt({
+              action,
+              data,
+              locale: currentLocale,
+              analysisRole: analysisRole.trim() || undefined,
+              textPlatform,
+              customPlatform: customPlatform.trim() || undefined,
+              selectedTools: toolIds,
             }),
           );
-          return false;
+          if (!copied) {
+            setPreflightError(
+              t("preflight.skillFallbackCopyFailed", {
+                defaultValue:
+                  "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+              }),
+            );
+            return false;
+          }
+          if (action === "scan") {
+            setArticleTextScanStartedOnce(true);
+          } else {
+            setArticleTextSolutionProvidedOnce(true);
+          }
+          showPromptCopiedToast();
+          return true;
         }
-        if (action === "scan") {
-          setArticleTextScanStartedOnce(true);
-        } else {
-          setArticleTextSolutionProvidedOnce(true);
-        }
-        showPromptCopiedToast();
-        return true;
+        setPreflightError(t("preflight.depsFailed"));
+        return false;
       }
-      setPreflightError(t("preflight.depsFailed"));
-      return false;
     }
 
     if (action === "scan") {
@@ -2043,33 +2046,36 @@ function MainApp() {
           );
           return false;
         }
-      } else if (detectorStatus && !detectorStatus.allGreen) {
-        if (detectorStatus.skillInstalled) {
-          const copied = await copyTextToClipboard(
-            buildClaudeSkillFallbackPageByUrlPrompt({
-              data: normalizedData,
-              locale: currentLocale,
-              textPlatform,
-              customPlatform: customPlatform.trim() || undefined,
-              analysisRole: analysisRole.trim() || undefined,
-              selectedTools: toolIds,
-            }),
-          );
-          if (!copied) {
-            setPreflightError(
-              t("preflight.skillFallbackCopyFailed", {
-                defaultValue:
-                  "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+      } else {
+        const fresh = await checkNow();
+        if (!fresh.allGreen) {
+          if (fresh.skillInstalled) {
+            const copied = await copyTextToClipboard(
+              buildClaudeSkillFallbackPageByUrlPrompt({
+                data: normalizedData,
+                locale: currentLocale,
+                textPlatform,
+                customPlatform: customPlatform.trim() || undefined,
+                analysisRole: analysisRole.trim() || undefined,
+                selectedTools: toolIds,
               }),
             );
-            return false;
+            if (!copied) {
+              setPreflightError(
+                t("preflight.skillFallbackCopyFailed", {
+                  defaultValue:
+                    "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+                }),
+              );
+              return false;
+            }
+            setPageByUrlStartedOnce(true);
+            showPromptCopiedToast();
+            return "fallback";
           }
-          setPageByUrlStartedOnce(true);
-          showPromptCopiedToast();
-          return "fallback";
+          setPreflightError(t("preflight.depsFailed"));
+          return false;
         }
-        setPreflightError(t("preflight.depsFailed"));
-        return false;
       }
 
       setPageByUrlStartedOnce(true);
@@ -2181,33 +2187,36 @@ function MainApp() {
           );
           return false;
         }
-      } else if (detectorStatus && !detectorStatus.allGreen) {
-        if (detectorStatus.skillInstalled) {
-          const copied = await copyTextToClipboard(
-            buildClaudeSkillFallbackArticleComparePrompt({
-              data: compareData,
-              locale: currentLocale,
-              goalMode,
-              textPlatform,
-              customPlatform: customPlatform.trim() || undefined,
-              selectedTools: toolIds,
-            }),
-          );
-          if (!copied) {
-            setPreflightError(
-              t("preflight.skillFallbackCopyFailed", {
-                defaultValue:
-                  "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+      } else {
+        const fresh = await checkNow();
+        if (!fresh.allGreen) {
+          if (fresh.skillInstalled) {
+            const copied = await copyTextToClipboard(
+              buildClaudeSkillFallbackArticleComparePrompt({
+                data: compareData,
+                locale: currentLocale,
+                goalMode,
+                textPlatform,
+                customPlatform: customPlatform.trim() || undefined,
+                selectedTools: toolIds,
               }),
             );
-            return false;
+            if (!copied) {
+              setPreflightError(
+                t("preflight.skillFallbackCopyFailed", {
+                  defaultValue:
+                    "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+                }),
+              );
+              return false;
+            }
+            setArticleCompareStartedOnce(true);
+            showPromptCopiedToast();
+            return "fallback";
           }
-          setArticleCompareStartedOnce(true);
-          showPromptCopiedToast();
-          return "fallback";
+          setPreflightError(t("preflight.depsFailed"));
+          return false;
         }
-        setPreflightError(t("preflight.depsFailed"));
-        return false;
       }
 
       setArticleCompareStartedOnce(true);
@@ -2444,30 +2453,33 @@ function MainApp() {
         );
         return false;
       }
-    } else if (detectorStatus && !detectorStatus.allGreen) {
-      if (detectorStatus.skillInstalled) {
-        const copied = await copyTextToClipboard(
-          buildClaudeSkillFallbackSiteComparePrompt({
-            data: normalizedData,
-            locale: currentLocale,
-            selectedTools: toolIds,
-          }),
-        );
-        if (!copied) {
-          setPreflightError(
-            t("preflight.skillFallbackCopyFailed", {
-              defaultValue:
-                "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+    } else {
+      const fresh = await checkNow();
+      if (!fresh.allGreen) {
+        if (fresh.skillInstalled) {
+          const copied = await copyTextToClipboard(
+            buildClaudeSkillFallbackSiteComparePrompt({
+              data: normalizedData,
+              locale: currentLocale,
+              selectedTools: toolIds,
             }),
           );
-          return false;
+          if (!copied) {
+            setPreflightError(
+              t("preflight.skillFallbackCopyFailed", {
+                defaultValue:
+                  "Claude Bridge Instructions are installed, but ToraSEO could not copy the fallback prompt.",
+              }),
+            );
+            return false;
+          }
+          setSiteCompareStartedOnce(true);
+          showPromptCopiedToast();
+          return "fallback";
         }
-        setSiteCompareStartedOnce(true);
-        showPromptCopiedToast();
-        return "fallback";
+        setPreflightError(t("preflight.depsFailed"));
+        return false;
       }
-      setPreflightError(t("preflight.depsFailed"));
-      return false;
     }
 
     setSiteCompareStartedOnce(true);
@@ -3134,6 +3146,10 @@ function MainApp() {
               onArticleCompareCancel={handleCancelArticleCompare}
               onSiteCompareRun={handleRunSiteCompare}
               onSiteCompareCancel={handleCancelSiteCompare}
+              onOpenFormulas={handleOpenFormulas}
+              showArticleTextToraRank={
+                executionMode === "bridge" && bridgeProgram === "codex"
+              }
             />
           ) : (
             <NativeLayout

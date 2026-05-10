@@ -59,10 +59,12 @@ const ENTRIES: ChangelogEntry[] = [
           ru: [
             "Исправлено скачивание Claude Bridge Instructions: приложение больше не берёт старый skill-v0.7, а использует ZIP из актуального app-релиза.",
             "Исправлена путаница между историческими skill-релизами и единым релизом приложения.",
+            "Claude Desktop теперь получает свежую проверку запуска перед bridge-анализом, как Codex, поэтому статус не ждёт следующего 5-секундного фонового опроса.",
           ],
           en: [
             "Fixed Claude Bridge Instructions download: the app no longer pulls the old skill-v0.7 package and now uses the ZIP from the current app release.",
             "Fixed confusion between historical skill releases and the unified app release.",
+            "Claude Desktop now gets a fresh running-state check before bridge analysis, matching Codex instead of waiting for the next 5-second background poll.",
           ],
         },
       },
@@ -398,7 +400,7 @@ export default function ChangelogView({
                   </p>
                 )}
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="mt-4 grid gap-3 min-[1025px]:grid-cols-2">
                   {entry.groups.map((group) => (
                     <section
                       key={group.title.en}
