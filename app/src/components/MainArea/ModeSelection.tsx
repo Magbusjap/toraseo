@@ -14,6 +14,7 @@ import {
   Wrench,
   XCircle,
 } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import OnboardingView from "../Onboarding/OnboardingView";
@@ -32,6 +33,7 @@ import type {
   CurrentScanState,
   DetectorStatus,
   DownloadSkillZipResult,
+  InstallMcpConfigResult,
   OpenClaudeResult,
   OpenCodexResult,
   PickAppPathResult,
@@ -76,8 +78,12 @@ interface ModeSelectionProps {
   onOpenClaude: () => Promise<OpenClaudeResult>;
   onPickClaudePath: () => Promise<PickAppPathResult>;
   onPickMcpConfig: () => Promise<PickMcpConfigResult>;
+  onInstallMcpConfig: (
+    target: "claude" | "codex",
+  ) => Promise<InstallMcpConfigResult>;
   onClearManualMcpConfig: () => Promise<{ ok: boolean }>;
   onDownloadSkillZip: () => Promise<DownloadSkillZipResult>;
+  onDownloadCodexWorkflowZip: () => Promise<DownloadSkillZipResult>;
   onOpenSkillReleasesPage: () => Promise<{ ok: boolean }>;
   onConfirmSkillInstalled: () => Promise<{ ok: boolean }>;
   onClearSkillConfirmation: () => Promise<{ ok: boolean }>;
@@ -110,8 +116,10 @@ export default function ModeSelection({
   onOpenClaude,
   onPickClaudePath,
   onPickMcpConfig,
+  onInstallMcpConfig,
   onClearManualMcpConfig,
   onDownloadSkillZip,
+  onDownloadCodexWorkflowZip,
   onOpenSkillReleasesPage,
   onConfirmSkillInstalled,
   onClearSkillConfirmation,
@@ -245,8 +253,10 @@ export default function ModeSelection({
             onOpenClaude={onOpenClaude}
             onPickClaudePath={onPickClaudePath}
             onPickMcpConfig={onPickMcpConfig}
+            onInstallMcpConfig={(target) => onInstallMcpConfig(target)}
             onClearManualMcpConfig={onClearManualMcpConfig}
             onDownloadSkillZip={onDownloadSkillZip}
+            onDownloadCodexWorkflowZip={onDownloadCodexWorkflowZip}
             onOpenSkillReleasesPage={onOpenSkillReleasesPage}
             onConfirmSkillInstalled={onConfirmSkillInstalled}
             onClearSkillConfirmation={onClearSkillConfirmation}
@@ -493,8 +503,10 @@ function BridgeSetup({
   onOpenClaude,
   onPickClaudePath,
   onPickMcpConfig,
+  onInstallMcpConfig,
   onClearManualMcpConfig,
   onDownloadSkillZip,
+  onDownloadCodexWorkflowZip,
   onOpenSkillReleasesPage,
   onConfirmSkillInstalled,
   onClearSkillConfirmation,
@@ -513,13 +525,30 @@ function BridgeSetup({
   onOpenClaude: () => Promise<OpenClaudeResult>;
   onPickClaudePath: () => Promise<PickAppPathResult>;
   onPickMcpConfig: () => Promise<PickMcpConfigResult>;
+  onInstallMcpConfig: (
+    target: "claude" | "codex",
+  ) => Promise<InstallMcpConfigResult>;
   onClearManualMcpConfig: () => Promise<{ ok: boolean }>;
   onDownloadSkillZip: () => Promise<DownloadSkillZipResult>;
+  onDownloadCodexWorkflowZip: () => Promise<DownloadSkillZipResult>;
   onOpenSkillReleasesPage: () => Promise<{ ok: boolean }>;
   onConfirmSkillInstalled: () => Promise<{ ok: boolean }>;
   onClearSkillConfirmation: () => Promise<{ ok: boolean }>;
 }) {
   const { t } = useTranslation();
+  const [downloadingCodexWorkflow, setDownloadingCodexWorkflow] =
+    useState(false);
+  const [codexWorkflowDownloadError, setCodexWorkflowDownloadError] =
+    useState<string | null>(null);
+  const [codexWorkflowDownloadInfo, setCodexWorkflowDownloadInfo] =
+    useState<string | null>(null);
+  const [installingCodexMcp, setInstallingCodexMcp] = useState(false);
+  const [codexMcpInstallInfo, setCodexMcpInstallInfo] = useState<string | null>(
+    null,
+  );
+  const [codexMcpInstallError, setCodexMcpInstallError] = useState<string | null>(
+    null,
+  );
   const codexVerificationState: "pending" | "waiting" | "verified" | "failed" =
     codexHandshakeVerified
       ? "verified"
@@ -539,6 +568,58 @@ function BridgeSetup({
     if (!result.ok && result.needsManualPath) {
       await onPickCodexPath();
       await onOpenCodex();
+    }
+  };
+  const handleDownloadCodexWorkflow = async () => {
+    setCodexWorkflowDownloadError(null);
+    setCodexWorkflowDownloadInfo(null);
+    setDownloadingCodexWorkflow(true);
+    try {
+      const result = await onDownloadCodexWorkflowZip();
+      if (!result.ok) {
+        setCodexWorkflowDownloadError(
+          result.error ??
+            t("modeSelection.bridge.codexWorkflowDownloadFailed", {
+              defaultValue: "Codex Workflow ZIP download failed.",
+            }),
+        );
+        return;
+      }
+      setCodexWorkflowDownloadInfo(
+        t("modeSelection.bridge.codexWorkflowDownloaded", {
+          defaultValue:
+            "ZIP downloaded ({{tag}}). The folder with the file is open — unzip it into your Codex skills folder so the final path is ~/.codex/skills/toraseo-codex-workflow/SKILL.md. After installing, return here, copy the setup prompt, and run it in Codex.",
+          tag: result.releaseTag,
+        }),
+      );
+    } finally {
+      setDownloadingCodexWorkflow(false);
+    }
+  };
+  const handleInstallCodexMcp = async () => {
+    setCodexMcpInstallInfo(null);
+    setCodexMcpInstallError(null);
+    setInstallingCodexMcp(true);
+    try {
+      const result = await onInstallMcpConfig("codex");
+      if (!result.ok) {
+        setCodexMcpInstallError(
+          result.error ??
+            t("modeSelection.bridge.codexMcpInstallFailed", {
+              defaultValue: "Could not update Codex MCP config.",
+            }),
+        );
+        return;
+      }
+      setCodexMcpInstallInfo(
+        t("modeSelection.bridge.codexMcpInstalled", {
+          defaultValue:
+            "ToraSEO MCP entry was added to {{configPath}}. Restart Codex so it reloads MCP servers.",
+          configPath: result.configPath,
+        }),
+      );
+    } finally {
+      setInstallingCodexMcp(false);
     }
   };
 
@@ -724,7 +805,34 @@ function BridgeSetup({
                       })
                     : undefined
                 }
-              />
+              >
+                <div className="flex flex-wrap items-center gap-2 pl-11 text-xs text-outline/60">
+                  <button
+                    type="button"
+                    onClick={() => void handleInstallCodexMcp()}
+                    disabled={installingCodexMcp}
+                    className="rounded-md border border-outline/20 bg-white px-2 py-1 hover:bg-orange-50 disabled:opacity-50"
+                  >
+                    {installingCodexMcp
+                      ? t("modeSelection.bridge.codexMcpInstalling", {
+                          defaultValue: "Configuring...",
+                        })
+                      : t("modeSelection.bridge.codexMcpInstallButton", {
+                          defaultValue: "Configure MCP for Codex",
+                        })}
+                  </button>
+                </div>
+                {codexMcpInstallError && (
+                  <div className="ml-11 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+                    {codexMcpInstallError}
+                  </div>
+                )}
+                {codexMcpInstallInfo && (
+                  <div className="ml-11 rounded-md border border-orange-200 bg-orange-50 p-2 text-xs text-orange-800">
+                    {codexMcpInstallInfo}
+                  </div>
+                )}
+              </CodexReadinessRow>
               <CodexReadinessRow
                 state={codexMcpState}
                 label={t("modeSelection.bridge.codexMcpLabel", {
@@ -788,7 +896,43 @@ function BridgeSetup({
                                 "Not confirmed yet. Run the Codex setup prompt so ToraSEO can verify Codex Workflow Instructions.",
                             })
                 }
-              />
+              >
+                <div className="flex flex-wrap items-center gap-2 pl-11 text-xs text-outline/60">
+                  <button
+                    type="button"
+                    onClick={() => void handleDownloadCodexWorkflow()}
+                    disabled={downloadingCodexWorkflow}
+                    className="rounded-md border border-outline/20 bg-white px-2 py-1 hover:bg-orange-50 disabled:opacity-50"
+                  >
+                    {downloadingCodexWorkflow
+                      ? t("modeSelection.bridge.codexWorkflowDownloading", {
+                          defaultValue: "Downloading...",
+                        })
+                      : t("modeSelection.bridge.downloadCodexWorkflowZip", {
+                          defaultValue: "Download Codex ZIP",
+                        })}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void onOpenSkillReleasesPage()}
+                    className="rounded-md border border-outline/20 bg-white px-2 py-1 hover:bg-orange-50"
+                  >
+                    {t("modeSelection.bridge.openInstructionReleases", {
+                      defaultValue: "Open releases page",
+                    })}
+                  </button>
+                </div>
+                {codexWorkflowDownloadError && (
+                  <div className="ml-11 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+                    {codexWorkflowDownloadError}
+                  </div>
+                )}
+                {codexWorkflowDownloadInfo && (
+                  <div className="ml-11 rounded-md border border-orange-200 bg-orange-50 p-2 text-xs text-orange-800">
+                    {codexWorkflowDownloadInfo}
+                  </div>
+                )}
+              </CodexReadinessRow>
             </div>
           </div>
         </div>
@@ -899,6 +1043,7 @@ function CodexReadinessRow({
   hint,
   action,
   pathWarning,
+  children,
 }: {
   satisfied?: boolean;
   state?: "pending" | "waiting" | "verified" | "failed";
@@ -909,6 +1054,7 @@ function CodexReadinessRow({
     onClick: () => Promise<void> | void;
   };
   pathWarning?: string;
+  children?: ReactNode;
 }) {
   const effectiveState = state ?? (satisfied ? "verified" : "failed");
   const visualState =
@@ -959,6 +1105,7 @@ function CodexReadinessRow({
           {pathWarning}
         </p>
       )}
+      {children}
     </div>
   );
 }

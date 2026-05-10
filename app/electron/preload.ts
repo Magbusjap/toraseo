@@ -26,6 +26,7 @@ import type {
   DetectorStatus,
   DownloadProgress,
   DownloadSkillZipResult,
+  InstallMcpConfigResult,
   OpenClaudeResult,
   OpenCodexResult,
   PickAppPathResult,
@@ -76,12 +77,14 @@ const UPDATER = {
 // Mirror of DETECTOR_CHANNELS from electron/detector.ts.
 const DETECTOR = {
   checkNow: "toraseo:detector:check-now",
+  installMcpConfig: "toraseo:detector:install-mcp-config",
   pickMcpConfig: "toraseo:detector:pick-mcp-config",
   clearManualMcpConfig: "toraseo:detector:clear-manual-mcp-config",
   getManualMcpConfig: "toraseo:detector:get-manual-mcp-config",
   confirmSkillInstalled: "toraseo:detector:confirm-skill-installed",
   clearSkillConfirmation: "toraseo:detector:clear-skill-confirmation",
   downloadSkillZip: "toraseo:detector:download-skill-zip",
+  downloadCodexWorkflowZip: "toraseo:detector:download-codex-workflow-zip",
   openSkillReleasesPage: "toraseo:detector:open-skill-releases-page",
   statusUpdate: "toraseo:detector:status-update",
 } as const;
@@ -230,6 +233,13 @@ const api: ToraseoApi = {
       return ipcRenderer.invoke(DETECTOR.checkNow) as Promise<DetectorStatus>;
     },
 
+    installMcpConfig: (target) => {
+      return ipcRenderer.invoke(
+        DETECTOR.installMcpConfig,
+        target,
+      ) as Promise<InstallMcpConfigResult>;
+    },
+
     pickMcpConfig: () => {
       return ipcRenderer.invoke(
         DETECTOR.pickMcpConfig,
@@ -251,6 +261,12 @@ const api: ToraseoApi = {
     downloadSkillZip: () => {
       return ipcRenderer.invoke(
         DETECTOR.downloadSkillZip,
+      ) as Promise<DownloadSkillZipResult>;
+    },
+
+    downloadCodexWorkflowZip: () => {
+      return ipcRenderer.invoke(
+        DETECTOR.downloadCodexWorkflowZip,
       ) as Promise<DownloadSkillZipResult>;
     },
 

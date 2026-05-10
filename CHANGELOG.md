@@ -34,26 +34,51 @@ should present one unified asset list.
 
 Current active app release candidate:
 
-- **ToraSEO 0.0.9 - analysis-type expansion groundwork.**
-- The app now shows the approved first-wave `0.0.9` analysis-type map
-  on the home screen.
-- `Site by URL` now includes the first approved expansion tool:
-  `detect_stack`.
-- Codex Workflow Instructions and Claude Bridge Instructions now carry
-  updated analysis-type and formula-policy guidance.
+- **ToraSEO 0.1.0 - official release preparation.**
+- The desktop app now prepares a bundled MCP runtime for packaged builds.
+- Claude Desktop MCP config can be updated from the app through
+  `claude_desktop_config.json`.
+- Codex MCP config can be updated from the app through
+  `~/.codex/config.toml`.
+- Claude and Codex instruction ZIP downloads now target the unified app
+  release assets.
 
 Current roadmap note:
 
 - App `0.0.7` is the released dual-mode baseline.
 - App `0.0.8` is the released foundation for unified public release
   packaging, Codex bridge reliability, and native chat polish.
-- App `0.0.9` is the active release candidate for analysis-type
-  expansion and `Site by URL` platform-aware stack detection.
+- App `0.0.9` is the analysis-type expansion release candidate.
+- App `0.1.0` is the active official release candidate with bundled MCP
+  runtime and in-app setup for Claude Desktop and Codex.
 - Future skill/instruction-package work should stay aligned with the
   app release asset list instead of creating separate public release
   pages by default.
 
 ---
+
+## [ToraSEO 0.1.0] - In development
+
+Official release preparation focused on making MCP + Instructions easier
+to install and less dependent on local development paths.
+
+### Added
+
+- Packaged MCP runtime generation for desktop builds. The app now
+  prepares the MCP server and runtime dependencies before
+  `dist` / `release` packaging.
+- Automatic MCP setup for Claude Desktop through
+  `claude_desktop_config.json`.
+- Automatic MCP setup for Codex through `~/.codex/config.toml`.
+- Codex Workflow Instructions ZIP download directly from the app.
+
+### Fixed
+
+- Claude Bridge Instructions download no longer pulls the old standalone
+  `skill-v0.7` package. It now uses the ZIP attached to the current
+  unified app release.
+- Reduced confusion between historical skill releases and the unified app
+  release asset list.
 
 ## [ToraSEO 0.0.9] - 2026-05-09
 

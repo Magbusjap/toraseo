@@ -24,9 +24,53 @@ type ChangelogEntry = {
 
 const ENTRIES: ChangelogEntry[] = [
   {
+    version: "ToraSEO 0.1.0",
+    date: "In development",
+    status: "active",
+    title: {
+      ru: "Встроенный MCP runtime и установка из приложения",
+      en: "Bundled MCP runtime and in-app setup",
+    },
+    summary: {
+      ru: "Версия 0.1.0 готовит официальный релиз: MCP поставляется вместе с приложением, а Claude Desktop и Codex можно настраивать прямо из ToraSEO.",
+      en: "Version 0.1.0 prepares the official release: MCP ships with the app, and Claude Desktop plus Codex can be configured directly from ToraSEO.",
+    },
+    groups: [
+      {
+        title: { ru: "Добавлено", en: "Added" },
+        items: {
+          ru: [
+            "Добавлен packaged MCP runtime: приложение готовит MCP-сервер и его зависимости как часть desktop-сборки.",
+            "Добавлена автоматическая настройка MCP для Claude Desktop через claude_desktop_config.json.",
+            "Добавлена автоматическая настройка MCP для Codex через ~/.codex/config.toml.",
+            "Добавлено скачивание Codex Workflow Instructions ZIP прямо из приложения.",
+          ],
+          en: [
+            "Added packaged MCP runtime: the app prepares the MCP server and its dependencies as part of the desktop build.",
+            "Added automatic MCP setup for Claude Desktop through claude_desktop_config.json.",
+            "Added automatic MCP setup for Codex through ~/.codex/config.toml.",
+            "Added Codex Workflow Instructions ZIP download directly from the app.",
+          ],
+        },
+      },
+      {
+        title: { ru: "Исправлено", en: "Fixed" },
+        items: {
+          ru: [
+            "Исправлено скачивание Claude Bridge Instructions: приложение больше не берёт старый skill-v0.7, а использует ZIP из актуального app-релиза.",
+            "Исправлена путаница между историческими skill-релизами и единым релизом приложения.",
+          ],
+          en: [
+            "Fixed Claude Bridge Instructions download: the app no longer pulls the old skill-v0.7 package and now uses the ZIP from the current app release.",
+            "Fixed confusion between historical skill releases and the unified app release.",
+          ],
+        },
+      },
+    ],
+  },
+  {
     version: "ToraSEO 0.0.9",
     date: "2026-05-09",
-    status: "active",
     title: {
       ru: "Новые типы анализа, визуальные отчеты и документация",
       en: "Analysis expansion, visual reports, and documentation",
@@ -259,7 +303,7 @@ const COPY = {
     eyebrow: "CHANGELOG",
     title: "История обновлений",
     lead:
-      "Краткая история изменений ToraSEO. Для 0.0.9 показаны основные изменения продукта, интерфейса, режимов анализа, документации и релизной подготовки.",
+      "Краткая история изменений ToraSEO. Для 0.1.0 показаны подготовка официального релиза, встроенный MCP runtime и настройка Claude Desktop/Codex из приложения.",
     active: "активная версия",
     versionMeta:
       "Версии функций: модули анализа {{version}}, схемы результата {{version}}, промпты {{version}}, формулы score — в разработке.",
@@ -270,7 +314,7 @@ const COPY = {
     eyebrow: "CHANGELOG",
     title: "Changelog",
     lead:
-      "A compact ToraSEO change history. Version 0.0.9 highlights product, interface, analysis mode, documentation, and release preparation updates.",
+      "A compact ToraSEO change history. Version 0.1.0 highlights official-release preparation, bundled MCP runtime, and in-app Claude Desktop/Codex setup.",
     active: "active version",
     versionMeta:
       "Feature versions: analysis modules {{version}}, result schemas {{version}}, prompts {{version}}, score formulas in development.",

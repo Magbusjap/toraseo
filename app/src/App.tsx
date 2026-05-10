@@ -811,6 +811,7 @@ function MainApp() {
   const {
     status: detectorStatus,
     checkNow,
+    installMcpConfig,
     openClaude,
     openCodex,
     pickClaudePath,
@@ -818,6 +819,7 @@ function MainApp() {
     pickMcpConfig,
     clearManualMcpConfig,
     downloadSkillZip,
+    downloadCodexWorkflowZip,
     openSkillReleasesPage,
     confirmSkillInstalled,
     clearSkillConfirmation,
@@ -3087,8 +3089,10 @@ function MainApp() {
               onOpenClaude={openClaude}
               onPickClaudePath={pickClaudePath}
               onPickMcpConfig={pickMcpConfig}
+              onInstallMcpConfig={installMcpConfig}
               onClearManualMcpConfig={clearManualMcpConfig}
               onDownloadSkillZip={downloadSkillZip}
+              onDownloadCodexWorkflowZip={downloadCodexWorkflowZip}
               onOpenSkillReleasesPage={openSkillReleasesPage}
               onConfirmSkillInstalled={confirmSkillInstalled}
               onClearSkillConfirmation={clearSkillConfirmation}

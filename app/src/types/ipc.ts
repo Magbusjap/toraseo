@@ -222,11 +222,19 @@ export interface PickMcpConfigResult {
   errorMessage?: string;
 }
 
+export interface InstallMcpConfigResult {
+  ok: boolean;
+  target: "claude" | "codex";
+  configPath?: string;
+  mcpEntryPath?: string;
+  error?: string;
+}
+
 /**
- * Result of fetching the latest skill ZIP from GitHub Releases.
+ * Result of fetching the latest instruction ZIP from GitHub Releases.
  * On success the file is in user's Downloads folder and the
  * Downloads folder is opened with the file selected, ready to be
- * dragged into Claude Desktop's Settings → Skills.
+ * dragged into Claude Desktop's Settings → Skills or unpacked for Codex.
  */
 export interface DownloadSkillZipResult {
   ok: boolean;
@@ -248,11 +256,13 @@ export interface DownloadSkillZipResult {
  * used when the canonical four-path lookup doesn't find Claude's
  * config (custom install, portable build, future Store hash change).
  *
- * Skill methods cover the hybrid detect-or-confirm flow:
- *   - downloadSkillZip(): fetch latest skill-v* release ZIP into
- *     user's Downloads and open the folder with file selected
+ * Instruction package methods cover the install helper flow:
+ *   - downloadSkillZip(): fetch latest Claude Bridge Instructions ZIP
+ *     from the app release into user's Downloads
+ *   - downloadCodexWorkflowZip(): fetch latest Codex Workflow
+ *     Instructions ZIP from the app release into user's Downloads
  *   - openSkillReleasesPage(): fallback that opens the GitHub
- *     releases page filtered to skill-v* tags
+ *     releases page with app and instruction-package assets
  *   - confirmSkillInstalled(): write the manual marker so the
  *     skill row turns green
  *   - clearSkillConfirmation(): undo confirmation; row goes red
@@ -263,6 +273,8 @@ export interface DetectorApi {
   onStatusUpdate(listener: (status: DetectorStatus) => void): () => void;
   /** Force a fresh check, bypassing the polling cache. */
   checkNow(): Promise<DetectorStatus>;
+  /** Install/update the bundled ToraSEO MCP config for an external client. */
+  installMcpConfig(target: "claude" | "codex"): Promise<InstallMcpConfigResult>;
   /** Open a file picker to choose claude_desktop_config.json manually. */
   pickMcpConfig(): Promise<PickMcpConfigResult>;
   /** Forget the manual MCP choice; revert to canonical-only lookup. */
@@ -271,7 +283,9 @@ export interface DetectorApi {
   getManualMcpConfig(): Promise<{ path: string | null }>;
   /** Download the latest skill ZIP from GitHub Releases. */
   downloadSkillZip(): Promise<DownloadSkillZipResult>;
-  /** Open the GitHub Releases page filtered to skill-v* tags. */
+  /** Download the latest Codex Workflow ZIP from GitHub Releases. */
+  downloadCodexWorkflowZip(): Promise<DownloadSkillZipResult>;
+  /** Open the GitHub Releases page with app and instruction-package assets. */
   openSkillReleasesPage(): Promise<{ ok: boolean }>;
   /** Mark Skill as installed (Claude Desktop manual flow). */
   confirmSkillInstalled(): Promise<{ ok: boolean }>;
