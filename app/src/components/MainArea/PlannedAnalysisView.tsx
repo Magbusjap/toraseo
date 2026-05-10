@@ -3,6 +3,7 @@ import {
   Film,
   Globe,
   Image,
+  Info,
   ListChecks,
   Music2,
   PanelTop,
@@ -10,6 +11,7 @@ import {
   SlidersHorizontal,
   Type,
   Video,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -77,6 +79,8 @@ interface PlannedAnalysisViewProps {
   onArticleCompareCancel: () => void;
   onSiteCompareRun: (data: SiteComparePromptData) => Promise<boolean | "fallback">;
   onSiteCompareCancel: () => void;
+  onOpenFormulas: () => void;
+  showArticleTextToraRank: boolean;
 }
 
 export default function PlannedAnalysisView({
@@ -108,6 +112,8 @@ export default function PlannedAnalysisView({
   onArticleCompareCancel,
   onSiteCompareRun,
   onSiteCompareCancel,
+  onOpenFormulas,
+  showArticleTextToraRank,
 }: PlannedAnalysisViewProps) {
   const { t } = useTranslation();
   const meta = ANALYSIS_TYPES.find((item) => item.id === analysisType);
@@ -230,7 +236,11 @@ export default function PlannedAnalysisView({
           articleTextState?.input?.action !== "solution" && (
           <section className="pb-8">
             {articleTextState ? (
-              <ArticleTextResultsDashboard state={articleTextState} />
+              <ArticleTextResultsDashboard
+                state={articleTextState}
+                onOpenFormulas={onOpenFormulas}
+                showToraRank={showArticleTextToraRank}
+              />
             ) : (
               <ApiArticleTextReportPanel
                 report={runtimeReport}
@@ -245,7 +255,11 @@ export default function PlannedAnalysisView({
           (articleTextState || runtimeReport || activeRun === "scan" || pageByUrlStartedOnce) && (
           <section className="pb-8">
             {articleTextState ? (
-              <ArticleTextResultsDashboard state={articleTextState} />
+              <ArticleTextResultsDashboard
+                state={articleTextState}
+                onOpenFormulas={onOpenFormulas}
+                showToraRank={showArticleTextToraRank}
+              />
             ) : (
               <ApiArticleTextReportPanel
                 report={runtimeReport}
@@ -3809,15 +3823,218 @@ function CompareActionPlan({ items }: { items: RuntimeArticleTextPriority[] }) {
   );
 }
 
+interface ToraRankResult {
+  value: number;
+  displayValue: string;
+  qualityScore: number;
+  positiveSignals: number;
+  penaltySignals: number;
+}
+
+function ToraRankHero({
+  rank,
+  onOpenDetails,
+  onOpenFormulas,
+}: {
+  rank: ToraRankResult;
+  onOpenDetails: () => void;
+  onOpenFormulas: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <section className="mt-5 rounded-lg border border-primary/25 bg-gradient-to-r from-orange-50 via-white to-amber-50 p-4 shadow-sm">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+            Tora Rank
+          </p>
+          <p className="mt-2 text-sm text-outline-900/60">
+            {t("plannedAnalysis.toraRank.scoreLabel", {
+              defaultValue: "Оценка по данному анализу:",
+            })}{" "}
+            <strong className="font-display text-2xl font-semibold text-outline-900">
+              {rank.displayValue} cgs
+            </strong>
+          </p>
+          <button
+            type="button"
+            onClick={onOpenDetails}
+            className="mt-3 inline-flex items-center gap-2 rounded-md border border-outline/15 bg-white px-3 py-1.5 text-xs font-semibold text-outline-900/70 transition hover:border-primary/40 hover:bg-orange-50"
+          >
+            <Info size={14} aria-hidden="true" />
+            {t("analysisPanel.actions.details", {
+              defaultValue: "Подробнее",
+            })}
+          </button>
+        </div>
+        <div className="flex justify-end sm:self-end">
+          <button
+            type="button"
+            onClick={onOpenFormulas}
+            className="rounded-md px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-white/80"
+          >
+            {t("plannedAnalysis.toraRank.about", {
+              defaultValue: "о Tora Rank",
+            })}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ToraRankModal({
+  rank,
+  onClose,
+  onOpenFormulas,
+}: {
+  rank: ToraRankResult;
+  onClose: () => void;
+  onOpenFormulas: () => void;
+}) {
+  const { t } = useTranslation();
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+  const openFormulas = () => {
+    onClose();
+    onOpenFormulas();
+  };
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-outline-900/35 p-4 backdrop-blur-sm"
+      role="presentation"
+      onMouseDown={onClose}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tora-rank-modal-title"
+        className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-outline/10 bg-white p-5 shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              Tora Rank
+            </p>
+            <h3
+              id="tora-rank-modal-title"
+              className="mt-2 font-display text-2xl font-semibold text-outline-900"
+            >
+              {t("plannedAnalysis.toraRank.modalTitle", {
+                defaultValue: "Как читать этот счёт",
+              })}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-outline/10 bg-white p-2 text-outline-900/55 transition hover:border-primary/30 hover:text-primary"
+            aria-label={t("plannedAnalysis.toraRank.close", {
+              defaultValue: "Закрыть",
+            })}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-lg border border-orange-200 bg-orange-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/50">
+            {t("plannedAnalysis.toraRank.currentScore", {
+              defaultValue: "Текущий результат",
+            })}
+          </p>
+          <p className="mt-2 font-display text-3xl font-semibold text-outline-900">
+            {rank.displayValue} <span className="text-lg text-outline-900/55">cgs</span>
+          </p>
+        </div>
+
+        <p className="mt-5 text-sm leading-relaxed text-outline-900/70">
+          {t("plannedAnalysis.toraRank.modalBody", {
+            defaultValue:
+              "Tora Rank показывает итоговую силу результата именно для анализа текста. Это не позиция в поиске и не гарантия трафика: счёт собирается из найденных преимуществ, штрафов и качества выбранных проверок.",
+          })}
+        </p>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg border border-green-200 bg-green-50/70 p-4">
+            <h4 className="text-sm font-semibold text-outline-900">
+              {t("plannedAnalysis.toraRank.raisesTitle", {
+                defaultValue: "Что повышает счёт",
+              })}
+            </h4>
+            <ul className="mt-3 space-y-2 text-sm leading-relaxed text-outline-900/65">
+              <li>{t("plannedAnalysis.toraRank.raiseStructure", { defaultValue: "ясная структура и логичный путь читателя" })}</li>
+              <li>{t("plannedAnalysis.toraRank.raiseIntent", { defaultValue: "понятный intent, сильный hook и SEO-подача" })}</li>
+              <li>{t("plannedAnalysis.toraRank.raiseOriginality", { defaultValue: "естественный стиль, конкретика и полезность" })}</li>
+            </ul>
+          </div>
+          <div className="rounded-lg border border-red-200 bg-red-50/70 p-4">
+            <h4 className="text-sm font-semibold text-outline-900">
+              {t("plannedAnalysis.toraRank.lowersTitle", {
+                defaultValue: "Что снижает счёт",
+              })}
+            </h4>
+            <ul className="mt-3 space-y-2 text-sm leading-relaxed text-outline-900/65">
+              <li>{t("plannedAnalysis.toraRank.lowerRepetition", { defaultValue: "водность, повторы и шаблонные фразы" })}</li>
+              <li>{t("plannedAnalysis.toraRank.lowerLogic", { defaultValue: "слабая логика, противоречия и неясный вывод" })}</li>
+              <li>{t("plannedAnalysis.toraRank.lowerRisk", { defaultValue: "рискованные утверждения и факты без проверки" })}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-lg border border-outline/10 bg-outline-900/[0.03] p-4">
+          <p className="font-mono text-sm leading-relaxed text-outline-900/70">
+            {t("plannedAnalysis.toraRank.exampleFormula", {
+              defaultValue:
+                "сила текста + intent + полезность - штрафы = итоговый Tora Rank в cgs",
+            })}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-outline-900/55">
+            <span className="rounded-full bg-white px-2.5 py-1">
+              +{rank.positiveSignals} {t("plannedAnalysis.toraRank.signalPoints", { defaultValue: "сигналов" })}
+            </span>
+            <span className="rounded-full bg-white px-2.5 py-1">
+              -{rank.penaltySignals} {t("plannedAnalysis.toraRank.penaltyPoints", { defaultValue: "штрафов" })}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={openFormulas}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-600"
+          >
+            {t("plannedAnalysis.toraRank.about", {
+              defaultValue: "о Tora Rank",
+            })}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function ArticleTextResultsDashboard({
   state,
+  onOpenFormulas,
+  showToraRank,
 }: {
   state: CurrentScanState | null;
+  onOpenFormulas: () => void;
+  showToraRank: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [toraRankModalOpen, setToraRankModalOpen] = useState(false);
   const evalLabEnabled = isEvalLabEnabled();
   if (
     state?.analysisType !== "article_text" &&
@@ -3843,6 +4060,7 @@ function ArticleTextResultsDashboard({
   const naturalnessWarnings =
     state.buffer.naturalness_indicators?.summary?.warning ?? 0;
   const articleSummary = buildArticleTextSummary(state, t);
+  const toraRank = buildArticleTextToraRank(articleSummary);
   const report = buildArticleTextReport(state, t, articleSummary);
   const canUseReport = report !== null && completedCount > 0;
   const canCopySourceText =
@@ -3994,6 +4212,21 @@ function ArticleTextResultsDashboard({
         <p className="mt-3 text-xs font-medium text-orange-700/75">
           {copyStatus ?? exportStatus}
         </p>
+      )}
+
+      {showToraRank && (
+        <ToraRankHero
+          rank={toraRank}
+          onOpenDetails={() => setToraRankModalOpen(true)}
+          onOpenFormulas={onOpenFormulas}
+        />
+      )}
+      {showToraRank && toraRankModalOpen && (
+        <ToraRankModal
+          rank={toraRank}
+          onClose={() => setToraRankModalOpen(false)}
+          onOpenFormulas={onOpenFormulas}
+        />
       )}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -6943,6 +7176,69 @@ function buildArticleTextSummary(
         defaultValue: "Re-run after edits",
       }),
     ],
+  };
+}
+
+function buildArticleTextToraRank(
+  articleSummary: RuntimeArticleTextSummary,
+): ToraRankResult {
+  const metric = (id: string) =>
+    articleSummary.metrics.find((item) => item.id === id)?.value ?? null;
+  const normalMetricIds = ["uniqueness", "syntax", "logic", "naturalness"];
+  const normalSignals = normalMetricIds
+    .map(metric)
+    .filter((value): value is number => typeof value === "number");
+  const aiProbability = metric("ai");
+  const inverseSignals =
+    typeof aiProbability === "number" ? [100 - aiProbability] : [];
+  const forecast = articleSummary.intentForecast;
+  const intentSignals = [
+    forecast?.hookScore ?? null,
+    forecast?.ctrPotential ?? null,
+    forecast?.trendPotential ?? null,
+  ].filter((value): value is number => typeof value === "number");
+  const qualitySignals = [...normalSignals, ...inverseSignals, ...intentSignals];
+  const qualityScore =
+    qualitySignals.length > 0
+      ? qualitySignals.reduce((sum, value) => sum + value, 0) /
+        qualitySignals.length
+      : 50;
+  const healthyDimensions = articleSummary.dimensions.filter(
+    (dimension) => dimension.status === "healthy",
+  ).length;
+  const watchDimensions = articleSummary.dimensions.filter(
+    (dimension) => dimension.status === "watch",
+  ).length;
+  const problemDimensions = articleSummary.dimensions.filter(
+    (dimension) => dimension.status === "problem",
+  ).length;
+  const highPriorities = articleSummary.priorities.filter(
+    (priority) => priority.priority === "high",
+  ).length;
+  const mediumPriorities = articleSummary.priorities.filter(
+    (priority) => priority.priority === "medium",
+  ).length;
+  const coverageFactor = 0.72 + (articleSummary.coverage.percent / 100) * 0.28;
+  const positiveSignals = Math.round(
+    qualityScore * 82 + healthyDimensions * 360 + intentSignals.length * 180,
+  );
+  const penaltySignals = Math.round(
+    problemDimensions * 950 +
+      watchDimensions * 360 +
+      highPriorities * 760 +
+      mediumPriorities * 280 +
+      articleSummary.warningCount * 260,
+  );
+  const rawValue =
+    (3600 + positiveSignals - penaltySignals) * coverageFactor;
+  const value = Math.max(500, Math.min(24000, Math.round(rawValue / 10) * 10));
+
+  return {
+    value,
+    displayValue: new Intl.NumberFormat(undefined).format(value),
+    qualityScore: Math.round(qualityScore),
+    positiveSignals,
+    penaltySignals,
   };
 }
 
