@@ -80,17 +80,42 @@ const CODEX_WORKFLOW_HANDSHAKE_MARKER = "verified-by-mcp-codex-workflow";
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 const FIRST_TOOL_TIMEOUT_MS = 30_000;
 const GLOBAL_TIMEOUT_MS = 5 * 60_000;
+const CODEX_HANDSHAKE_TIMEOUT_MS = 8 * 60_000;
+const CODEX_FIRST_TOOL_TIMEOUT_MS = 5 * 60_000;
+const CODEX_GLOBAL_TIMEOUT_MS = 20 * 60_000;
 const COMPLETION_GRACE_MS = 5_000;
 
-function usesAutomaticTimeouts(
+type BridgeTimeouts = {
+  handshakeMs: number;
+  firstToolMs: number;
+  globalMs: number;
+};
+
+function bridgeTimeouts(
   bridgeClient: BridgeClient,
   analysisType?: CurrentScanState["analysisType"],
-): boolean {
-  return (
+): BridgeTimeouts | null {
+  if (bridgeClient === "codex") {
+    return {
+      handshakeMs: CODEX_HANDSHAKE_TIMEOUT_MS,
+      firstToolMs: CODEX_FIRST_TOOL_TIMEOUT_MS,
+      globalMs: CODEX_GLOBAL_TIMEOUT_MS,
+    };
+  }
+
+  if (
     bridgeClient === "claude" &&
     analysisType !== "article_text" &&
     analysisType !== "article_compare"
-  );
+  ) {
+    return {
+      handshakeMs: HANDSHAKE_TIMEOUT_MS,
+      firstToolMs: FIRST_TOOL_TIMEOUT_MS,
+      globalMs: GLOBAL_TIMEOUT_MS,
+    };
+  }
+
+  return null;
 }
 
 function expectedHandshakeToken(bridgeClient: BridgeClient): string {
@@ -242,16 +267,17 @@ export async function startScan(
   clipboard.writeText(prompt);
 
   // Set up timers.
-  const handshakeTimer = usesAutomaticTimeouts(bridgeClient, state.analysisType)
+  const timeouts = bridgeTimeouts(bridgeClient, state.analysisType);
+  const handshakeTimer = timeouts
     ? setTimeout(() => {
         void onHandshakeTimeout(scanId);
-      }, HANDSHAKE_TIMEOUT_MS)
+      }, timeouts.handshakeMs)
     : null;
 
-  const globalTimer = usesAutomaticTimeouts(bridgeClient, state.analysisType)
+  const globalTimer = timeouts
     ? setTimeout(() => {
         void onGlobalTimeout(scanId);
-      }, GLOBAL_TIMEOUT_MS)
+      }, timeouts.globalMs)
     : null;
 
   activeTimers = {
@@ -361,15 +387,16 @@ export async function retryHandshake(): Promise<{
 
   // Restart timers (clear any old, set fresh).
   clearAllTimers();
-  const handshakeTimer = usesAutomaticTimeouts(reset.bridgeClient, reset.analysisType)
+  const timeouts = bridgeTimeouts(reset.bridgeClient, reset.analysisType);
+  const handshakeTimer = timeouts
     ? setTimeout(() => {
         void onHandshakeTimeout(reset.scanId);
-      }, HANDSHAKE_TIMEOUT_MS)
+      }, timeouts.handshakeMs)
     : null;
-  const globalTimer = usesAutomaticTimeouts(reset.bridgeClient, reset.analysisType)
+  const globalTimer = timeouts
     ? setTimeout(() => {
         void onGlobalTimeout(reset.scanId);
-      }, GLOBAL_TIMEOUT_MS)
+      }, timeouts.globalMs)
     : null;
   activeTimers = {
     scanId: reset.scanId,
@@ -412,14 +439,15 @@ export function observeBridgeState(state: CurrentScanState | null): void {
 
   if (state.status === "in_progress") {
     const hasStartedTools = Object.keys(state.buffer).length > 0;
+    const timeouts = bridgeTimeouts(state.bridgeClient, state.analysisType);
     if (
-      usesAutomaticTimeouts(state.bridgeClient, state.analysisType) &&
+      timeouts &&
       !hasStartedTools &&
       !activeTimers.firstToolTimer
     ) {
       activeTimers.firstToolTimer = setTimeout(() => {
         void onFirstToolTimeout(state.scanId);
-      }, FIRST_TOOL_TIMEOUT_MS);
+      }, timeouts.firstToolMs);
     }
     if (hasStartedTools && activeTimers.firstToolTimer) {
       clearTimeout(activeTimers.firstToolTimer);
@@ -477,7 +505,7 @@ async function onHandshakeTimeout(scanId: string): Promise<void> {
       code: "handshake_timeout",
       message:
         state.bridgeClient === "codex"
-          ? "Codex did not call verify_codex_workflow_loaded within 10 seconds. Check that Codex is running, ToraSEO MCP is connected, and Codex Workflow Instructions are loaded."
+          ? "Codex did not connect to this ToraSEO scan within 8 minutes. Check that the prompt was sent in Codex, ToraSEO MCP is connected, and Codex Workflow Instructions are loaded."
           : "Claude did not call verify_skill_loaded within 10 seconds. Check that Claude Desktop is running, MCP is connected, and Claude Bridge Instructions are loaded.",
     },
   });
@@ -510,7 +538,9 @@ async function onFirstToolTimeout(scanId: string): Promise<void> {
     error: {
       code: "no_tool_response",
       message:
-        "Handshake succeeded but no tools started within 30 seconds. Claude may not have understood the request.",
+        state.bridgeClient === "codex"
+          ? "Codex connected to the scan, but no analysis tools started within 5 minutes. Send the copied prompt again or restart the analysis."
+          : "Handshake succeeded but no tools started within 30 seconds. Claude may not have understood the request.",
     },
   });
 
@@ -548,7 +578,10 @@ async function onGlobalTimeout(scanId: string): Promise<void> {
         startedAt: finishedAt,
         completedAt: finishedAt,
         errorCode: "skipped_timeout",
-        errorMessage: "Tool was not called before global timeout (5min).",
+        errorMessage:
+          state.bridgeClient === "codex"
+            ? "Tool was not called before the Codex bridge timeout (20min)."
+            : "Tool was not called before global timeout (5min).",
       };
     } else if (buffer[toolId]!.status === "running") {
       buffer[toolId] = {
@@ -556,7 +589,10 @@ async function onGlobalTimeout(scanId: string): Promise<void> {
         status: "error",
         completedAt: finishedAt,
         errorCode: "skipped_timeout",
-        errorMessage: "Tool was running when global timeout fired.",
+        errorMessage:
+          state.bridgeClient === "codex"
+            ? "Tool was still running when the Codex bridge timeout fired."
+            : "Tool was running when global timeout fired.",
       };
     }
   }

@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS eval_cases (
   analysis_type TEXT NOT NULL,
   name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active',
+  check_language TEXT NOT NULL DEFAULT 'und',
   source_path TEXT,
   target_query TEXT,
   platform TEXT,
@@ -80,6 +81,105 @@ CREATE TABLE IF NOT EXISTS formula_versions (
   UNIQUE (analysis_type, version)
 );
 
+CREATE TABLE IF NOT EXISTS formula_test_runs (
+  id TEXT PRIMARY KEY,
+  case_id TEXT REFERENCES eval_cases(id) ON DELETE SET NULL,
+  run_id TEXT REFERENCES eval_runs(id) ON DELETE SET NULL,
+  comparison_id TEXT REFERENCES eval_comparisons(id) ON DELETE SET NULL,
+  formula_id TEXT REFERENCES formula_versions(id) ON DELETE SET NULL,
+  analysis_type TEXT NOT NULL DEFAULT 'article_text',
+  eval_batch_id TEXT,
+  same_text_group_id TEXT,
+  repeat_index INTEGER NOT NULL DEFAULT 1,
+  source_text_hash TEXT,
+  source_text_label TEXT,
+  check_language TEXT NOT NULL DEFAULT 'und',
+  mode TEXT NOT NULL DEFAULT 'manual',
+  provider_id TEXT,
+  model TEXT,
+  ai_intelligence_model TEXT,
+  ai_difference_percent REAL,
+  ai_power_label TEXT,
+  ai_power_score REAL,
+  ai_power_source TEXT,
+  ai_power_json TEXT NOT NULL DEFAULT '{}',
+  analysis_score_cgs REAL,
+  analysis_score_percent REAL,
+  expected_score_cgs REAL,
+  manual_score_cgs REAL,
+  formula_name TEXT NOT NULL,
+  formula_score REAL,
+  formula_score_unit TEXT NOT NULL DEFAULT 'cgs',
+  formula_expression TEXT,
+  formula_parts_json TEXT NOT NULL DEFAULT '[]',
+  formula_additions_json TEXT NOT NULL DEFAULT '[]',
+  formula_subtractions_json TEXT NOT NULL DEFAULT '[]',
+  formula_multiplications_json TEXT NOT NULL DEFAULT '[]',
+  formula_divisions_json TEXT NOT NULL DEFAULT '[]',
+  formula_numbers_json TEXT NOT NULL DEFAULT '{}',
+  formula_explanation_question TEXT,
+  formula_explanation_answer TEXT,
+  deviation_from_baseline_cgs REAL,
+  deviation_from_baseline_percent REAL,
+  status TEXT NOT NULL DEFAULT 'draft',
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE VIEW IF NOT EXISTS formula_test_repeat_deltas AS
+WITH ranked AS (
+  SELECT
+    formula_test_runs.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY same_text_group_id, formula_name
+      ORDER BY repeat_index, created_at, id
+    ) AS repeat_rank
+  FROM formula_test_runs
+  WHERE same_text_group_id IS NOT NULL
+),
+baseline AS (
+  SELECT
+    same_text_group_id,
+    formula_name,
+    id AS baseline_id,
+    formula_score AS baseline_formula_score,
+    analysis_score_cgs AS baseline_analysis_score_cgs
+  FROM ranked
+  WHERE repeat_rank = 1
+)
+SELECT
+  r.id,
+  r.case_id,
+  r.run_id,
+  r.same_text_group_id,
+  r.repeat_index,
+  r.provider_id,
+  r.model,
+  r.ai_intelligence_model,
+  r.formula_name,
+  r.formula_score,
+  b.baseline_id,
+  b.baseline_formula_score,
+  ROUND(r.formula_score - b.baseline_formula_score, 4) AS formula_score_delta,
+  CASE
+    WHEN b.baseline_formula_score IS NULL OR b.baseline_formula_score = 0 THEN NULL
+    ELSE ROUND(((r.formula_score - b.baseline_formula_score) / b.baseline_formula_score) * 100, 4)
+  END AS formula_score_delta_percent,
+  r.analysis_score_cgs,
+  b.baseline_analysis_score_cgs,
+  ROUND(r.analysis_score_cgs - b.baseline_analysis_score_cgs, 4) AS analysis_score_delta_cgs,
+  CASE
+    WHEN b.baseline_analysis_score_cgs IS NULL OR b.baseline_analysis_score_cgs = 0 THEN NULL
+    ELSE ROUND(((r.analysis_score_cgs - b.baseline_analysis_score_cgs) / b.baseline_analysis_score_cgs) * 100, 4)
+  END AS analysis_score_delta_percent,
+  r.ai_difference_percent,
+  r.created_at
+FROM ranked r
+LEFT JOIN baseline b
+  ON b.same_text_group_id = r.same_text_group_id
+ AND b.formula_name = r.formula_name;
+
 CREATE TABLE IF NOT EXISTS manual_reviews (
   id TEXT PRIMARY KEY,
   case_id TEXT REFERENCES eval_cases(id) ON DELETE SET NULL,
@@ -100,6 +200,7 @@ CREATE TABLE IF NOT EXISTS qa_sessions (
   title TEXT NOT NULL,
   area TEXT,
   object_under_test TEXT,
+  check_language TEXT NOT NULL DEFAULT 'und',
   app_version TEXT,
   environment TEXT,
   tester TEXT,
@@ -149,6 +250,48 @@ CREATE TABLE IF NOT EXISTS qa_article_text_reviews (
   mcp_baseline_match TEXT NOT NULL DEFAULT 'needs_review',
   required_signals_status TEXT NOT NULL DEFAULT 'needs_review',
   tool_coverage_status TEXT NOT NULL DEFAULT 'needs_review',
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS qa_article_preview_reviews (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES qa_sessions(id) ON DELETE CASCADE,
+  case_id TEXT REFERENCES eval_cases(id) ON DELETE SET NULL,
+  run_id TEXT REFERENCES eval_runs(id) ON DELETE SET NULL,
+  comparison_id TEXT REFERENCES eval_comparisons(id) ON DELETE SET NULL,
+  check_language TEXT NOT NULL DEFAULT 'und',
+  preview_area TEXT NOT NULL DEFAULT 'article_preview',
+  preview_mode TEXT,
+  expected_behavior TEXT,
+  actual_behavior TEXT,
+  annotation_alignment_status TEXT NOT NULL DEFAULT 'needs_review',
+  recommendation_link_status TEXT NOT NULL DEFAULT 'needs_review',
+  visual_readability_status TEXT NOT NULL DEFAULT 'needs_review',
+  overall_result TEXT NOT NULL DEFAULT 'needs_review',
+  screenshot_path TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS qa_article_annotation_checks (
+  id TEXT PRIMARY KEY,
+  preview_review_id TEXT NOT NULL REFERENCES qa_article_preview_reviews(id) ON DELETE CASCADE,
+  session_id TEXT REFERENCES qa_sessions(id) ON DELETE CASCADE,
+  marker_id TEXT,
+  recommendation_id TEXT,
+  paragraph_index INTEGER,
+  character_start INTEGER,
+  character_end INTEGER,
+  text_fragment TEXT,
+  annotation_type TEXT NOT NULL DEFAULT 'recommendation',
+  expected_behavior TEXT,
+  actual_behavior TEXT,
+  result TEXT NOT NULL DEFAULT 'needs_review',
+  severity TEXT NOT NULL DEFAULT 'medium',
+  screenshot_path TEXT,
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -298,6 +441,9 @@ CREATE TABLE IF NOT EXISTS automated_test_results (
 CREATE INDEX IF NOT EXISTS idx_eval_cases_analysis_type
   ON eval_cases(analysis_type);
 
+CREATE INDEX IF NOT EXISTS idx_eval_cases_check_language
+  ON eval_cases(check_language);
+
 CREATE INDEX IF NOT EXISTS idx_eval_runs_case_mode
   ON eval_runs(case_id, mode);
 
@@ -310,8 +456,23 @@ CREATE INDEX IF NOT EXISTS idx_eval_run_metrics_metric
 CREATE INDEX IF NOT EXISTS idx_eval_comparisons_case
   ON eval_comparisons(case_id);
 
+CREATE INDEX IF NOT EXISTS idx_formula_test_runs_case
+  ON formula_test_runs(case_id, analysis_type);
+
+CREATE INDEX IF NOT EXISTS idx_formula_test_runs_repeat
+  ON formula_test_runs(same_text_group_id, formula_name, repeat_index);
+
+CREATE INDEX IF NOT EXISTS idx_formula_test_runs_model
+  ON formula_test_runs(provider_id, model, ai_intelligence_model);
+
+CREATE INDEX IF NOT EXISTS idx_formula_test_runs_formula
+  ON formula_test_runs(formula_id, formula_name);
+
 CREATE INDEX IF NOT EXISTS idx_qa_sessions_type
   ON qa_sessions(session_type, analysis_type);
+
+CREATE INDEX IF NOT EXISTS idx_qa_sessions_check_language
+  ON qa_sessions(check_language);
 
 CREATE INDEX IF NOT EXISTS idx_qa_sessions_links
   ON qa_sessions(linked_case_id, linked_run_id, linked_comparison_id);
@@ -321,6 +482,15 @@ CREATE INDEX IF NOT EXISTS idx_qa_findings_session
 
 CREATE INDEX IF NOT EXISTS idx_qa_article_text_reviews_session
   ON qa_article_text_reviews(session_id, case_id);
+
+CREATE INDEX IF NOT EXISTS idx_qa_article_preview_reviews_session
+  ON qa_article_preview_reviews(session_id, case_id);
+
+CREATE INDEX IF NOT EXISTS idx_qa_article_preview_reviews_language
+  ON qa_article_preview_reviews(check_language, overall_result);
+
+CREATE INDEX IF NOT EXISTS idx_qa_article_annotation_checks_preview
+  ON qa_article_annotation_checks(preview_review_id, result);
 
 CREATE INDEX IF NOT EXISTS idx_qa_article_compare_reviews_session
   ON qa_article_compare_reviews(session_id, case_id);

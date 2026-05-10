@@ -10,6 +10,10 @@
     "altMascotSurprised": "ToraSEO mascot surprised by issues",
     "altMascotChampion": "ToraSEO champion mascot"
   },
+  "common": {
+    "yes": "yes",
+    "no": "no"
+  },
   "bridgeClosedNotice": {
     "title": "{{appName}} is closed",
     "body": "Start {{appName}} again or return home and choose API + AI Chat.",
@@ -138,8 +142,8 @@
     "general": {
       "title": "General",
       "intro": "Basic app behavior and quick actions.",
-      "returnHomeShortcuts": "Return home with keyboard and mouse back buttons",
-      "returnHomeShortcutsHint": "Off by default. When enabled, the mouse Back button, BrowserBack, and Alt+Left return from settings to the previous analysis, or from an analysis to the home screen."
+      "returnHomeShortcuts": "Use keyboard and mouse Back buttons",
+      "returnHomeShortcutsHint": "Off by default. When enabled, the mouse Back button, BrowserBack, and Alt+Left return from settings to the saved analysis session, or from an analysis to the home screen."
     },
     "unsaved": {
       "title": "You have unsaved changes",
@@ -243,7 +247,7 @@
       "error": "Error",
       "planned": "0.0.9"
     },
-    "versionFootnote": "App version: ToraSEO {{appVersion}} - individual analysis versions are shown in reports and documentation.",
+    "versionFootnote": "App version: ToraSEO {{appVersion}} - specific analysis versions are shown in reports and documentation.",
     "analysisTypes": {
       "siteByUrl": {
         "title": "Site by URL",
@@ -350,6 +354,12 @@
       "title": "AI provider and model",
       "openProviders": "AI providers"
     }
+  },
+  "analysisExit": {
+    "title": "Analysis is still running",
+    "body": "If you leave now, the unfinished analysis will be stopped and the next launch will start from scratch.",
+    "exit": "Leave anyway",
+    "stay": "Back"
   },
   "sidebar": {
     "idleHeading": "Choose a\nmode",
@@ -488,6 +498,15 @@
       "export": "Export",
       "exportReady": "Report exported.",
       "exportFailed": "Failed to export the report.",
+      "exportCancelled": "Export cancelled.",
+      "exportJsonReady": "QA JSON exported.",
+      "copySourceText": "Copy source text",
+      "copySourceReady": "Source text copied.",
+      "copySourceFailed": "Could not copy the source text.",
+      "waitingAiReportTitle": "Waiting for the AI report",
+      "waitingAiReportBody": "In API mode, the selected model forms the structured report. ToraSEO will show it here after the AI Chat response.",
+      "readiness": "Publish readiness",
+      "coverage": "Tool coverage",
       "verdictEyebrow": "Publish readiness",
       "evidenceCoverage": "Evidence coverage",
       "coverageTools": "tools completed. Coverage is not a quality score.",
@@ -507,6 +526,16 @@
       "reportValidationMethod": "Run ToraSEO text analysis again after edits.",
       "reportSummary": "Structured report for the ToraSEO article text analysis.",
       "reportNextStep": "Review recommendations, choose priority edits, and scan the text again.",
+      "warningCountChip": "Warnings: {{count}}",
+      "strengths": "Strengths",
+      "strengthsEmpty": "Strengths will appear after checks finish.",
+      "weaknesses": "Weaknesses",
+      "weaknessesEmpty": "No clear weaknesses were found by the current tools.",
+      "hiddenAiReportItems": "{{count}} more items are available in the detailed report; only key priorities are shown here.",
+      "warningDetailsTitle": "Risks and review limits",
+      "warningDetailsFallback": "Warnings found: {{count}}. Review safety and expert-check items before publishing.",
+      "warningAiLimitation": "This is a risk flag, not an expert conclusion: AI can be wrong, so legal, medical, investment, scientific, technical, and calculation-heavy claims still need human verification.",
+      "strengthMetricDetail": "This metric looks strong across the current analysis tools.",
       "annotationStatus": {
         "issuesAndRecommendations": "Notes and recommendations found",
         "recommendations": "Recommendations found",
@@ -539,6 +568,14 @@
         "lowCoverageDetail": "The analysis has useful signals, but evidence coverage is partial. Treat the result as a guided editing pass."
       },
       "dimensions": {
+        "safety": "Safety and review",
+        "safetyDetail": "Risks around prohibited content, rule evasion, legal, medical, investment, technical, scientific, calculation, and external-source review.",
+        "safetyFix": "Review warnings before publishing; AI does not replace a lawyer, doctor, investment adviser, engineer, scientific expert, or manual source check.",
+        "safetyKeep": "No blocking safety or expert-review warnings were found.",
+        "intent": "Intent and promotion",
+        "intentDetail": "How clearly the text explains why to read it, what intent it satisfies, and how strong the opening presentation is.",
+        "intentKeep": "Keep the current intent and use the SEO package as a CMS draft.",
+        "intentFix": "Strengthen the first line, reader benefit, and SEO title before publishing.",
         "originality": "Originality",
         "originalityDetail": "Local repetition, template risk, naturalness, and AI-style signals.",
         "originalityFix": "Rewrite repeated fragments with fresher examples and less uniform phrasing.",
@@ -559,6 +596,23 @@
         "platformDetail": "Publishing context, tone, audience, language, and media placement.",
         "platformFix": "Add media markers only where they clarify the article, not as decoration.",
         "platformKeep": "Keep platform-specific packaging separate from the article body."
+      },
+      "intentForecast": {
+        "title": "Intent forecast and SEO package",
+        "noInternet": "This is a local forecast without SERP or social-platform data. Internet verification can be connected later through a separate external source.",
+        "hook": "Hook",
+        "hookTooltip": "The hook shows how strongly the opening lines catch the reader: whether the pain, benefit, or promised result is visible.",
+        "ctr": "CTR",
+        "ctrTooltip": "CTR is a local estimate of title and description click potential. It is not real search-result statistics.",
+        "trend": "Trend",
+        "trendTooltip": "Trend is an approximate local estimate of topic potential from the text wording. Internet demand is not checked here.",
+        "cmsPackage": "For WordPress / Laravel CMS",
+        "seoTitle": "SEO title",
+        "description": "Description",
+        "keywords": "Keywords",
+        "taxonomy": "Category / tags",
+        "slug": "URL slug",
+        "hooksTitle": "Hook ideas"
       },
       "nextActionFix": "Fix top priorities",
       "nextActionRewrite": "Ask AI for a bounded rewrite",
@@ -603,7 +657,22 @@
         "absoluteClaims": "Absolute claims",
         "vagueAuthorities": "Vague authorities",
         "sensitiveClaims": "Sensitive claims",
-        "sourceSignals": "Sources"
+        "sourceSignals": "Sources",
+        "intent": "Intent",
+        "intentLabel": "Intent type",
+        "hookType": "Hook type",
+        "hookScore": "Hook",
+        "ctrPotential": "CTR",
+        "trendPotential": "Trend",
+        "internetDemandAvailable": "Internet demand",
+        "internetDemandSource": "Demand source",
+        "warningCount": "Warnings",
+        "jurisdictionContext": "Legal context",
+        "externalSourcesUsed": "External sources",
+        "externalVerificationNeeded": "Needs external review",
+        "investmentSignals": "Investments",
+        "technicalEngineeringSignals": "Technical / engineering",
+        "medicalSignals": "Medicine"
       },
       "descriptions": {
         "platform": "Detects the publishing platform and context.",
@@ -623,7 +692,9 @@
         "logic": "Checks contradictions and reasoning jumps.",
         "facts": "Looks for disputed facts and overconfident claims.",
         "hallucination": "Looks for invented details and AI hallucination signals.",
-        "default": "ToraSEO text check."
+        "default": "ToraSEO text check.",
+        "intent": "Evaluates intent, opening pitch, and SEO package.",
+        "safety": "Finds legal, medical, scientific, and technical risks."
       },
       "issueMessages": {
         "thin_text": "The text is short for a search-oriented article; expand the useful answer before optimizing.",
@@ -652,7 +723,19 @@
         "possible_internal_contradiction": "The text may contain statements that pull conclusions in different directions.",
         "unsupported_causality": "Some cause-and-effect transitions may need examples, data, or intermediate reasoning.",
         "hallucination_risk": "Factual details created or processed by AI may need verification.",
-        "vague_authorities": "Phrases like “experts say” or “studies show” should point to a concrete source."
+        "vague_authorities": "Phrases like \"experts say\" or \"studies show\" should point to a concrete source.",
+        "low_ctr_potential": "The title or opening does not yet create enough click or reading motivation.",
+        "weak_hook": "The opening hook can be stronger: show the reader problem, conflict, or clear benefit earlier.",
+        "unsafe_or_evasion_intent": "The text may contain unsafe or rule-evasion intent and needs manual review.",
+        "legal_review_needed": "The text contains legally sensitive claims. It should not be presented as legal advice without review.",
+        "medical_review_needed": "The text contains medical or health-sensitive claims. It should not replace clinician review or source verification.",
+        "investment_review_needed": "The text contains investment-sensitive claims. It should not be presented as personal investment advice.",
+        "technical_engineering_review_needed": "The text contains technical or engineering claims that may need expert verification, drawings, standards, or manufacturer documentation.",
+        "scientific_review_needed": "The text contains research or scientific-method claims that may need methodology, sources, or calculation review.",
+        "calculation_review_needed": "The text contains several numeric or formula-like fragments; calculations may need a dedicated check.",
+        "custom_resource_rules_needed": "A custom platform or resource may require manual rule verification.",
+        "external_verification_needed": "External source, jurisdiction, platform, SERP, or analytics verification was not performed by this local text scan.",
+        "repeated_termsPrefix": "Repeated terms may make the text feel mechanical"
       },
       "recommendations": {
         "platform": "Keep platform metadata separate from the body: title, description, tags, and preview text.",
@@ -671,8 +754,38 @@
         "naturalness": "Vary sentence openings and remove service phrases that do not add meaning.",
         "logic": "Check places with “therefore”, “because”, “always”, and “never”; they need enough support.",
         "facts": "Verify numbers, names, and sensitive claims; soften statements that cannot be supported confidently.",
-        "hallucination": "Replace vague authorities with concrete sources or remove details that cannot be verified."
-      }
+        "hallucination": "Replace vague authorities with concrete sources or remove details that cannot be verified.",
+        "intentSeo": "Strengthen the first line, clear reader benefit, and SEO package before publishing.",
+        "safetyScience": "Check legal, medical, investment, technical, scientific, and country-sensitive areas with experts, platform rules, or official sources."
+      },
+      "pageMentionsTitle": "Page mentions in search and external resources",
+      "pageMentionsEmpty": "The link list is empty because public search mentions require a connected search index, SERP API, or owner data.",
+      "pageMentionsUnavailable": "n/a",
+      "pageMentionsCountLabel": "mentions",
+      "yandexEngine": "Yandex"
+    },
+    "toraRank": {
+      "scoreLabel": "Score for this analysis:",
+      "previewNote": "Early app score: fewer tools lowers the score ceiling.",
+      "about": "About Tora Rank",
+      "modalTitle": "How to read this score",
+      "close": "Close",
+      "currentScore": "Current result",
+      "modalBody": "Tora Rank shows the total strength of this text-analysis result. It is not a search position and not a traffic guarantee: MCP tools provide metrics, and the app combines them into an early cgs score.",
+      "chatBoundary": "The AI chat does not calculate Tora Rank as a separate tool. If you ask about the score, it should explain it as an app preview layer above the analysis results.",
+      "raisesTitle": "What raises the score",
+      "raiseStructure": "clear structure and a logical reader path",
+      "raiseIntent": "clear intent, strong hook, and SEO-ready packaging",
+      "raiseOriginality": "natural style, specificity, and usefulness",
+      "lowersTitle": "What lowers the score",
+      "lowerRepetition": "watery text, repetition, and template phrases",
+      "lowerLogic": "weak logic, contradictions, and unclear conclusions",
+      "lowerRisk": "risky claims and unchecked facts",
+      "exampleFormula": "text strength + intent + usefulness - penalties = final Tora Rank in cgs",
+      "signalPoints": "signals",
+      "penaltyPoints": "penalties",
+      "ceiling": "ceiling",
+      "toolDepth": "depth"
     },
     "forms": {
       "url": "URL",
@@ -737,16 +850,19 @@
       "mediaMarkerVideo": "------------------------- video placeholder --------------------------",
       "mediaMarkerAudio": "------------------------- audio placeholder --------------------------",
       "pageByUrl": {
-        "title": "Page source"
+        "title": "Page source",
+        "body": "ToraSEO will extract the main article text from HTML, skip ads and service blocks, then run checks like text analysis."
       },
       "articleText": {
         "title": "Article draft"
       },
       "articleCompare": {
-        "title": "Two article versions"
+        "title": "Two article versions",
+        "body": "Compare two texts by intent, structure, completeness, style, trust, similarity risk, and improvement plan."
       },
       "siteCompare": {
-        "title": "Comparable sites"
+        "title": "Comparable sites",
+        "body": "Compare up to three sites through one dashboard: who is stronger, why, where the gap is, and what to fix first."
       },
       "siteDesignByUrl": {
         "title": "Design and content source"
@@ -754,7 +870,154 @@
       "imageAnalysis": {
         "title": "Image analysis",
         "body": "Image upload, OCR, visual content checks, and media SEO recommendations are in development."
-      }
+      },
+      "pageByUrlNeedUrl": "Enter the full page URL: https://...",
+      "pageByUrlSentToApiChat": "Page by URL analysis started in API + AI Chat. The report will appear here after the model responds.",
+      "pageByUrlSkillFallbackPromptCopied": "Prompt copied. Paste it into {{appName}} so AI can analyze the page through Skill while MCP or the app is unavailable.",
+      "pageByUrlPromptCopied": "Page by URL analysis started through MCP + Instructions. Results will appear here after the tools finish.",
+      "pageByUrlRunAgain": "Analyze page again",
+      "pageByUrlRun": "Analyze page",
+      "bridgeUnavailable": "{{appName}} is unavailable. Open it before starting bridge analysis.",
+      "siteCompareFocus": "Comparison focus",
+      "siteCompareFocusPlaceholder": "Example: compare my site with competitors, find metadata and content gaps, and understand what to borrow from the leader.",
+      "siteComparePreview": {
+        "summary": {
+          "title": "Summary",
+          "detail": "Winner and main gap"
+        },
+        "siteCards": {
+          "title": "Site cards",
+          "detail": "Compact KPI only"
+        },
+        "heatmap": {
+          "title": "Heatmap",
+          "detail": "Directions without overload"
+        },
+        "insights": {
+          "title": "Insights",
+          "detail": "What to borrow and fix"
+        }
+      },
+      "scanNeedText": "Add article text to prepare the analysis prompt."
+    },
+    "compare": {
+      "bridgeSummary": "Structured comparison of two texts based on ToraSEO MCP tool data.",
+      "bridgeNextStep": "Review gaps, similarity risk, and the improvement plan, then strengthen the target text without copying the other one.",
+      "weakStructure": "Text {{label}}: weaker structure",
+      "weakStructureDetail": "Fewer visible sections, lists, or support blocks. Check the reader path from problem to solution.",
+      "weakReadability": "Text {{label}}: harder to read",
+      "weakReadabilityDetail": "Average sentence length is higher. This is not always an error, but long sentences should be checked for overload.",
+      "weakSpecificity": "Text {{label}}: less specificity",
+      "weakSpecificityDetail": "Fewer numbers, lists, steps, or practical signals. Add them only where they are accurate and useful.",
+      "goalModes": {
+        "standard": "Standard comparison",
+        "focusA": "Focus on text A",
+        "focusB": "Focus on text B",
+        "beatCompetitor": "Competitor comparison",
+        "styleMatch": "Style imitation",
+        "similarity": "Similarity check",
+        "version": "Version comparison",
+        "abPost": "A/B post analysis"
+      },
+      "goalDescriptions": {
+        "standard": "No goal is set: the report shows both texts, key gaps, similarity risk, and an improvement plan.",
+        "focusA": "The report is focused on text A: the second text is used as comparison context and a source of reference points.",
+        "focusB": "The report is focused on text B: the second text is used as comparison context and a source of reference points.",
+        "beatCompetitor": "The report looks for competitor text advantages, gaps in your text, and a plan to strengthen the material without copying.",
+        "styleMatch": "The report focuses on tone, rhythm, clarity, example density, and transferable style techniques without copying phrases.",
+        "similarity": "The report prioritizes exact overlap, semantic closeness, and copying risk.",
+        "version": "The report shows what became stronger or weaker between two text versions.",
+        "abPost": "The report evaluates hook, clarity, brevity, platform fit, and reaction potential."
+      },
+      "focusVerdictA": "Report focused on text A",
+      "focusVerdictB": "Report focused on text B",
+      "similarityVerdict": "Main finding: similarity and borrowing risk",
+      "styleVerdict": "Main finding: style and presentation differences",
+      "versionVerdict": "Main finding: what changed between versions",
+      "competitorVerdict": "Main finding: text gaps against competitor",
+      "winnerA": "Text A is stronger by text signals",
+      "winnerB": "Text B is stronger by text signals",
+      "winnerTie": "The texts are close: category gaps matter more",
+      "defaultGap": "The main gap may be intent, completeness, structure, specificity, or trust. Check the categories below before editing.",
+      "platform": "Text comparison",
+      "platformDetail": "The result compares only text: no domain, links, technical SEO, or live SERP.",
+      "metrics": {
+        "structure": "Structure",
+        "structureDetail": "Uses headings and lists as local structure signals. Structure quality matters more than count alone.",
+        "specificity": "Specificity",
+        "specificityDetail": "Local signal for numbers, examples, and steps. Specificity helps only when wording is accurate.",
+        "readability": "Readability",
+        "readabilityDetail": "Shorter sentences are usually easier to scan, but expert text sometimes needs longer explanations.",
+        "similarity": "Exact overlap",
+        "similarityDetail": "Local check of matching phrases in two texts. This is not an external plagiarism database."
+      },
+      "copyRiskHigh": "Exact overlap is high. Use the stronger text as a reference, but independently rewrite structure, examples, and wording.",
+      "copyRiskMedium": "Some exact overlap exists. Keep useful ideas, but add your own examples and do not repeat phrasing.",
+      "copyRiskLow": "Local exact phrase overlap is low. This does not guarantee uniqueness: semantic similarity still needs to be evaluated by the findings below.",
+      "limitTextOnly": "This is text-only comparison: domain age, links, technical SEO, speed, and behavior signals are not included.",
+      "limitSimilarity": "Similarity risk is a local heuristic, not an internet plagiarism check.",
+      "limitFacts": "Fact-sensitive, legal, medical, financial, and technical claims still require sources or expert review.",
+      "waitingInputTitle": "Waiting for two texts",
+      "waitingInputBody": "Add text A and text B, then run comparison. The report will be shown in two columns.",
+      "waitingReportTitle": "Waiting for comparison report",
+      "waitingReportBody": "The selected mode compares both texts. ToraSEO will show the result here after structured data appears.",
+      "copyAReady": "Article A copied.",
+      "copyBReady": "Article B copied.",
+      "copyFailed": "Could not copy the article.",
+      "title": "Comparison result",
+      "goalMode": "Goal mode",
+      "copyA": "Copy article A",
+      "copyB": "Copy article B",
+      "verdict": "Text advantage",
+      "similarity": "Similarity risk",
+      "exactOverlap": "Exact overlap: {{value}}%",
+      "gaps": "Content gaps",
+      "gapsDescription": "Which topics, semantic blocks, and useful elements differ between texts A and B.",
+      "limitationsTitle": "Text-comparison boundary",
+      "visualGraphTitle": "Visual A/B comparison",
+      "visualGraphBody": "Graphs show relative local signals. This is not a final SEO score, but a quick way to see gaps.",
+      "sideFindingsTitle": "A/B strengths and weaknesses",
+      "focusedFindingsTitle": "Goal focus: text {{label}}",
+      "sideFindingsBody": "If no analysis goal is set, ToraSEO shows a standard comparative report for both texts.",
+      "focusedFindingsBody": "Because the goal clearly points to one text, the block below primarily shows findings for that text.",
+      "strengths": "Strengths",
+      "noStrengths": "Clear strengths will appear after checks finish.",
+      "weaknesses": "Weaknesses",
+      "noWeaknesses": "No clear weaknesses were found by the current local signals.",
+      "yourText": "Your text",
+      "competitorText": "Competitor text",
+      "words": "{{count}} words",
+      "paragraphs": "{{count}} paragraphs",
+      "headings": "{{count}} headings",
+      "wordsPerSentence": "{{count}} words/sent.",
+      "actionPlan": "What to improve next",
+      "actionPlanDescription": "Editing priorities: strengthen the target text without copying the second one."
+    },
+    "intentValues": {
+      "informationalHowTo": "Informational / problem solution",
+      "commercial": "Commercial",
+      "expertOpinion": "Expert opinion",
+      "socialEngagement": "Social engagement",
+      "informational": "Informational",
+      "problemSolution": "Informational / problem solution",
+      "educationalGuide": "Educational material",
+      "opinionDiscussion": "Opinion / discussion",
+      "promotionConversion": "Promotion / conversion"
+    },
+    "hookTypes": {
+      "questionProblem": "Question / problem",
+      "statement": "Direct claim",
+      "listSteps": "List / steps",
+      "storyContext": "Story / context",
+      "weakMissing": "Weak or missing",
+      "problemSolution": "SEO hook for title and intro"
+    },
+    "jurisdiction": {
+      "ruLanguageAssumed": "Russian language: applicable country needs review",
+      "ruLawContext": "Likely Russian legal context",
+      "ruLanguageInternationalPlatform": "Russian text for an international platform: platform and publication-country rules are needed",
+      "unspecified": "Country and rules are unknown",
+      "platformRulesFirst": "Check platform rules first"
     }
   },
   "analysisTools": {
@@ -797,6 +1060,14 @@
     "naturalness_indicators": {
       "label": "Naturalness",
       "tooltip": "Look for robotic phrasing, repetition, and weak human readability signals"
+    },
+    "intent_seo_forecast": {
+      "label": "Intent and promotion forecast",
+      "tooltip": "Estimate intent, hook, CTR and trend potential, and prepare a CMS SEO package"
+    },
+    "safety_science_review": {
+      "label": "Risk and expert review",
+      "tooltip": "Flag unsafe, legal, medical, scientific, technical, calculation, and other expert-review risks"
     },
     "article_uniqueness": {
       "label": "Article uniqueness",
@@ -1097,7 +1368,8 @@
     "chatAnswerStarted": "Request sent to AI Chat",
     "issues": "Issues found",
     "warnings": "Warnings found",
-    "topReady": "Top-ready result"
+    "topReady": "Top-ready result",
+    "auditMethod": "Validation method"
   },
   "updater": {
     "available": {
@@ -1183,6 +1455,8 @@
     "coverageDetail": "{{completed}}/{{total}} tools",
     "cleanTools": "Clean tools",
     "cleanToolsDetail": "completed without blocking issues",
+    "categoryIssues": "{{count}} issues",
+    "categoryCompletedChecks": "{{completed}}/{{total}} checks completed",
     "findings": "Issues found",
     "findingsDetail": "critical, warnings, info, errors",
     "issueDistribution": "Status distribution",
@@ -1238,6 +1512,12 @@
       "info": "Info",
       "errors": "Errors"
     },
+    "status": {
+      "critical": "Critical",
+      "warning": "Warning",
+      "info": "Info",
+      "passed": "Passed"
+    },
     "priority": {
       "high": "high",
       "medium": "medium",
@@ -1249,7 +1529,17 @@
       "exportPdf": "Export PDF",
       "document": "Document",
       "presentation": "Presentation"
-    }
+    },
+    "priorityFixes": "What to fix first",
+    "noPriorityFixes": "No critical actions yet.",
+    "checkResults": "Check results",
+    "passedChecks": "Passed checks",
+    "nextStep": "Next step",
+    "nextStepFix": "Fix first: {{items}}. Run the scan again after edits.",
+    "nextStepClean": "No critical issues found. Review informational notes and run the scan again after edits.",
+    "checks": "Checks",
+    "expectedImpact": "Expected impact",
+    "validation": "Validation"
   },
   "common": {
     "close": "Close",

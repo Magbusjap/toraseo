@@ -33,6 +33,27 @@ const TOKEN_MISMATCH_MESSAGE =
   "user to update or reinstall `toraseo-codex-workflow`, restart Codex, " +
   "start a new Codex session, and run the setup check again.";
 
+const SITE_BY_URL_INTERNAL_TOOL_IDS = new Set([
+  "scan_site_minimal",
+  "analyze_indexability",
+  "check_robots_txt",
+  "analyze_sitemap",
+  "check_redirects",
+  "analyze_meta",
+  "analyze_canonical",
+  "analyze_headings",
+  "analyze_content",
+  "analyze_links",
+  "detect_stack",
+]);
+
+function siteByUrlHandshakeTools(selectedTools: string[]): string[] {
+  const extraTools = selectedTools.filter(
+    (toolId) => !SITE_BY_URL_INTERNAL_TOOL_IDS.has(toolId),
+  );
+  return ["site_url_internal", ...extraTools];
+}
+
 export async function verifyCodexWorkflowLoadedHandler({
   token,
 }: {
@@ -212,23 +233,13 @@ export async function verifyCodexWorkflowLoadedHandler({
               analysisType === "article_compare"
                 ? ["article_compare_internal"]
                 : analysisType === "site_by_url"
-                  ? ["site_url_internal"]
+                  ? siteByUrlHandshakeTools(state!.selectedTools)
                 : analysisType === "site_compare"
                   ? ["site_compare_internal"]
-                : analysisType === "page_by_url"
-                  ? [
-                      "page_url_article_internal",
-                      ...state!.selectedTools.filter((toolId) =>
-                        [
-                          "analyze_google_page_search",
-                          "analyze_yandex_page_search",
-                        ].includes(toolId),
-                      ),
-                    ]
                 : state!.selectedTools,
             internalSelectedTools:
               analysisType === "article_compare" ||
-              analysisType === "page_by_url" ||
+              analysisType === "site_by_url" ||
               analysisType === "site_compare"
                 ? state!.selectedTools
                 : undefined,
@@ -258,19 +269,18 @@ export async function verifyCodexWorkflowLoadedHandler({
               "Text A and Text B from the temporary ToraSEO workspace. Keep " +
               "the comparison text-evidence only: do not claim ranking causes " +
               "from text alone and do not rewrite the full article. " +
-              "For site-by-URL runs, call site_url_internal; it runs the " +
-              "selected site-audit checks and writes individual results under " +
-              "normal user-facing tool names. Do not call separate site URL " +
-              "tools unless explicitly debugging one check. Do not read " +
-              "workspace JSON files after site_url_internal; use the MCP " +
-              "tool response and the app report as the source of facts. Do not " +
-              "ask the user to paste a report summary, screenshot, or JSON after " +
-              "site_url_internal has completed. " +
-              "For page-by-URL runs, call page_url_article_internal; it runs " +
-              "the internal URL/page extraction and article text checks as MCP " +
-              "checks and writes individual results under normal user-facing " +
-              "tool names. If the app provided a page text block, use " +
-              "that block as the article focus. Ignore ads/navigation/comments " +
+              "For site-by-URL runs, call site_url_internal first; it runs " +
+              "the selected core site-audit checks one by one and writes each " +
+              "individual tool result to the ToraSEO app so progress advances " +
+              "per check. Then call any additional tools returned after " +
+              "site_url_internal. Do not ask the user to paste a report " +
+              "summary, screenshot, or JSON after the selected tools complete; " +
+              "use the MCP tool responses and the app report as the source of facts. " +
+              "For page-by-URL runs, call each selected page URL MCP tool " +
+              "returned in this response, in order. Run extract_main_text " +
+              "before article-text checks so the temporary article text is " +
+              "prepared. If the app provided a page text block, use that block " +
+              "as the article focus. Ignore ads/navigation/comments " +
               "and respect robots.txt; do not bypass auth, paywalls, CAPTCHA, " +
               "or private content. Do not invent Google/Yandex clicks, impressions, " +
               "views, or indexed phrases without an official connected source. Results will be displayed " +

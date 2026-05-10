@@ -50,18 +50,17 @@ export default function ToolCatalogView({
         <div className="mt-7">
           <p className="text-xs font-semibold uppercase tracking-wider text-white/45">
             {t("toolCatalog.sidebarEyebrow", {
-              defaultValue: "Реестр аналитики",
+              defaultValue: "Back to home",
             })}
           </p>
           <h1 className="mt-2 font-display text-xl font-semibold leading-snug">
             {t("toolCatalog.title", {
-              defaultValue: "Список инструментов для аналитики",
+              defaultValue: "Analytics tools list",
             })}
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-white/65">
             {t("toolCatalog.sidebarBody", {
-              defaultValue:
-                "Справочник показывает, какие проверки входят в каждый тип анализа. Сейчас это режим просмотра без редактирования.",
+              defaultValue: "This reference shows which checks belong to each analysis type. It is read-only for now.",
             })}
           </p>
         </div>
@@ -101,7 +100,7 @@ export default function ToolCatalogView({
                 <ListChecks size={20} />
                 <p className="text-xs font-semibold uppercase tracking-wider">
                   {t("toolCatalog.readOnly", {
-                    defaultValue: "Только просмотр",
+                    defaultValue: "Read-only",
                   })}
                 </p>
               </div>
@@ -110,8 +109,7 @@ export default function ToolCatalogView({
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-outline-900/65">
                 {t("toolCatalog.body", {
-                  defaultValue:
-                    "Здесь показаны пользовательские названия инструментов, их роль в анализе и изменения по версиям. Внутренние ключи скрыты от интерфейса.",
+                  defaultValue: "This page shows user-facing tool names, their role in analysis, and version changes. Internal keys stay hidden from the interface.",
                 })}
               </p>
             </div>
@@ -143,12 +141,10 @@ export default function ToolCatalogView({
               <p className="mt-1 text-sm text-outline-900/55">
                 {activeVersion.status === "current"
                   ? t("toolCatalog.currentHint", {
-                      defaultValue:
-                        "Актуальная таблица для текущей ветки разработки.",
+                      defaultValue: "Current table for the active development branch.",
                     })
                   : t("toolCatalog.archiveHint", {
-                      defaultValue:
-                        "Архивная таблица показывает состояние инструментов в выбранной версии.",
+                      defaultValue: "Archive table showing tool state in the selected version.",
                     })}
               </p>
             </div>
@@ -194,14 +190,14 @@ function CatalogGroup({
           <thead className="bg-white text-xs uppercase tracking-wider text-outline-900/45">
             <tr>
               <th className="w-[230px] px-5 py-3 font-semibold">
-                {t("toolCatalog.columns.tool", { defaultValue: "Инструмент" })}
+                {t("toolCatalog.columns.tool", { defaultValue: "Tool" })}
               </th>
               <th className="w-[150px] px-5 py-3 font-semibold">
-                {t("toolCatalog.columns.status", { defaultValue: "Статус" })}
+                {t("toolCatalog.columns.status", { defaultValue: "Status" })}
               </th>
               <th className="px-5 py-3 font-semibold">
                 {t("toolCatalog.columns.description", {
-                  defaultValue: "Что делает",
+                  defaultValue: "What it does",
                 })}
               </th>
             </tr>
@@ -255,7 +251,7 @@ function Legend() {
   return (
     <div className="rounded-lg border border-outline/10 bg-white px-4 py-3 text-xs text-outline-900/60">
       <p className="font-semibold text-outline-900">
-        {t("toolCatalog.legendTitle", { defaultValue: "Цвета версий" })}
+        {t("toolCatalog.legendTitle", { defaultValue: "Version colors" })}
       </p>
       <div className="mt-2 grid gap-1.5">
         <LegendItem className="bg-green-500" label={t("toolCatalog.status.added")} />

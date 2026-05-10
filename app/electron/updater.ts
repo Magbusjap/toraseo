@@ -6,8 +6,8 @@
  * Behavior:
  * - On app ready, checks GitHub Releases for newer versions after a
  *   3-second delay (avoid blocking startup).
- * - autoDownload: false — user explicitly clicks "Скачать".
- * - autoInstallOnAppQuit: false — user explicitly clicks "Установить".
+ * - autoDownload: false: the user explicitly clicks the download button.
+ * - autoInstallOnAppQuit: false: the user explicitly clicks the install button.
  * - Both download and install actions go through IPC, so user intent
  *   must flow from renderer UI buttons.
  *
@@ -128,12 +128,11 @@ export function setupAutoUpdater(
   ipcMain.handle(UPDATER_CHANNELS.installUpdate, () => {
     log.info("[updater] User triggered install");
     // quitAndInstall(isSilent=true, isForceRunAfter=true): suppress
-    // the NSIS installer UI — our in-app «Установка и
-    // перезапуск» notification IS the installer UI for the
-    // user. The NSIS dialog flashing in the middle of an auto-update
-    // is jarring and confusing («I already clicked install, why is
-    // there another installer?»). Silent mode runs the same NSIS
-    // installer non-interactively, then relaunches the app.
+    // the NSIS installer UI. Our in-app install-and-restart notice is
+    // the installer UI for the user. The NSIS dialog flashing in the
+    // middle of an auto-update is jarring and confusing. Silent mode
+    // runs the same NSIS installer non-interactively, then relaunches
+    // the app.
     //
     // Important: silent mode applies ONLY to in-app updates. The
     // first-time install from a downloaded .exe still shows the

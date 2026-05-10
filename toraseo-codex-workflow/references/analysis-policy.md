@@ -269,6 +269,18 @@ editorial strategy that the current tools did not evaluate.
 
 Each analysis family may eventually have its own dynamic formula.
 
+Current Tora Rank boundary:
+
+- The desktop app may show an early Tora Rank / `cgs` preview for
+  Codex-driven `article_text` results.
+- MCP tools do not calculate that preview directly; they produce the
+  structured metrics and issues that the app-side preview reads.
+- If the user asks about the visible Tora Rank score in chat, explain it
+  as an app-side preview layer over the completed text-analysis metrics,
+  not as a separate MCP tool result or a hidden model calculation.
+- Do not claim that visible `cgs` values are raw character counters when
+  the UI label says Tora Rank.
+
 Important constraints:
 
 - The public scale can remain `0..100%` for familiar readability.

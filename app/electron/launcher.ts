@@ -1,16 +1,15 @@
 /**
  * Launch Claude Desktop from within the app.
  *
- * Used by the onboarding screen's "Открыть Claude Desktop" button
+ * Used by the onboarding screen's open-Claude button
  * when the detector reports `claudeRunning: false`. We try a list of
  * known install paths per platform; if none exist, we fall back to
  * the platform's default app launcher (`shell.openExternal` style),
  * which handles cases where Claude is installed in a non-standard
  * location.
  *
- * If everything fails — including the fallback — we report it back
- * to the renderer so the UI can show "Не удалось открыть. Запустите
- * Claude Desktop вручную."
+ * If everything fails, including the fallback, we report it back to
+ * the renderer so the UI can show its localized failure message.
  */
 
 import { BrowserWindow, dialog, ipcMain, shell } from "electron";

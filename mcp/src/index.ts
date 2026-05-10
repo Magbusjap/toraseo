@@ -193,7 +193,7 @@ server.registerTool(
   {
     title: "Site URL Internal Checks",
     description:
-      "For an active site_by_url bridge run, runs the selected site-audit checks in one MCP call and writes individual results into the ToraSEO app under their normal tool names. Prefer this tool in Bridge Mode to avoid asking the user to approve each site check separately.",
+      "For an active site_by_url bridge run, runs the selected core site-audit checks in one MCP call while writing each individual check result into the ToraSEO app under its normal tool name. Call any additional tools returned by the handshake after this package.",
     inputSchema: emptyInputSchema,
   },
   siteUrlInternalHandler,
@@ -399,7 +399,7 @@ server.registerTool(
   {
     title: "Page URL Article Internal Checks",
     description:
-      "For an active page_by_url bridge run, runs the internal page/article analysis package in one MCP call: URL page checks, main article extraction, and selected article-text checks. Writes individual check results into the ToraSEO app under their normal tool names.",
+      "Compatibility helper for legacy page_by_url bridge runs. Normal page_by_url scans return separate MCP tools; call those selected tools in order instead of this helper unless the handshake explicitly returns page_url_article_internal.",
     inputSchema: emptyInputSchema,
   },
   pageUrlArticleInternalHandler,
@@ -432,7 +432,7 @@ server.registerTool(
   {
     title: "Analyze Page in Yandex",
     description:
-      "For an active page_by_url bridge run, prepares the Yandex-side page search report. Owner metrics such as clicks, impressions, and day/week/month dynamics require Yandex Webmaster/Metricа or an official search provider.",
+      "For an active page_by_url bridge run, prepares the Yandex-side page search report. Owner metrics such as clicks, impressions, and day/week/month dynamics require Yandex Webmaster/Metrica or an official search provider.",
     inputSchema: emptyInputSchema,
   },
   analyzeYandexPageSearchHandler,
@@ -665,7 +665,7 @@ server.registerTool(
 server.registerTool(
   "article_compare_internal",
   {
-    title: "Внутренний пакет сравнения текстов",
+    title: "Internal Text Comparison Package",
     description:
       "Runs the full internal ToraSEO A/B text comparison package in one MCP call and writes all structured comparison results into the active article_compare state.",
     inputSchema: emptyInputSchema,
@@ -676,7 +676,7 @@ server.registerTool(
 server.registerTool(
   "compare_intent_gap",
   {
-    title: "Сравнение интента",
+    title: "Intent Comparison",
     description:
       "Compares whether Text A and Text B appear to answer the same user intent in the active ToraSEO article_compare context.",
     inputSchema: emptyInputSchema,
@@ -687,7 +687,7 @@ server.registerTool(
 server.registerTool(
   "compare_article_structure",
   {
-    title: "Сравнение структуры",
+    title: "Structure Comparison",
     description:
       "Compares headings, paragraph structure, lists, and visible reader path for the active ToraSEO article_compare context.",
     inputSchema: emptyInputSchema,
@@ -698,7 +698,7 @@ server.registerTool(
 server.registerTool(
   "compare_content_gap",
   {
-    title: "Разрывы по содержанию",
+    title: "Content Gaps",
     description:
       "Finds local topic terms present in one text and missing from the other for the active ToraSEO article_compare context.",
     inputSchema: emptyInputSchema,
@@ -709,7 +709,7 @@ server.registerTool(
 server.registerTool(
   "compare_semantic_gap",
   {
-    title: "Смысловое покрытие",
+    title: "Semantic Coverage",
     description:
       "Compares entity and concept coverage between Text A and Text B in the active ToraSEO article_compare context.",
     inputSchema: emptyInputSchema,
@@ -720,7 +720,7 @@ server.registerTool(
 server.registerTool(
   "compare_specificity_gap",
   {
-    title: "Сравнение конкретики",
+    title: "Specificity Comparison",
     description:
       "Compares concrete examples, numbers, questions, and list/step signals in the active ToraSEO article_compare context.",
     inputSchema: emptyInputSchema,
@@ -731,7 +731,7 @@ server.registerTool(
 server.registerTool(
   "compare_trust_gap",
   {
-    title: "Сравнение доверия",
+    title: "Trust Comparison",
     description:
       "Compares local trust signals, caveats, sources, and sensitive-claim indicators in the active ToraSEO article_compare context.",
     inputSchema: emptyInputSchema,
@@ -742,7 +742,7 @@ server.registerTool(
 server.registerTool(
   "compare_article_style",
   {
-    title: "Сравнение стиля",
+    title: "Style Comparison",
     description:
       "Compares sentence rhythm, readability, and style distance for the active ToraSEO article_compare context.",
     inputSchema: emptyInputSchema,
@@ -753,7 +753,7 @@ server.registerTool(
 server.registerTool(
   "similarity_risk",
   {
-    title: "Риск похожести",
+    title: "Similarity Risk",
     description:
       "Estimates local exact phrase overlap and copying risk between Text A and Text B. This is not an external plagiarism database check.",
     inputSchema: emptyInputSchema,
@@ -764,7 +764,7 @@ server.registerTool(
 server.registerTool(
   "compare_title_ctr",
   {
-    title: "Заголовок и клик",
+    title: "Title and Click",
     description:
       "Compares headline/title clarity, promise, and local click-potential signals for the active ToraSEO article_compare context.",
     inputSchema: emptyInputSchema,
@@ -775,7 +775,7 @@ server.registerTool(
 server.registerTool(
   "compare_platform_fit",
   {
-    title: "Сравнение под платформу",
+    title: "Platform Fit Comparison",
     description:
       "Compares which text better fits the selected platform or resource in the active ToraSEO article_compare context.",
     inputSchema: emptyInputSchema,
@@ -786,7 +786,7 @@ server.registerTool(
 server.registerTool(
   "compare_strengths_weaknesses",
   {
-    title: "Сильные и слабые стороны",
+    title: "Strengths and Weaknesses",
     description:
       "Summarizes side-by-side strengths and weaknesses for Text A and Text B in the active ToraSEO article_compare context.",
     inputSchema: emptyInputSchema,
@@ -797,7 +797,7 @@ server.registerTool(
 server.registerTool(
   "compare_improvement_plan",
   {
-    title: "Что улучшить дальше",
+    title: "Improvement Plan",
     description:
       "Builds a text-only improvement plan from comparison evidence without copying the other text.",
     inputSchema: emptyInputSchema,

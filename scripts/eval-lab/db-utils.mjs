@@ -61,7 +61,9 @@ export function openDatabase(dbPath = DEFAULT_DB_PATH) {
 }
 
 export function applySchema(db, schemaPath = DEFAULT_SCHEMA_PATH) {
+  applyLightweightMigrations(db);
   db.exec(fs.readFileSync(path.resolve(schemaPath), "utf8"));
+  applyLightweightMigrations(db);
 }
 
 export function json(value) {
@@ -140,4 +142,27 @@ export function tableExists(db, name) {
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
       .get(name) !== undefined
   );
+}
+
+export function columnExists(db, tableName, columnName) {
+  if (!tableExists(db, tableName)) return false;
+  return db
+    .prepare(`PRAGMA table_info(${quoteIdentifier(tableName)})`)
+    .all()
+    .some((row) => row.name === columnName);
+}
+
+export function ensureColumn(db, tableName, columnDefinition) {
+  const columnName = columnDefinition.trim().split(/\s+/)[0];
+  if (!tableExists(db, tableName) || columnExists(db, tableName, columnName)) return;
+  db.exec(`ALTER TABLE ${quoteIdentifier(tableName)} ADD COLUMN ${columnDefinition};`);
+}
+
+export function quoteIdentifier(value) {
+  return `"${String(value).replaceAll('"', '""')}"`;
+}
+
+export function applyLightweightMigrations(db) {
+  ensureColumn(db, "eval_cases", "check_language TEXT NOT NULL DEFAULT 'und'");
+  ensureColumn(db, "qa_sessions", "check_language TEXT NOT NULL DEFAULT 'und'");
 }

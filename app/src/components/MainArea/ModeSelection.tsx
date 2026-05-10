@@ -316,8 +316,7 @@ export default function ModeSelection({
         </div>
         <p className="mt-4 rounded-lg border border-outline/10 bg-white px-4 py-3 text-xs leading-relaxed text-outline-900/45">
           {t("modeSelection.versionFootnote", {
-            defaultValue:
-              "Версия приложения: ToraSEO {{appVersion}} · версии конкретных анализов указаны в отчётах и документации.",
+            defaultValue: "App version: ToraSEO {{appVersion}} - specific analysis versions are shown in reports and documentation.",
             appVersion: APP_VERSION,
           })}
         </p>

@@ -2,7 +2,7 @@
   "name": "@toraseo/mcp",
   "version": "0.2.1",
   "private": true,
-  "description": "ToraSEO MCP server — exposes SEO tools to Claude and other MCP-compatible AI clients",
+  "description": "ToraSEO MCP server - exposes SEO tools to Claude and other MCP-compatible AI clients",
   "license": "Apache-2.0",
   "author": {
     "name": "Mikhail Ankudinov",

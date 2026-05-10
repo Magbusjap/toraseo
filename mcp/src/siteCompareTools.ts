@@ -178,26 +178,26 @@ async function runBufferedComparisonTool(
 
 function toolLabel(toolId: string): string {
   const labels: Record<string, string> = {
-    scan_site_minimal: "базовый скан",
-    analyze_indexability: "индексация",
+    scan_site_minimal: "basic scan",
+    analyze_indexability: "indexability",
     check_robots_txt: "robots.txt",
     analyze_sitemap: "sitemap",
-    check_redirects: "редиректы",
-    analyze_meta: "метаданные",
+    check_redirects: "redirects",
+    analyze_meta: "metadata",
     analyze_canonical: "canonical",
-    analyze_headings: "заголовки",
-    analyze_content: "контент",
-    analyze_links: "ссылки",
-    detect_stack: "стек",
-    compare_site_positioning: "позиционирование",
-    compare_site_metadata: "метаданные",
-    compare_site_structure: "структура",
-    compare_site_content_depth: "контент",
-    compare_site_technical_basics: "техническая база",
-    compare_site_delta: "разрывы",
-    compare_site_direction_matrix: "матрица направлений",
-    compare_site_competitive_insights: "конкурентные выводы",
-    compare_strengths_weaknesses: "сильные и слабые стороны",
+    analyze_headings: "headings",
+    analyze_content: "content",
+    analyze_links: "links",
+    detect_stack: "stack",
+    compare_site_positioning: "positioning",
+    compare_site_metadata: "metadata",
+    compare_site_structure: "structure",
+    compare_site_content_depth: "content depth",
+    compare_site_technical_basics: "technical basics",
+    compare_site_delta: "gaps",
+    compare_site_direction_matrix: "direction matrix",
+    compare_site_competitive_insights: "competitive insights",
+    compare_strengths_weaknesses: "strengths and weaknesses",
   };
   return labels[toolId] ?? toolId;
 }
@@ -251,8 +251,8 @@ function buildSyntheticCompareData(
     winner,
     insight:
       winner != null
-        ? `${winner.url} выглядит сильнее по выбранным публичным проверкам. Смотрите разрывы по направлениям и исправляйте критичные блокеры первыми.`
-        : "Сравнение пока не содержит достаточно данных.",
+        ? `${winner.url} looks stronger by the selected public checks. Review gaps by direction and fix critical blockers first.`
+        : "The comparison does not contain enough data yet.",
   };
 }
 
@@ -262,26 +262,26 @@ function renderSiteCompareChatReport(urls: string[], resultMap: Record<string, P
     winner?: { url: string; score: number } | null;
   };
   const lines = [
-    `Сравнение сайтов завершено: проверено ${urls.length} URL и ${Object.keys(resultMap).length} направлений.`,
+    `Site comparison completed: ${urls.length} URLs and ${Object.keys(resultMap).length} directions checked.`,
     "",
-    "**Кто сильнее**",
+    "**Who is stronger**",
     synthetic.winner
-      ? `- Лучший общий SEO-профиль по выбранным проверкам: ${synthetic.winner.url} (${synthetic.winner.score}/100).`
-      : "- Победитель не определён: данных недостаточно.",
+      ? `- Best overall SEO profile by selected checks: ${synthetic.winner.url} (${synthetic.winner.score}/100).`
+      : "- Winner is not determined yet: not enough data.",
     "",
-    "**Краткие KPI**",
+    "**Quick KPI**",
     ...synthetic.sites.map(
       (site) =>
-        `- ${site.url}: SEO ${site.score}/100, критично ${site.critical}, предупреждения ${site.warning}.`,
+        `- ${site.url}: SEO ${site.score}/100, critical ${site.critical}, warnings ${site.warning}.`,
     ),
     "",
-    "**Как читать результат**",
-    "- Это сравнительный dashboard: сначала смотрите победителя и разрывы, затем углубляйтесь в конкретные направления.",
-    "- Не сравнивайте три полных аудита рядом: используйте карточки, метрики, heatmap и блок действий.",
+    "**How to read the result**",
+    "- This is a comparative dashboard: first review the winner and gaps, then inspect specific directions.",
+    "- Do not compare three full audits side by side: use cards, metrics, heatmap, and action blocks.",
     "",
-    "**Что делать дальше**",
-    "- Исправьте направления, где ваш сайт проигрывает победителю сильнее всего: metadata, content, indexability, structure или technical basics.",
-    "- После правок запустите сравнение повторно и проверьте, сократились ли критичные разрывы.",
+    "**What to do next**",
+    "- Fix directions where your site loses most strongly against the winner: metadata, content, indexability, structure, or technical basics.",
+    "- After edits, run the comparison again and check whether critical gaps decreased.",
   ];
   return lines.join("\n");
 }

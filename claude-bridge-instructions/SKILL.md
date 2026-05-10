@@ -211,28 +211,28 @@ and do not rewrite the full article unless the user asks later.
 
 If `analysisType` is `page_by_url`, the URL and optional highlighted text
 block are already stored in the active ToraSEO app state. Do **not** ask
-the user to paste the page text into Claude. Call `page_url_article_internal`
-when it is returned in `selectedTools`; that single MCP call performs the
-page-level checks, extracts the main article text, runs the selected
-article-text checks, and writes individual results back to the app under
-normal check names. If Google or Yandex page search checks are also
-returned in `selectedTools`, call them after the internal package. Treat
-search clicks, impressions, daily/monthly views, external mentions, and
-index visibility as unavailable unless a real connected search provider
-or evidence is present. In the final chat answer, use normal user-facing
-check names and do not mention handshake details, scan IDs, backend tool
-IDs, selectedTools, sourceToolIds, or result file paths.
+the user to paste the page text into Claude. Call each tool returned in
+`selectedTools`, in order. `extract_main_text` must run before the
+article-text checks so the extracted article is available to those
+checks. Google and Yandex page search checks are separate provider-bound
+checks; owner metrics are represented as unavailable without a real
+connected search provider. Treat search clicks, impressions, daily/monthly
+views, external mentions, and index visibility as unavailable unless a
+real connected search provider or evidence is present. In the final chat
+answer, use normal user-facing check names and do not mention handshake
+details, scan IDs, backend tool IDs, selectedTools, sourceToolIds, or
+result file paths.
 
-If `analysisType` is `site_by_url`, call `site_url_internal` when it is
-returned in `selectedTools`; that single MCP call performs the selected
-site-audit checks and writes individual results back to the app under
-normal check names. Do not call each separate site URL tool unless the
-user explicitly asks to debug one check. In the final chat answer, use
-normal user-facing check names and do not mention handshake details, scan
-IDs, backend tool IDs, selectedTools, sourceToolIds, or result file paths.
-Do not ask the user to paste the report summary, a screenshot, JSON, or
-result files after `site_url_internal` has completed; use the MCP response
-and visible app report.
+If `analysisType` is `site_by_url`, call `site_url_internal` first. That
+one MCP permission runs the selected core site-audit checks one by one
+and writes individual results back to the app under normal check names,
+so progress advances per check. Then call any additional tools returned
+after `site_url_internal`. In the final chat answer, use normal
+user-facing check names and do not mention handshake details, scan IDs,
+backend tool IDs, selectedTools, sourceToolIds, or result file paths. Do
+not ask the user to paste the report summary, a screenshot, JSON, or
+result files after the selected site URL tools have completed; use the
+MCP responses and visible app report.
 
 If `analysisType` is `site_compare`, call only `site_compare_internal`
 when it is returned in `selectedTools`; that single MCP call runs the
@@ -244,13 +244,13 @@ site URL tools unless the user explicitly asks to debug one check. In
 the final chat answer, write one competitive summary: who is stronger,
 why, where the gaps are, what to borrow, and what to fix first.
 
-For analysis types that do not have an internal package, call each tool
-in `selectedTools` (in any order, but matching the listed order makes the
-app's UI feel linear). For `site_by_url`, `page_by_url`, and
-`article_compare`, and `site_compare`, do not call each hidden/internal
-tool separately after the internal package has completed. Each tool
-writes its result to the state file; the app polls and updates its UI in
-real time. You will
+For analysis types without an internal package, call each tool in
+`selectedTools` (in any order, but matching the listed order makes the
+app's UI feel linear). `page_by_url` uses separate MCP tools.
+`site_by_url` uses `site_url_internal` for core checks plus any returned
+additional tools. `article_compare` and `site_compare` use their returned
+internal aggregator tools. Each tool writes its result to the state file;
+the app polls and updates its UI in real time. You will
 receive a brief summary in chat for each visible package/tool — use these
 to compose the final recommendations.
 

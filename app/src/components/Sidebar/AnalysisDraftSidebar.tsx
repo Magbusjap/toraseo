@@ -246,44 +246,44 @@ function analysisToolFallback(toolId: AnalysisToolId): {
 } {
   const labels: Partial<Record<AnalysisToolId, { label: string; tooltip: string }>> = {
     analyze_google_page_search: {
-      label: "Проверка страницы в Google",
-      tooltip: "Подготовить Google-отчет по странице; клики и показы доступны только через Search Console или официальный SEO-провайдер.",
+      label: "Google page search check",
+      tooltip: "Prepare a Google page report; clicks and impressions are available only through Search Console or an official SEO provider.",
     },
     analyze_yandex_page_search: {
-      label: "Проверка страницы в Яндексе",
-      tooltip: "Подготовить Яндекс-отчет по странице; клики и показы доступны только через Вебмастер/Метрику или официальный SEO-провайдер.",
+      label: "Yandex page search check",
+      tooltip: "Prepare a Yandex page report; clicks and impressions are available only through Webmaster/Metrica or an official SEO provider.",
     },
     compare_intent_gap: {
-      label: "Сравнение интента",
-      tooltip: "Проверить, отвечают ли оба текста на один и тот же запрос.",
+      label: "Intent comparison",
+      tooltip: "Check whether both texts answer the same query.",
     },
     compare_content_gap: {
-      label: "Разрывы по содержанию",
-      tooltip: "Найти темы и разделы, которые есть в одном тексте и отсутствуют в другом.",
+      label: "Content gaps",
+      tooltip: "Find topics and sections that appear in one text and are missing from the other.",
     },
     compare_semantic_gap: {
-      label: "Смысловое покрытие",
-      tooltip: "Сравнить сущности, понятия и подтемы в двух текстах.",
+      label: "Semantic coverage",
+      tooltip: "Compare entities, concepts, and subtopics across two texts.",
     },
     compare_specificity_gap: {
-      label: "Сравнение конкретики",
-      tooltip: "Сравнить примеры, цифры, шаги, сценарии и практическую пользу.",
+      label: "Specificity comparison",
+      tooltip: "Compare examples, numbers, steps, scenarios, and practical usefulness.",
     },
     compare_trust_gap: {
-      label: "Сравнение доверия",
-      tooltip: "Сравнить источники, предупреждения и рискованные утверждения.",
+      label: "Trust comparison",
+      tooltip: "Compare sources, warnings, and risky claims.",
     },
     compare_title_ctr: {
-      label: "Заголовок и клик",
-      tooltip: "Сравнить ясность заголовка, обещание пользы и потенциальную кликабельность.",
+      label: "Title and click",
+      tooltip: "Compare title clarity, benefit promise, and potential clickability.",
     },
     similarity_risk: {
-      label: "Риск похожести",
-      tooltip: "Оценить локальные дословные совпадения и риск копирования между текстами.",
+      label: "Similarity risk",
+      tooltip: "Evaluate local exact overlaps and copying risk between texts.",
     },
     compare_improvement_plan: {
-      label: "План улучшения",
-      tooltip: "Собрать план усиления нужного текста без копирования второго.",
+      label: "Improvement plan",
+      tooltip: "Build a plan to strengthen the target text without copying the other one.",
     },
   };
   return (

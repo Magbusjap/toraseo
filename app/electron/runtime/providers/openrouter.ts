@@ -33,7 +33,7 @@ const ANALYSIS_VERSION = "0.0.1";
 function timeoutMessage(label: string, locale: "en" | "ru"): string {
   const seconds = Math.round(REQUEST_TIMEOUT_MS / 1000);
   return locale === "ru"
-    ? `${label} не ответил за ${seconds} секунд. Проверьте модель ещё раз или выберите более быструю модель для теста.`
+    ? `${label} did not respond within ${seconds} seconds. Test the model again or choose a faster model for the probe.`
     : `${label} did not respond within ${seconds} seconds. Test the model again or choose a faster model for the probe.`;
 }
 
@@ -886,6 +886,7 @@ function coerceLocalizedArticleReport(
   return {
     analysisType: reportAnalysisTypeForRequest(request),
     analysisVersion: ANALYSIS_VERSION,
+    locale: request.policy.locale,
     mode: request.policy.mode,
     providerId,
     model,
@@ -978,6 +979,7 @@ function coerceReport(
   return {
     analysisType: reportAnalysisTypeForRequest(request),
     analysisVersion: ANALYSIS_VERSION,
+    locale: request.policy.locale,
     mode: request.policy.mode,
     providerId,
     model,

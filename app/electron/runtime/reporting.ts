@@ -808,6 +808,9 @@ function renderArticleTextReportHtml(report: RuntimeAuditReport): string {
 }
 
 function articleReportIsRussian(report: RuntimeAuditReport): boolean {
+  if (report.locale === "ru" || report.locale === "en") {
+    return report.locale === "ru";
+  }
   const article = report.articleText;
   const sample = [
     article?.verdictLabel,
@@ -977,7 +980,7 @@ function localizeAnnotationTitle(
   isRu: boolean,
 ): string {
   const title = rawAnnotationTitle(annotation);
-  if (!isRu) return title;
+  if (!isRu) return localizeToolDataText(title, isRu);
   if (annotation.sourceToolIds.includes("copied_page_artifact_review")) {
     return "Служебный элемент";
   }
@@ -1023,7 +1026,7 @@ function localizeAnnotationDetail(
 ): string {
   const detail = rawAnnotationDetail(annotation);
   if (!isRu || annotation.sourceToolIds.includes("copied_page_artifact_review")) {
-    return detail;
+    return localizeToolDataText(detail, isRu);
   }
   const replacements: Array<[RegExp, string]> = [
     [
@@ -1643,15 +1646,15 @@ function renderIntentSeoPackage(
   const score = (label: string, value: number | null, tooltip: string) =>
     `<div class="forecast-score" aria-label="${escapeHtml(tooltip)}"><strong>${value ?? "—"}</strong><span>${escapeHtml(label)}</span><em>${escapeHtml(tooltip)}</em></div>`;
   const hookItems = forecast.hookIdeas
-    .map((item) => `<li>${escapeHtml(item)}</li>`)
+    .map((item) => `<li>${escapeHtml(localizeToolDataText(item, isRu))}</li>`)
     .join("");
   return `
     <section class="panel forecast-panel">
       <div class="forecast-head">
         <div>
           <p class="eyebrow">${escapeHtml(labels.title)}</p>
-          <h3>${escapeHtml(forecast.intentLabel)}</h3>
-          <p>${escapeHtml(forecast.internetDemandAvailable ? forecast.internetDemandSource : noInternet)}</p>
+          <h3>${escapeHtml(localizeToolDataText(forecast.intentLabel, isRu))}</h3>
+          <p>${escapeHtml(localizeToolDataText(forecast.internetDemandAvailable ? forecast.internetDemandSource : noInternet, isRu))}</p>
         </div>
         <div class="forecast-scores">
           ${score(labels.hook, forecast.hookScore, labels.hookTooltip)}
@@ -1663,12 +1666,12 @@ function renderIntentSeoPackage(
         <article class="forecast-card">
           <h3>${escapeHtml(labels.cms)}</h3>
           <dl>
-            <dt>${escapeHtml(labels.seoTitle)}</dt><dd>${escapeHtml(seo.seoTitle || "—")}</dd>
-            <dt>${escapeHtml(labels.description)}</dt><dd>${escapeHtml(seo.metaDescription || "—")}</dd>
-            <dt>${escapeHtml(labels.keywords)}</dt><dd>${escapeHtml(seo.keywords.join(", ") || "—")}</dd>
-            <dt>${escapeHtml(labels.category)}</dt><dd>${escapeHtml(seo.category || "—")}</dd>
-            <dt>${escapeHtml(labels.tags)}</dt><dd>${escapeHtml(seo.tags.join(", ") || "—")}</dd>
-            <dt>${escapeHtml(labels.slug)}</dt><dd>${escapeHtml(toLatinSlug(seo.slug || seo.seoTitle || seo.keywords.join(" ")) || "—")}</dd>
+            <dt>${escapeHtml(labels.seoTitle)}</dt><dd>${escapeHtml(localizeToolDataText(seo.seoTitle || "—", isRu))}</dd>
+            <dt>${escapeHtml(labels.description)}</dt><dd>${escapeHtml(localizeToolDataText(seo.metaDescription || "—", isRu))}</dd>
+            <dt>${escapeHtml(labels.keywords)}</dt><dd>${escapeHtml(localizeToolDataText(seo.keywords.join(", ") || "—", isRu))}</dd>
+            <dt>${escapeHtml(labels.category)}</dt><dd>${escapeHtml(localizeToolDataText(seo.category || "—", isRu))}</dd>
+            <dt>${escapeHtml(labels.tags)}</dt><dd>${escapeHtml(localizeToolDataText(seo.tags.join(", ") || "—", isRu))}</dd>
+            <dt>${escapeHtml(labels.slug)}</dt><dd>${escapeHtml(localizeSeoSlugForReport(toLatinSlug(seo.slug || seo.seoTitle || seo.keywords.join(" ")) || "—", isRu))}</dd>
           </dl>
         </article>
         <article class="forecast-card">
@@ -1677,6 +1680,11 @@ function renderIntentSeoPackage(
         </article>
       </div>
     </section>`;
+}
+
+function localizeSeoSlugForReport(value: string, isRu: boolean): string {
+  if (isRu) return value;
+  return value.replace(/chto-vazhno-znat/gi, "what-to-know");
 }
 
 function renderStrengthWeaknessPanel(
@@ -1726,7 +1734,7 @@ function renderStrengthWeaknessPanel(
       ? items
           .map(
             (item) =>
-              `<article><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.detail)}</p></article>`,
+              `<article><strong>${escapeHtml(localizeToolDataText(item.title, isRu))}</strong><p>${escapeHtml(localizeToolDataText(item.detail, isRu))}</p></article>`,
           )
           .join("")
       : `<p>${escapeHtml(emptyText)}</p>`;
@@ -1823,6 +1831,14 @@ function articleToolDescriptionForReport(toolIds: string[], isRu: boolean): stri
       ru: "Оценивает локальные повторы и шаблонность текста.",
       en: "Evaluates local repetition and template-like phrasing.",
     },
+    genericness_water_check: {
+      ru: "Проверяет, не слишком ли текст общий, водный или шаблонный.",
+      en: "Checks whether the text is too broad, watery, or template-like.",
+    },
+    readability_complexity: {
+      ru: "Проверяет плотность предложений и тяжёлые абзацы.",
+      en: "Checks sentence density and heavy paragraphs.",
+    },
     language_syntax: {
       ru: "Проверяет пунктуацию, границы предложений и перегруженные фразы.",
       en: "Checks punctuation, sentence boundaries, and overloaded phrasing.",
@@ -1900,6 +1916,14 @@ function articleToolLabelForReport(toolIds: string[], isRu: boolean): string {
     ai_writing_probability: {
       ru: "Вероятность написания ИИ",
       en: "AI writing probability",
+    },
+    genericness_water_check: {
+      ru: "Водность и шаблонность",
+      en: "Genericness and watery text",
+    },
+    readability_complexity: {
+      ru: "Читаемость и сложность",
+      en: "Readability and complexity",
     },
     naturalness_indicators: {
       ru: "Естественность",
@@ -1982,7 +2006,171 @@ function renderToolFactDetail(
 }
 
 function localizeToolDataText(value: string, isRu: boolean): string {
-  if (!isRu) return value;
+  if (!isRu) {
+    const exact: Record<string, string> = {
+      "Безопасность и проверка": "Safety and review",
+      "Интент и продвижение": "Intent and promotion",
+      "Прогноз интента и продвижения": "Intent and promotion forecast",
+      "Прогноз интента и SEO-пакет": "Intent forecast and SEO package",
+      "Проверка риска": "Risk check",
+      "Проверка рисков": "Risk check",
+      "Проверка юридического риска": "Legal risk check",
+      "Проверка медицинского риска": "Medical risk check",
+      "Проверка инвестиционного риска": "Investment risk check",
+      "Нужна внешняя проверка": "External review needed",
+      "Служебный элемент": "Service element",
+      "Механический повтор": "Mechanical repetition",
+      "Формальная формулировка": "Formal phrasing",
+      "Проверка тона": "Tone check",
+      "Соответствие аудитории": "Audience fit",
+      "Повторяющееся предложение": "Repeated sentence",
+      "Перегруженное предложение": "Overloaded sentence",
+      "Информационный / решение проблемы": "Informational / problem solution",
+      "Тип интента: Информационный / решение проблемы": "Intent type: Informational / problem solution",
+      "SEO-хук заголовка и вступления": "SEO hook for title and intro",
+      "Полезные материалы": "Helpful resources",
+      "Технологии": "Technology",
+      "Здоровье и спорт": "Health and fitness",
+      "Бизнес": "Business",
+      "Предупреждение!": "Warning!",
+      "НЕТ": "no",
+      "ДА": "yes",
+      "да": "yes",
+      "нет": "no",
+      "Есть фактически чувствительные утверждения, числа или медицинско-правовые формулировки. Их нельзя подтверждать только сравнением текстов. Перепроверьте числа, источники и категоричные утверждения; смягчите то, что нельзя подтвердить уверенно.": "The text contains fact-sensitive claims, numbers, or medical/legal wording. They cannot be verified by text comparison alone. Recheck numbers, sources, and categorical claims; soften anything that cannot be confirmed with confidence.",
+      "Перепроверьте числа, источники и категоричные утверждения; смягчите то, что нельзя подтвердить уверенно.": "Recheck numbers, sources, and categorical claims; soften anything that cannot be confirmed with confidence.",
+      "Расплывчатые ссылки на исследования и экспертов лучше заменить конкретными источниками или убрать.": "Vague references to research and experts should be replaced with specific sources or removed.",
+      "Текст может выглядеть как попытка нарушить закон, правила платформы или дать опасные инструкции.": "The text may look like an attempt to break the law, evade platform rules, or provide dangerous instructions.",
+      "Есть технические или конструкторские утверждения, где ошибка может быть критичной.": "Technical or engineering claims were found where mistakes may be critical.",
+      "Для WordPress / Laravel CMS": "For WordPress / Laravel CMS",
+      "Описание": "Description",
+      "Ключевые слова": "Keywords",
+      "Категория / метки": "Category / tags",
+      "Цепляющие хуки": "Hook ideas",
+    };
+    const normalized = value.trim();
+    if (exact[normalized]) return value.replace(normalized, exact[normalized]);
+    const metaReplacements: Array<[RegExp, string]> = [
+      [/\bСТИЛЬ\b/g, "STYLE"],
+      [/\bТОН\b/g, "TONE"],
+      [/\bАУДИТОРИЯ\b/g, "AUDIENCE"],
+      [/\bЧИТАЕМОСТЬ\b/g, "READABILITY"],
+      [/\bНАТУРАЛЬНОСТЬ\b/g, "NATURALNESS"],
+      [/\bЛОГИКА\b/g, "LOGIC"],
+      [/\bИНТЕНТ\b/g, "INTENT"],
+      [/\bЮРИДИЧЕСКИЙ РИСК\b/g, "LEGAL RISK"],
+      [/\bМЕДИЦИНСКИЙ РИСК\b/g, "MEDICAL RISK"],
+      [/\bИНВЕСТИЦИОННЫЙ РИСК\b/g, "INVESTMENT RISK"],
+      [/\bСЛУЖЕБНЫЙ ЭЛЕМЕНТ\b/g, "SERVICE ELEMENT"],
+      [/\bПРЕДУПРЕЖДЕНИЕ\b/g, "WARNING"],
+      [/\bЗАМЕТКА\b/g, "NOTE"],
+      [/\bАБЗАЦ\b/g, "PARAGRAPH"],
+    ];
+    let localized = metaReplacements.reduce(
+      (current, [pattern, replacement]) => current.replace(pattern, replacement),
+      value,
+    );
+    const replacements: Array<[RegExp, string]> = [
+      [/Информационный \/ решение проблемы/g, "Informational / problem solution"],
+      [/SEO-хук заголовка и вступления/g, "SEO hook for title and intro"],
+      [/Полезные материалы/g, "Helpful resources"],
+      [/Технологии/g, "Technology"],
+      [/Здоровье и спорт/g, "Health and fitness"],
+      [/Бизнес/g, "Business"],
+      [/что важно знать/gi, "what to know"],
+      [/:\s*НЕТ\b/g, ": no"],
+      [/:\s*ДА\b/g, ": yes"],
+      [/:\s*нет\b/g, ": no"],
+      [/:\s*да\b/g, ": yes"],
+      [/Есть инвестиционно чувствительные формулировки\./g, "Investment-sensitive wording was found."],
+      [/Есть юридически чувствительные формулировки\./g, "Legally sensitive wording was found."],
+      [/Есть медицинские или health-sensitive утверждения\./g, "Medical or health-sensitive claims were found."],
+      [/Интернет-сверка и проверка внешних источников не выполнялись в этом локальном анализе\./g, "Internet and external-source verification were not performed by this local analysis."],
+      [/Интернет-сверка позже можно подключить отдельным внешним источником\./g, "Internet verification can be connected later through a separate external source."],
+      [/Оба текста проверены как материалы для выбранной площадки\. Это локальная оценка формата, а не данные SERP\./gi, "Both texts were checked as materials for the selected platform. This is a local format estimate, not SERP data."],
+      [/Проверьте, кому адресован каждый текст\. Если аудитория разная, сравнивайте не только качество, но и соответствие ожиданиям читателя\./gi, "Check who each text is addressed to. If the audiences differ, compare not only quality, but also fit with reader expectations."],
+      [/У текста A сильнее видимая структура: больше опорных блоков для читателя\./gi, "Text A has stronger visible structure: more support blocks for the reader."],
+      [/У текста B сильнее видимая структура: больше опорных блоков для читателя\./gi, "Text B has stronger visible structure: more support blocks for the reader."],
+      [/Сравнивайте не только количество заголовков, а путь читателя: проблема, объяснение, шаги, примеры, FAQ и вывод\./gi, "Compare not only the number of headings, but the reader path: problem, explanation, steps, examples, FAQ, and conclusion."],
+      [/Тон должен соответствовать риску темы: в медицине, финансах, праве и технике лучше звучит точность, осторожность и ясное ограничение советов\./gi, "Tone should match topic risk: in medicine, finance, law, and technical topics, precision, caution, and clear limits work better."],
+      [/В текстах нет явных меток медиа\./gi, "The texts do not contain clear media markers."],
+      [/В тексте нет явных меток медиа\./gi, "The text does not contain clear media markers."],
+      [/Для длинной статьи стоит проверить, где нужны изображения, схемы или видео\./gi, "For a long article, check where images, diagrams, or video are needed."],
+      [/Для сайта полезно отмечать медиа внутри релевантных разделов, а не складывать все изображения в конец текста\./gi, "For a site article, media markers should sit inside relevant sections, not be pushed to the end of the text."],
+      [/0% в этой метрике означает отсутствие совпавших 4-словных фрагментов в локальной проверке, а не гарантию абсолютной уникальности\./gi, "0% in this metric means no matching 4-word fragments in the local check, not a guarantee of absolute uniqueness."],
+      [/Найдены локальные синтаксические или пунктуационные сигналы, которые стоит вычитать вручную\./gi, "Local syntax or punctuation signals were found and should be manually reviewed."],
+      [/В текстах есть причинно-следственные переходы\. Их нужно проверять на достаточность объяснения, а не считать ошибками автоматически\./gi, "The texts contain cause-and-effect transitions. They should be checked for sufficient support, not treated as automatic errors."],
+      [/В тексте есть причинно-следственные переходы\. Их нужно проверять на достаточность объяснения, а не считать ошибками автоматически\./gi, "The text contains cause-and-effect transitions. They should be checked for sufficient support, not treated as automatic errors."],
+      [/Проверьте места с «поэтому», «следовательно», «всегда» и «никогда»: рядом должно быть обоснование\./gi, "Check places with 'therefore', 'consequently', 'always', and 'never': they need nearby justification."],
+      [/Текст A и текст B делают акцент на разных ключевых понятиях, поэтому интент может совпадать не полностью\./gi, "Text A and Text B emphasize different key concepts, so the intent may overlap only partially."],
+      [/Перед выводом о том, какой текст сильнее, проверьте, что оба текста отвечают на один и тот же запрос\. Если один текст используется как конкурентный ориентир, берите фокус интента, а не формулировки\./gi, "Before deciding which text is stronger, check whether both texts answer the same request. If one text is used as a competitive reference, keep the intent focus, not the wording."],
+      [/Текст A даёт больше сигналов конкретики: ([^.]+)\./gi, "Text A provides more specificity signals: $1."],
+      [/Текст B даёт больше сигналов конкретики: ([^.]+)\./gi, "Text B provides more specificity signals: $1."],
+      [/цифр, вопросов, списков или практических деталей/gi, "numbers, questions, lists, or practical details"],
+      [/цифр, вопросов, списков и практических деталей/gi, "numbers, questions, lists, and practical details"],
+      [/Сравнение текстов не заменяет медицинскую, юридическую, финансовую или научную экспертизу\./gi, "Text comparison does not replace medical, legal, financial, or scientific expertise."],
+      [/Для медицинских, юридических, финансовых, технических и научных утверждений нужны источники, осторожные формулировки и ручная проверка\./gi, "Medical, legal, financial, technical, and scientific claims need sources, careful wording, and human review."],
+      [/Если нужно приблизиться к стилю, переносите уровень ясности, ритм и плотность примеров, но не фразы и порядок абзацев\./gi, "If you need to move closer to the style, transfer clarity level, rhythm, and example density, not phrases or paragraph order."],
+      [/Используйте похожую логику только как ориентир; добавьте собственные примеры, выводы и формулировки\./gi, "Use similar logic only as a reference: add your own examples, conclusions, and wording."],
+      [/Используйте похожую логику только как ориентир: добавьте собственные примеры, выводы и формулировки\./gi, "Use similar logic only as a reference: add your own examples, conclusions, and wording."],
+      [/Лучше работает заголовок, который прямо называет интент и пользу без кликбейта\./gi, "A title works better when it directly states the intent and benefit without clickbait."],
+      [/Оценивайте пригодность под выбранную площадку: статьям сайта нужны структура и полнота, соцсетям — хук и короткая польза\./gi, "Evaluate fit for the selected platform: site articles need structure and completeness, while social posts need a hook and concise value."],
+      [/Используйте сильные стороны как приоритеты редактирования, а не как повод копировать второй текст\./gi, "Use strengths as editing priorities, not as a reason to copy the other text."],
+      [/Усиливайте более слабый текст добавленной ценностью, а не зеркальным повторением сильного текста\. После правок запустите сравнение снова и проверьте, сократились ли разрывы\./gi, "Strengthen the weaker text with added value, not by mirroring the stronger text. After editing, run the comparison again and check whether the gaps became smaller."],
+      [/Усиливайте более слабый текст добавленной ценностью, а не зеркальными повторениями сильного текста\. После правок запустите сравнение снова и проверьте, сократились ли разрывы\./gi, "Strengthen the weaker text with added value, not by mirroring the stronger text. After editing, run the comparison again and check whether the gaps became smaller."],
+      [/Текст A и текст B делают акцент на разных ключевых понятиях, поэтому интент может совпадать не полностью\. Перед выводом о том, какой текст сильнее, проверьте, что оба текста отвечают на один и тот же запрос\. Если один текст используется как конкурентный ориентир, берите фокус интента, а не формулировки\./gi, "Text A and Text B emphasize different key concepts, so the intent may overlap only partially. Before deciding which text is stronger, check whether both texts answer the same request. If one text is used as a competitive reference, keep the intent focus, not the wording."],
+      [/Тексты заметно расходятся по тематическому покрытию; перед правкой проверьте отсутствующие разделы\./gi, "The texts differ noticeably in topical coverage; before editing, check the missing sections."],
+      [/Что есть у B и может отсутствовать в A:/gi, "What B has that A may miss:"],
+      [/Что есть у A и может отсутствовать в B:/gi, "What A has that B may miss:"],
+      [/Используйте отсутствующие темы как подсказки для собственных разделов, примеров или FAQ, а не для копирования второго текста\./gi, "Use missing topics as prompts for your own sections, examples, or FAQ, not as material to copy from the other text."],
+      [/Для рискованных тем добавьте предупреждения, источники и формулировки с границами применимости\./gi, "For sensitive topics, add warnings, sources, and wording with clear limits of applicability."],
+      [/Добавляйте конкретные шаги, сценарии, примеры и цифры только там, где они точны и полезны\./gi, "Add concrete steps, scenarios, examples, and numbers only where they are accurate and useful."],
+      [/[Уу]сильте смысловое покрытие через недостающие понятия, но добавляйте собственные объяснения и примеры\./g, "Strengthen semantic coverage through missing concepts, but add your own explanations and examples."],
+      [/Сопоставляйте объём и структуру с площадкой: для статьи сайта важны полнота и разделы, для соцсетей — хук, ясность и компактность\./gi, "Compare volume and structure against the platform: site articles need completeness and sections, while social posts need a hook, clarity, and compactness."],
+      [/Учитываются числа, списки и шаги\./gi, "Numbers, lists, and steps are counted."],
+      [/Конкретику стоит добавлять только там, где она точна и полезна\./gi, "Add specificity only where it is accurate and useful."],
+      [/нужна проверка/gi, "needs review"],
+      [/низкий/gi, "low"],
+      [/средний/gi, "medium"],
+      [/высокий/gi, "high"],
+      [/^Повторяющиеся термины могут делать текст механическим:\s*/i, "Repeated terms may make the text feel mechanical: "],
+      [/^Проверьте, что примеры, термины и глубина объяснения подходят целевому читателю\.$/i, "Check that examples, terminology, and explanation depth fit the intended reader."],
+      [/^Это предложение несёт много смыслов сразу и может требовать разделения\.$/i, "This sentence carries many ideas at once and may need splitting."],
+      [/^Это слово часто делает фразу механической или канцелярской\.$/i, "This word often makes the sentence sound mechanical or bureaucratic."],
+      [/^Тон осторожный и экспертный; оставляйте предупреждения точными, а не оборонительными\.$/i, "The tone is cautious and expert-oriented; keep warnings precise, not defensive."],
+      [/^Первый экран даёт достаточно локальных сигналов для полезного превью\.$/i, "The first screen gives enough local signals for a useful preview."],
+      [/^В тексте есть несколько чисел или формул: расчёты лучше вынести в отдельную проверку\.$/i, "The text contains several numeric or formula-like fragments; calculations may need a dedicated check."],
+      [/^В тексте есть технические или конструкторские утверждения: проверьте их по документации, стандартам, чертежам или у специалиста\.$/i, "The text contains technical or engineering claims that may need expert verification, drawings, standards, or manufacturer documentation."],
+      [/^В тексте есть научные или исследовательские утверждения: проверьте методику, источники и расчёты\.$/i, "The text contains research or scientific-method claims that may need methodology, sources, or calculation review."],
+      [/^Внешняя проверка источников, правил площадки, страны, SERP или аналитики в этом локальном анализе не выполнялась\.$/i, "External source, jurisdiction, platform, SERP, or analytics verification was not performed by this local text scan."],
+      [/^В тексте есть юридически чувствительные формулировки\. Их нельзя подавать как юридическую консультацию без проверки\.$/i, "The text contains legally sensitive claims. It should not be presented as legal advice without review."],
+      [/^В тексте есть медицинские или health-sensitive утверждения\. Они не должны заменять проверку врачом или источниками\.$/i, "The text contains medical or health-sensitive claims. It should not replace clinician review or source verification."],
+      [/^В тексте есть инвестиционно чувствительные формулировки\. Их нельзя подавать как индивидуальную инвестиционную рекомендацию\.$/i, "The text contains investment-sensitive claims. It should not be presented as personal investment advice."],
+      [/^Есть фактически чувствительные утверждения, числа или медицинско-правовые формулировки\. Их нельзя подтверждать только сравнением текстов\. Перепроверьте числа, источники и категоричные утверждения; смягчите то, что нельзя подтвердить уверенно\.$/i, "The text contains fact-sensitive claims, numbers, or medical/legal wording. They cannot be verified by text comparison alone. Recheck numbers, sources, and categorical claims; soften anything that cannot be confirmed with confidence."],
+      [/^Fact distortion:\s*Перепроверьте числа, источники и категоричные утверждения; смягчите то, что нельзя подтвердить уверенно\.$/i, "Fact distortion: Recheck numbers, sources, and categorical claims; soften anything that cannot be confirmed with confidence."],
+      [/^AI and hallucination check:\s*Расплывчатые ссылки на исследования и экспертов лучше заменить конкретными источниками или убрать\.$/i, "AI and hallucination check: Vague references to research and experts should be replaced with specific sources or removed."],
+      [/^Первый хук можно усилить:\s*/i, "The first hook can be stronger: "],
+      [/^Начните с проблемы читателя:\s*«Почему\s+([^»]+?)\s+мешает получить результат\?»$/i, "Start with the reader's problem: \"Why $1 blocks the result?\""],
+      [/^Начните с проблемы читателя:\s*"Почему\s+([^"]+?)\s+мешает получить результат\?"$/i, "Start with the reader's problem: \"Why $1 blocks the result?\""],
+      [/^Начните с проблемы читателя:\s*/i, "Start with the reader's problem: "],
+      [/^Покажите обещание пользы в первой строке:\s*что человек пойм[её]т или сможет сделать после чтения\.$/i, "Show the benefit promise in the first line: what the reader will understand or be able to do after reading."],
+      [/^Покажите обещание пользы в первой строке:\s*что человек поймет и сможет сделать после чтения\.$/i, "Show the payoff in the first line: what the reader will understand and be able to do after reading."],
+      [/^Покажите обещание пользы в первой строке:\s*/i, "Show the benefit promise in the first line: "],
+      [/^Усилите первую строку, пользу для читателя и SEO-title перед публикацией\.$/i, "Strengthen the first line, reader benefit, and SEO title before publishing."],
+      [/^Блокирующих предупреждений по безопасности и экспертной проверке не найдено\.$/i, "No blocking safety or expert-review warnings were found."],
+      [/^Риски запрещённого контента, обхода правил, юридических, медицинских, инвестиционных, технических, научных выводов, расчётов и внешней сверки\.$/i, "Risks around prohibited content, rule evasion, legal, medical, investment, technical, scientific, calculation, and external-source review."],
+      [/^Насколько понятно, зачем читать текст, какой интент он закрывает и насколько сильна первая подача\.$/i, "How clearly the text explains why to read it, what intent it satisfies, and how strong the opening presentation is."],
+      [/^Сохраните текущий интент и используйте SEO-пакет как черновик для CMS\.$/i, "Keep the current intent and use the SEO package as a CMS draft."],
+      [/^Это локальный прогноз без SERP и соцданных\. Интернет-сверку позже можно подключить отдельным внешним источником\.$/i, "This is a local forecast without SERP or social-platform data. Internet verification can be connected later through a separate external source."],
+      [/^Если это пост или рилс, вынесите конфликт\/боль в первые 1–2 секунды или первую строку\.$/i, "If this is a post or reel, move the conflict/pain into the first 1-2 seconds or first line."],
+      [/^Если это пост или рилс,\s*/i, "If this is a post or reel, "],
+      [/: что важно знать\b/gi, ": what to know"],
+    ];
+    for (const [pattern, replacement] of replacements) {
+      localized = localized.replace(pattern, replacement);
+    }
+    return localized;
+  }
   const replacements: Array<[RegExp, string]> = [
     [/^Intent and promotion forecast$/i, "Прогноз интента и продвижения"],
     [/^Repeated sentence$/i, "Повторяющееся предложение"],
@@ -2068,10 +2256,10 @@ function renderArticleFooterReport(
               <li class="${item.priority}">
                 <div>
                   <header>
-                    <strong>${escapeHtml(title)}</strong>
+                    <strong>${escapeHtml(localizeToolDataText(title, isRu))}</strong>
                     <small>${escapeHtml(priorityToneLabel(item.priority, labels))}</small>
                   </header>
-                  <p>${escapeHtml(item.detail)}</p>
+                  <p>${escapeHtml(localizeToolDataText(item.detail, isRu))}</p>
                 </div>
               </li>`;
           })
@@ -2130,10 +2318,10 @@ function renderArticleTextReportDashboardHtml(report: RuntimeAuditReport): strin
       const value = metric.value ?? 0;
       return `
         <article class="metric-tile ${metricToneClass(metric.tone)}">
-          <h3>${escapeHtml(metric.label)}</h3>
+          <h3>${escapeHtml(localizeToolDataText(metric.label, isRu))}</h3>
           <div class="ring" style="background:${scoreRingBackground(value)}"><strong data-count="${value}">0</strong><span>${escapeHtml(metric.suffix)}</span></div>
           <div class="metric-meter"><i class="${metricToneClass(metric.tone)}" style="--value:${value}%"></i></div>
-          <p>${escapeHtml(metric.description)}</p>
+          <p>${escapeHtml(localizeToolDataText(metric.description, isRu))}</p>
         </article>`;
     })
     .join("");
@@ -2142,9 +2330,9 @@ function renderArticleTextReportDashboardHtml(report: RuntimeAuditReport): strin
       (dimension) => `
         <article class="dimension-tile ${dimensionStatusClass(dimension.status)}">
           <span>${escapeHtml(dimensionStatusCopy(dimension.status, isRu))}</span>
-          <h3>${escapeHtml(dimension.label)}</h3>
-          <p>${escapeHtml(dimension.detail)}</p>
-          <strong>${escapeHtml(dimension.recommendation)}</strong>
+          <h3>${escapeHtml(localizeToolDataText(dimension.label, isRu))}</h3>
+          <p>${escapeHtml(localizeToolDataText(dimension.detail, isRu))}</p>
+          <strong>${escapeHtml(localizeToolDataText(dimension.recommendation, isRu))}</strong>
         </article>`,
     )
     .join("");
@@ -3621,10 +3809,11 @@ function renderReportHtml(report: RuntimeAuditReport): string {
     return renderArticleTextReportDashboardHtml(report);
   }
 
-  const facts = aggregateSiteFacts(report, /[А-Яа-яЁё]/.test(report.summary));
-  const isRu = /[А-Яа-яЁё]/.test(
-    `${report.summary} ${facts.map((fact) => fact.title).join(" ")}`,
-  );
+  const isRu =
+    report.locale === "ru" ||
+    (report.locale !== "en" &&
+      /[А-Яа-яЁё]/.test(`${report.summary} ${report.nextStep}`));
+  const facts = aggregateSiteFacts(report, isRu);
   const preview = buildSitePreviewData(report, facts, isRu);
   const critical = facts.filter((fact) => fact.status === "critical").length;
   const warning = facts.filter((fact) => fact.status === "warning").length;
@@ -4471,7 +4660,10 @@ function renderReportSectionTitle(title: string, icon: "check" | "shield"): stri
 function renderSiteCompareReportDashboardHtml(report: RuntimeAuditReport): string {
   const compare = report.siteCompare;
   if (!compare) return renderReportHtml({ ...report, siteCompare: undefined });
-  const isRu = /[А-Яа-яЁё]/.test(`${report.summary} ${report.nextStep}`);
+  const isRu =
+    report.locale === "ru" ||
+    (report.locale !== "en" &&
+      /[А-Яа-яЁё]/.test(`${report.summary} ${report.nextStep}`));
   const colors = ["#ff6b35", "#2563eb", "#059669"];
   const winner = compare.winnerUrl ?? (isRu ? "ожидаем данные" : "waiting for data");
   const metricBars = compare.metrics
@@ -4676,32 +4868,78 @@ function renderSiteCompareRadarSvg(
 }
 
 function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): string {
+  const isRu =
+    report.locale === "ru" ||
+    (report.locale !== "en" &&
+      /[А-Яа-яЁё]/.test(`${report.summary} ${report.nextStep}`));
   const compare = report.articleCompare!;
-  const visualRows = compare.metrics.map(renderArticleCompareVisualMetricHtml).join("");
-  const metricCards = compare.metrics.map(renderArticleCompareMetricCardHtml).join("");
-  const facts = report.confirmedFacts.map(renderArticleCompareToolCardHtml).join("");
+  const copy = {
+    htmlLang: isRu ? "ru" : "en",
+    title: isRu ? "ToraSEO: сравнение текстов" : "ToraSEO: text comparison",
+    heading: isRu ? "Результат сравнения" : "Comparison result",
+    subtitle: isRu
+      ? "Структурированное сравнение двух текстов по данным ToraSEO."
+      : "Structured comparison of two texts based on ToraSEO data.",
+    goalMode: isRu ? "Режим по цели:" : "Goal mode:",
+    copyA: isRu ? "Копировать статью A" : "Copy article A",
+    copyB: isRu ? "Копировать статью B" : "Copy article B",
+    export: isRu ? "Экспортировать" : "Export",
+    similarityRisk: isRu ? "Риск похожести" : "Similarity risk",
+    exactOverlap: isRu ? "Дословные совпадения:" : "Exact overlap:",
+    visualComparison: isRu ? "Визуальное сравнение A/B" : "A/B visual comparison",
+    textAdvantage: isRu ? "Текстовое преимущество" : "Text advantage",
+    visualBody: isRu
+      ? "Графы показывают относительные локальные признаки. Это не итоговый SEO-скор, а быстрый способ увидеть разрывы."
+      : "The charts show relative local signals. This is not a final SEO score, but a quick way to spot gaps.",
+    twoTexts: isRu ? "Два текста" : "Two texts",
+    twoTextsBody: isRu
+      ? "Третий отчет показывает исходные тексты рядом, чтобы сверять выводы A/B в одном окне."
+      : "The third report keeps the source texts side by side so A/B conclusions can be checked in one window.",
+    gapsTitle: isRu ? "Разрывы и отличия" : "Gaps and differences",
+    gapsBody: isRu
+      ? "Какие темы, смысловые блоки и полезные элементы отличаются между текстами A и B."
+      : "Topics, semantic blocks, and useful elements that differ between texts A and B.",
+    actionsTitle: isRu ? "План улучшений" : "Improvement plan",
+    toolDataTitle: isRu ? "Данные инструментов" : "Tool data",
+    copyError: isRu ? "Не удалось скопировать текст." : "Could not copy the text.",
+    copyAReady: isRu
+      ? "Статья A скопирована без служебных медиа-меток."
+      : "Article A copied without service media markers.",
+    copyBReady: isRu
+      ? "Статья B скопирована без служебных медиа-меток."
+      : "Article B copied without service media markers.",
+  };
+  const visualRows = compare.metrics
+    .map((metric) => renderArticleCompareVisualMetricHtml(metric, isRu))
+    .join("");
+  const metricCards = compare.metrics
+    .map((metric) => renderArticleCompareMetricCardHtml(metric, isRu))
+    .join("");
+  const facts = report.confirmedFacts
+    .map((fact) => renderArticleCompareToolCardHtml(fact, isRu))
+    .join("");
   const findingColumns =
     compare.focusSide === "textA"
-      ? renderCompareInsightColumn("Текст A", compare.textA.strengths, compare.textA.weaknesses)
+      ? renderCompareInsightColumn(isRu ? "Текст A" : "Text A", compare.textA.strengths, compare.textA.weaknesses, isRu)
       : compare.focusSide === "textB"
-        ? renderCompareInsightColumn("Текст B", compare.textB.strengths, compare.textB.weaknesses)
+        ? renderCompareInsightColumn(isRu ? "Текст B" : "Text B", compare.textB.strengths, compare.textB.weaknesses, isRu)
         : [
-            renderCompareInsightColumn("Текст A", compare.textA.strengths, compare.textA.weaknesses),
-            renderCompareInsightColumn("Текст B", compare.textB.strengths, compare.textB.weaknesses),
+            renderCompareInsightColumn(isRu ? "Текст A" : "Text A", compare.textA.strengths, compare.textA.weaknesses, isRu),
+            renderCompareInsightColumn(isRu ? "Текст B" : "Text B", compare.textB.strengths, compare.textB.weaknesses, isRu),
           ].join("");
   const findingsTitle =
     compare.focusSide === "textA"
-      ? "Фокус по цели анализа: текст A"
+      ? isRu ? "Фокус по цели анализа: текст A" : "Goal focus: text A"
       : compare.focusSide === "textB"
-        ? "Фокус по цели анализа: текст B"
-        : "Сильные и слабые стороны A/B";
+        ? isRu ? "Фокус по цели анализа: текст B" : "Goal focus: text B"
+        : isRu ? "Сильные и слабые стороны A/B" : "A/B strengths and weaknesses";
   const gapRows = compare.gaps
     .slice(0, 8)
     .map(
       (gap) => `
         <article class="compact-note soft-note">
-          <h3>${escapeHtml(compareGapSideLabel(gap.side))}: ${escapeHtml(compareReportTitle(gap.title))}</h3>
-          <p>${escapeHtml(gap.detail)}</p>
+          <h3>${escapeHtml(compareGapSideLabel(gap.side, isRu))}: ${escapeHtml(compareReportTitle(gap.title, isRu))}</h3>
+          <p>${escapeHtml(localizeToolDataText(gap.detail, isRu))}</p>
         </article>`,
     )
     .join("");
@@ -4710,17 +4948,17 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
     .map(
       (item, index) => `
         <article class="compact-note">
-          <h3>${index + 1}. ${escapeHtml(item.title)}</h3>
-          <p>${escapeHtml(item.detail)}</p>
+          <h3>${index + 1}. ${escapeHtml(compareReportTitle(item.title, isRu))}</h3>
+          <p>${escapeHtml(localizeToolDataText(item.detail, isRu))}</p>
         </article>`,
     )
     .join("");
   return `<!doctype html>
-  <html lang="ru">
+  <html lang="${copy.htmlLang}">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>ToraSEO: сравнение текстов</title>
+      <title>${escapeHtml(copy.title)}</title>
       <style>
         :root {
           --bg:#fff7f0;
@@ -5149,31 +5387,31 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
           <div class="report-summary-header">
             <div>
               <p class="eyebrow">ToraSEO</p>
-              <h1>Результат сравнения</h1>
-              <p>Структурированное сравнение двух текстов по данным ToraSEO.</p>
-              <p><strong>Режим по цели:</strong> ${escapeHtml(compare.goalLabel)}. ${escapeHtml(compare.goalDescription)}</p>
+              <h1>${escapeHtml(copy.heading)}</h1>
+              <p>${escapeHtml(copy.subtitle)}</p>
+              <p><strong>${escapeHtml(copy.goalMode)}</strong> ${escapeHtml(compare.goalLabel)}. ${escapeHtml(compare.goalDescription)}</p>
             </div>
             <div class="report-actions">
               <span>${compare.coverage.completed} / ${compare.coverage.total}</span>
-              <button class="report-window-action" id="copy-text-a" type="button">Копировать статью A</button>
-              <button class="report-window-action" id="copy-text-b" type="button">Копировать статью B</button>
-              <button id="export-report" type="button">Экспортировать</button>
+              <button class="report-window-action" id="copy-text-a" type="button">${escapeHtml(copy.copyA)}</button>
+              <button class="report-window-action" id="copy-text-b" type="button">${escapeHtml(copy.copyB)}</button>
+              <button id="export-report" type="button">${escapeHtml(copy.export)}</button>
             </div>
           </div>
           <p class="status-line" id="copy-status"></p>
           <div class="top-grid">
             <div class="hero">
-              <p class="eyebrow">Текстовое преимущество</p>
-              <h2>${escapeHtml(compare.verdict.label)}</h2>
-              <p>${escapeHtml(compare.goalDescription)}</p>
-              <p class="verdict-detail">${escapeHtml(compare.verdict.detail)}</p>
-              <p>${escapeHtml(compare.verdict.mainGap)}</p>
+              <p class="eyebrow">${escapeHtml(copy.textAdvantage)}</p>
+              <h2>${escapeHtml(localizeToolDataText(compare.verdict.label, isRu))}</h2>
+              <p>${escapeHtml(localizeToolDataText(compare.goalDescription, isRu))}</p>
+              <p class="verdict-detail">${escapeHtml(localizeToolDataText(compare.verdict.detail, isRu))}</p>
+              <p>${escapeHtml(localizeToolDataText(compare.verdict.mainGap, isRu))}</p>
             </div>
             <aside class="risk-card">
-              <p class="eyebrow">Риск похожести</p>
-              <h2>${escapeHtml(copyRiskLabelForReport(compare.similarity.copyRisk))}</h2>
-              <p><strong>Дословные совпадения:</strong> ${escapeHtml(String(compare.similarity.exactOverlap ?? "—"))}%</p>
-              <p>${escapeHtml(compare.similarity.detail)}</p>
+              <p class="eyebrow">${escapeHtml(copy.similarityRisk)}</p>
+              <h2>${escapeHtml(copyRiskLabelForReport(compare.similarity.copyRisk, isRu))}</h2>
+              <p><strong>${escapeHtml(copy.exactOverlap)}</strong> ${escapeHtml(String(compare.similarity.exactOverlap ?? "—"))}%</p>
+              <p>${escapeHtml(localizeToolDataText(compare.similarity.detail, isRu))}</p>
             </aside>
           </div>
         </section>
@@ -5181,8 +5419,8 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
         <section class="panel">
           <div class="section-heading">
             <div>
-              <h2>Визуальное сравнение A/B</h2>
-              <p>Графы показывают относительные локальные признаки. Это не итоговый SEO-скор, а быстрый способ увидеть разрывы.</p>
+              <h2>${escapeHtml(copy.visualComparison)}</h2>
+              <p>${escapeHtml(copy.visualBody)}</p>
             </div>
             <div class="legend"><span><i></i>A</span><span><i class="b"></i>B</span></div>
           </div>
@@ -5192,13 +5430,13 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
         <section class="panel">
           <div class="section-heading">
             <div>
-              <h2>Два текста</h2>
-              <p>Третий отчет показывает исходные тексты рядом, чтобы сверять выводы A/B в одном окне.</p>
+              <h2>${escapeHtml(copy.twoTexts)}</h2>
+              <p>${escapeHtml(copy.twoTextsBody)}</p>
             </div>
           </div>
           <div class="text-grid">
-            ${renderArticleCompareTextSideHtml(compare.textA)}
-            ${renderArticleCompareTextSideHtml(compare.textB)}
+            ${renderArticleCompareTextSideHtml(compare.textA, isRu)}
+            ${renderArticleCompareTextSideHtml(compare.textB, isRu)}
           </div>
         </section>
 
@@ -5223,8 +5461,8 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
             <div>
               <div class="section-heading">
                 <div>
-                  <h2>Разрывы по содержанию</h2>
-                  <p>Какие темы, смысловые блоки и полезные элементы отличаются между текстами A и B.</p>
+                  <h2>${escapeHtml(copy.gapsTitle)}</h2>
+                  <p>${escapeHtml(copy.gapsBody)}</p>
                 </div>
               </div>
               <div class="finding-list">${gapRows}</div>
@@ -5232,8 +5470,8 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
             <div>
               <div class="section-heading">
                 <div>
-                  <h2>Что улучшить дальше</h2>
-                  <p>Приоритеты правки: усиливаем нужный текст, не копируя второй.</p>
+                  <h2>${escapeHtml(copy.actionsTitle)}</h2>
+                  <p>${escapeHtml(isRu ? "Приоритеты правки: усиливаем нужный текст, не копируя второй." : "Edit priorities: strengthen the target text without copying the other one.")}</p>
                 </div>
               </div>
               <div class="finding-list">${actionRows}</div>
@@ -5244,25 +5482,25 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
         <section class="panel">
           <div class="section-heading">
             <div>
-              <h2>Данные инструментов</h2>
-              <p>Каждый блок показывает, что нашел конкретный MCP-инструмент и что с этим делать дальше.</p>
+              <h2>${escapeHtml(copy.toolDataTitle)}</h2>
+              <p>${escapeHtml(isRu ? "Каждый блок показывает, что нашел конкретный MCP-инструмент и что с этим делать дальше." : "Each block shows what a specific MCP tool found and what to do next.")}</p>
             </div>
           </div>
           <div class="tool-data-grid">${facts}</div>
         </section>
 
         <section class="panel limit-box">
-          <p class="eyebrow">Граница текстового сравнения</p>
+          <p class="eyebrow">${escapeHtml(isRu ? "Граница текстового сравнения" : "Text comparison boundary")}</p>
           <ul>
-            ${compare.limitations.map((item) => `<li>• ${escapeHtml(item)}</li>`).join("")}
+            ${compare.limitations.map((item) => `<li>• ${escapeHtml(localizeToolDataText(item, isRu))}</li>`).join("")}
           </ul>
         </section>
 
         <section class="panel">
-          <p class="next-step">${escapeHtml(report.nextStep)}</p>
+          <p class="next-step">${escapeHtml(localizeToolDataText(report.nextStep, isRu))}</p>
         </section>
         <section class="panel">
-          <p class="analysis-version">${analysisVersionLine(true, report.analysisVersion)}</p>
+          <p class="analysis-version">${analysisVersionLine(isRu, report.analysisVersion)}</p>
         </section>
       </main>
       <script>
@@ -5291,14 +5529,14 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
               }
               setStatus(successMessage);
             } catch {
-              setStatus("Не удалось скопировать текст.");
+              setStatus(${jsonScriptString(copy.copyError)});
             }
           };
           document.getElementById("copy-text-a")?.addEventListener("click", () => {
-            void copyText(textA, "Статья A скопирована без служебных медиа-меток.");
+            void copyText(textA, ${jsonScriptString(copy.copyAReady)});
           });
           document.getElementById("copy-text-b")?.addEventListener("click", () => {
-            void copyText(textB, "Статья B скопирована без служебных медиа-меток.");
+            void copyText(textB, ${jsonScriptString(copy.copyBReady)});
           });
           document.getElementById("export-report")?.addEventListener("click", () => {
             window.location.href = "toraseo://export-report-pdf";
@@ -5310,11 +5548,14 @@ function renderArticleCompareReportDashboardHtml(report: RuntimeAuditReport): st
   </html>`;
 }
 
-function copyRiskLabelForReport(risk: NonNullable<RuntimeAuditReport["articleCompare"]>["similarity"]["copyRisk"]): string {
-  if (risk === "high") return "Высокий риск";
-  if (risk === "medium") return "Средний риск";
-  if (risk === "low") return "Низкий риск";
-  return "Нужна проверка";
+function copyRiskLabelForReport(
+  risk: NonNullable<RuntimeAuditReport["articleCompare"]>["similarity"]["copyRisk"],
+  isRu: boolean,
+): string {
+  if (risk === "high") return isRu ? "Высокий риск" : "High risk";
+  if (risk === "medium") return isRu ? "Средний риск" : "Medium risk";
+  if (risk === "low") return isRu ? "Низкий риск" : "Low risk";
+  return isRu ? "Нужна проверка" : "Needs review";
 }
 
 function jsonScriptString(value: string): string {
@@ -5323,6 +5564,7 @@ function jsonScriptString(value: string): string {
 
 function renderArticleCompareVisualMetricHtml(
   metric: NonNullable<RuntimeAuditReport["articleCompare"]>["metrics"][number],
+  isRu: boolean,
 ): string {
   const a = typeof metric.textA === "number" ? Math.abs(metric.textA) : 0;
   const b = typeof metric.textB === "number" ? Math.abs(metric.textB) : 0;
@@ -5333,7 +5575,7 @@ function renderArticleCompareVisualMetricHtml(
     <article class="visual-card">
       <div class="visual-card-header">
         <h3>${escapeHtml(metric.label)}</h3>
-        <span class="winner-chip">${escapeHtml(compareMetricWinnerLabelForReport(metric.winner))}</span>
+        <span class="winner-chip">${escapeHtml(compareMetricWinnerLabelForReport(metric.winner, isRu))}</span>
       </div>
       <div class="bar-row"><span>A</span><div><i style="width:${widthA}%"></i></div><b>${escapeHtml(String(metric.textA ?? "—"))}${escapeHtml(metric.textA !== null ? metric.suffix : "")}</b></div>
       <div class="bar-row"><span>B</span><div><i class="b" style="width:${widthB}%"></i></div><b>${escapeHtml(String(metric.textB ?? "—"))}${escapeHtml(metric.textB !== null ? metric.suffix : "")}</b></div>
@@ -5342,12 +5584,13 @@ function renderArticleCompareVisualMetricHtml(
 
 function renderArticleCompareMetricCardHtml(
   metric: NonNullable<RuntimeAuditReport["articleCompare"]>["metrics"][number],
+  isRu: boolean,
 ): string {
   return `
     <article class="metric-card">
       <div class="metric-card-header">
         <h3>${escapeHtml(metric.label)}</h3>
-        <span class="winner-chip">${escapeHtml(compareMetricShortWinnerLabelForReport(metric.winner))}</span>
+        <span class="winner-chip">${escapeHtml(compareMetricShortWinnerLabelForReport(metric.winner, isRu))}</span>
       </div>
       <div class="metric-values">
         <div class="metric-value"><strong>${escapeHtml(String(metric.textA ?? "—"))}${escapeHtml(metric.textA !== null ? metric.suffix : "")}</strong><span>A</span></div>
@@ -5359,34 +5602,45 @@ function renderArticleCompareMetricCardHtml(
 
 function compareMetricWinnerLabelForReport(
   winner: NonNullable<RuntimeAuditReport["articleCompare"]>["metrics"][number]["winner"],
+  isRu: boolean,
 ): string {
-  if (winner === "textA") return "лучше A";
-  if (winner === "textB") return "лучше B";
-  if (winner === "risk") return "риск";
-  if (winner === "tie") return "примерно равно";
-  return "ожидаем";
+  if (winner === "textA") return isRu ? "лучше A" : "A is stronger";
+  if (winner === "textB") return isRu ? "лучше B" : "B is stronger";
+  if (winner === "risk") return isRu ? "риск" : "risk";
+  if (winner === "tie") return isRu ? "примерно равно" : "about equal";
+  return isRu ? "ожидаем" : "waiting";
 }
 
 function compareMetricShortWinnerLabelForReport(
   winner: NonNullable<RuntimeAuditReport["articleCompare"]>["metrics"][number]["winner"],
+  isRu: boolean,
 ): string {
   if (winner === "textA") return "A";
   if (winner === "textB") return "B";
-  if (winner === "risk") return "риск";
-  if (winner === "tie") return "равно";
+  if (winner === "risk") return isRu ? "риск" : "risk";
+  if (winner === "tie") return isRu ? "равно" : "tie";
   return "—";
 }
 
-function renderArticleCompareTextSideHtml(side: NonNullable<RuntimeAuditReport["articleCompare"]>["textA"]): string {
+function renderArticleCompareTextSideHtml(
+  side: NonNullable<RuntimeAuditReport["articleCompare"]>["textA"],
+  isRu: boolean,
+): string {
+  const roleLabel =
+    side.role === "own"
+      ? isRu ? "Ваш текст" : "Your text"
+      : side.role === "competitor"
+        ? isRu ? "Текст конкурента" : "Competitor text"
+        : side.label;
   return `
     <article class="text-card">
       <header>
-        <p class="eyebrow">${escapeHtml(side.role === "own" ? "Ваш текст" : side.role === "competitor" ? "Текст конкурента" : side.label)}</p>
+        <p class="eyebrow">${escapeHtml(roleLabel)}</p>
         <h3>${escapeHtml(side.title)}</h3>
         <div class="chips">
-          <span class="chip">${escapeHtml(String(side.wordCount))} слов</span>
-          <span class="chip">${escapeHtml(String(side.paragraphCount))} абзацев</span>
-          <span class="chip">${escapeHtml(String(side.headingCount))} заголовков</span>
+          <span class="chip">${escapeHtml(String(side.wordCount))} ${isRu ? "слов" : "words"}</span>
+          <span class="chip">${escapeHtml(String(side.paragraphCount))} ${isRu ? "абзацев" : "paragraphs"}</span>
+          <span class="chip">${escapeHtml(String(side.headingCount))} ${isRu ? "заголовков" : "headings"}</span>
         </div>
       </header>
       <div class="preview">${escapeHtml(side.text)}</div>
@@ -5397,6 +5651,7 @@ function renderCompareInsightColumn(
   title: string,
   strengths: NonNullable<RuntimeAuditReport["articleCompare"]>["textA"]["strengths"],
   weaknesses: NonNullable<RuntimeAuditReport["articleCompare"]>["textA"]["weaknesses"],
+  isRu: boolean,
 ): string {
   const render = (items: typeof strengths, fallback: string) =>
     items.length
@@ -5404,8 +5659,8 @@ function renderCompareInsightColumn(
           .map(
             (item) => `
               <article class="insight">
-                <h4>${escapeHtml(compareReportTitle(item.title))}</h4>
-                <p>${escapeHtml(item.detail)}</p>
+                <h4>${escapeHtml(compareReportTitle(item.title, isRu))}</h4>
+                <p>${escapeHtml(localizeToolDataText(item.detail, isRu))}</p>
               </article>`,
           )
           .join("")
@@ -5414,42 +5669,43 @@ function renderCompareInsightColumn(
     <div class="finding-side">
       <h3>${escapeHtml(title)}</h3>
       <div class="finding-list">
-        <strong>Сильные стороны</strong>
-        ${render(strengths, "Явные сильные стороны не выделены.").replaceAll('class="insight"', 'class="insight good"')}
-        <strong>Слабые стороны</strong>
-        ${render(weaknesses, "Явные слабые стороны не выделены.").replaceAll('class="insight"', 'class="insight warn"')}
+        <strong>${isRu ? "Сильные стороны" : "Strengths"}</strong>
+        ${render(strengths, isRu ? "Явные сильные стороны не выделены." : "No clear strengths were highlighted.").replaceAll('class="insight"', 'class="insight good"')}
+        <strong>${isRu ? "Слабые стороны" : "Weaknesses"}</strong>
+        ${render(weaknesses, isRu ? "Явные слабые стороны не выделены." : "No clear weaknesses were highlighted.").replaceAll('class="insight"', 'class="insight warn"')}
       </div>
     </div>`;
 }
 
 function renderArticleCompareToolCardHtml(
   fact: RuntimeAuditReport["confirmedFacts"][number],
+  isRu: boolean,
 ): string {
-  const title = compareReportTitle(fact.title);
+  const title = compareReportTitle(fact.title, isRu);
   return `
     <article class="tool-card">
       <div class="tool-card-head">
         <span class="tool-icon">≡</span>
         <div>
           <h3>${escapeHtml(title)}</h3>
-          <small>Проверка текста ToraSEO.</small>
+          <small>${isRu ? "Проверка текста ToraSEO." : "ToraSEO text check."}</small>
         </div>
-        <span class="done-pill">Готово</span>
+        <span class="done-pill">${isRu ? "Готово" : "Done"}</span>
       </div>
       <div class="tool-note-block">
-        <h4>Что найдено</h4>
-        <p>${escapeHtml(fact.detail)}</p>
+        <h4>${isRu ? "Что найдено" : "Findings"}</h4>
+        <p>${escapeHtml(localizeToolDataText(fact.detail, isRu))}</p>
       </div>
       <div class="tool-note-block">
-        <h4>Источник</h4>
+        <h4>${isRu ? "Источник" : "Source"}</h4>
         <p>${escapeHtml(fact.sourceToolIds.join(", "))}</p>
       </div>
     </article>`;
 }
 
-function compareReportTitle(title: string): string {
+function compareReportTitle(title: string, isRu: boolean): string {
   const normalized = title.trim().toLowerCase();
-  const map: Record<string, string> = {
+  const ruMap: Record<string, string> = {
     "intent gap": "Сравнение интента",
     "content gap": "Разрывы по содержанию",
     "semantic gap": "Смысловое покрытие",
@@ -5462,16 +5718,31 @@ function compareReportTitle(title: string): string {
     "text advantage": "Текстовое преимущество",
     "confirmed facts": "Подтвержденные факты",
   };
-  return map[normalized] ?? title;
+  const enMap: Record<string, string> = {
+    "сравнение интента": "Intent comparison",
+    "разрывы по содержанию": "Content gaps",
+    "смысловое покрытие": "Semantic coverage",
+    "сравнение конкретики": "Specificity comparison",
+    "сравнение доверия": "Trust comparison",
+    "риск похожести": "Similarity risk",
+    "заголовок и клик": "Title and click",
+    "сравнение под платформу": "Platform fit comparison",
+    "что улучшить дальше": "Improvement plan",
+    "текстовое преимущество": "Text advantage",
+    "подтвержденные факты": "Confirmed facts",
+    "подтверждённые факты": "Confirmed facts",
+  };
+  return (isRu ? ruMap[normalized] : enMap[normalized]) ?? title;
 }
 
 function compareGapSideLabel(
   side: NonNullable<RuntimeAuditReport["articleCompare"]>["gaps"][number]["side"],
+  isRu: boolean,
 ): string {
-  if (side === "missing_in_a") return "Нет в A";
-  if (side === "missing_in_b") return "Нет в B";
-  if (side === "missing_in_both") return "Нет в обоих";
-  return "Есть в обоих";
+  if (side === "missing_in_a") return isRu ? "Нет в A" : "Missing in A";
+  if (side === "missing_in_b") return isRu ? "Нет в B" : "Missing in B";
+  if (side === "missing_in_both") return isRu ? "Нет в обоих" : "Missing in both";
+  return isRu ? "Есть в обоих" : "Present in both";
 }
 
 function renderProcessingHtml(): string {
@@ -5609,6 +5880,10 @@ function renderEndedHtml(locale: SupportedLocale): string {
 
 function renderReportMarkdown(report: RuntimeAuditReport): string {
   if (report.articleCompare) {
+    const isRu =
+      report.locale === "ru" ||
+      (report.locale !== "en" &&
+        /[А-Яа-яЁё]/.test(`${report.summary} ${report.nextStep}`));
     const compare = report.articleCompare;
     const metrics = compare.metrics
       .map(
@@ -5621,46 +5896,46 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
         `### ${label}`,
         "",
         items.map((item) => `- ${item.title}: ${item.detail}`).join("\n") ||
-          "Явных пунктов нет.",
+          (isRu ? "Явных пунктов нет." : "No clear items."),
       ].join("\n");
 
     return [
-      "# ToraSEO: сравнение двух текстов",
+      isRu ? "# ToraSEO: сравнение двух текстов" : "# ToraSEO: two-text comparison",
       "",
-      `Вердикт: ${compare.verdict.label}`,
+      `${isRu ? "Вердикт" : "Verdict"}: ${compare.verdict.label}`,
       "",
       compare.verdict.detail,
       "",
-      `Главный разрыв: ${compare.verdict.mainGap}`,
+      `${isRu ? "Главный разрыв" : "Main gap"}: ${compare.verdict.mainGap}`,
       "",
-      `Риск похожести: ${copyRiskLabelForReport(compare.similarity.copyRisk)}`,
+      `${isRu ? "Риск похожести" : "Similarity risk"}: ${copyRiskLabelForReport(compare.similarity.copyRisk, isRu)}`,
       "",
-      `Дословные совпадения: ${compare.similarity.exactOverlap ?? "—"}%`,
+      `${isRu ? "Дословные совпадения" : "Exact overlap"}: ${compare.similarity.exactOverlap ?? "—"}%`,
       "",
-      analysisVersionLine(true, report.analysisVersion),
+      analysisVersionLine(isRu, report.analysisVersion),
       "",
-      "## Метрики",
+      isRu ? "## Метрики" : "## Metrics",
       "",
       metrics,
       "",
-      "## Сильные стороны",
+      isRu ? "## Сильные стороны" : "## Strengths",
       "",
-      side("Текст A", compare.textA.strengths),
+      side(isRu ? "Текст A" : "Text A", compare.textA.strengths),
       "",
-      side("Текст B", compare.textB.strengths),
+      side(isRu ? "Текст B" : "Text B", compare.textB.strengths),
       "",
-      "## Слабые стороны",
+      isRu ? "## Слабые стороны" : "## Weaknesses",
       "",
-      side("Текст A", compare.textA.weaknesses),
+      side(isRu ? "Текст A" : "Text A", compare.textA.weaknesses),
       "",
-      side("Текст B", compare.textB.weaknesses),
+      side(isRu ? "Текст B" : "Text B", compare.textB.weaknesses),
       "",
-      "## План улучшения",
+      isRu ? "## План улучшения" : "## Improvement plan",
       "",
       compare.actionPlan.map((item) => `- ${item.title}: ${item.detail}`).join("\n") ||
-        "План появится после выполнения инструментов.",
+        (isRu ? "План появится после выполнения инструментов." : "The plan will appear after the tools finish."),
       "",
-      "## Ограничения",
+      isRu ? "## Ограничения" : "## Limitations",
       "",
       compare.limitations.map((item) => `- ${item}`).join("\n"),
       "",
@@ -5668,11 +5943,13 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
   }
 
   if (report.articleText) {
+    const isRu = articleReportIsRussian(report);
+    const localized = (value: string) => localizeToolDataText(value, isRu);
     const article = report.articleText;
     const metrics = article.metrics
       .map(
         (metric) =>
-          `- ${metric.label}: ${
+          `- ${localized(metric.label)}: ${
             metric.value === null ? "pending" : `${metric.value}${metric.suffix}`
           }`,
       )
@@ -5681,13 +5958,13 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
       .map(
         (dimension) =>
           [
-            `### ${dimension.label}`,
+            `### ${localized(dimension.label)}`,
             "",
             `Status: ${dimension.status}`,
             "",
-            dimension.detail,
+            localized(dimension.detail),
             "",
-            `Recommendation: ${dimension.recommendation}`,
+            `Recommendation: ${localized(dimension.recommendation)}`,
           ].join("\n"),
       )
       .join("\n\n");
@@ -5695,11 +5972,11 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
       .map(
         (item) =>
           [
-            `### ${item.title}`,
+            `### ${localized(item.title)}`,
             "",
             `Priority: ${priorityLabel(item.priority)}`,
             "",
-            item.detail,
+            localized(item.detail),
             "",
             `Sources: ${item.sourceToolIds.join(", ")}`,
           ].join("\n"),
@@ -5709,7 +5986,7 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
       ? [
           "## Intent forecast and SEO package",
           "",
-          `Intent: ${article.intentForecast.intentLabel}`,
+          `Intent: ${localized(article.intentForecast.intentLabel)}`,
           "",
           `Hook score: ${article.intentForecast.hookScore ?? "pending"}`,
           "",
@@ -5717,27 +5994,27 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
           "",
           `Trend potential: ${article.intentForecast.trendPotential ?? "pending"}`,
           "",
-          `Demand source: ${article.intentForecast.internetDemandSource}`,
+          `Demand source: ${localized(article.intentForecast.internetDemandSource)}`,
           "",
           "### CMS package",
           "",
-          `SEO title: ${article.intentForecast.seoPackage.seoTitle}`,
+          `SEO title: ${localized(article.intentForecast.seoPackage.seoTitle)}`,
           "",
-          `Meta description: ${article.intentForecast.seoPackage.metaDescription}`,
+          `Meta description: ${localized(article.intentForecast.seoPackage.metaDescription)}`,
           "",
-          `Primary keyword: ${article.intentForecast.seoPackage.primaryKeyword}`,
+          `Primary keyword: ${localized(article.intentForecast.seoPackage.primaryKeyword)}`,
           "",
-          `Keywords: ${article.intentForecast.seoPackage.keywords.join(", ")}`,
+          `Keywords: ${localized(article.intentForecast.seoPackage.keywords.join(", "))}`,
           "",
-          `Category: ${article.intentForecast.seoPackage.category}`,
+          `Category: ${localized(article.intentForecast.seoPackage.category)}`,
           "",
-          `Tags: ${article.intentForecast.seoPackage.tags.join(", ")}`,
+          `Tags: ${localized(article.intentForecast.seoPackage.tags.join(", "))}`,
           "",
-          `Slug: ${toLatinSlug(article.intentForecast.seoPackage.slug || article.intentForecast.seoPackage.seoTitle || article.intentForecast.seoPackage.keywords.join(" "))}`,
+          `Slug: ${localizeSeoSlugForReport(toLatinSlug(article.intentForecast.seoPackage.slug || article.intentForecast.seoPackage.seoTitle || article.intentForecast.seoPackage.keywords.join(" ")), isRu)}`,
           "",
           "### Hook ideas",
           "",
-          article.intentForecast.hookIdeas.map((item) => `- ${item}`).join("\n"),
+          article.intentForecast.hookIdeas.map((item) => `- ${localized(item)}`).join("\n"),
           "",
         ].join("\n")
       : "";
@@ -5745,9 +6022,9 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
     return [
       "# ToraSEO Article Analytics",
       "",
-      `Verdict: ${article.verdictLabel}`,
+      `Verdict: ${localized(article.verdictLabel)}`,
       "",
-      article.verdictDetail,
+      localized(article.verdictDetail),
       "",
       analysisVersionLine(false, report.analysisVersion),
       "",

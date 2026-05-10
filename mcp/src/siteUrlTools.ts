@@ -208,143 +208,143 @@ function issuesFromResult(result: unknown): SiteIssue[] {
 
 function toolLabel(toolId: SiteUrlToolId): string {
   const labels: Record<SiteUrlToolId, string> = {
-    scan_site_minimal: "Базовый скан",
-    analyze_indexability: "Индексация",
+    scan_site_minimal: "Basic scan",
+    analyze_indexability: "Indexability",
     check_robots_txt: "Robots.txt",
     analyze_sitemap: "Sitemap",
-    check_redirects: "Редиректы",
-    analyze_meta: "Meta-теги",
+    check_redirects: "Redirects",
+    analyze_meta: "Meta tags",
     analyze_canonical: "Canonical",
-    analyze_headings: "Заголовки",
-    analyze_content: "Контент",
-    analyze_links: "Ссылки",
-    detect_stack: "Стек сайта",
+    analyze_headings: "Headings",
+    analyze_content: "Content",
+    analyze_links: "Links",
+    detect_stack: "Site stack",
   };
   return labels[toolId];
 }
 
 function issueTitle(code: string | undefined, fallback: string | undefined): string {
   const titles: Record<string, string> = {
-    no_title: "Title отсутствует",
-    title_too_short: "Title слишком короткий",
-    title_too_long: "Title слишком длинный",
-    no_meta_description: "Meta description отсутствует",
-    description_too_short: "Meta description слишком короткий",
-    description_too_long: "Meta description слишком длинный",
-    no_canonical: "Canonical отсутствует",
-    canonical_relative: "Canonical указан относительным URL",
-    canonical_points_elsewhere: "Canonical указывает на другой URL",
-    og_missing: "Open Graph отсутствует",
-    og_incomplete: "Open Graph заполнен не полностью",
-    twitter_card_missing: "Twitter Card отсутствует",
-    no_charset: "Charset не указан",
-    no_viewport: "Viewport не указан",
-    no_html_lang: "Язык HTML не указан",
-    noindex_present: "Страница закрыта от индексации",
-    robots_disallow: "Robots.txt запрещает обход",
-    meta_noindex: "Meta robots запрещает индексацию",
-    indexability_clear: "Индексация разрешена",
-    no_sitemap: "Sitemap не найден",
-    sitemap_not_found: "Sitemap не найден",
-    sitemap_empty: "Sitemap пустой",
-    no_redirects: "Редиректов нет",
-    redirect_chain_too_long: "Цепочка редиректов слишком длинная",
-    redirect_loop: "Обнаружена петля редиректов",
-    heading_level_skip: "Пропуск уровня заголовка",
-    no_h1: "H1 отсутствует",
-    multiple_h1: "Несколько H1",
-    no_main_content: "Основной текст не найден",
-    thin_content: "Мало основного текста",
-    borderline_content: "Основной текст на границе минимума",
-    text_to_code_ratio_very_low: "Очень мало текста относительно HTML",
-    text_to_code_ratio_low: "Мало текста относительно HTML",
-    no_paragraphs: "Нет абзацев",
-    no_internal_links: "Нет внутренних ссылок",
-    many_external_links: "Много внешних ссылок",
-    links_checked: "Ссылки проверены",
-    stack_detected: "Стек сайта определён",
+    no_title: "Title is missing",
+    title_too_short: "Title is too short",
+    title_too_long: "Title is too long",
+    no_meta_description: "Meta description is missing",
+    description_too_short: "Meta description is too short",
+    description_too_long: "Meta description is too long",
+    no_canonical: "Canonical is missing",
+    canonical_relative: "Canonical uses a relative URL",
+    canonical_points_elsewhere: "Canonical points to another URL",
+    og_missing: "Open Graph is missing",
+    og_incomplete: "Open Graph is incomplete",
+    twitter_card_missing: "Twitter Card is missing",
+    no_charset: "Charset is missing",
+    no_viewport: "Viewport is missing",
+    no_html_lang: "HTML language is missing",
+    noindex_present: "Page is blocked from indexing",
+    robots_disallow: "Robots.txt blocks crawling",
+    meta_noindex: "Meta robots blocks indexing",
+    indexability_clear: "Indexing is allowed",
+    no_sitemap: "Sitemap was not found",
+    sitemap_not_found: "Sitemap was not found",
+    sitemap_empty: "Sitemap is empty",
+    no_redirects: "No redirects",
+    redirect_chain_too_long: "Redirect chain is too long",
+    redirect_loop: "Redirect loop detected",
+    heading_level_skip: "Heading level skip",
+    no_h1: "H1 is missing",
+    multiple_h1: "Multiple H1 headings",
+    no_main_content: "Main content was not found",
+    thin_content: "Main content is thin",
+    borderline_content: "Main content is near the minimum",
+    text_to_code_ratio_very_low: "Very little text compared with HTML",
+    text_to_code_ratio_low: "Little text compared with HTML",
+    no_paragraphs: "No paragraphs",
+    no_internal_links: "No internal links",
+    many_external_links: "Many external links",
+    links_checked: "Links were checked",
+    stack_detected: "Site stack detected",
   };
   if (code && titles[code]) return titles[code];
-  return fallback?.split(".")[0]?.trim() || "Результат проверки";
+  return fallback?.split(".")[0]?.trim() || "Check result";
 }
 
 function issueExplanation(code: string | undefined, fallback: string | undefined): string {
   const explanations: Record<string, string> = {
     no_title:
-      "Поисковикам и пользователям сложнее понять тему страницы без нормального title.",
+      "Search engines and users have a harder time understanding the page topic without a clear title.",
     title_too_short:
-      "Уточните title так, чтобы он лучше называл страницу и содержал важный поисковый смысл.",
+      "Make the title more specific so it names the page and carries the main search meaning.",
     title_too_long:
-      "Сократите title: длинные заголовки часто обрезаются в поисковой выдаче.",
+      "Shorten the title: long titles are often truncated in search results.",
     no_meta_description:
-      "Поисковая система может сформировать сниппет автоматически; лучше добавить управляемое описание на 120-160 символов.",
+      "Search engines may generate the snippet automatically; add a controlled 120-160 character description.",
     description_too_short:
-      "Расширьте description до понятного описания страницы и пользы для пользователя.",
+      "Expand the description so it explains the page and the user benefit clearly.",
     description_too_long:
-      "Сократите description, чтобы важный смысл не обрезался в сниппете.",
+      "Shorten the description so the main meaning is not truncated in the snippet.",
     no_canonical:
-      "Если у страницы есть дубли или URL-варианты, добавьте канонический адрес.",
+      "If the page has duplicates or URL variants, add a canonical URL.",
     canonical_relative:
-      "Сделайте canonical абсолютным URL, чтобы поисковики не трактовали его неоднозначно.",
+      "Use an absolute canonical URL so search engines do not interpret it ambiguously.",
     canonical_points_elsewhere:
-      "Проверьте, действительно ли эта страница должна ссылаться canonical на другой адрес.",
+      "Check whether this page should really point its canonical tag to another URL.",
     og_missing:
-      "При публикации ссылки в соцсетях превью может выглядеть случайным.",
+      "When the link is shared on social platforms, the preview may look accidental.",
     og_incomplete:
-      "Добавьте недостающие Open Graph поля: заголовок, описание, URL и изображение превью.",
+      "Add the missing Open Graph fields: title, description, URL, and preview image.",
     twitter_card_missing:
-      "Добавьте twitter:card или Open Graph fallback, чтобы ссылка выглядела лучше в X/Twitter.",
+      "Add twitter:card or an Open Graph fallback so the link looks better on X/Twitter.",
     no_charset:
-      "Добавьте meta charset, чтобы браузеры не угадывали кодировку.",
+      "Add meta charset so browsers do not have to guess the encoding.",
     no_viewport:
-      "Добавьте viewport для корректного отображения на мобильных устройствах.",
+      "Add a viewport tag for correct rendering on mobile devices.",
     no_html_lang:
-      "Добавьте lang на html: это помогает доступности и языковому таргетингу.",
+      "Add lang to the html element; it helps accessibility and language targeting.",
     noindex_present:
-      "Уберите noindex на продакшене, если страницу нужно показывать в поиске.",
+      "Remove noindex in production if the page should appear in search.",
     robots_disallow:
-      "Откройте обход важных страниц в robots.txt, если их нужно индексировать.",
+      "Allow crawling of important pages in robots.txt if they should be indexed.",
     meta_noindex:
-      "Проверьте meta robots: важная страница не должна быть закрыта от индексации.",
+      "Check meta robots: an important page should not be blocked from indexing.",
     no_sitemap:
-      "Создайте sitemap.xml и укажите его в robots.txt, чтобы поисковикам было проще находить страницы сайта.",
+      "Create sitemap.xml and reference it in robots.txt so search engines can find site pages more easily.",
     sitemap_not_found:
-      "Создайте sitemap.xml и укажите его в robots.txt, чтобы поисковикам было проще находить страницы сайта.",
+      "Create sitemap.xml and reference it in robots.txt so search engines can find site pages more easily.",
     sitemap_empty:
-      "Заполните sitemap только теми страницами, которые действительно должны индексироваться.",
+      "Keep only pages that should actually be indexed in the sitemap.",
     redirect_chain_too_long:
-      "Сократите цепочку редиректов до одного шага.",
+      "Reduce the redirect chain to one step.",
     redirect_loop:
-      "Исправьте петлю редиректов: такая страница может быть недоступна для пользователей и поисковиков.",
+      "Fix the redirect loop: the page may be unavailable to users and search engines.",
     heading_level_skip:
-      "Приведите иерархию заголовков в более чистый порядок.",
+      "Clean up the heading hierarchy.",
     no_h1:
-      "Добавьте один понятный H1, который называет основную тему страницы.",
+      "Add one clear H1 that names the main page topic.",
     multiple_h1:
-      "Оставьте один основной H1, а остальные крупные заголовки переведите в H2/H3.",
+      "Keep one main H1 and move other large headings to H2/H3.",
     no_main_content:
-      "Проверьте, что важный контент доступен в HTML, а не только после сложного JS-рендеринга.",
+      "Check that important content is available in HTML, not only after complex JavaScript rendering.",
     thin_content:
-      "Добавьте содержательное описание темы или проверьте, что основной контент доступен в HTML.",
+      "Add meaningful topic coverage or check that the main content is available in HTML.",
     borderline_content:
-      "Усилите страницу содержательным текстом, если она должна привлекать поисковый трафик.",
+      "Strengthen the page with useful text if it should attract search traffic.",
     text_to_code_ratio_very_low:
-      "Проверьте, не видит ли базовый скан только оболочку страницы вместо основного контента.",
+      "Check whether the basic scan sees only the page shell instead of the main content.",
     text_to_code_ratio_low:
-      "Уменьшите лишний код или добавьте больше полезного видимого контента.",
+      "Reduce unnecessary code or add more useful visible content.",
     no_paragraphs:
-      "Разбейте текст на абзацы, чтобы его легче читали пользователи и ассистивные технологии.",
+      "Split the text into paragraphs so users and assistive technologies can read it more easily.",
     no_internal_links:
-      "Добавьте внутренние ссылки на связанные страницы сайта.",
+      "Add internal links to related site pages.",
     many_external_links:
-      "Проверьте, что внешние ссылки действительно нужны и не размывают фокус страницы.",
+      "Check that external links are really needed and do not dilute the page focus.",
     links_checked:
-      "Срочных действий по ссылкам не требуется.",
+      "No urgent link action is required.",
     stack_detected:
-      "Используйте эти сигналы как справку, а не как SEO-проблему.",
+      "Use these signals as reference, not as an SEO issue.",
   };
   if (code && explanations[code]) return explanations[code];
-  return fallback?.trim() || "Проверьте этот пункт и запустите повторный скан после правок.";
+  return fallback?.trim() || "Review this item and run the scan again after edits.";
 }
 
 function issuePriority(issue: SiteIssue): number {
@@ -432,25 +432,25 @@ function collectPassedFacts(results: CompletedSiteToolResult[]): string[] {
     const result = item.result as Record<string, unknown> | null;
     if (!result) continue;
     if (item.toolId === "scan_site_minimal" && result.status === 200) {
-      facts.push("страница доступна и отвечает HTTP 200");
+      facts.push("the page is available and returns HTTP 200");
     }
     if (item.toolId === "analyze_indexability") {
       const indexable = (result as { indexable?: boolean }).indexable;
-      if (indexable) facts.push("индексация не заблокирована meta robots или robots.txt");
+      if (indexable) facts.push("indexing is not blocked by meta robots or robots.txt");
     }
     if (item.toolId === "check_robots_txt") {
       const allowed = (result as { allowed?: boolean }).allowed;
-      if (allowed) facts.push("robots.txt разрешает обход проверяемого URL");
+      if (allowed) facts.push("robots.txt allows crawling of the checked URL");
     }
     if (item.toolId === "check_redirects") {
       const hops = (result as { total_hops?: number }).total_hops;
-      if (hops === 0) facts.push("редиректов нет");
-      if (hops === 1) facts.push("редирект настроен в один шаг");
+      if (hops === 0) facts.push("there are no redirects");
+      if (hops === 1) facts.push("the redirect is configured in one step");
     }
     if (item.toolId === "detect_stack") {
       const signals = stackSignals(item.result);
       if (signals.length > 0) {
-        facts.push(`найдены технологические сигналы: ${signals.join(", ")}`);
+        facts.push(`technology signals found: ${signals.join(", ")}`);
       }
     }
   }
@@ -463,11 +463,11 @@ function formatIssueLine(
 ): string {
   const severity =
     issue.severity === "critical"
-      ? "критично"
+      ? "critical"
       : issue.severity === "warning"
-        ? "предупреждение"
-        : "информация";
-  return `${index}. ${issue.title} (${severity}): ${issue.explanation} Проверки: ${issue.checks.join(", ")}.`;
+        ? "warning"
+        : "info";
+  return `${index}. ${issue.title} (${severity}): ${issue.explanation} Checks: ${issue.checks.join(", ")}.`;
 }
 
 function renderSiteUrlInternalChatReport(
@@ -486,27 +486,27 @@ function renderSiteUrlInternalChatReport(
     .slice(0, 5);
 
   const lines = [
-    `Аудит сайта ${url} завершён: выполнено ${completed.length} проверок.`,
+    `Site audit for ${url} completed: ${completed.length} checks finished.`,
     "",
-    "**Коротко по результату**",
-    `- Критично: ${blocking.length}. Предупреждения: ${warnings.length}. Информация: ${info.length}.`,
+    "**Short result**",
+    `- Critical: ${blocking.length}. Warnings: ${warnings.length}. Info: ${info.length}.`,
     failed.length > 0
-      ? `- Не удалось выполнить проверок: ${failed.length}. Проверьте доступность URL и повторите скан.`
-      : "- Все выбранные проверки завершились без ошибки выполнения.",
+      ? `- Failed checks: ${failed.length}. Check URL availability and run the scan again.`
+      : "- All selected checks finished without execution errors.",
   ];
 
   if (passedFacts.length > 0) {
-    lines.push("", "**Что в порядке**");
+    lines.push("", "**What looks good**");
     for (const fact of passedFacts) lines.push(`- ${fact}.`);
   }
 
   if (firstFixes.length > 0) {
-    lines.push("", "**Что мешает SEO и что исправить первым**");
+    lines.push("", "**What blocks SEO and what to fix first**");
     firstFixes.forEach((issue, index) => {
       lines.push(`- ${formatIssueLine(issue, index + 1)}`);
     });
   } else if (issues.length > 0) {
-    lines.push("", "**Замечания без срочного блокера**");
+    lines.push("", "**Notes without urgent blockers**");
     issues.slice(0, 5).forEach((issue, index) => {
       lines.push(`- ${formatIssueLine(issue, index + 1)}`);
     });
@@ -514,12 +514,12 @@ function renderSiteUrlInternalChatReport(
 
   lines.push(
     "",
-    "**Следующий шаг**",
+    "**Next step**",
     firstFixes.length > 0
-      ? `Исправьте сначала: ${firstFixes.map((issue) => issue.title).join(", ")}. После правок запустите повторный скан и сравните, сократились ли критичные проблемы и предупреждения.`
-      : "Критичных проблем по выбранным проверкам не найдено. Просмотрите информационные замечания и запустите повторный скан после правок.",
+      ? `Fix first: ${firstFixes.map((issue) => issue.title).join(", ")}. After edits, run the scan again and check whether critical issues and warnings decreased.`
+      : "No critical issues were found in the selected checks. Review informational notes and run the scan again after edits.",
     "",
-    "Дополнительные материалы от пользователя для этой сводки не требуются.",
+    "No additional user materials are required for this summary.",
   );
 
   return lines.join("\n");
