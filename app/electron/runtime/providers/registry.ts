@@ -14,7 +14,7 @@
 
 import log from "electron-log";
 
-import { OpenRouterAdapter } from "./openrouter.js";
+import { OpenAiCompatibleAdapter } from "./openrouter.js";
 import type { ProviderAdapter } from "./base.js";
 import {
   getProviderConfigInternal,
@@ -55,7 +55,7 @@ const BUILTINS: ReadonlyArray<{
     envKey: "TORASEO_OPENROUTER_API_KEY",
     envBaseUrl: "TORASEO_OPENROUTER_BASE_URL",
     envModel: "TORASEO_OPENROUTER_DEFAULT_MODEL",
-    build: (config) => new OpenRouterAdapter(config),
+    build: (config) => new OpenAiCompatibleAdapter(config),
   },
   {
     id: "routerai",
@@ -64,11 +64,13 @@ const BUILTINS: ReadonlyArray<{
     envBaseUrl: "TORASEO_ROUTERAI_BASE_URL",
     envModel: "TORASEO_ROUTERAI_DEFAULT_MODEL",
     build: (config) =>
-      new OpenRouterAdapter(config, {
+      new OpenAiCompatibleAdapter(config, {
         id: "routerai",
         label: "RouterAI",
         defaultModel: "openai/gpt-4o",
         defaultBaseUrl: "https://routerai.ru/api/v1",
+        supportsStrictJsonSchema: false,
+        includeOpenRouterHeaders: false,
       }),
   },
 ];

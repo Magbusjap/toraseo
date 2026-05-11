@@ -92,7 +92,7 @@ export default function ActiveSidebar({
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-white/45">
             {t("plannedAnalysis.sidebar.version", {
-              defaultValue: "0.0.9 setup",
+              defaultValue: "0.1.0 setup",
             })}
           </p>
           <h2 className="mt-2 font-display text-xl font-semibold leading-snug">

@@ -255,11 +255,44 @@ export interface RuntimeSiteCompareContext {
   scanResults: RuntimeSiteCompareToolResult[];
 }
 
+export interface RuntimeWebEvidenceItem {
+  kind: "direct_url" | "search_result";
+  url: string;
+  title?: string;
+  status?: number;
+  source?: string;
+  snippet?: string;
+  textSample?: string;
+  error?: string;
+}
+
+export interface RuntimeWebEvidenceContext {
+  collectedAt: string;
+  enabled: boolean;
+  queries: string[];
+  items: RuntimeWebEvidenceItem[];
+  limitations: string[];
+}
+
 export interface RuntimeConfirmedFact {
   title: string;
   detail: string;
   priority: "high" | "medium" | "low";
   sourceToolIds: string[];
+}
+
+export interface RuntimeReportToolProvenance {
+  toolId: string;
+  aiAuthored: boolean;
+  coveredByReport: boolean;
+  source: "app_local" | "mcp_submit_ai_report" | "api_provider";
+}
+
+export interface RuntimeReportProvenance {
+  generatedBy: "app" | "ai";
+  source: "app_local" | "mcp_submit_ai_report" | "api_provider";
+  checkedAt: string;
+  tools: RuntimeReportToolProvenance[];
 }
 
 export interface RuntimeExpertHypothesis {
@@ -496,10 +529,12 @@ export interface RuntimeAuditReport {
   providerId: ProviderId;
   model: string;
   generatedAt: string;
+  durationMs?: number;
   summary: string;
   nextStep: string;
   confirmedFacts: RuntimeConfirmedFact[];
   expertHypotheses: RuntimeExpertHypothesis[];
+  internalProvenance?: RuntimeReportProvenance;
   articleText?: RuntimeArticleTextSummary;
   articleCompare?: RuntimeArticleCompareSummary;
   siteCompare?: RuntimeSiteCompareSummary;
@@ -524,6 +559,10 @@ export interface RuntimeChatWindowSession {
   siteCompareContext?: RuntimeSiteCompareContext | null;
   articleTextRunState?: "idle" | "running" | "complete" | "failed";
   articleTextRunError?: string;
+  chatNotice?: string;
+  hostManagedRun?: boolean;
+  reportAttachmentText?: string;
+  reportAttachmentName?: string;
   report: RuntimeAuditReport | null;
   endedReason?: string;
 }
@@ -656,6 +695,20 @@ export interface RuntimeApi {
 
   /** Copy the original analyzed article text, without media placeholders. */
   copyArticleSourceText(report: RuntimeAuditReport): Promise<{
+    ok: boolean;
+    charCount?: number;
+    error?: string;
+  }>;
+
+  /** Prepare a current report package that can be pasted or attached to AI chat. */
+  prepareReportForAi(report: RuntimeAuditReport): Promise<{
+    ok: boolean;
+    text?: string;
+    error?: string;
+  }>;
+
+  /** Copy a current report package for an external AI chat. */
+  copyReportForAi(report: RuntimeAuditReport): Promise<{
     ok: boolean;
     charCount?: number;
     error?: string;

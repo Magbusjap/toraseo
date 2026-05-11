@@ -53,8 +53,8 @@ Recognized Codex trigger variants:
 | `/toraseo codex-bridge-mode article-text` | Analyze one article text from the temporary ToraSEO workspace. |
 | `/toraseo codex-bridge-mode article-compare` | Compare Text A and Text B from the temporary ToraSEO workspace. |
 | `/toraseo codex-bridge-mode page-by-url` | Analyze the main article text extracted from a URL. |
-| `/toraseo codex-bridge-mode site-by-url` | Run the internal site URL audit package and summarize its facts. |
-| `/toraseo codex-bridge-mode site-compare` | Compare up to three site URLs as one competitive dashboard. |
+| `/toraseo codex-bridge-mode site-by-url` | Run the selected site URL audit tools and summarize their facts. |
+| `/toraseo codex-bridge-mode site-compare` | Run the selected site comparison tools and compare up to three site URLs as one competitive dashboard. |
 
 Recognized chat-only fallback variants, used only when the live Desktop
 App/MCP bridge cannot run:
@@ -93,25 +93,22 @@ refreshes. If the user wants analysis without the app, switch to the
 chat-only fallback instead of sending them to a generic Scan button.
 
 After the handshake succeeds, use the returned `analysisType` and
-`selectedTools` as the contract. For `site_by_url`, call
-`site_url_internal` first; that one MCP permission runs the selected core
-site-audit checks one by one and writes individual results back to the
-app under normal check names, so the progress bar advances per check.
-Then call any additional tools returned after `site_url_internal`. Do not
+`selectedTools` as the contract. For `site_by_url`, call each returned
+site-audit tool in order. Each selected MCP call writes its own evidence
+back to the app under the normal check name, so the progress bar advances
+per check. Do not
 request filesystem access to read JSON result files after the site report
 is already visible in the app unless the user explicitly asks for raw
 debugging files. Do not ask the user to paste the report summary, a
 screenshot, JSON, or result files after the selected site URL tools have
 completed; their MCP responses and the app report contain enough facts
 for the final user-facing summary.
-For `site_compare`, call `site_compare_internal` when it is available;
-that single MCP call runs the selected site checks for up to three URLs
-and writes compact comparison entries back to the app. Do not render
-three full audits side by side. Your final answer should follow the
+For `site_compare`, call each selected comparison tool returned by the
+handshake in order. Do not render three full audits side by side. Your final answer should follow the
 comparison dashboard shape: summary, compact site KPI cards,
 comparative metrics, heatmap/direction matrix, winners by block, and
 actionable insights. Do not ask for JSON, screenshots, pasted summaries,
-or result files after `site_compare_internal` has completed.
+or result files after the selected site comparison tools have completed.
 For `article_text`,
 the article body is already stored
 in the temporary ToraSEO workspace as `input.md`; do not ask the user to
@@ -138,11 +135,11 @@ interpreting the text. If the role is `default` or empty, use ToraSEO's
 standard analysis posture and choose the most suitable reviewer role
 yourself when offering a rewrite.
 
-After an article-text analysis, end with a numbered list of clear user
-choices. Include whether the user needs a rewrite, whether they need a
-shorter structure pass, whether media markers are useful, and which role
-you would use for the rewrite. If the user stays silent or declines, do
-not push; respond politely and keep the analysis available for later.
+After an article-text analysis, keep the final chat summary compact and
+actionable. You may list clear next choices as statements, but do not end
+with an optional follow-up question unless a missing required input blocks
+the task. If the user stays silent or declines, do not push; respond
+politely and keep the analysis available for later.
 
 For `article_compare`, Text A and Text B are already stored in the
 temporary ToraSEO workspace as `input.md`. Do not ask the user to paste
@@ -182,9 +179,11 @@ citations, or factual details that may have been invented during
 AI-assisted drafting. `fact_distortion_check` is also optional and is a
 claim-risk review, not a complete internet fact-check.
 
-The prompt command is only a trigger. The real bridge protocol is:
-Codex Workflow Instructions -> `verify_codex_workflow_loaded` -> MCP
-selected tools -> app state updates.
+The prompt command is only a trigger. It should stay short; do not expect
+it to contain language rules, summary rules, selected-tool contracts, or
+report JSON instructions. The real bridge protocol is: Codex Workflow
+Instructions -> `verify_codex_workflow_loaded` -> MCP selected tools ->
+`submit_ai_report` when required -> app state updates.
 
 ## Response Language Rule
 
@@ -214,12 +213,11 @@ the user to tick the chat/session approval checkbox and click Allow. Do
 not ask the user to approve each analyzer tool one by one unless Codex
 itself provides no broader approval path.
 
-For `site_by_url`, call `site_url_internal` for the core site checks,
-then call any additional tools returned by the handshake.
-For `site_compare`, the only analysis MCP approval should be
-`site_compare_internal`. After an internal aggregator
-completes and ToraSEO has the report, write the final chat summary from
-those results without asking for another MCP tool approval, report
+For `site_by_url`, call each selected site tool returned by the handshake.
+For `site_compare`, call each selected site comparison tool returned by
+the handshake. After the selected tools complete and ToraSEO has the
+report, write the final chat summary from those results without asking
+for another MCP tool approval, report
 screenshot, pasted summary, JSON file, or filesystem permission to read
 the temporary bridge cache.
 
@@ -227,6 +225,24 @@ the temporary bridge cache.
 
 - Keep ToraSEO evidence-first: deterministic scan facts first, model
   interpretation second.
+- In MCP + Instructions mode, selected MCP tools collect evidence first.
+  After all selected tools complete, Codex/Claude must write the final
+  structured report and call `submit_ai_report` so ToraSEO can render
+  that AI-written report. The app is the renderer, not the final report
+  author. Follow the `submit_ai_report` tool schema for the JSON shape:
+  keep `summary` and `nextStep` as strings, and place `articleText`,
+  `articleCompare`, or `siteCompare` at the top level when that visual
+  block is relevant. If Codex has internet/search tools and a selected check
+  requires external verification, use them before `submit_ai_report` and
+  cite that evidence in the report. If no external verification was
+  used, mark the finding as local/tool-evidence only; do not claim
+  internet plagiarism checks, live SERP demand, or external source
+  verification.
+- After `submit_ai_report` succeeds, give only a short user-facing chat
+  summary. Do not ask an optional follow-up question at the end unless the
+  user explicitly requested next-step options or a required input is missing.
+- In `submit_ai_report`, `nextStep` must be a direct action instruction.
+  Do not write it as a question or as an "If you want, I can..." offer.
 - Keep analysis type, selected tools, AI interpretation, and formula
   policy as separate layers.
 - Keep `API + AI Chat` scoped to the active analysis.

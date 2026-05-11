@@ -41,9 +41,13 @@ import type {
   RuntimeArticleTextVerdict,
   RuntimeAuditReport,
   RuntimeConfirmedFact,
+  RuntimeReportProvenance,
 } from "../../types/runtime";
 import type { CurrentScanState, ToolBufferEntry } from "../../types/ipc";
 import Mascot, { type MascotMood } from "../Mascot/Mascot";
+
+const MIN_ARTICLE_TEXT_SCAN_CHARS = 250;
+const loggedReportProvenanceKeys = new Set<string>();
 
 interface PlannedAnalysisViewProps {
   analysisType: AnalysisTypeId;
@@ -53,6 +57,8 @@ interface PlannedAnalysisViewProps {
   completedArticleTextAction: ArticleTextAction | null;
   completedTools: number;
   totalTools: number;
+  analysisStartedAtMs: number | null;
+  analysisDurationMs: number | null;
   bridgeState: CurrentScanState | null;
   articleTextState: CurrentScanState | null;
   runtimeReport: RuntimeAuditReport | null;
@@ -79,6 +85,9 @@ interface PlannedAnalysisViewProps {
   onArticleCompareCancel: () => void;
   onSiteCompareRun: (data: SiteComparePromptData) => Promise<boolean | "fallback">;
   onSiteCompareCancel: () => void;
+  onSendReportToAi: (
+    report: RuntimeAuditReport,
+  ) => Promise<{ ok: boolean; error?: string }>;
   onOpenFormulas: () => void;
   showArticleTextToraRank: boolean;
 }
@@ -91,6 +100,8 @@ export default function PlannedAnalysisView({
   completedArticleTextAction,
   completedTools,
   totalTools,
+  analysisStartedAtMs,
+  analysisDurationMs,
   bridgeState,
   articleTextState,
   runtimeReport,
@@ -112,15 +123,37 @@ export default function PlannedAnalysisView({
   onArticleCompareCancel,
   onSiteCompareRun,
   onSiteCompareCancel,
+  onSendReportToAi,
   onOpenFormulas,
   showArticleTextToraRank,
 }: PlannedAnalysisViewProps) {
   const { t } = useTranslation();
+  const [articleTextScanReady, setArticleTextScanReady] = useState(false);
   const meta = ANALYSIS_TYPES.find((item) => item.id === analysisType);
   const siteCompareResultsRef = useRef<HTMLElement | null>(null);
   const key = meta?.i18nKeyBase ?? "siteByUrl";
   const title = t(`modeSelection.analysisTypes.${key}.title`);
   const subtitle = t(`modeSelection.analysisTypes.${key}.subtitle`);
+  const waitingForAiReport =
+    executionMode === "bridge" &&
+    Boolean(
+      articleTextState &&
+        articleTextState.status === "in_progress" &&
+        !articleTextState.aiReport &&
+        totalTools > 0 &&
+        completedTools >= totalTools,
+    );
+  const waitingForToolStart =
+    executionMode === "bridge" &&
+    activeRun !== null &&
+    !waitingForAiReport &&
+    !analysisStartedAtMs;
+
+  useEffect(() => {
+    if (analysisType !== "article_text") {
+      setArticleTextScanReady(false);
+    }
+  }, [analysisType]);
 
   useEffect(() => {
     if (analysisType !== "site_compare" || !siteCompareStartedOnce) return;
@@ -143,7 +176,7 @@ export default function PlannedAnalysisView({
             </span>
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
-                {t("plannedAnalysis.version", { defaultValue: "0.0.9 setup" })}
+                {t("plannedAnalysis.version", { defaultValue: "0.1.0 setup" })}
               </p>
               <h1 className="mt-1 font-display text-2xl font-semibold text-outline-900">
                 {title}
@@ -162,7 +195,9 @@ export default function PlannedAnalysisView({
         <section className="py-6">
           <PlannedAnalysisStatusHero
             executionMode={executionMode}
-            running={activeRun !== null}
+            running={activeRun !== null && !waitingForAiReport && !waitingForToolStart}
+            waitingForAiReport={waitingForAiReport}
+            waitingForToolStart={waitingForToolStart}
             hasError={
               hasAnalysisStateError(articleTextState) ||
               hasAnalysisStateError(bridgeState)
@@ -170,6 +205,16 @@ export default function PlannedAnalysisView({
             completedArticleTextAction={completedArticleTextAction}
             completedTools={completedTools}
             totalTools={totalTools}
+            analysisStartedAtMs={analysisStartedAtMs}
+            analysisDurationMs={analysisDurationMs}
+            bridgeTargetAppName={bridgeTargetAppName}
+            formState={
+              analysisType === "article_text"
+                ? articleTextScanReady
+                  ? "ready"
+                  : "waiting"
+                : null
+            }
           />
         </section>
 
@@ -197,6 +242,7 @@ export default function PlannedAnalysisView({
               bridgeUnavailable,
               bridgeUnavailableAppName,
               bridgeTargetAppName,
+              setArticleTextScanReady,
             )}
           </div>
 
@@ -222,7 +268,7 @@ export default function PlannedAnalysisView({
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-outline-900/65">
                 {t("plannedAnalysis.executionBody", {
-                  defaultValue: "This screen is selectable in 0.0.9 so the workflow shape is visible. The analysis run button stays locked until the dedicated tools, prompts, and scoring contract are connected.",
+                  defaultValue: "This screen is selectable in 0.1.0 so the workflow shape is visible. The analysis run button stays locked until the dedicated tools, prompts, and scoring contract are connected.",
                 })}
               </p>
             </div>
@@ -236,6 +282,8 @@ export default function PlannedAnalysisView({
             {articleTextState ? (
               <ArticleTextResultsDashboard
                 state={articleTextState}
+                executionMode={executionMode}
+                onSendReportToAi={onSendReportToAi}
                 onOpenFormulas={onOpenFormulas}
                 showToraRank={showArticleTextToraRank}
               />
@@ -244,6 +292,8 @@ export default function PlannedAnalysisView({
                 report={runtimeReport}
                 completedTools={completedTools}
                 totalTools={totalTools}
+                executionMode={executionMode}
+                onSendReportToAi={onSendReportToAi}
               />
             )}
           </section>
@@ -255,6 +305,8 @@ export default function PlannedAnalysisView({
             {articleTextState ? (
               <ArticleTextResultsDashboard
                 state={articleTextState}
+                executionMode={executionMode}
+                onSendReportToAi={onSendReportToAi}
                 onOpenFormulas={onOpenFormulas}
                 showToraRank={showArticleTextToraRank}
               />
@@ -263,6 +315,8 @@ export default function PlannedAnalysisView({
                 report={runtimeReport}
                 completedTools={completedTools}
                 totalTools={totalTools}
+                executionMode={executionMode}
+                onSendReportToAi={onSendReportToAi}
               />
             )}
           </section>
@@ -301,19 +355,50 @@ export default function PlannedAnalysisView({
 function PlannedAnalysisStatusHero({
   executionMode,
   running,
+  waitingForAiReport,
+  waitingForToolStart,
   hasError,
   completedArticleTextAction,
   completedTools,
   totalTools,
+  analysisStartedAtMs,
+  analysisDurationMs,
+  bridgeTargetAppName,
+  formState,
 }: {
   executionMode: AuditExecutionMode;
   running: boolean;
+  waitingForAiReport: boolean;
+  waitingForToolStart: boolean;
   hasError: boolean;
   completedArticleTextAction: ArticleTextAction | null;
   completedTools: number;
   totalTools: number;
+  analysisStartedAtMs: number | null;
+  analysisDurationMs: number | null;
+  bridgeTargetAppName: string;
+  formState: "waiting" | "ready" | null;
 }) {
   const { t } = useTranslation();
+  const [timerTick, setTimerTick] = useState(0);
+  useEffect(() => {
+    if (!running || !analysisStartedAtMs) return undefined;
+    const interval = window.setInterval(() => {
+      setTimerTick(Date.now());
+    }, 50);
+    return () => window.clearInterval(interval);
+  }, [analysisStartedAtMs, running]);
+  const timerMs =
+    running && analysisStartedAtMs
+      ? Math.max(0, (timerTick || Date.now()) - analysisStartedAtMs)
+      : analysisDurationMs;
+  const timerText =
+    typeof timerMs === "number" && Number.isFinite(timerMs)
+      ? `${(Math.max(0, timerMs) / 1000).toFixed(3).replace(".", ",")} s`
+      : null;
+  const timerClass = running
+    ? "border-blue-200 bg-blue-50 text-blue-700"
+    : "border-emerald-200 bg-emerald-50 text-emerald-700";
   const visualProgress =
     totalTools > 0
       ? Math.max(running ? 8 : 0, Math.round((completedTools / totalTools) * 100))
@@ -323,6 +408,15 @@ function PlannedAnalysisStatusHero({
   const statusTitle = hasError
     ? t("analysisHero.error", {
         defaultValue: "Error",
+      })
+    : waitingForAiReport
+    ? t("analysisHero.waitingForAiReport", {
+        defaultValue: "All checks done, approve final AI report in {{client}}",
+        client: bridgeTargetAppName || "AI chat",
+      })
+    : waitingForToolStart
+    ? t("analysisHero.waitingForToolStart", {
+        defaultValue: "Waiting for AI tools",
       })
     : running
     ? t("analysisHero.scanning", {
@@ -336,18 +430,37 @@ function PlannedAnalysisStatusHero({
         ? t("analysisHero.reportReady", {
             defaultValue: "Report formed",
           })
+        : formState === "waiting"
+          ? t("analysisHero.waitingForAnalysis", {
+              defaultValue: "Waiting for analysis",
+            })
+        : formState === "ready"
+          ? t("analysisHero.ready", {
+              defaultValue: "Ready for analysis",
+            })
         : t("analysisHero.ready", {
             defaultValue: "Ready for analysis",
           });
   const mascotMood = analysisHeroMascotMood({
     running,
+    waitingForAiReport,
+    waitingForToolStart,
     hasError,
     completedArticleTextAction,
+    formState,
   });
   const dotClass = hasError
     ? "bg-red-600"
+    : waitingForAiReport
+      ? "bg-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.16)] animate-pulse"
+    : waitingForToolStart
+      ? "bg-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.16)] animate-pulse"
     : running
-      ? "bg-status-working animate-pulse"
+      ? "bg-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.16)] animate-pulse"
+      : completedArticleTextAction === "scan" || formState === "ready"
+        ? "bg-status-complete"
+      : formState === "waiting"
+        ? "bg-outline-900/30"
       : "bg-status-complete";
 
   return (
@@ -373,9 +486,16 @@ function PlannedAnalysisStatusHero({
                 </h2>
               </div>
             </div>
-            <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
-              {completedTools} / {totalTools}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {timerText && (
+                <span className={`rounded-full border px-2.5 py-1 font-mono text-xs font-semibold ${timerClass}`}>
+                  {timerText}
+                </span>
+              )}
+              <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
+                {completedTools} / {totalTools}
+              </span>
+            </div>
           </div>
 
           <div
@@ -408,17 +528,27 @@ function hasAnalysisStateError(state: CurrentScanState | null): boolean {
 
 function analysisHeroMascotMood({
   running,
+  waitingForAiReport,
+  waitingForToolStart,
   hasError,
   completedArticleTextAction,
+  formState,
 }: {
   running: boolean;
+  waitingForAiReport: boolean;
+  waitingForToolStart: boolean;
   hasError: boolean;
   completedArticleTextAction: ArticleTextAction | null;
+  formState: "waiting" | "ready" | null;
 }): MascotMood {
   if (hasError) return "surprised";
+  if (waitingForAiReport) return "focused";
+  if (waitingForToolStart) return "focused";
   if (running) return "focused";
   if (completedArticleTextAction === "scan") return "happy";
   if (completedArticleTextAction === "solution") return "happy";
+  if (formState === "waiting") return "sleeping";
+  if (formState === "ready") return "neutral";
   return "neutral";
 }
 
@@ -447,6 +577,7 @@ function renderInputSurface(
   bridgeUnavailable: boolean,
   bridgeUnavailableAppName: string,
   bridgeTargetAppName: string,
+  onArticleTextScanReadyChange: (ready: boolean) => void,
 ) {
   switch (analysisType) {
     case "page_by_url":
@@ -473,6 +604,7 @@ function renderInputSurface(
           bridgeUnavailable={bridgeUnavailable}
           bridgeUnavailableAppName={bridgeUnavailableAppName}
           bridgeTargetAppName={bridgeTargetAppName}
+          onScanReadyChange={onArticleTextScanReadyChange}
         />
       );
     case "article_compare":
@@ -1243,6 +1375,23 @@ function SiteCompareResultsDashboard({
     runtimeReport?.analysisType === "site_compare"
       ? runtimeReport.siteCompare
       : null;
+  if (runtimeReport?.analysisType === "site_compare" && !reportCompare) {
+    return (
+      <section className="rounded-lg border border-red-200 bg-red-50/50 p-5">
+        <h2 className="font-display text-lg font-semibold text-outline-900">
+          {t("plannedAnalysis.results.incompleteAiReportTitle", {
+            defaultValue: "AI report is incomplete",
+          })}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/65">
+          {t("plannedAnalysis.results.incompleteAiReportBody", {
+            defaultValue:
+              "The provider returned findings without the required visual report block. ToraSEO did not create local scores or cards for this run.",
+          })}
+        </p>
+      </section>
+    );
+  }
   if (urls.length < 2) {
     return (
       <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
@@ -1871,6 +2020,7 @@ function ArticleTextPanel({
   bridgeUnavailable,
   bridgeUnavailableAppName,
   bridgeTargetAppName,
+  onScanReadyChange,
 }: {
   onRun: (
     action: ArticleTextAction,
@@ -1884,6 +2034,7 @@ function ArticleTextPanel({
   bridgeUnavailable: boolean;
   bridgeUnavailableAppName: string;
   bridgeTargetAppName: string;
+  onScanReadyChange: (ready: boolean) => void;
 }) {
   const { t } = useTranslation();
   const topicRef = useRef("");
@@ -1895,9 +2046,15 @@ function ArticleTextPanel({
   const [busy, setBusy] = useState(false);
   const hasAnySolutionContext =
     topicStats.trim().length > 0 || bodyStats.trim().length > 0;
+  const bodyCharCount = bodyStats.trim().length;
+  const scanTextReady = bodyCharCount >= MIN_ARTICLE_TEXT_SCAN_CHARS;
   const isRunning = activeRun !== null;
   const isSolutionRunning = activeRun === "solution";
   const isScanRunning = activeRun === "scan";
+
+  useEffect(() => {
+    onScanReadyChange(scanTextReady);
+  }, [onScanReadyChange, scanTextReady]);
 
   const runAction = async (action: ArticleTextAction) => {
     if (activeRun === action) {
@@ -1944,10 +2101,11 @@ function ArticleTextPanel({
       return;
     }
 
-    if (action === "scan" && data.body.trim().length === 0) {
+    if (action === "scan" && data.body.trim().length < MIN_ARTICLE_TEXT_SCAN_CHARS) {
       setNotice(
         t("plannedAnalysis.forms.scanNeedText", {
-          defaultValue: "Add article text to prepare the analysis prompt.",
+          count: MIN_ARTICLE_TEXT_SCAN_CHARS,
+          defaultValue: "Add at least {{count}} characters of article text to prepare the analysis prompt.",
         }),
       );
       return;
@@ -2005,7 +2163,11 @@ function ArticleTextPanel({
             <button
               type="button"
               onClick={() => void runAction("solution")}
-              disabled={busy || (isRunning && !isSolutionRunning)}
+              disabled={
+                busy ||
+                (isRunning && !isSolutionRunning) ||
+                (!hasAnySolutionContext && !isSolutionRunning)
+              }
               className={`rounded-md border px-4 py-2 text-sm font-medium transition ${
                 isSolutionRunning
                   ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
@@ -2025,11 +2187,15 @@ function ArticleTextPanel({
             <button
               type="button"
               onClick={() => void runAction("scan")}
-              disabled={busy || (isRunning && !isScanRunning)}
+              disabled={
+                busy ||
+                (isRunning && !isScanRunning) ||
+                (!scanTextReady && !isScanRunning)
+              }
               className={
                 isScanRunning
                   ? "rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
-                  : "rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
+                  : "rounded-md bg-primary/90 px-4 py-2 text-sm font-medium text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:bg-outline-900/15 disabled:text-outline-900/45"
               }
             >
               {isScanRunning
@@ -2044,6 +2210,16 @@ function ArticleTextPanel({
           {notice && (
             <p className="text-xs leading-relaxed text-outline-900/55">
               {notice}
+            </p>
+          )}
+          {bodyCharCount > 0 && !scanTextReady && !isRunning && (
+            <p className="text-xs leading-relaxed text-outline-900/45">
+              {t("plannedAnalysis.forms.scanTextMinCharsHint", {
+                count: MIN_ARTICLE_TEXT_SCAN_CHARS,
+                current: bodyCharCount,
+                defaultValue:
+                  "{{current}}/{{count}} characters. Scan becomes available at the minimum article-text length.",
+              })}
             </p>
           )}
         </div>
@@ -2135,15 +2311,22 @@ function ApiArticleTextReportPanel({
   report,
   completedTools,
   totalTools,
+  executionMode,
+  onSendReportToAi,
 }: {
   report: RuntimeAuditReport | null;
   completedTools: number;
   totalTools: number;
+  executionMode: AuditExecutionMode;
+  onSendReportToAi: (
+    report: RuntimeAuditReport,
+  ) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [aiReportStatus, setAiReportStatus] = useState<string | null>(null);
   const evalLabEnabled = isEvalLabEnabled();
 
   if (!report) {
@@ -2165,20 +2348,44 @@ function ApiArticleTextReportPanel({
   const localizedReport: RuntimeAuditReport =
     report.locale === locale ? report : { ...report, locale };
   const article = localizedReport.articleText;
+  if (!article) {
+    return (
+      <section className="rounded-lg border border-red-200 bg-red-50/50 p-5">
+        <h2 className="font-display text-lg font-semibold text-outline-900">
+          {t("plannedAnalysis.results.incompleteAiReportTitle", {
+            defaultValue: "AI report is incomplete",
+          })}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/65">
+          {t("plannedAnalysis.results.incompleteAiReportBody", {
+            defaultValue:
+              "The provider returned text findings without the required visual report block. ToraSEO did not create local scores or cards for this run.",
+          })}
+        </p>
+      </section>
+    );
+  }
+  const reportCoverage = article?.coverage;
+  const displayCompletedTools = reportCoverage?.completed ?? completedTools;
+  const displayTotalTools = reportCoverage?.total ?? totalTools;
+  const visualArticle = article;
+  const visualReport: RuntimeAuditReport = localizedReport;
   const reportAnalysisType = (localizedReport.analysisType ??
     "article_text") as AnalysisTypeId;
+  const reportDurationText = formatReportDurationForUi(
+    localizedReport.durationMs,
+  );
   const reportComplete = Boolean(
     localizedReport &&
-      completedTools >= totalTools &&
-      (!article || article.coverage.completed >= article.coverage.total),
+      displayCompletedTools >= displayTotalTools,
   );
   const highlightFacts =
-    article && article.priorities.length > 0
-      ? article.priorities.slice(0, 4)
+    visualArticle.priorities.length > 0
+      ? visualArticle.priorities.slice(0, 4)
       : localizedReport.confirmedFacts.slice(0, 6);
   const hiddenSourceCount =
-    article && article.priorities.length > 0
-      ? article.priorities.length
+    visualArticle.priorities.length > 0
+      ? visualArticle.priorities.length
       : localizedReport.confirmedFacts.length;
   const hiddenFactCount = Math.max(
     0,
@@ -2188,14 +2395,15 @@ function ApiArticleTextReportPanel({
 
   const openDetails = () => {
     if (!reportComplete) return;
-    void window.toraseo.runtime.openReportWindow(localizedReport);
+    void window.toraseo.runtime.openReportWindow(visualReport);
   };
 
   const exportReport = async () => {
     if (!reportComplete) return;
     setExportStatus(null);
     setCopyStatus(null);
-    const result = await window.toraseo.runtime.exportReportPdf(localizedReport);
+    setAiReportStatus(null);
+    const result = await window.toraseo.runtime.exportReportPdf(visualReport);
     if (result.ok) {
       setExportStatus(
         t("plannedAnalysis.results.exportReady", {
@@ -2222,6 +2430,7 @@ function ApiArticleTextReportPanel({
     if (!reportComplete) return;
     setExportStatus(null);
     setCopyStatus(null);
+    setAiReportStatus(null);
     const result =
       await window.toraseo.runtime.copyArticleSourceText(localizedReport);
     if (result.ok) {
@@ -2242,8 +2451,9 @@ function ApiArticleTextReportPanel({
     if (!reportComplete) return;
     setExportStatus(null);
     setCopyStatus(null);
+    setAiReportStatus(null);
     const result =
-      await window.toraseo.runtime.exportReportJson(localizedReport);
+      await window.toraseo.runtime.exportReportJson(visualReport);
     if (result.ok) {
       setExportStatus(
         t("plannedAnalysis.results.exportJsonReady", {
@@ -2266,6 +2476,32 @@ function ApiArticleTextReportPanel({
     setExportStatus(result.error ? `${fallback} ${result.error}` : fallback);
   };
 
+  const sendReportToAi = async () => {
+    if (!reportComplete) return;
+    setExportStatus(null);
+    setCopyStatus(null);
+    setAiReportStatus(null);
+    const result = await onSendReportToAi(visualReport);
+    if (result.ok) {
+      setAiReportStatus(
+        executionMode === "native"
+          ? t("plannedAnalysis.results.reportAttachedToAi", {
+              defaultValue:
+                "Report attached to API + AI Chat. Add your question and click Send.",
+            })
+          : t("plannedAnalysis.results.reportCopiedForAi", {
+              defaultValue:
+                "Report copied. Paste it into Claude Desktop or Codex chat.",
+            }),
+      );
+      return;
+    }
+    const fallback = t("plannedAnalysis.results.reportAiFailed", {
+      defaultValue: "Could not send the report to AI.",
+    });
+    setAiReportStatus(result.error ? `${fallback} ${result.error}` : fallback);
+  };
+
   return (
     <section className="rounded-lg border border-outline/10 bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -2281,7 +2517,7 @@ function ApiArticleTextReportPanel({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
-            {completedTools} / {totalTools}
+            {displayCompletedTools} / {displayTotalTools}
           </span>
           <button
             type="button"
@@ -2311,6 +2547,16 @@ function ApiArticleTextReportPanel({
               defaultValue: "Copy source text",
             })}
           </button>
+          <button
+            type="button"
+            onClick={() => void sendReportToAi()}
+            disabled={!reportComplete}
+            className="rounded-md border border-primary/25 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/45 hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-outline/10 disabled:bg-outline-900/5 disabled:text-outline-900/35"
+          >
+            {t("plannedAnalysis.results.sendReportToAi", {
+              defaultValue: "Send report to AI",
+            })}
+          </button>
           {evalLabEnabled && (
             <button
               type="button"
@@ -2323,19 +2569,19 @@ function ApiArticleTextReportPanel({
           )}
         </div>
       </div>
-      {(exportStatus || copyStatus) && (
+      {(exportStatus || copyStatus || aiReportStatus) && (
         <p className="mt-3 text-xs font-medium text-orange-700/75">
-          {copyStatus ?? exportStatus}
+          {aiReportStatus ?? copyStatus ?? exportStatus}
         </p>
       )}
 
-      {article && (
+      {visualArticle && (
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <article
             className={`rounded-lg border p-4 ${
-              article.verdict === "high_risk"
+              visualArticle.verdict === "high_risk"
                 ? "border-red-200 bg-red-50/45"
-                : article.verdict === "needs_revision"
+                : visualArticle.verdict === "needs_revision"
                   ? "border-amber-200 bg-amber-50/45"
                   : "border-emerald-200 bg-emerald-50/45"
             }`}
@@ -2346,10 +2592,10 @@ function ApiArticleTextReportPanel({
               })}
             </p>
             <h3 className="mt-1 text-base font-semibold text-outline-900">
-              {article.verdictLabel}
+              {visualArticle.verdictLabel}
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-outline-900/65">
-              {article.verdictDetail}
+              {visualArticle.verdictDetail}
             </p>
           </article>
           <article className="rounded-lg border border-orange-100 bg-white p-4">
@@ -2359,25 +2605,33 @@ function ApiArticleTextReportPanel({
               })}
             </p>
             <p className="mt-2 text-3xl font-semibold text-outline-900">
-              {article.coverage.percent}
+              {visualArticle.coverage.percent}
               <span className="ml-1 text-sm">%</span>
             </p>
             <p className="mt-2 text-sm text-outline-900/60">
-              {article.coverage.completed} / {article.coverage.total}
+              {visualArticle.coverage.completed} / {visualArticle.coverage.total}
             </p>
+            {reportDurationText && (
+              <p className="mt-2 text-xs font-semibold text-emerald-700/80">
+                {t("plannedAnalysis.results.reportDuration", {
+                  defaultValue: "Report formed in: {{duration}}",
+                  duration: reportDurationText,
+                })}
+              </p>
+            )}
           </article>
         </div>
       )}
 
-      {article && article.metrics.length > 0 && (
+      {visualArticle.metrics.length > 0 && (
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {orderArticleMetrics(article.metrics).map((metric) => (
+          {orderArticleMetrics(visualArticle.metrics).map((metric) => (
             <MetricCard key={metric.id} metric={metric} />
           ))}
         </div>
       )}
 
-      {article && (
+      {visualArticle && (
         <>
           <div className="mt-5 rounded-lg border border-outline/10 bg-white p-4">
             <div className="grid gap-3 lg:grid-cols-2">
@@ -2385,7 +2639,7 @@ function ApiArticleTextReportPanel({
                 title={t("plannedAnalysis.results.strengths", {
                   defaultValue: "Strengths",
                 })}
-                items={article.strengths}
+                items={visualArticle.strengths}
                 emptyText={t("plannedAnalysis.results.strengthsEmpty", {
                   defaultValue: "Strengths will appear after checks finish.",
                 })}
@@ -2395,20 +2649,20 @@ function ApiArticleTextReportPanel({
                 title={t("plannedAnalysis.results.weaknesses", {
                   defaultValue: "Weaknesses",
                 })}
-                items={article.weaknesses}
+                items={visualArticle.weaknesses}
                 emptyText={t("plannedAnalysis.results.weaknessesEmpty", {
                   defaultValue: "No clear weaknesses were found by the current tools.",
                 })}
                 tone="warn"
               />
             </div>
-            <WarningSummaryPanel articleSummary={article} />
+            <WarningSummaryPanel articleSummary={visualArticle} />
           </div>
 
-          <IntentForecastPanel articleSummary={article} />
+          <IntentForecastPanel articleSummary={visualArticle} />
 
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            {article.dimensions.map((dimension) => (
+            {visualArticle.dimensions.map((dimension) => (
               <DimensionCard key={dimension.id} dimension={dimension} />
             ))}
           </div>
@@ -3410,7 +3664,27 @@ function ArticleCompareResultsDashboard({
     );
   }
 
-  const enrichedReport = withLocalArticleCompareFacts(effectiveReport, input, t, locale);
+  if (report && !effectiveReport.articleCompare) {
+    return (
+      <section className="rounded-lg border border-red-200 bg-red-50/50 p-5">
+        <h2 className="font-display text-lg font-semibold text-outline-900">
+          {t("plannedAnalysis.results.incompleteAiReportTitle", {
+            defaultValue: "AI report is incomplete",
+          })}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/65">
+          {t("plannedAnalysis.results.incompleteAiReportBody", {
+            defaultValue:
+              "The provider returned findings without the required visual report block. ToraSEO did not create local scores or cards for this run.",
+          })}
+        </p>
+      </section>
+    );
+  }
+
+  const enrichedReport = report
+    ? effectiveReport
+    : withLocalArticleCompareFacts(effectiveReport, input, t, locale);
   const summary = buildArticleCompareSummary(enrichedReport, input, t, completedTools, totalTools, locale);
   const goalFocus = compareGoalFocus(summary.goalMode, summary.goal);
   const reportComplete = completedTools >= totalTools;
@@ -4261,10 +4535,16 @@ function ToraRankModal({
 
 function ArticleTextResultsDashboard({
   state,
+  executionMode,
+  onSendReportToAi,
   onOpenFormulas,
   showToraRank,
 }: {
   state: CurrentScanState | null;
+  executionMode: AuditExecutionMode;
+  onSendReportToAi: (
+    report: RuntimeAuditReport,
+  ) => Promise<{ ok: boolean; error?: string }>;
   onOpenFormulas: () => void;
   showToraRank: boolean;
 }) {
@@ -4273,6 +4553,7 @@ function ArticleTextResultsDashboard({
   const isRu = locale === "ru";
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [aiReportStatus, setAiReportStatus] = useState<string | null>(null);
   const [toraRankModalOpen, setToraRankModalOpen] = useState(false);
   const evalLabEnabled = isEvalLabEnabled();
   if (
@@ -4280,10 +4561,42 @@ function ArticleTextResultsDashboard({
     state?.analysisType !== "page_by_url"
   ) return null;
 
+  const submittedReport = bridgeSubmittedRuntimeReport(state);
+  if (submittedReport) {
+    return (
+      <ApiArticleTextReportPanel
+        report={submittedReport}
+        completedTools={submittedReport.articleText?.coverage.completed ?? state.selectedTools.length}
+        totalTools={submittedReport.articleText?.coverage.total ?? state.selectedTools.length}
+        executionMode={executionMode}
+        onSendReportToAi={onSendReportToAi}
+      />
+    );
+  }
+
   const entries = state.selectedTools
     .map((toolId) => [toolId, state.buffer[toolId]] as const)
     .filter(([, entry]) => entry);
-  if (entries.length === 0) return null;
+  if (entries.length === 0) {
+    return (
+      <section className="rounded-lg border border-dashed border-orange-200 bg-white p-5">
+        <h2 className="font-display text-lg font-semibold text-outline-900">
+          {t("plannedAnalysis.results.waitingAiReportTitle", {
+            defaultValue: "Waiting for the AI report",
+          })}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/60">
+          {t("plannedAnalysis.results.waitingAiReportBody", {
+            defaultValue:
+              "In API mode, the selected model forms the structured report. ToraSEO will show it here after the AI Chat response.",
+          })}
+        </p>
+        <p className="mt-3 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-semibold text-outline-900/55">
+          0 / {state.selectedTools.length}
+        </p>
+      </section>
+    );
+  }
 
   const completedCount = entries.filter(
     ([, entry]) => entry?.status === "complete" || entry?.status === "error",
@@ -4301,6 +4614,7 @@ function ArticleTextResultsDashboard({
   const articleSummary = buildArticleTextSummary(state, t);
   const toraRank = buildArticleTextToraRank(articleSummary);
   const report = buildArticleTextReport(state, t, articleSummary, locale);
+  const reportDurationText = formatReportDurationForUi(report?.durationMs);
   const canUseReport = report !== null && completedCount > 0;
   const canCopySourceText =
     report !== null &&
@@ -4318,6 +4632,7 @@ function ArticleTextResultsDashboard({
     if (!report) return;
     setExportStatus(null);
     setCopyStatus(null);
+    setAiReportStatus(null);
     const result = await window.toraseo.runtime.exportReportPdf(report);
     if (result.ok) {
       setExportStatus(
@@ -4345,6 +4660,7 @@ function ArticleTextResultsDashboard({
     if (!report) return;
     setExportStatus(null);
     setCopyStatus(null);
+    setAiReportStatus(null);
     const result = await window.toraseo.runtime.copyArticleSourceText(report);
     if (result.ok) {
       setCopyStatus(
@@ -4364,6 +4680,7 @@ function ArticleTextResultsDashboard({
     if (!report) return;
     setExportStatus(null);
     setCopyStatus(null);
+    setAiReportStatus(null);
     const result = await window.toraseo.runtime.exportReportJson(report);
     if (result.ok) {
       setExportStatus(
@@ -4385,6 +4702,32 @@ function ArticleTextResultsDashboard({
       defaultValue: "Failed to export the report.",
     });
     setExportStatus(result.error ? `${fallback} ${result.error}` : fallback);
+  };
+
+  const sendReportToAi = async () => {
+    if (!report) return;
+    setExportStatus(null);
+    setCopyStatus(null);
+    setAiReportStatus(null);
+    const result = await onSendReportToAi(report);
+    if (result.ok) {
+      setAiReportStatus(
+        executionMode === "native"
+          ? t("plannedAnalysis.results.reportAttachedToAi", {
+              defaultValue:
+                "Report attached to API + AI Chat. Add your question and click Send.",
+            })
+          : t("plannedAnalysis.results.reportCopiedForAi", {
+              defaultValue:
+                "Report copied. Paste it into Claude Desktop or Codex chat.",
+            }),
+      );
+      return;
+    }
+    const fallback = t("plannedAnalysis.results.reportAiFailed", {
+      defaultValue: "Could not send the report to AI.",
+    });
+    setAiReportStatus(result.error ? `${fallback} ${result.error}` : fallback);
   };
 
   return (
@@ -4434,6 +4777,16 @@ function ArticleTextResultsDashboard({
               defaultValue: "Copy source text",
             })}
           </button>
+          <button
+            type="button"
+            onClick={() => void sendReportToAi()}
+            disabled={!canUseReport}
+            className="rounded-md border border-primary/25 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/45 hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-outline/10 disabled:bg-outline-900/5 disabled:text-outline-900/35"
+          >
+            {t("plannedAnalysis.results.sendReportToAi", {
+              defaultValue: "Send report to AI",
+            })}
+          </button>
           {evalLabEnabled && (
             <button
               type="button"
@@ -4446,12 +4799,11 @@ function ArticleTextResultsDashboard({
           )}
         </div>
       </div>
-      {(exportStatus || copyStatus) && (
+      {(exportStatus || copyStatus || aiReportStatus) && (
         <p className="mt-3 text-xs font-medium text-orange-700/75">
-          {copyStatus ?? exportStatus}
+          {aiReportStatus ?? copyStatus ?? exportStatus}
         </p>
       )}
-
       {showToraRank && (
         <ToraRankHero
           rank={toraRank}
@@ -4526,6 +4878,14 @@ function ArticleTextResultsDashboard({
               defaultValue: "tools completed. Coverage is not a quality score.",
             })}
           </p>
+          {reportDurationText && (
+            <p className="mt-2 text-xs font-semibold text-emerald-700/80">
+              {t("plannedAnalysis.results.reportDuration", {
+                defaultValue: "Report formed in: {{duration}}",
+                duration: reportDurationText,
+              })}
+            </p>
+          )}
         </div>
       </div>
 
@@ -7646,6 +8006,56 @@ function entryStatus(
   return "healthy";
 }
 
+function scanStateDurationMs(state: CurrentScanState): number | undefined {
+  const toolStartedAtValues = Object.values(state.buffer)
+    .map((entry) => Date.parse(entry.startedAt))
+    .filter((value) => Number.isFinite(value));
+  const startedAt =
+    toolStartedAtValues.length > 0
+      ? Math.min(...toolStartedAtValues)
+      : Date.parse(state.createdAt);
+  const finishedSource = state.toolsCompletedAt ?? state.finishedAt;
+  const finishedAt = finishedSource ? Date.parse(finishedSource) : NaN;
+  if (!Number.isFinite(startedAt) || !Number.isFinite(finishedAt)) {
+    return undefined;
+  }
+  return Math.max(0, Math.round(finishedAt - startedAt));
+}
+
+function formatReportDurationForUi(durationMs?: number | null): string | null {
+  if (typeof durationMs !== "number" || !Number.isFinite(durationMs)) {
+    return null;
+  }
+  return `${(Math.max(0, durationMs) / 1000).toFixed(3).replace(".", ",")} s`;
+}
+
+function bridgeSubmittedRuntimeReport(
+  state: CurrentScanState,
+): RuntimeAuditReport | null {
+  if (state.status !== "complete") {
+    return null;
+  }
+  const report = state.aiReport;
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    return null;
+  }
+  const candidate = report as Partial<RuntimeAuditReport>;
+  if (
+    typeof candidate.analysisType !== "string" ||
+    !Array.isArray(candidate.confirmedFacts)
+  ) {
+    return null;
+  }
+  if (candidate.internalProvenance) {
+    logReportProvenanceOnce(state.scanId, candidate.internalProvenance);
+  }
+
+  return {
+    ...(candidate as RuntimeAuditReport),
+    durationMs: scanStateDurationMs(state),
+  };
+}
+
 function dimensionStatus(
   statuses: RuntimeArticleTextDimensionStatus[],
 ): RuntimeArticleTextDimensionStatus {
@@ -7800,6 +8210,8 @@ function buildArticleTextReport(
       }),
     }));
   });
+  const internalProvenance = appLocalReportProvenance(state.selectedTools);
+  logReportProvenanceOnce(state.scanId, internalProvenance);
 
   return {
     analysisType:
@@ -7810,6 +8222,7 @@ function buildArticleTextReport(
     providerId: "local",
     model: "ToraSEO MCP + Instructions",
     generatedAt: new Date().toISOString(),
+    durationMs: scanStateDurationMs(state),
     summary: t("plannedAnalysis.results.reportSummary", {
       defaultValue: "Structured report for the ToraSEO article text analysis.",
     }),
@@ -7818,11 +8231,40 @@ function buildArticleTextReport(
     }),
     confirmedFacts,
     expertHypotheses,
+    internalProvenance,
     articleText: {
       ...articleSummary,
       metrics: orderArticleMetrics(articleSummary.metrics),
     },
   };
+}
+
+function appLocalReportProvenance(toolIds: string[]): RuntimeReportProvenance {
+  return {
+    generatedBy: "app",
+    source: "app_local",
+    checkedAt: new Date().toISOString(),
+    tools: toolIds.map((toolId) => ({
+      toolId,
+      aiAuthored: false,
+      coveredByReport: true,
+      source: "app_local",
+    })),
+  };
+}
+
+function logReportProvenanceOnce(
+  scanId: string,
+  provenance: RuntimeReportProvenance,
+): void {
+  for (const item of provenance.tools) {
+    const key = `${scanId}:${provenance.source}:${item.toolId}`;
+    if (loggedReportProvenanceKeys.has(key)) continue;
+    loggedReportProvenanceKeys.add(key);
+    console.info(
+      `[report-provenance] scan=${scanId} source=${item.source} tool=${item.toolId} aiAuthored=${item.aiAuthored} coveredByReport=${item.coveredByReport}`,
+    );
+  }
 }
 
 function textResultDetail(

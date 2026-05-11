@@ -132,9 +132,12 @@ export interface CurrentScanState {
   url: string;
   createdAt: string;
   finishedAt: string | null;
+  toolsCompletedAt?: string | null;
   selectedTools: string[];
   handshake: BridgeHandshake;
   buffer: Record<string, ToolBufferEntry>;
+  aiReport?: unknown;
+  aiReportSubmittedAt?: string | null;
   error: BridgeScanError | null;
 }
 
@@ -456,10 +459,45 @@ export async function mutateBuffer(
     return entry && (entry.status === "complete" || entry.status === "error");
   });
   if (allDone && state.status === "in_progress") {
-    next.status = "complete";
-    next.finishedAt = new Date().toISOString();
+    const now = new Date().toISOString();
+    next.toolsCompletedAt = next.toolsCompletedAt ?? now;
+    if (next.aiReport) {
+      next.status = "complete";
+      next.finishedAt = now;
+    }
   }
 
+  await writeState(next);
+  return next;
+}
+
+export async function submitAiReport(
+  report: unknown,
+): Promise<CurrentScanState | null> {
+  const state = await readState();
+  if (!state) return null;
+  if (
+    state.status !== "in_progress" &&
+    state.status !== "awaiting_handshake" &&
+    state.status !== "complete"
+  ) {
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  const allDone = state.selectedTools.every((toolId) => {
+    const entry = state.buffer[toolId];
+    return entry && (entry.status === "complete" || entry.status === "error");
+  });
+  if (!allDone) return null;
+  const next: CurrentScanState = {
+    ...state,
+    status: "complete",
+    finishedAt: now,
+    toolsCompletedAt: state.toolsCompletedAt ?? now,
+    aiReport: report,
+    aiReportSubmittedAt: now,
+  };
   await writeState(next);
   return next;
 }
@@ -471,9 +509,10 @@ export async function mutateBuffer(
 /**
  * Apply a successful or failed handshake to the current scan.
  *
- * Returns the new state on success; null if there's no
- * awaiting_handshake scan to act on. The verify_skill_loaded
- * tool uses this; nothing else should call it directly.
+ * Returns the active state on success. A repeated handshake for the
+ * same client/token may rejoin an in-progress scan without resetting it.
+ * The verify_skill_loaded tools use this; nothing else should call it
+ * directly.
  */
 export async function applyHandshake(
   receivedToken: string,
@@ -482,13 +521,17 @@ export async function applyHandshake(
 ): Promise<{ result: "verified" | "mismatch" | "wrong_client" | "no_scan"; state: CurrentScanState | null }> {
   const state = await readState();
   if (!state) return { result: "no_scan", state: null };
-  if (state.status !== "awaiting_handshake") {
-    return { result: "no_scan", state };
-  }
 
   const stateBridgeClient = state.bridgeClient ?? "claude";
   if (stateBridgeClient !== bridgeClient) {
     return { result: "wrong_client", state };
+  }
+
+  if (state.status !== "awaiting_handshake") {
+    if (state.status === "in_progress" && receivedToken === expectedToken) {
+      return { result: "verified", state };
+    }
+    return { result: "no_scan", state };
   }
 
   const now = new Date().toISOString();

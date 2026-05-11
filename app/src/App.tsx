@@ -63,8 +63,10 @@ import type {
 } from "./types/ipc";
 import type {
   AuditExecutionMode,
+  OrchestratorMessageInput,
   ProviderId,
   ProviderInfo,
+  RuntimeArticleTextContext,
   RuntimeArticleCompareGoalMode,
   RuntimeAuditReport,
   RuntimeChatWindowSession,
@@ -253,6 +255,85 @@ function siteToolIdsFromAnalysisTools(toolIds: string[]): ToolId[] {
   return Array.from(new Set(result));
 }
 
+function createNativeAnalysisProgressState(
+  analysisType: NonNullable<CurrentScanState["analysisType"]>,
+  selectedTools: string[],
+  input?: CurrentScanState["input"],
+): CurrentScanState {
+  const now = new Date().toISOString();
+  return {
+    schemaVersion: 1,
+    scanId: `native-${analysisType}-${Date.now()}`,
+    bridgeClient: "codex",
+    analysisType,
+    input,
+    status: "in_progress",
+    url: `toraseo://native-api/${analysisType}`,
+    createdAt: now,
+    finishedAt: null,
+    toolsCompletedAt: null,
+    selectedTools,
+    handshake: {
+      expectedToken: "native-api",
+      receivedToken: "native-api",
+      status: "verified",
+    },
+    buffer: {},
+    error: null,
+  };
+}
+
+function firstBridgeToolStartedAtMs(state: CurrentScanState | null): number {
+  if (!state) return NaN;
+  const started = Object.values(state.buffer)
+    .map((entry) => Date.parse(entry.startedAt))
+    .filter((value) => Number.isFinite(value));
+  if (started.length === 0) return NaN;
+  return Math.min(...started);
+}
+
+function markNativeAnalysisErrorState(
+  state: CurrentScanState | null,
+  message: string,
+): CurrentScanState | null {
+  if (!state || state.status !== "in_progress") return state;
+  const now = new Date().toISOString();
+  return {
+    ...state,
+    status: "error",
+    finishedAt: now,
+    error: {
+      code: "provider_report_failed",
+      message,
+    },
+  };
+}
+
+function buildNativeArticleTextApiPrompt(
+  context: RuntimeArticleTextContext,
+  locale: SupportedLocale,
+): string {
+  const selectedTools = context.selectedTools.join(", ");
+  const platform = context.customPlatform || context.textPlatform;
+  const responseLanguage = locale === "ru" ? "Russian" : "English";
+  return [
+    `TORASEO_ARTICLE_TEXT_AUTO_RUN=${context.action}`,
+    context.action === "solution"
+      ? "Suggest a solution for this article text within ToraSEO."
+      : "Analyze this article text within ToraSEO.",
+    "",
+    `Response language: ${responseLanguage}`,
+    `Topic: ${context.topic || "not specified"}`,
+    `Platform: ${platform}`,
+    `Analysis role: ${context.analysisRole || "standard"}`,
+    `Selected checks: ${selectedTools || "standard text checks"}`,
+    "",
+    "Use the full article context passed by the app. Return a structured ToraSEO report for the selected checks, plus a concise chat answer with priorities and the next step.",
+    "Keep the checks separate: AI-style probability is not authorship proof, AI trace map is an editing map, genericness is about broad filler, readability is about dense sentences, and claim-source queue is for manual source verification.",
+    "Do not claim live internet checking, plagiarism checking, legal/medical/scientific expert review, or MCP tool execution when using API context only.",
+  ].join("\n");
+}
+
 async function runSingleNativeSiteCompareScan(
   url: string,
   toolIds: ToolId[],
@@ -436,6 +517,21 @@ function countCoveredReportTools(
     }
   }
   return covered.size;
+}
+
+function bridgeAiReport(state: CurrentScanState | null): RuntimeAuditReport | null {
+  const report = state?.aiReport;
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    return null;
+  }
+  const candidate = report as Partial<RuntimeAuditReport>;
+  if (
+    typeof candidate.analysisType !== "string" ||
+    !Array.isArray(candidate.confirmedFacts)
+  ) {
+    return null;
+  }
+  return candidate as RuntimeAuditReport;
 }
 
 function joinPromptLines(lines: Array<string | null | undefined>): string {
@@ -792,6 +888,12 @@ function MainApp() {
   const [runtimeReport, setRuntimeReport] = useState<RuntimeAuditReport | null>(
     null,
   );
+  const [analysisRunStartedAtMs, setAnalysisRunStartedAtMs] = useState<
+    number | null
+  >(null);
+  const [analysisRunDurationMs, setAnalysisRunDurationMs] = useState<
+    number | null
+  >(null);
   const [codexPromptHelperVisible, setCodexPromptHelperVisible] =
     useState(false);
   const [codexPromptHelperScanId, setCodexPromptHelperScanId] = useState<
@@ -813,12 +915,39 @@ function MainApp() {
     ReturnType<typeof window.setTimeout> | null
   >(null);
   const pageByUrlChatRunRef = useRef<string | null>(null);
+  const analysisRunStartedAtRef = useRef<number | null>(null);
   const lastCodexRunningRef = useRef<boolean | null>(null);
   const backShortcutTimerRef = useRef(0);
 
   const [currentLocale, setCurrentLocale] = useState<SupportedLocale>(
     () => (i18n.resolvedLanguage as SupportedLocale) ?? "en",
   );
+
+  const beginAnalysisRunTimer = useCallback(() => {
+    const startedAtMs = Date.now();
+    analysisRunStartedAtRef.current = startedAtMs;
+    setAnalysisRunStartedAtMs(startedAtMs);
+    setAnalysisRunDurationMs(null);
+  }, []);
+
+  const finishAnalysisRunTimer = useCallback((durationMs?: number) => {
+    const measuredDurationMs =
+      typeof durationMs === "number" && Number.isFinite(durationMs)
+        ? Math.max(0, Math.round(durationMs))
+        : analysisRunStartedAtRef.current
+          ? Math.max(0, Date.now() - analysisRunStartedAtRef.current)
+          : null;
+    analysisRunStartedAtRef.current = null;
+    setAnalysisRunStartedAtMs(null);
+    setAnalysisRunDurationMs(measuredDurationMs);
+    return measuredDurationMs ?? undefined;
+  }, []);
+
+  const clearAnalysisRunTimer = useCallback(() => {
+    analysisRunStartedAtRef.current = null;
+    setAnalysisRunStartedAtMs(null);
+    setAnalysisRunDurationMs(null);
+  }, []);
 
   const { stages, scanState, summary, startScan } = useScan();
   const bridge = useBridgeScan();
@@ -976,7 +1105,10 @@ function MainApp() {
     bridge.state?.status === "complete" &&
     bridge.state.analysisType === selectedAnalysisType;
   const nativeSelectedAnalysisComplete =
-    executionMode === "native" && runtimeReport !== null;
+    executionMode === "native" &&
+    (runtimeReport !== null ||
+      (nativeArticleTextState?.status === "complete" &&
+        nativeArticleTextState.analysisType === selectedAnalysisType));
   const startedAnalysisWithoutResult =
     mode === "analysis" &&
     !bridgeSelectedAnalysisComplete &&
@@ -1191,7 +1323,7 @@ function MainApp() {
         articleTextContext: null,
         articleCompareContext: null,
         siteCompareContext: null,
-        report: runtimeReport,
+        report: null,
       });
     }
     setSelectedAnalysisType(selected);
@@ -1226,6 +1358,7 @@ function MainApp() {
     setSiteCompareInput(null);
     setNativeSiteCompareActiveRun(null);
     setRuntimeReport(null);
+    clearAnalysisRunTimer();
     setPreflightError(null);
     setAnalysisRole("");
     setReferenceReturnTarget(null);
@@ -1740,6 +1873,7 @@ function MainApp() {
     () => buildBridgeScanFacts(bridge.state, bridge.stages),
     [bridge.stages, bridge.state],
   );
+  const submittedBridgeReport = bridgeAiReport(bridge.state);
   const activeArticleTextRun =
     executionMode === "native" && selectedAnalysisType === "site_compare"
       ? nativeSiteCompareActiveRun
@@ -1778,6 +1912,12 @@ function MainApp() {
     executionMode === "native"
       ? articleTextSolutionProvidedOnce
         ? "solution"
+        : nativeArticleTextState?.status === "complete" &&
+            (selectedAnalysisType === "article_text" ||
+              selectedAnalysisType === "page_by_url" ||
+              selectedAnalysisType === "article_compare" ||
+              selectedAnalysisType === "site_compare")
+          ? "scan"
         : runtimeReport && selectedAnalysisType === "article_text"
           ? "scan"
           : runtimeReport && selectedAnalysisType === "page_by_url"
@@ -1790,6 +1930,8 @@ function MainApp() {
       : completedArticleTextAction;
   const displayedArticleTextState =
     executionMode === "native" ? nativeArticleTextState : bridge.state;
+  const effectiveRuntimeReport =
+    executionMode === "bridge" ? submittedBridgeReport : runtimeReport;
   const effectiveArticleTextTools =
     selectedAnalysisType === "article_text"
       ? effectiveArticleTextToolIds(selectedAnalysisToolsByType.article_text)
@@ -1808,21 +1950,26 @@ function MainApp() {
       : [];
   const plannedCompletedTools =
     executionMode === "native" &&
+    (selectedAnalysisType === "article_text" ||
+      selectedAnalysisType === "page_by_url") &&
+    effectiveRuntimeReport?.articleText
+      ? effectiveRuntimeReport.articleText.coverage.completed
+      : executionMode === "native" &&
     selectedAnalysisType === "article_text" &&
-    runtimeReport
-      ? countCoveredReportTools(runtimeReport, effectiveArticleTextTools)
+    effectiveRuntimeReport
+      ? countCoveredReportTools(effectiveRuntimeReport, effectiveArticleTextTools)
       : executionMode === "native" &&
           selectedAnalysisType === "page_by_url" &&
-          runtimeReport
-        ? countCoveredReportTools(runtimeReport, effectivePageByUrlTools)
+          effectiveRuntimeReport
+        ? countCoveredReportTools(effectiveRuntimeReport, effectivePageByUrlTools)
       : executionMode === "native" &&
           selectedAnalysisType === "article_compare" &&
-          runtimeReport
-        ? countCoveredReportTools(runtimeReport, effectiveArticleCompareTools)
+          effectiveRuntimeReport
+        ? countCoveredReportTools(effectiveRuntimeReport, effectiveArticleCompareTools)
       : executionMode === "native" &&
           selectedAnalysisType === "site_compare" &&
-          runtimeReport
-        ? countCoveredReportTools(runtimeReport, effectiveSiteCompareTools)
+          effectiveRuntimeReport
+        ? countCoveredReportTools(effectiveRuntimeReport, effectiveSiteCompareTools)
       : displayedArticleTextState?.analysisType === "article_compare"
         ? displayedArticleTextState.selectedTools.filter((toolId) => {
             const entry = displayedArticleTextState.buffer[toolId];
@@ -1841,7 +1988,12 @@ function MainApp() {
           }).length
       : 0;
   const plannedTotalTools =
-    executionMode === "native" && selectedAnalysisType === "article_text"
+    executionMode === "native" &&
+    (selectedAnalysisType === "article_text" ||
+      selectedAnalysisType === "page_by_url") &&
+    effectiveRuntimeReport?.articleText
+      ? effectiveRuntimeReport.articleText.coverage.total
+      : executionMode === "native" && selectedAnalysisType === "article_text"
       ? effectiveArticleTextTools.length
       : executionMode === "native" && selectedAnalysisType === "page_by_url"
         ? effectivePageByUrlTools.length
@@ -1857,6 +2009,35 @@ function MainApp() {
       : selectedAnalysisType
         ? selectedAnalysisToolsByType[selectedAnalysisType].size
         : 0;
+  const bridgeStartedAtMs =
+    executionMode === "bridge"
+      ? firstBridgeToolStartedAtMs(displayedArticleTextState)
+      : NaN;
+  const bridgeFinishedAtMs =
+    executionMode === "bridge" && displayedArticleTextState?.finishedAt
+      ? Date.parse(displayedArticleTextState.finishedAt)
+      : NaN;
+  const bridgeToolsCompletedAtMs =
+    executionMode === "bridge" && displayedArticleTextState?.toolsCompletedAt
+      ? Date.parse(displayedArticleTextState.toolsCompletedAt)
+      : NaN;
+  const plannedAnalysisStartedAtMs =
+    executionMode === "bridge" &&
+    activeArticleTextRun &&
+    Number.isFinite(bridgeStartedAtMs)
+      ? bridgeStartedAtMs
+      : executionMode === "bridge"
+        ? null
+        : analysisRunStartedAtMs;
+  const plannedAnalysisDurationMs =
+    executionMode === "bridge"
+      ? Number.isFinite(bridgeStartedAtMs) && Number.isFinite(bridgeFinishedAtMs)
+        ? Math.max(0, Math.round(bridgeFinishedAtMs - bridgeStartedAtMs))
+        : Number.isFinite(bridgeStartedAtMs) &&
+            Number.isFinite(bridgeToolsCompletedAtMs)
+          ? Math.max(0, Math.round(bridgeToolsCompletedAtMs - bridgeStartedAtMs))
+        : null
+      : effectiveRuntimeReport?.durationMs ?? analysisRunDurationMs;
 
   useEffect(() => {
     if (
@@ -1894,6 +2075,108 @@ function MainApp() {
     }
   }, [bridge.state]);
 
+  const runNativeArticleTextProviderRequest = useCallback(
+    async (context: RuntimeArticleTextContext) => {
+      if (!selectedModelProfile || !window.toraseo?.runtime?.sendMessage) {
+        return;
+      }
+
+      const sessionBase: RuntimeChatWindowSession = {
+        status: "active",
+        locale: currentLocale,
+        analysisType: "article_text",
+        selectedProviderId,
+        selectedModelProfile,
+        scanContext: null,
+        articleTextContext: context,
+        report: null,
+        articleTextRunState: "running",
+        hostManagedRun: true,
+      };
+      const input: OrchestratorMessageInput = {
+        text: buildNativeArticleTextApiPrompt(context, currentLocale),
+        mode: context.action === "solution" ? "audit_plus_ideas" : "strict_audit",
+        executionMode: "native",
+        analysisType: "article_text",
+        providerId: selectedProviderId ?? selectedModelProfile.providerId,
+        modelOverride: selectedModelProfile.modelId,
+        locale: currentLocale,
+        scanContext: null,
+        articleTextContext: context,
+      };
+
+      try {
+        await window.toraseo.runtime.updateChatWindowSession(sessionBase);
+        const result = await window.toraseo.runtime.sendMessage(input);
+        const currentSession =
+          await window.toraseo.runtime.getChatWindowSession();
+        if (currentSession.articleTextContext?.runId !== context.runId) {
+          return;
+        }
+
+        if (result.ok && result.report) {
+          const providerText = result.text?.trim();
+          const durationMs = finishAnalysisRunTimer(result.report.durationMs);
+          const finalReport: RuntimeAuditReport = {
+            ...result.report,
+            analysisType:
+              context.sourceType === "page_by_url" ? "page_by_url" : "article_text",
+            locale: currentLocale,
+            durationMs,
+          };
+          const reportSummary = finalReport.summary.trim();
+          const nextSession: RuntimeChatWindowSession = {
+            ...sessionBase,
+            report: finalReport,
+            articleTextRunState: "complete",
+            chatNotice:
+              providerText && providerText !== reportSummary
+                ? providerText
+                : undefined,
+          };
+          setRuntimeReport(finalReport);
+          await window.toraseo.runtime.updateChatWindowSession(nextSession);
+          return;
+        }
+
+        const providerText =
+          result.ok && result.text?.trim()
+            ? result.text.trim()
+            : "The AI provider returned no structured report for this run. ToraSEO did not create a visual report because API mode requires report data from the AI provider.";
+        await window.toraseo.runtime.updateChatWindowSession({
+          ...sessionBase,
+          articleTextRunState: "failed",
+          articleTextRunError: result.ok ? providerText : result.errorMessage,
+          chatNotice: providerText,
+        });
+        finishAnalysisRunTimer();
+      } catch (err) {
+        const currentSession =
+          await window.toraseo.runtime.getChatWindowSession().catch(() => null);
+        if (currentSession?.articleTextContext?.runId !== context.runId) {
+          return;
+        }
+        const message =
+          err instanceof Error
+            ? err.message
+            : "The AI provider request failed before ToraSEO received a response.";
+        await window.toraseo.runtime.updateChatWindowSession({
+          ...sessionBase,
+          articleTextRunState: "failed",
+          articleTextRunError: message,
+          chatNotice: message,
+        });
+        finishAnalysisRunTimer();
+      }
+    },
+    [
+      currentLocale,
+      finishAnalysisRunTimer,
+      selectedModelProfile,
+      selectedProviderId,
+    ],
+  );
+
   const handleRunArticleTextBridge = async (
     action: ArticleTextAction,
     data: ArticleTextPromptData,
@@ -1929,12 +2212,16 @@ function MainApp() {
         );
         return false;
       }
-      if (action === "scan") {
-        setNativeArticleTextActiveRun("scan");
-        setNativeArticleTextState(null);
-        setRuntimeReport(null);
-      }
-
+      const articleTextContext: RuntimeArticleTextContext = {
+        action,
+        runId: `${action}-${Date.now()}`,
+        topic: data.topic,
+        body: data.body,
+        analysisRole: analysisRole.trim() || undefined,
+        textPlatform,
+        customPlatform: customPlatform.trim() || undefined,
+        selectedTools: toolIds,
+      };
       let result: { ok: boolean };
       try {
         result = await window.toraseo.runtime.openChatWindow({
@@ -1944,18 +2231,10 @@ function MainApp() {
           selectedProviderId,
           selectedModelProfile,
           scanContext: null,
-          articleTextContext: {
-            action,
-            runId: `${action}-${Date.now()}`,
-            topic: data.topic,
-            body: data.body,
-            analysisRole: analysisRole.trim() || undefined,
-            textPlatform,
-            customPlatform: customPlatform.trim() || undefined,
-            selectedTools: toolIds,
-          },
+          articleTextContext,
           report: null,
-          articleTextRunState: action === "scan" ? "running" : "idle",
+          articleTextRunState: "idle",
+          hostManagedRun: true,
         });
       } catch {
         result = { ok: false };
@@ -1979,10 +2258,18 @@ function MainApp() {
         return false;
       }
       if (action === "scan") {
+        clearAnalysisRunTimer();
+        setRuntimeReport(null);
+        setNativeArticleTextActiveRun("scan");
+        setNativeArticleTextState(null);
+      }
+      beginAnalysisRunTimer();
+      if (action === "scan") {
         setArticleTextScanStartedOnce(true);
       } else {
         setArticleTextSolutionProvidedOnce(true);
       }
+      void runNativeArticleTextProviderRequest(articleTextContext);
       return true;
     }
 
@@ -2071,6 +2358,7 @@ function MainApp() {
   const handleCancelArticleTextBridge = () => {
     if (executionMode === "native") {
       setNativeArticleTextActiveRun(null);
+      setNativeArticleTextState(null);
       void window.toraseo.runtime.updateChatWindowSession({
         status: "active",
         locale: currentLocale,
@@ -2202,7 +2490,20 @@ function MainApp() {
     }
 
     setRuntimeReport(null);
-    setNativeArticleTextState(null);
+    beginAnalysisRunTimer();
+    setNativeArticleTextState(
+      createNativeAnalysisProgressState("page_by_url", toolIds, {
+        action: "scan",
+        sourceType: "page_by_url",
+        topic: normalizedData.url,
+        text: normalizedData.textBlock,
+        pageTextBlock: normalizedData.textBlock,
+        analysisRole: analysisRole.trim() || undefined,
+        textPlatform,
+        customPlatform: customPlatform.trim() || undefined,
+        selectedAnalysisTools: toolIds,
+      }),
+    );
     setNativePageByUrlActiveRun("scan");
     setPageByUrlStartedOnce(true);
     pageByUrlChatRunRef.current = null;
@@ -2217,6 +2518,8 @@ function MainApp() {
       return;
     }
     setNativePageByUrlActiveRun(null);
+    setNativeArticleTextState(null);
+    clearAnalysisRunTimer();
     void window.toraseo.runtime.updateChatWindowSession({
       status: "active",
       locale: currentLocale,
@@ -2343,6 +2646,21 @@ function MainApp() {
     }
 
     setNativeArticleCompareActiveRun("scan");
+    beginAnalysisRunTimer();
+    setNativeArticleTextState(
+      createNativeAnalysisProgressState("article_compare", toolIds, {
+        action: "scan",
+        goal: compareData.goal,
+        goalMode,
+        textA: compareData.textA,
+        textB: compareData.textB,
+        roleA: compareData.roleA,
+        roleB: compareData.roleB,
+        textPlatform,
+        customPlatform: customPlatform.trim() || undefined,
+        selectedAnalysisTools: toolIds,
+      }),
+    );
     setRuntimeReport(null);
 
     let result: { ok: boolean };
@@ -2393,6 +2711,8 @@ function MainApp() {
       return;
     }
     setNativeArticleCompareActiveRun(null);
+    setNativeArticleTextState(null);
+    clearAnalysisRunTimer();
     void window.toraseo.runtime.updateChatWindowSession({
       status: "active",
       locale: currentLocale,
@@ -2460,6 +2780,15 @@ function MainApp() {
         scanResults: [],
       };
       setNativeSiteCompareActiveRun("scan");
+      beginAnalysisRunTimer();
+      setNativeArticleTextState(
+        createNativeAnalysisProgressState("site_compare", toolIds, {
+          action: "scan",
+          topic: normalizedData.focus,
+          siteUrls: normalizedData.urls,
+          selectedAnalysisTools: toolIds,
+        }),
+      );
       setSiteCompareStartedOnce(true);
       let result: { ok: boolean };
       try {
@@ -2481,6 +2810,7 @@ function MainApp() {
       }
       if (!result.ok) {
         setNativeSiteCompareActiveRun(null);
+        clearAnalysisRunTimer();
         setPreflightError(
           t("preflight.nativeUnavailable", {
             defaultValue: "API + AI Chat is unavailable in this build.",
@@ -2594,6 +2924,8 @@ function MainApp() {
       return;
     }
     setNativeSiteCompareActiveRun(null);
+    setNativeArticleTextState(null);
+    clearAnalysisRunTimer();
     void window.toraseo.runtime.updateChatWindowSession({
       status: "active",
       locale: currentLocale,
@@ -2629,6 +2961,59 @@ function MainApp() {
       selectedModelProfile,
       selectedProviderId,
     ],
+  );
+
+  const handleSendReportToAi = useCallback(
+    async (
+      report: RuntimeAuditReport,
+    ): Promise<{ ok: boolean; error?: string }> => {
+      if (!window.toraseo?.runtime) {
+        return {
+          ok: false,
+          error: "ToraSEO runtime API is unavailable.",
+        };
+      }
+
+      if (executionMode !== "native") {
+        const result = await window.toraseo.runtime.copyReportForAi(report);
+        return { ok: result.ok, error: result.error };
+      }
+
+      const prepared = await window.toraseo.runtime.prepareReportForAi(report);
+      if (!prepared.ok || !prepared.text) {
+        return { ok: false, error: prepared.error };
+      }
+
+      const currentSession = await window.toraseo.runtime
+        .getChatWindowSession()
+        .catch(() => null);
+      const activeSession =
+        currentSession?.status === "active" ? currentSession : null;
+      const nextSession: RuntimeChatWindowSession = {
+        status: "active",
+        locale: activeSession?.locale ?? currentLocale,
+        analysisType: "article_text",
+        selectedProviderId: activeSession?.selectedProviderId ?? selectedProviderId,
+        selectedModelProfile:
+          activeSession?.selectedModelProfile ?? selectedModelProfile,
+        scanContext: activeSession?.scanContext ?? null,
+        articleTextContext: activeSession?.articleTextContext ?? null,
+        articleCompareContext: activeSession?.articleCompareContext ?? null,
+        siteCompareContext: activeSession?.siteCompareContext ?? null,
+        articleTextRunState:
+          activeSession?.articleTextRunState ?? "complete",
+        chatNotice: activeSession?.chatNotice,
+        hostManagedRun: activeSession?.hostManagedRun ?? true,
+        report,
+        reportAttachmentText: prepared.text,
+        reportAttachmentName: t("plannedAnalysis.results.aiReportAttachmentName", {
+          defaultValue: "ToraSEO report",
+        }),
+      };
+      await window.toraseo.runtime.openChatWindow(nextSession);
+      return { ok: true };
+    },
+    [currentLocale, executionMode, selectedModelProfile, selectedProviderId, t],
   );
 
   useEffect(() => {
@@ -2673,6 +3058,17 @@ function MainApp() {
       selectedAnalysisToolsByType.page_by_url,
     );
     pageByUrlChatRunRef.current = runKey;
+    const articleTextContext: RuntimeArticleTextContext = {
+      action: "scan",
+      runId: `page-url-${Date.now()}`,
+      sourceType: "page_by_url",
+      topic: pageByUrlInput.url,
+      body,
+      analysisRole: analysisRole.trim() || undefined,
+      textPlatform,
+      customPlatform: customPlatform.trim() || undefined,
+      selectedTools: toolIds,
+    };
     void window.toraseo.runtime.openChatWindow({
       status: "active",
       locale: currentLocale,
@@ -2680,20 +3076,12 @@ function MainApp() {
       selectedProviderId,
       selectedModelProfile,
       scanContext: nativeScanContext,
-      articleTextContext: {
-        action: "scan",
-        runId: `page-url-${Date.now()}`,
-        sourceType: "page_by_url",
-        topic: pageByUrlInput.url,
-        body,
-        analysisRole: analysisRole.trim() || undefined,
-        textPlatform,
-        customPlatform: customPlatform.trim() || undefined,
-        selectedTools: toolIds,
-      },
+      articleTextContext,
       report: null,
-      articleTextRunState: "running",
+      articleTextRunState: "idle",
+      hostManagedRun: true,
     });
+    void runNativeArticleTextProviderRequest(articleTextContext);
   }, [
     analysisRole,
     currentLocale,
@@ -2703,6 +3091,7 @@ function MainApp() {
     nativePageByUrlActiveRun,
     nativeScanContext,
     pageByUrlInput,
+    runNativeArticleTextProviderRequest,
     scanState,
     selectedAnalysisToolsByType.page_by_url,
     selectedAnalysisType,
@@ -2825,20 +3214,30 @@ function MainApp() {
               setNativeSiteCompareActiveRun(null);
             }
           }
+          finishAnalysisRunTimer(session.report?.durationMs);
           if (session.articleTextRunState === "failed") {
-            setPreflightError(
+            const message =
               session.articleTextRunError ||
-                t("preflight.articleTextAiReportFailed", {
-                  defaultValue:
-                    "AI returned an answer, but ToraSEO could not convert it into a structured report.",
-                }),
+              t("preflight.articleTextAiReportFailed", {
+                defaultValue:
+                  "AI returned an answer, but ToraSEO could not convert it into a structured report.",
+              });
+            setPreflightError(message);
+            setNativeArticleTextState((prev) =>
+              markNativeAnalysisErrorState(prev, message),
             );
           }
         }
       },
     );
     return unsubscribe;
-  }, [selectedAnalysisType, t]);
+  }, [finishAnalysisRunTimer, selectedAnalysisType, t]);
+
+  useEffect(() => {
+    if (runtimeReport) {
+      setNativeArticleTextState(null);
+    }
+  }, [runtimeReport]);
 
   const isBusy =
     executionMode === "native"
@@ -3207,9 +3606,11 @@ function MainApp() {
               completedArticleTextAction={displayedCompletedArticleTextAction}
               completedTools={plannedCompletedTools}
               totalTools={plannedTotalTools}
+              analysisStartedAtMs={plannedAnalysisStartedAtMs}
+              analysisDurationMs={plannedAnalysisDurationMs}
               bridgeState={executionMode === "bridge" ? bridge.state : null}
               articleTextState={displayedArticleTextState}
-              runtimeReport={runtimeReport}
+              runtimeReport={effectiveRuntimeReport}
               articleCompareInput={articleCompareInput}
               siteCompareInput={siteCompareInput}
               scanStartedOnce={articleTextScanStartedOnce}
@@ -3232,6 +3633,7 @@ function MainApp() {
               onArticleCompareCancel={handleCancelArticleCompare}
               onSiteCompareRun={handleRunSiteCompare}
               onSiteCompareCancel={handleCancelSiteCompare}
+              onSendReportToAi={handleSendReportToAi}
               onOpenFormulas={handleOpenFormulas}
               showArticleTextToraRank={
                 executionMode === "bridge" && bridgeProgram === "codex"
@@ -3242,7 +3644,7 @@ function MainApp() {
               executionMode={executionMode}
               nativeScanState={scanState}
               runtimeScanContext={nativeScanContext}
-              runtimeReport={runtimeReport}
+              runtimeReport={effectiveRuntimeReport}
               bridgeState={bridge.state}
               bridgeFacts={bridgeFacts}
               localSummary={summary}
