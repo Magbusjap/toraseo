@@ -33,27 +33,6 @@ const TOKEN_MISMATCH_MESSAGE =
   "user to update or reinstall `toraseo-codex-workflow`, restart Codex, " +
   "start a new Codex session, and run the setup check again.";
 
-const SITE_BY_URL_INTERNAL_TOOL_IDS = new Set([
-  "scan_site_minimal",
-  "analyze_indexability",
-  "check_robots_txt",
-  "analyze_sitemap",
-  "check_redirects",
-  "analyze_meta",
-  "analyze_canonical",
-  "analyze_headings",
-  "analyze_content",
-  "analyze_links",
-  "detect_stack",
-]);
-
-function siteByUrlHandshakeTools(selectedTools: string[]): string[] {
-  const extraTools = selectedTools.filter(
-    (toolId) => !SITE_BY_URL_INTERNAL_TOOL_IDS.has(toolId),
-  );
-  return ["site_url_internal", ...extraTools];
-}
-
 export async function verifyCodexWorkflowLoadedHandler({
   token,
 }: {
@@ -229,39 +208,24 @@ export async function verifyCodexWorkflowLoadedHandler({
                 }
               : undefined,
             workspace: undefined,
-            selectedTools:
-              analysisType === "article_compare"
-                ? ["article_compare_internal"]
-                : analysisType === "site_by_url"
-                  ? siteByUrlHandshakeTools(state!.selectedTools)
-                : analysisType === "site_compare"
-                  ? ["site_compare_internal"]
-                : state!.selectedTools,
-            internalSelectedTools:
-              analysisType === "article_compare" ||
-              analysisType === "site_by_url" ||
-              analysisType === "site_compare"
-                ? state!.selectedTools
-                : undefined,
+            selectedTools: state!.selectedTools,
             message:
-              "ToraSEO connection verified. Use the tool list returned in this response. " +
-              "For two-text comparison runs, the listed tool starts " +
-              "the full comparison package and writes the individual check results " +
-              "to the ToraSEO app. Do not call separate comparison checks unless " +
-              "the user explicitly asks. For two-text comparison, use input.goalMode " +
+              "ToraSEO connection verified. Now call each tool from the tool list " +
+              "returned in this response, in the usual order. Each selected tool writes " +
+              "its own evidence to the ToraSEO app. For two-text comparison, use input.goalMode " +
               "to shape the final report: standard comparison, focus on Text A/B, " +
-              "competitor, style, similarity, version, or A/B post. " +
-              "When answering the user, use human-readable check names in the " +
-              "interface language for this run, and switch language only if the " +
-              "user explicitly changes language in their own new message. Avoid " +
-              "backend ids such as trustSignals, syntaxRiskSignals, tool ids, " +
-              "or result file paths unless the user asks for debugging details. " +
+              "competitor, style, similarity, version, or A/B post. When answering the user, use " +
+              "human-readable check names in the interface language for this run, and switch " +
+              "language only if the user explicitly changes language in their own new message. " +
+              "Avoid backend ids such as trustSignals, syntaxRiskSignals, tool ids, or result " +
+              "file paths unless the user asks for debugging details. " +
               "Do not request filesystem access to read temporary workspace or " +
               "results JSON files for a normal final summary; MCP tool responses " +
               "and the app report are the source of facts. " +
-              "Do not mention connection handshakes, scan ids, MCP internals, or aggregate tool names " +
-              "in the final user-facing answer; write a normal comparison report summary. " +
-              "For text-analysis runs, do not ask " +
+              "Do not mention connection handshakes, scan ids, MCP internals, or raw tool ids in the final user-facing answer; " +
+              "write a normal comparison report summary. " +
+              "Each tool's results will be displayed in the ToraSEO app " +
+              "automatically. For text-analysis runs, do not ask " +
               "the user to paste the article into chat; the selected MCP " +
               "tools read input.md from the temporary ToraSEO workspace. " +
               "For two-text comparison runs, do not ask the user to paste " +
@@ -269,11 +233,10 @@ export async function verifyCodexWorkflowLoadedHandler({
               "Text A and Text B from the temporary ToraSEO workspace. Keep " +
               "the comparison text-evidence only: do not claim ranking causes " +
               "from text alone and do not rewrite the full article. " +
-              "For site-by-URL runs, call site_url_internal first; it runs " +
-              "the selected core site-audit checks one by one and writes each " +
-              "individual tool result to the ToraSEO app so progress advances " +
-              "per check. Then call any additional tools returned after " +
-              "site_url_internal. Do not ask the user to paste a report " +
+              "For site-by-URL runs, call each selected site-audit MCP tool " +
+              "returned in this response, in order. Each tool writes its own " +
+              "result to the ToraSEO app so progress advances per check. " +
+              "Do not ask the user to paste a report " +
               "summary, screenshot, or JSON after the selected tools complete; " +
               "use the MCP tool responses and the app report as the source of facts. " +
               "For page-by-URL runs, call each selected page URL MCP tool " +
@@ -283,11 +246,25 @@ export async function verifyCodexWorkflowLoadedHandler({
               "as the article focus. Ignore ads/navigation/comments " +
               "and respect robots.txt; do not bypass auth, paywalls, CAPTCHA, " +
               "or private content. Do not invent Google/Yandex clicks, impressions, " +
-              "views, or indexed phrases without an official connected source. Results will be displayed " +
-              "in the ToraSEO app. If input.action is solution, run the tools first, " +
-              "then propose a concrete solution or draft direction in chat from the tool evidence. " +
-              "If the input is only a topic or too thin for a complete article, be explicit about " +
-              "the missing context and provide a bounded plan or minimum clarifying question.",
+              "views, or indexed phrases without an official connected source. " +
+              "For text analysis, treat ai_writing_probability, ai_trace_map, " +
+              "genericness_water_check, readability_complexity, claim_source_queue, " +
+              "fact_distortion_check, and ai_hallucination_check as separate " +
+              "questions. The first is an AI-style probability heuristic; " +
+              "ai_trace_map is an editing map, not authorship proof; " +
+              "genericness_water_check is about broad/watery phrasing and weak " +
+              "concrete evidence; readability_complexity is about dense sentences " +
+              "and heavy paragraphs; claim_source_queue lists claims needing " +
+              "source review; optional fact and hallucination checks are not " +
+              "external fact-checking. Use human-readable names in the final answer. " +
+              "After all tools complete, write the final structured report " +
+              "yourself and call submit_ai_report when that tool is available. " +
+              "Only after submit_ai_report succeeds, provide a short " +
+              "recommendation summary to the user in chat based on the data. " +
+              "If input.action is solution, run the tools first, then propose " +
+              "a concrete solution or draft direction in chat from the tool evidence. " +
+              "If the input is only a topic or too thin for a complete article, be explicit " +
+              "about the missing context and provide a bounded plan or minimum clarifying question.",
           },
           null,
           2,

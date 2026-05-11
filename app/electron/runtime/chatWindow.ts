@@ -12,20 +12,49 @@ export const CHAT_WINDOW_CHANNELS = {
 } as const;
 
 let chatWindow: BrowserWindow | null = null;
-let currentSession: RuntimeChatWindowSession = {
-  status: "ended",
-  locale: "en",
-  analysisType: "site",
-  selectedProviderId: null,
-  selectedModelProfile: null,
-  scanContext: null,
-  articleTextContext: null,
-  articleCompareContext: null,
-  siteCompareContext: null,
-  articleTextRunState: "idle",
-  report: null,
-  endedReason: "No active analysis session.",
-};
+
+function emptySession(reason: string): RuntimeChatWindowSession {
+  return {
+    status: "ended",
+    locale: "en",
+    analysisType: "site",
+    selectedProviderId: null,
+    selectedModelProfile: null,
+    scanContext: null,
+    articleTextContext: null,
+    articleCompareContext: null,
+    siteCompareContext: null,
+    articleTextRunState: "idle",
+    chatNotice: undefined,
+    hostManagedRun: false,
+    reportAttachmentText: undefined,
+    reportAttachmentName: undefined,
+    report: null,
+    endedReason: reason,
+  };
+}
+
+let currentSession: RuntimeChatWindowSession = emptySession(
+  "No active analysis session.",
+);
+
+function endedSessionFromCurrent(reason: string): RuntimeChatWindowSession {
+  return {
+    ...currentSession,
+    status: "ended",
+    scanContext: null,
+    articleTextContext: null,
+    articleCompareContext: null,
+    siteCompareContext: null,
+    articleTextRunState: "idle",
+    chatNotice: undefined,
+    hostManagedRun: false,
+    reportAttachmentText: undefined,
+    reportAttachmentName: undefined,
+    report: null,
+    endedReason: reason,
+  };
+}
 
 function rendererEntryUrl(): string {
   const devUrl = process.env.ELECTRON_RENDERER_URL;
@@ -83,6 +112,7 @@ function ensureChatWindow(): BrowserWindow {
   });
   chatWindow.on("closed", () => {
     chatWindow = null;
+    currentSession = endedSessionFromCurrent("Session ended");
   });
 
   void chatWindow.loadURL(rendererEntryUrl());
@@ -111,16 +141,7 @@ export async function updateChatWindowSession(
 }
 
 export async function endChatWindowSession(): Promise<{ ok: boolean }> {
-  currentSession = {
-    ...currentSession,
-    status: "ended",
-    scanContext: null,
-    articleCompareContext: null,
-    siteCompareContext: null,
-    articleTextRunState: "idle",
-    report: null,
-    endedReason: "Session ended",
-  };
+  currentSession = endedSessionFromCurrent("Session ended");
   emitSession();
   return { ok: true };
 }
@@ -130,16 +151,7 @@ export async function closeChatWindow(): Promise<{ ok: boolean }> {
     chatWindow.close();
     chatWindow = null;
   }
-  currentSession = {
-    ...currentSession,
-    status: "ended",
-    scanContext: null,
-    articleCompareContext: null,
-    siteCompareContext: null,
-    articleTextRunState: "idle",
-    report: null,
-    endedReason: "Session ended",
-  };
+  currentSession = endedSessionFromCurrent("Session ended");
   return { ok: true };
 }
 

@@ -10,7 +10,7 @@ interface DocumentationViewProps {
   onReturnHome: () => void;
 }
 
-type PageKey = "overview" | "mcp" | "api" | "skill";
+type PageKey = "overview" | "mcp" | "api" | "skill" | "prompt";
 
 type ModePageCopy = {
   title: string;
@@ -21,6 +21,133 @@ type ModePageCopy = {
   stepsTitle: string;
   steps: string[];
 };
+
+type PromptAnalysisCopy = {
+  title: string;
+  lead: string;
+  scanTitle: string;
+  scanBody: string;
+  promptVersionLabel: string;
+  prompts: Array<{
+    title: string;
+    body: string;
+  }>;
+  processTitle: string;
+  processSteps: string[];
+  boundaryTitle: string;
+  boundaryItems: string[];
+};
+
+const PROMPT_VERSION = "0.0.2";
+
+function codexPrompt(command: string, waitingLine: string, locale: SupportedLocale): string {
+  const useLine = locale === "ru" ? "Используй ToraSEO Codex Workflow." : "Use ToraSEO Codex Workflow.";
+  const runLine = locale === "ru" ? "После handshake запусти selectedTools." : "After handshake, run selectedTools.";
+  const detailsLine = locale === "ru" ? "Используй SKILL + MCP для деталей." : "Use SKILL + MCP for the details.";
+  return `${useLine}
+
+${command}
+
+${waitingLine}
+${runLine}
+${detailsLine}`;
+}
+
+function claudePrompt(command: string, waitingLine: string, locale: SupportedLocale): string {
+  const runLine = locale === "ru" ? "После handshake запусти selectedTools." : "After handshake, run selectedTools.";
+  const detailsLine = locale === "ru" ? "Используй SKILL + MCP для деталей." : "Use SKILL + MCP for the details.";
+  return `${command}
+
+${waitingLine}
+${runLine}
+${detailsLine}`;
+}
+
+function promptExamples(locale: SupportedLocale): PromptAnalysisCopy["prompts"] {
+  const ru = locale === "ru";
+  return [
+    {
+      title: ru ? "Codex: анализ текста" : "Codex: article text analysis",
+      body: codexPrompt(
+        "/toraseo codex-bridge-mode article-text",
+        ru ? "ToraSEO ожидает анализ текста статьи." : "ToraSEO is waiting for article text analysis.",
+        locale,
+      ),
+    },
+    {
+      title: ru ? "Claude Desktop: анализ текста" : "Claude Desktop: article text analysis",
+      body: claudePrompt(
+        "/toraseo bridge-mode article-text",
+        ru ? "ToraSEO ожидает анализ текста статьи." : "ToraSEO is waiting for article text analysis.",
+        locale,
+      ),
+    },
+    {
+      title: ru ? "Codex: сравнение двух текстов" : "Codex: two-text comparison",
+      body: codexPrompt(
+        "/toraseo codex-bridge-mode article-compare",
+        ru ? "ToraSEO ожидает сравнение двух текстов." : "ToraSEO is waiting for two-text comparison.",
+        locale,
+      ),
+    },
+    {
+      title: ru ? "Claude Desktop: сравнение двух текстов" : "Claude Desktop: two-text comparison",
+      body: claudePrompt(
+        "/toraseo bridge-mode article-compare",
+        ru ? "ToraSEO ожидает сравнение двух текстов." : "ToraSEO is waiting for two-text comparison.",
+        locale,
+      ),
+    },
+    {
+      title: ru ? "Codex: страница по URL" : "Codex: page by URL",
+      body: codexPrompt(
+        "/toraseo codex-bridge-mode page-by-url",
+        ru ? "ToraSEO ожидает анализ страницы по URL." : "ToraSEO is waiting for page analysis by URL.",
+        locale,
+      ),
+    },
+    {
+      title: ru ? "Claude Desktop: страница по URL" : "Claude Desktop: page by URL",
+      body: claudePrompt(
+        "/toraseo bridge-mode page-by-url",
+        ru ? "ToraSEO ожидает анализ страницы по URL." : "ToraSEO is waiting for page analysis by URL.",
+        locale,
+      ),
+    },
+    {
+      title: ru ? "Codex: сайт по URL" : "Codex: site by URL",
+      body: codexPrompt(
+        "/toraseo codex-bridge-mode site-by-url",
+        ru ? "ToraSEO ожидает анализ сайта по URL." : "ToraSEO is waiting for site by URL analysis.",
+        locale,
+      ),
+    },
+    {
+      title: ru ? "Claude Desktop: сайт по URL" : "Claude Desktop: site by URL",
+      body: claudePrompt(
+        "/toraseo bridge-mode site-by-url",
+        ru ? "ToraSEO ожидает анализ сайта по URL." : "ToraSEO is waiting for site by URL analysis.",
+        locale,
+      ),
+    },
+    {
+      title: ru ? "Codex: сравнение сайтов" : "Codex: site comparison",
+      body: codexPrompt(
+        "/toraseo codex-bridge-mode site-compare",
+        ru ? "ToraSEO ожидает сравнение сайтов по URL." : "ToraSEO is waiting for site comparison by URL.",
+        locale,
+      ),
+    },
+    {
+      title: ru ? "Claude Desktop: сравнение сайтов" : "Claude Desktop: site comparison",
+      body: claudePrompt(
+        "/toraseo bridge-mode site-compare",
+        ru ? "ToraSEO ожидает сравнение сайтов по URL." : "ToraSEO is waiting for site comparison by URL.",
+        locale,
+      ),
+    },
+  ];
+}
 
 const COPY = {
   en: {
@@ -33,6 +160,7 @@ const COPY = {
       ["overview", "Overview"],
       ["mcp", "Mode: MCP + Instructions"],
       ["api", "Mode API + AI Chat"],
+      ["prompt", "Prompt analysis"],
       ["skill", "Skill (without MCP and APP)"],
     ] as [PageKey, string][],
     sections: {
@@ -78,6 +206,31 @@ const COPY = {
     appVersionLabel: "App version",
     versionHeaders: ["Feature", "Analysis version"],
     inDevelopment: "In development",
+    promptAnalysis: {
+      title: "Prompt analysis",
+      lead:
+        "This page records how ToraSEO hands an article-text analysis to Codex in MCP + Instructions mode.",
+      scanTitle: "What happens when the user clicks Scan",
+      scanBody:
+        "ToraSEO creates an active analysis session, stores the article text and selected checks inside the app/MCP workspace, copies a short trigger prompt to the clipboard, and waits for Codex to connect through MCP.",
+      promptVersionLabel: "Prompt version",
+      prompts: promptExamples("en"),
+      processTitle: "Interaction process",
+      processSteps: [
+        "The user pastes the copied prompt into Codex.",
+        "Codex uses ToraSEO Codex Workflow and performs the MCP handshake.",
+        "ToraSEO returns the active analysis type, selectedTools, and workspace boundaries through MCP.",
+        "Codex runs the selected article-text MCP tools from that contract.",
+        "After the selected tools finish, Codex submits the AI-written structured report back to ToraSEO.",
+        "ToraSEO renders the report in the app UI and logs internal provenance for each selected tool.",
+      ],
+      boundaryTitle: "Boundary",
+      boundaryItems: [
+        "The copied prompt is only a trigger; detailed rules live in SKILL + MCP.",
+        "The article body is already inside ToraSEO, so Codex should not ask the user to paste it again.",
+        "The visual report should be rendered from the AI-submitted report, while the app records whether each tool was AI-authored.",
+      ],
+    } satisfies PromptAnalysisCopy,
     modePages: {
       mcp: {
         title: "Mode: MCP + Instructions",
@@ -148,6 +301,7 @@ const COPY = {
       ["overview", "Обзор"],
       ["mcp", "Режим: MCP + Instructions"],
       ["api", "Режим API + AI Chat"],
+      ["prompt", "Промпт анализ"],
       ["skill", "Skill (без MCP и APP)"],
     ] as [PageKey, string][],
     sections: {
@@ -180,8 +334,8 @@ const COPY = {
     fallbackCommands: [
       ["Текст статьи", "/toraseo chat-only-fallback article-text", "Только вставленный текст статьи."],
       ["Два текста", "/toraseo chat-only-fallback article-compare", "Только вставленные тексты A и B."],
-      ["Страница по URL", "/toraseo chat-only-fallback page-by-url", "Нужен текст страницы или видимый фрагмент; URL-only требует browsing."],
-      ["Сайт по URL", "/toraseo chat-only-fallback site-by-url", "Нужны доступные публичные факты; URL-only требует browsing."],
+      ["Страница по URL", "/toraseo chat-only-fallback page-by-url", "Нужен текст страницы или видимый фрагмент; один URL требует доступа к браузеру или сети."],
+      ["Сайт по URL", "/toraseo chat-only-fallback site-by-url", "Нужны доступные публичные факты; один URL требует доступа к браузеру или сети."],
       ["Сравнение сайтов", "/toraseo chat-only-fallback site-compare", "Сравнение доступных фактов без трех полных аудитов рядом."],
     ],
     providersLead:
@@ -193,17 +347,42 @@ const COPY = {
     appVersionLabel: "Версия приложения",
     versionHeaders: ["Функция", "Версия анализа"],
     inDevelopment: "В разработке",
+    promptAnalysis: {
+      title: "Промпт анализ",
+      lead:
+        "Эта страница фиксирует, как ToraSEO передает анализ текста статьи в Codex в режиме MCP + Instructions.",
+      scanTitle: "Что происходит, когда пользователь нажимает Сканировать",
+      scanBody:
+        "ToraSEO создает активную сессию анализа, сохраняет текст статьи и выбранные проверки внутри рабочего пространства app/MCP, копирует короткий стартовый промпт в буфер обмена и ждет, когда Codex подключится через MCP.",
+      promptVersionLabel: "Версия промпта",
+      prompts: promptExamples("ru"),
+      processTitle: "Процесс взаимодействия",
+      processSteps: [
+        "Пользователь вставляет скопированный prompt в Codex.",
+        "Codex использует ToraSEO Codex Workflow и выполняет MCP handshake.",
+        "ToraSEO через MCP возвращает активный тип анализа, selectedTools и границы workspace.",
+        "Codex запускает выбранные MCP-инструменты анализа текста по этому контракту.",
+        "После завершения выбранных инструментов Codex отправляет AI-written structured report обратно в ToraSEO.",
+        "ToraSEO отображает отчет в интерфейсе и пишет internal provenance по каждому выбранному инструменту.",
+      ],
+      boundaryTitle: "Граница",
+      boundaryItems: [
+        "Скопированный prompt является только trigger; подробные правила живут в SKILL + MCP.",
+        "Текст статьи уже находится внутри ToraSEO, поэтому Codex не должен просить пользователя вставить его повторно.",
+        "Визуальный отчет должен строиться из отчета, который отправил ИИ, а приложение фиксирует, был ли каждый инструмент AI-authored.",
+      ],
+    } satisfies PromptAnalysisCopy,
     modePages: {
       mcp: {
         title: "Режим: MCP + Instructions",
         lead:
           "Этот режим связывает ToraSEO с Codex или Claude Desktop через MCP-инструменты и отдельный пакет инструкций.",
-        imageLabel: "Заглушка скриншота MCP workflow",
+        imageLabel: "Заглушка скриншота MCP-процесса",
         bulletsTitle: "Лучше всего подходит для",
         bullets: [
           "пользователей, которым важно, чтобы внешнее ИИ-приложение явно вызывало инструменты ToraSEO",
-          "аудитов, где ответ в чате должен опираться на tool evidence",
-          "workflow Codex и Claude Desktop, которые также должны обновлять отчет ToraSEO",
+          "аудитов, где ответ в чате должен опираться на данные инструментов",
+          "процессы Codex и Claude Desktop, которые также должны обновлять отчет ToraSEO",
         ],
         stepsTitle: "Как работает",
         steps: [
@@ -216,7 +395,7 @@ const COPY = {
       api: {
         title: "Режим API + AI Chat",
         lead:
-          "Этот режим оставляет весь workflow внутри ToraSEO: факты сканирования собираются локально и интерпретируются выбранной моделью провайдера.",
+          "Этот режим оставляет весь рабочий процесс внутри ToraSEO: факты сканирования собираются локально и интерпретируются выбранной моделью провайдера.",
         imageLabel: "Заглушка скриншота API chat",
         bulletsTitle: "Лучше всего подходит для",
         bullets: [
@@ -328,6 +507,84 @@ function ModePage({
   );
 }
 
+function PromptAnalysisPage({ copy }: { copy: PromptAnalysisCopy }) {
+  return (
+    <article className="mx-auto w-full max-w-5xl rounded-lg border border-outline/10 bg-white px-8 py-7">
+      <div className="flex items-start gap-4">
+        <span className="rounded-lg bg-primary/10 p-3 text-primary">
+          <MessageSquare size={22} />
+        </span>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+            ToraSEO
+          </p>
+          <h2 className="mt-2 font-display text-3xl font-semibold text-outline-900">
+            {copy.title}
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-outline-900/65">
+            {copy.lead}
+          </p>
+        </div>
+      </div>
+
+      <section className="mt-8 rounded-lg border border-outline/10 bg-orange-50/30 px-5 py-4">
+        <h3 className="font-display text-lg font-semibold text-outline-900">
+          {copy.scanTitle}
+        </h3>
+        <p className="mt-2 text-sm leading-relaxed text-outline-900/70">
+          {copy.scanBody}
+        </p>
+      </section>
+
+      <section className="mt-5 space-y-5">
+        {copy.prompts.map((prompt) => (
+          <div
+            key={prompt.title}
+            className="rounded-lg border border-outline/10 bg-white px-5 py-4"
+          >
+            <h3 className="font-display text-lg font-semibold text-outline-900">
+              {prompt.title}
+            </h3>
+            <pre className="mt-3 overflow-x-auto rounded-md border border-outline/10 bg-outline-900 px-4 py-3 text-sm leading-relaxed text-white">
+              <code>{prompt.body}</code>
+            </pre>
+            <p className="mt-2 text-xs font-medium text-outline-900/45">
+              {copy.promptVersionLabel}: {PROMPT_VERSION}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      <section className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="rounded-lg border border-outline/10 bg-white px-5 py-4">
+          <h3 className="font-display text-lg font-semibold text-outline-900">
+            {copy.processTitle}
+          </h3>
+          <ol className="mt-3 space-y-2 text-sm leading-relaxed text-outline-900/70">
+            {copy.processSteps.map((item) => (
+              <li key={item} className="ml-4 list-decimal">
+                {item}
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="rounded-lg border border-outline/10 bg-orange-50/30 px-5 py-4">
+          <h3 className="font-display text-lg font-semibold text-outline-900">
+            {copy.boundaryTitle}
+          </h3>
+          <ul className="mt-3 space-y-2 text-sm leading-relaxed text-outline-900/70">
+            {copy.boundaryItems.map((item) => (
+              <li key={item} className="ml-4 list-disc">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    </article>
+  );
+}
+
 export default function DocumentationView({
   currentLocale,
   onReturnHome,
@@ -336,7 +593,11 @@ export default function DocumentationView({
   const [page, setPage] = useState<PageKey>("overview");
 
   const modeIcon =
-    page === "mcp" ? <Cpu size={22} /> : page === "api" ? <MessageSquare size={22} /> : <WifiOff size={22} />;
+    page === "mcp"
+      ? <Cpu size={22} />
+      : page === "api"
+        ? <MessageSquare size={22} />
+        : <WifiOff size={22} />;
 
   return (
     <div className="flex h-full w-full min-w-0 flex-1 overflow-hidden bg-orange-50/30">
@@ -549,6 +810,8 @@ export default function DocumentationView({
               </div>
             </section>
           </article>
+        ) : page === "prompt" ? (
+          <PromptAnalysisPage copy={copy.promptAnalysis} />
         ) : (
           <ModePage copy={copy} page={copy.modePages[page]} icon={modeIcon} />
         )}

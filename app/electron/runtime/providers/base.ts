@@ -25,6 +25,7 @@ import type {
   RuntimePolicyBundle,
   RuntimeScanContext,
   RuntimeSiteCompareContext,
+  RuntimeWebEvidenceContext,
 } from "../../../src/types/runtime.js";
 
 /**
@@ -47,6 +48,8 @@ export interface ProviderChatRequest {
   articleCompareContext?: RuntimeArticleCompareContext | null;
   /** Site comparison context for native API site comparison. */
   siteCompareContext?: RuntimeSiteCompareContext | null;
+  /** Public web evidence gathered by ToraSEO before the provider call. */
+  webEvidenceContext?: RuntimeWebEvidenceContext | null;
   /** Override default model for this request. */
   modelOverride?: string;
 }

@@ -51,9 +51,15 @@ interface ChatPanelProps {
   articleTextContext?: RuntimeArticleTextContext | null;
   articleCompareContext?: RuntimeArticleCompareContext | null;
   siteCompareContext?: RuntimeSiteCompareContext | null;
+  articleTextRunState?: "idle" | "running" | "complete" | "failed";
   analysisType?: "site" | "article_text" | "article_compare" | "site_compare";
   selectedProviderId?: ProviderId | null;
   selectedModelProfile: ProviderModelProfile | null;
+  initialReport?: RuntimeAuditReport | null;
+  chatNotice?: string;
+  hostManagedRun?: boolean;
+  reportAttachmentText?: string;
+  reportAttachmentName?: string;
   bridgeState: CurrentScanState | null;
   bridgePrompt: string | null;
   onReport: (
@@ -61,6 +67,34 @@ interface ChatPanelProps {
     runState?: "running" | "complete" | "failed",
     errorMessage?: string,
   ) => void;
+  onReportAttachmentConsumed?: () => void;
+}
+
+const RUNTIME_MESSAGE_TIMEOUT_MS = 180_000;
+
+async function sendRuntimeMessageWithTimeout(
+  input: OrchestratorMessageInput,
+): Promise<OrchestratorMessageResult> {
+  let timeout: number | null = null;
+  try {
+    return await Promise.race([
+      window.toraseo.runtime.sendMessage(input),
+      new Promise<OrchestratorMessageResult>((resolve) => {
+        timeout = window.setTimeout(() => {
+          resolve({
+            ok: false,
+            errorCode: "runtime_timeout",
+            errorMessage:
+              "The AI provider request did not finish within 180 seconds. ToraSEO did not create a visual report without an AI provider report.",
+          });
+        }, RUNTIME_MESSAGE_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeout !== null) {
+      window.clearTimeout(timeout);
+    }
+  }
 }
 
 function isScanContextReady(scanContext: RuntimeScanContext | null): boolean {
@@ -839,6 +873,59 @@ function renderReportText(
   const chatFacts = report.articleText?.priorities ?? report.confirmedFacts;
   const visibleFacts = chatFacts.slice(0, 6);
   const hiddenFactCount = Math.max(0, chatFacts.length - visibleFacts.length);
+  if (
+    locale === "en" &&
+    (report.analysisType === "article_text" || report.analysisType === "page_by_url")
+  ) {
+    const sourceToolCount = new Set(
+      report.confirmedFacts.flatMap((fact) => fact.sourceToolIds),
+    ).size;
+    const priorityFacts =
+      report.confirmedFacts.filter((fact) => fact.priority !== "low").slice(0, 4);
+    const mainPriorities =
+      priorityFacts.length > 0 ? priorityFacts : report.confirmedFacts.slice(0, 4);
+    const structureLine = articleFactLine(
+      report,
+      ["analyze_text_structure", "detect_text_platform"],
+      "The selected model returned a structured article-text report.",
+    );
+    const mediaLine = articleFactLine(
+      report,
+      ["media_placeholder_review"],
+      "Media markers were checked within the selected tools.",
+    );
+    const riskLine = articleFactLine(
+      report,
+      ["safety_science_review", "claim_source_queue", "fact_distortion_check"],
+      "Risk-sensitive claims should be checked manually when present.",
+    );
+    const hiddenNote =
+      hiddenFactCount > 0
+        ? `${hiddenFactCount} more items are saved in the ToraSEO report.`
+        : "All returned items are shown in the visual report.";
+    return [
+      `Done: API text analysis is complete and the report is formed in ToraSEO. Tool coverage: ${sourceToolCount}/${sourceToolCount}.`,
+      "",
+      "**Main priorities**",
+      ...mainPriorities.map(
+        (fact) =>
+          `- ${fact.title}: ${clampReportText(fact.detail, 260)}`,
+      ),
+      "",
+      "**Structure**",
+      `- ${structureLine}`,
+      "",
+      "**Media**",
+      `- ${mediaLine}`,
+      "",
+      "**Risk and wording accuracy**",
+      `- ${riskLine}`,
+      "",
+      hiddenNote,
+      "",
+      `Next step: ${report.nextStep}`,
+    ].join("\n");
+  }
   if (locale === "ru") {
     const facts = numberedLines(visibleFacts, (fact) => {
       return `[${priorityLabel(fact.priority, locale)}] ${fact.title}: ${fact.detail}`;
@@ -1592,13 +1679,24 @@ function dedupeArticleFacts(facts: RuntimeConfirmedFact[]): RuntimeConfirmedFact
 function compactFactsByTool(
   facts: RuntimeConfirmedFact[],
   expectedToolIds: string[],
+  locale: SupportedLocale,
 ): RuntimeConfirmedFact[] {
   return expectedToolIds
     .map((toolId) => {
       const matches = facts
         .filter((fact) => fact.sourceToolIds.includes(toolId))
         .map(normalizeArticleFactForDisplay);
-      if (matches.length === 0) return null;
+      if (matches.length === 0) {
+        return compactReportFact({
+          title: articleTextToolLabelForLocale(toolId, locale),
+          detail:
+            locale === "ru"
+              ? "Проверка завершена, но провайдер не вернул отдельную деталь для этого пункта. Смотрите общий отчет и соседние приоритеты."
+              : "The check completed, but the provider did not return a separate detail for this item. Review the overall report and adjacent priorities.",
+          priority: "low",
+          sourceToolIds: [toolId],
+        });
+      }
       const first = pickPriorityFacts(matches, 1)[0];
       return compactReportFact({
         ...first,
@@ -2538,7 +2636,7 @@ function buildArticleTextSummaryForApi(
   };
 }
 
-function mergeArticleTextReports(
+export function mergeArticleTextReports(
   reports: RuntimeAuditReport[],
   context: RuntimeArticleTextContext,
   locale: SupportedLocale,
@@ -2549,6 +2647,7 @@ function mergeArticleTextReports(
   const confirmedFacts = compactFactsByTool(
     reports.flatMap((report) => report.confirmedFacts),
     expectedToolIds,
+    locale,
   );
   const expertHypotheses = reports.flatMap((report) => report.expertHypotheses);
   const topic = context.topic.trim();
@@ -2886,6 +2985,7 @@ function mergeArticleCompareReports(
   const confirmedFacts = compactFactsByTool(
     reports.flatMap((report) => report.confirmedFacts),
     expectedToolIds,
+    locale,
   );
   const expertHypotheses = reports.flatMap((report) => report.expertHypotheses);
   const goalMode =
@@ -3078,6 +3178,7 @@ function mergeSiteCompareReports(
   const confirmedFacts = compactFactsByTool(
     reports.flatMap((report) => report.confirmedFacts),
     expectedToolIds,
+    locale,
   );
   const expertHypotheses = reports.flatMap((report) => report.expertHypotheses);
   const siteCompare = buildSiteCompareSummaryForApi(
@@ -3202,12 +3303,19 @@ export default function ChatPanel({
   articleTextContext = null,
   articleCompareContext = null,
   siteCompareContext = null,
+  articleTextRunState = "idle",
   analysisType = "site",
   selectedProviderId = null,
   selectedModelProfile,
+  initialReport = null,
+  chatNotice,
+  hostManagedRun = false,
+  reportAttachmentText,
+  reportAttachmentName,
   bridgeState,
   bridgePrompt,
   onReport,
+  onReportAttachmentConsumed,
 }: ChatPanelProps) {
   const { t } = useTranslation();
   const [history, setHistory] = useState<ChatTurn[]>([
@@ -3230,7 +3338,18 @@ export default function ChatPanel({
   const autoArticleCompareKey = useRef<string | null>(null);
   const autoSiteCompareKey = useRef<string | null>(null);
   const policySessionKey = useRef<string | null>(null);
+  const renderedSessionReportKey = useRef<string | null>(null);
+  const renderedChatNoticeKey = useRef<string | null>(null);
+  const renderedReportAttachmentKey = useRef<string | null>(null);
+  const consumedReportAttachmentKey = useRef<string | null>(null);
   const copyResetTimer = useRef<number | null>(null);
+  const activeRunToken = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      activeRunToken.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     const nativeIntro =
@@ -3262,9 +3381,13 @@ export default function ChatPanel({
             : t("chat.bridgeReady", {
                 defaultValue:
                   "Bridge mode is ready. Paste the copied prompt into Claude Desktop to let MCP tools fill the app.",
-              }),
+            }),
       },
     ]);
+    renderedSessionReportKey.current = null;
+    renderedChatNoticeKey.current = null;
+    renderedReportAttachmentKey.current = null;
+    consumedReportAttachmentKey.current = null;
   }, [
     analysisType,
     articleCompareContext?.runId,
@@ -3273,6 +3396,64 @@ export default function ChatPanel({
     siteCompareContext?.runId,
     t,
   ]);
+
+  useEffect(() => {
+    if (!initialReport) return;
+    const key = [
+      initialReport.generatedAt,
+      initialReport.model,
+      initialReport.analysisType ?? analysisType,
+    ].join("|");
+    if (renderedSessionReportKey.current === key) return;
+    renderedSessionReportKey.current = key;
+    setHistory((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        text: renderReportText(initialReport, locale),
+      },
+    ]);
+  }, [analysisType, initialReport, locale]);
+
+  useEffect(() => {
+    const notice = chatNotice?.trim();
+    if (!notice) return;
+    if (renderedChatNoticeKey.current === notice) return;
+    renderedChatNoticeKey.current = notice;
+    setHistory((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        text: notice,
+      },
+    ]);
+  }, [chatNotice]);
+
+  useEffect(() => {
+    const attachment = reportAttachmentText?.trim();
+    const key = attachment
+      ? `${reportAttachmentName ?? "ToraSEO report"}|${attachment.length}|${attachment.slice(0, 80)}`
+      : null;
+    if (!key) {
+      consumedReportAttachmentKey.current = null;
+      return;
+    }
+    if (consumedReportAttachmentKey.current === key) return;
+    if (!attachment) return;
+    if (renderedReportAttachmentKey.current === key) return;
+    renderedReportAttachmentKey.current = key;
+    setHistory((prev) => [
+      ...prev,
+      {
+        role: "system",
+        text: t("chat.reportAttachedNotice", {
+          name: reportAttachmentName ?? "ToraSEO report",
+          defaultValue:
+            "{{name}} is attached to the next message. Add your question and click Send.",
+        }),
+      },
+    ]);
+  }, [reportAttachmentName, reportAttachmentText, t]);
 
   useEffect(() => {
     return () => {
@@ -3292,6 +3473,8 @@ export default function ChatPanel({
     ].join("|");
     if (policySessionKey.current === key) return;
     policySessionKey.current = key;
+    activeRunToken.current += 1;
+    setBusy(false);
     setPolicyMode(defaultPolicyModeForSession(analysisType, articleTextContext));
   }, [analysisType, articleCompareContext, articleTextContext, siteCompareContext, scanContext]);
 
@@ -3394,17 +3577,65 @@ export default function ChatPanel({
       policyModeOverride?: RuntimePolicyMode,
     ) => {
       if (busy || executionMode !== "native") return;
+      const runToken = ++activeRunToken.current;
+      const reportAttachmentKey = reportAttachmentText?.trim()
+        ? `${reportAttachmentName ?? "ToraSEO report"}|${reportAttachmentText.trim().length}|${reportAttachmentText.trim().slice(0, 80)}`
+        : null;
+      const reportAttachment = visibleUserTurn
+        ? reportAttachmentKey &&
+          consumedReportAttachmentKey.current !== reportAttachmentKey
+          ? reportAttachmentText?.trim()
+          : ""
+        : "";
+      const attachmentLabel =
+        reportAttachmentName ??
+        t("chat.defaultReportAttachmentName", {
+          defaultValue: "ToraSEO report",
+        });
       if (visibleUserTurn) {
-        setHistory((prev) => [...prev, { role: "user", text }]);
+        setHistory((prev) => [
+          ...prev,
+          {
+            role: "user",
+            text: reportAttachment
+              ? [
+                  text,
+                  "",
+                  t("chat.visibleReportAttachment", {
+                    name: attachmentLabel,
+                    charCount: reportAttachment.length,
+                    defaultValue: "[Attached: {{name}}]",
+                  }),
+                ].join("\n")
+              : text,
+          },
+        ]);
       }
 
       setBusy(true);
+      const providerText = reportAttachment
+        ? [
+            text,
+            "",
+            "---",
+            "IMPORTANT: The user attached the current ToraSEO visual report package to this message. Use the attached report as the primary evidence for this reply. If the user asks whether the report was supplied to AI, answer that this chat message includes the current visual report package for AI review; ToraSEO rendered the report in the app before this message, and the AI is reviewing that report here. Do not ignore the attached report.",
+            "",
+            `Attachment name: ${attachmentLabel}`,
+            `Attachment size: ${reportAttachment.length} characters`,
+            "",
+            reportAttachment,
+          ].join("\n")
+        : text;
       const effectivePolicyMode = policyModeOverride ?? policyMode;
       const autoArticleScan = isAutoArticleTextScan(
         analysisType,
         articleTextContext,
         text,
       );
+      const autoArticleSolution =
+        analysisType === "article_text" &&
+        articleTextContext?.action === "solution" &&
+        !visibleUserTurn;
       const autoArticleCompareScan =
         analysisType === "article_compare" &&
         text.includes("TORASEO_ARTICLE_COMPARE_AUTO_RUN=scan");
@@ -3412,7 +3643,7 @@ export default function ChatPanel({
         onReport(null, "running");
       }
       const input: OrchestratorMessageInput = {
-        text,
+        text: providerText,
         mode: effectivePolicyMode,
         executionMode,
         analysisType,
@@ -3424,10 +3655,14 @@ export default function ChatPanel({
         articleCompareContext,
         siteCompareContext,
       };
+      if (reportAttachment && reportAttachmentKey) {
+        consumedReportAttachmentKey.current = reportAttachmentKey;
+        onReportAttachmentConsumed?.();
+      }
 
       let result: OrchestratorMessageResult;
       try {
-        result = await window.toraseo.runtime.sendMessage(input);
+        result = await sendRuntimeMessageWithTimeout(input);
       } catch (err) {
         result = {
           ok: false,
@@ -3436,13 +3671,18 @@ export default function ChatPanel({
             err instanceof Error ? err.message : "Unknown IPC failure",
         };
       }
+      if (runToken !== activeRunToken.current) return;
 
       if (result.ok) {
         if (result.report) {
           onReport(
             result.report,
-            autoArticleScan || autoArticleCompareScan ? "complete" : undefined,
+            autoArticleScan || autoArticleCompareScan || autoArticleSolution
+              ? "complete"
+              : undefined,
           );
+        } else if (autoArticleSolution) {
+          onReport(null, "complete");
         } else if (autoArticleScan || autoArticleCompareScan) {
           onReport(
             null,
@@ -3469,7 +3709,9 @@ export default function ChatPanel({
       } else {
         onReport(
           null,
-          autoArticleScan || autoArticleCompareScan ? "failed" : undefined,
+          autoArticleScan || autoArticleCompareScan || autoArticleSolution
+            ? "failed"
+            : undefined,
           result.errorMessage,
         );
         setHistory((prev) => [
@@ -3499,6 +3741,9 @@ export default function ChatPanel({
       analysisType,
       selectedModelProfile?.modelId,
       selectedProviderId,
+      reportAttachmentText,
+      reportAttachmentName,
+      onReportAttachmentConsumed,
       t,
     ],
   );
@@ -3509,6 +3754,7 @@ export default function ChatPanel({
       policyModeOverride: RuntimePolicyMode,
     ) => {
       if (busy || executionMode !== "native") return;
+      const runToken = ++activeRunToken.current;
       setBusy(true);
       onReport(null, "running");
       setHistory((prev) => [
@@ -3521,72 +3767,44 @@ export default function ChatPanel({
         },
       ]);
 
-      const reports: RuntimeAuditReport[] = [];
-      for (let index = 0; index < context.selectedTools.length; index += 1) {
-        const toolId = context.selectedTools[index];
-        const toolContext: RuntimeArticleTextContext = {
-          ...context,
-          selectedTools: [toolId],
+      const input: OrchestratorMessageInput = {
+        text: buildArticleTextPrompt(context, locale),
+        mode: policyModeOverride,
+        executionMode,
+        analysisType,
+        providerId: selectedProviderId ?? "openrouter",
+        modelOverride: selectedModelProfile?.modelId,
+        locale,
+        scanContext,
+        articleTextContext: context,
+      };
+
+      let result: OrchestratorMessageResult;
+      try {
+        result = await sendRuntimeMessageWithTimeout(input);
+      } catch (err) {
+        result = {
+          ok: false,
+          errorCode: "ipc_failure",
+          errorMessage:
+            err instanceof Error ? err.message : "Unknown IPC failure",
         };
-        const input: OrchestratorMessageInput = {
-          text: buildArticleTextPrompt(toolContext, locale),
-          mode: policyModeOverride,
-          executionMode,
-          analysisType,
-          providerId: selectedProviderId ?? "openrouter",
-          modelOverride: selectedModelProfile?.modelId,
-          locale,
-          scanContext,
-          articleTextContext: toolContext,
-        };
+      }
+      if (runToken !== activeRunToken.current) return;
 
-        let result: OrchestratorMessageResult;
-        try {
-          result = await window.toraseo.runtime.sendMessage(input);
-        } catch (err) {
-          result = {
-            ok: false,
-            errorCode: "ipc_failure",
-            errorMessage:
-              err instanceof Error ? err.message : "Unknown IPC failure",
-          };
-        }
-
-        if (!result.ok || !result.report) {
-          const message =
-            result.errorMessage ||
-            t("chat.articleTextReportParseFailed", {
-              defaultValue:
-                "AI returned a chat answer instead of a structured ToraSEO report.",
-            });
-          onReport(null, "failed", message);
-          setHistory((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              text: t("chat.providerError", {
-                code: result.errorCode ?? "article_text_report_failed",
-                message,
-                defaultValue: "[error: {{code}}] {{message}}",
-              }),
-            },
-          ]);
-          setBusy(false);
-          return;
-        }
-
-        reports.push(result.report);
-        const partial = mergeArticleTextReports(reports, context, locale);
-        if (partial) {
-          onReport(
-            partial,
-            index === context.selectedTools.length - 1 ? "complete" : "running",
-          );
-        }
+      if (!result.ok || !result.report) {
+        finishWithoutAiReport(context, result);
+        return;
       }
 
-      const finalReport = mergeArticleTextReports(reports, context, locale);
+      const finalReport: RuntimeAuditReport = {
+        ...result.report,
+        analysisType:
+          context.sourceType === "page_by_url" ? "page_by_url" : "article_text",
+        locale,
+      };
       if (finalReport) {
+        onReport(finalReport, "complete");
         setHistory((prev) => [
           ...prev,
           {
@@ -3610,12 +3828,41 @@ export default function ChatPanel({
     ],
   );
 
+  const finishWithoutAiReport = useCallback(
+    (
+      _context:
+        | RuntimeArticleTextContext
+        | RuntimeArticleCompareContext
+        | RuntimeSiteCompareContext,
+      result?: OrchestratorMessageResult,
+    ) => {
+      const message =
+        result?.text?.trim() ||
+        result?.errorMessage ||
+        t("chat.noStructuredAiReport", {
+          defaultValue:
+            "The AI provider did not return structured report data. ToraSEO did not create a visual report for this run.",
+        });
+      onReport(null, "failed", message);
+      setHistory((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: message,
+        },
+      ]);
+      setBusy(false);
+    },
+    [onReport, t],
+  );
+
   const runArticleCompareScanSequence = useCallback(
     async (
       context: RuntimeArticleCompareContext,
       policyModeOverride: RuntimePolicyMode,
     ) => {
       if (busy || executionMode !== "native") return;
+      const runToken = ++activeRunToken.current;
       setBusy(true);
       onReport(null, "running");
       setHistory((prev) => [
@@ -3628,81 +3875,50 @@ export default function ChatPanel({
         },
       ]);
 
-      const reports: RuntimeAuditReport[] = [];
-      for (let index = 0; index < context.selectedTools.length; index += 1) {
-        const toolId = context.selectedTools[index];
-        const toolContext: RuntimeArticleCompareContext = {
-          ...context,
-          selectedTools: [toolId],
+      const input: OrchestratorMessageInput = {
+        text: buildArticleComparePrompt(context, locale),
+        mode: policyModeOverride,
+        executionMode,
+        analysisType,
+        providerId: selectedProviderId ?? "openrouter",
+        modelOverride: selectedModelProfile?.modelId,
+        locale,
+        scanContext,
+        articleTextContext: null,
+        articleCompareContext: context,
+      };
+
+      let result: OrchestratorMessageResult;
+      try {
+        result = await sendRuntimeMessageWithTimeout(input);
+      } catch (err) {
+        result = {
+          ok: false,
+          errorCode: "ipc_failure",
+          errorMessage:
+            err instanceof Error ? err.message : "Unknown IPC failure",
         };
-        const input: OrchestratorMessageInput = {
-          text: buildArticleComparePrompt(toolContext, locale),
-          mode: policyModeOverride,
-          executionMode,
-          analysisType,
-          providerId: selectedProviderId ?? "openrouter",
-          modelOverride: selectedModelProfile?.modelId,
-          locale,
-          scanContext,
-          articleTextContext: null,
-          articleCompareContext: toolContext,
-        };
+      }
+      if (runToken !== activeRunToken.current) return;
 
-        let result: OrchestratorMessageResult;
-        try {
-          result = await window.toraseo.runtime.sendMessage(input);
-        } catch (err) {
-          result = {
-            ok: false,
-            errorCode: "ipc_failure",
-            errorMessage:
-              err instanceof Error ? err.message : "Unknown IPC failure",
-          };
-        }
-
-        if (!result.ok || !result.report) {
-          const message =
-            result.errorMessage ||
-            t("chat.articleTextReportParseFailed", {
-              defaultValue:
-                "AI returned a chat answer instead of a structured ToraSEO report.",
-            });
-          onReport(null, "failed", message);
-          setHistory((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              text: t("chat.providerError", {
-                code: result.errorCode ?? "article_compare_report_failed",
-                message,
-                defaultValue: "[error: {{code}}] {{message}}",
-              }),
-            },
-          ]);
-          setBusy(false);
-          return;
-        }
-
-        reports.push(result.report);
-        const partial = mergeArticleCompareReports(reports, context, locale);
-        if (partial) {
-          onReport(
-            partial,
-            index === context.selectedTools.length - 1 ? "complete" : "running",
-          );
-        }
+      if (!result.ok || !result.report) {
+        finishWithoutAiReport(context, result);
+        return;
       }
 
-      const finalReport = mergeArticleCompareReports(reports, context, locale);
-      if (finalReport) {
-        setHistory((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: renderReportText(finalReport, locale),
-          },
-        ]);
-      }
+      const finalReport: RuntimeAuditReport = {
+        ...result.report,
+        analysisType: "article_compare",
+        locale,
+      };
+      onReport(finalReport, "complete");
+      setHistory((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: renderReportText(finalReport, locale),
+        },
+      ]);
       setBusy(false);
     },
     [
@@ -3725,6 +3941,7 @@ export default function ChatPanel({
     ) => {
       if (busy || executionMode !== "native") return;
       if (context.scanResults.length === 0) return;
+      const runToken = ++activeRunToken.current;
       setBusy(true);
       onReport(null, "running");
       setHistory((prev) => [
@@ -3738,82 +3955,51 @@ export default function ChatPanel({
         },
       ]);
 
-      const reports: RuntimeAuditReport[] = [];
-      for (let index = 0; index < context.selectedTools.length; index += 1) {
-        const toolId = context.selectedTools[index];
-        const toolContext: RuntimeSiteCompareContext = {
-          ...context,
-          selectedTools: [toolId],
+      const input: OrchestratorMessageInput = {
+        text: buildSiteComparePrompt(context, locale),
+        mode: policyModeOverride,
+        executionMode,
+        analysisType,
+        providerId: selectedProviderId ?? "openrouter",
+        modelOverride: selectedModelProfile?.modelId,
+        locale,
+        scanContext: null,
+        articleTextContext: null,
+        articleCompareContext: null,
+        siteCompareContext: context,
+      };
+
+      let result: OrchestratorMessageResult;
+      try {
+        result = await sendRuntimeMessageWithTimeout(input);
+      } catch (err) {
+        result = {
+          ok: false,
+          errorCode: "ipc_failure",
+          errorMessage:
+            err instanceof Error ? err.message : "Unknown IPC failure",
         };
-        const input: OrchestratorMessageInput = {
-          text: buildSiteComparePrompt(toolContext, locale),
-          mode: policyModeOverride,
-          executionMode,
-          analysisType,
-          providerId: selectedProviderId ?? "openrouter",
-          modelOverride: selectedModelProfile?.modelId,
-          locale,
-          scanContext: null,
-          articleTextContext: null,
-          articleCompareContext: null,
-          siteCompareContext: toolContext,
-        };
+      }
+      if (runToken !== activeRunToken.current) return;
 
-        let result: OrchestratorMessageResult;
-        try {
-          result = await window.toraseo.runtime.sendMessage(input);
-        } catch (err) {
-          result = {
-            ok: false,
-            errorCode: "ipc_failure",
-            errorMessage:
-              err instanceof Error ? err.message : "Unknown IPC failure",
-          };
-        }
-
-        if (!result.ok || !result.report) {
-          const message =
-            result.errorMessage ||
-            t("chat.articleTextReportParseFailed", {
-              defaultValue:
-                "AI returned a chat answer instead of a structured ToraSEO report.",
-            });
-          onReport(null, "failed", message);
-          setHistory((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              text: t("chat.providerError", {
-                code: result.errorCode ?? "site_compare_report_failed",
-                message,
-                defaultValue: "[error: {{code}}] {{message}}",
-              }),
-            },
-          ]);
-          setBusy(false);
-          return;
-        }
-
-        reports.push(result.report);
-        const partial = mergeSiteCompareReports(reports, context, locale);
-        if (partial) {
-          onReport(
-            partial,
-            index === context.selectedTools.length - 1 ? "complete" : "running",
-          );
-        }
+      if (!result.ok || !result.report) {
+        finishWithoutAiReport(context, result);
+        return;
       }
 
-      const finalReport = mergeSiteCompareReports(reports, context, locale);
-      if (finalReport) {
-        setHistory((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: renderReportText(finalReport, locale),
-          },
-        ]);
-      }
+      const finalReport: RuntimeAuditReport = {
+        ...result.report,
+        analysisType: "site_compare",
+        locale,
+      };
+      onReport(finalReport, "complete");
+      setHistory((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: renderReportText(finalReport, locale),
+        },
+      ]);
       setBusy(false);
     },
     [
@@ -3824,13 +4010,27 @@ export default function ChatPanel({
       onReport,
       selectedModelProfile?.modelId,
       selectedProviderId,
+      finishWithoutAiReport,
       t,
     ],
   );
 
   useEffect(() => {
+    if (hostManagedRun) return;
     if (executionMode !== "native" || analysisType !== "article_text") return;
     if (!articleTextContext?.body.trim()) return;
+    if (
+      articleTextRunState === "complete" ||
+      articleTextRunState === "failed"
+    ) {
+      return;
+    }
+    if (
+      articleTextContext.action === "scan" &&
+      articleTextRunState !== "running"
+    ) {
+      return;
+    }
     if (busy) return;
     const key = articleTextContextKey(articleTextContext);
     if (!key || autoArticleTextKey.current === key) return;
@@ -3852,15 +4052,19 @@ export default function ChatPanel({
   }, [
     analysisType,
     articleTextContext,
+    articleTextRunState,
     busy,
     executionMode,
+    hostManagedRun,
     locale,
     runArticleTextScanSequence,
     sendToRuntime,
   ]);
 
   useEffect(() => {
+    if (hostManagedRun) return;
     if (executionMode !== "native" || analysisType !== "article_compare") return;
+    if (articleTextRunState !== "running") return;
     if (!articleCompareContext?.textA.trim() || !articleCompareContext.textB.trim()) {
       return;
     }
@@ -3873,13 +4077,17 @@ export default function ChatPanel({
   }, [
     analysisType,
     articleCompareContext,
+    articleTextRunState,
     busy,
     executionMode,
+    hostManagedRun,
     runArticleCompareScanSequence,
   ]);
 
   useEffect(() => {
+    if (hostManagedRun) return;
     if (executionMode !== "native" || analysisType !== "site_compare") return;
+    if (articleTextRunState !== "running") return;
     if (!siteCompareContext || siteCompareContext.urls.length < 2) return;
     if (siteCompareContext.scanResults.length === 0) return;
     if (busy) return;
@@ -3890,8 +4098,10 @@ export default function ChatPanel({
     void runSiteCompareScanSequence(siteCompareContext, "strict_audit");
   }, [
     analysisType,
+    articleTextRunState,
     busy,
     executionMode,
+    hostManagedRun,
     runSiteCompareScanSequence,
     siteCompareContext,
   ]);
@@ -4063,6 +4273,17 @@ export default function ChatPanel({
         onSubmit={handleSubmit}
         className="border-t border-orange-100 bg-orange-50/40 px-5 py-3"
       >
+        {executionMode === "native" &&
+          reportAttachmentText?.trim() &&
+          consumedReportAttachmentKey.current !==
+            `${reportAttachmentName ?? "ToraSEO report"}|${reportAttachmentText.trim().length}|${reportAttachmentText.trim().slice(0, 80)}` && (
+          <div className="mb-2 rounded-lg border border-orange-200 bg-white px-3 py-2 text-xs font-medium text-orange-800">
+            {t("chat.reportAttachmentChip", {
+              name: reportAttachmentName ?? "ToraSEO report",
+              defaultValue: "{{name}} attached to next message",
+            })}
+          </div>
+        )}
         <div className="flex gap-2">
           <input
             type="text"

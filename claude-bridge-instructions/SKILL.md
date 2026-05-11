@@ -223,33 +223,28 @@ answer, use normal user-facing check names and do not mention handshake
 details, scan IDs, backend tool IDs, selectedTools, sourceToolIds, or
 result file paths.
 
-If `analysisType` is `site_by_url`, call `site_url_internal` first. That
-one MCP permission runs the selected core site-audit checks one by one
-and writes individual results back to the app under normal check names,
-so progress advances per check. Then call any additional tools returned
-after `site_url_internal`. In the final chat answer, use normal
+If `analysisType` is `site_by_url`, call each selected site-audit tool
+returned in `selectedTools`, in order. Each selected MCP call writes its
+own evidence back to the app under the normal check name, so progress
+advances per check. In the final chat answer, use normal
 user-facing check names and do not mention handshake details, scan IDs,
 backend tool IDs, selectedTools, sourceToolIds, or result file paths. Do
 not ask the user to paste the report summary, a screenshot, JSON, or
 result files after the selected site URL tools have completed; use the
 MCP responses and visible app report.
 
-If `analysisType` is `site_compare`, call only `site_compare_internal`
-when it is returned in `selectedTools`; that single MCP call runs the
-selected site checks for up to three URLs and writes compact comparison
-entries back to the app. Do not render three full audits side by side,
-do not ask the user to paste JSON, screenshots, summaries, or result
-files after the internal package completes, and do not call separate
-site URL tools unless the user explicitly asks to debug one check. In
-the final chat answer, write one competitive summary: who is stronger,
-why, where the gaps are, what to borrow, and what to fix first.
+If `analysisType` is `site_compare`, call each selected site-comparison
+tool returned in `selectedTools`, in order. Do not render three full
+audits side by side, do not ask the user to paste JSON, screenshots,
+summaries, or result files after the selected tools complete, and do not
+call separate extra site URL tools unless the user explicitly asks to
+debug one check. In the final chat answer, write one competitive
+summary: who is stronger, why, where the gaps are, what to borrow, and
+what to fix first.
 
-For analysis types without an internal package, call each tool in
-`selectedTools` (in any order, but matching the listed order makes the
-app's UI feel linear). `page_by_url` uses separate MCP tools.
-`site_by_url` uses `site_url_internal` for core checks plus any returned
-additional tools. `article_compare` and `site_compare` use their returned
-internal aggregator tools. Each tool writes its result to the state file;
+For all active Bridge Mode analysis types, call each tool in
+`selectedTools` (matching the listed order makes the app's UI feel
+linear). Each tool writes its result to the state file;
 the app polls and updates its UI in real time. You will
 receive a brief summary in chat for each visible package/tool — use these
 to compose the final recommendations.
@@ -320,13 +315,12 @@ there's a previous scan still running or finished.
 { "ok": false, "error": "wrong_state", "state": "...", "message": "..." }
 ```
 
-Reply:
+Reply in the active ToraSEO reply language. English reference:
 
-> "В приложении уже есть сканирование в другом состоянии.
-> Откройте приложение, отмените текущее сканирование или
-> закройте предыдущий результат, нажмите Сканировать заново
-> с нужным URL и инструментами, затем пришлите мне новый
-> промпт."
+> "The app already has an analysis run in another state. Open the app,
+> cancel the current analysis or close the previous result, start the
+> analysis again with the needed URL and tools, then send me the new
+> prompt."
 
 #### 2.3.4 `token_mismatch`
 
@@ -337,12 +331,12 @@ user's SKILL.md is out of date relative to the App and MCP.
 { "ok": false, "error": "token_mismatch", "expected": "...", "received": "...", "message": "..." }
 ```
 
-Reply:
+Reply in the active ToraSEO reply language. English reference:
 
-> "Версия Skill ToraSEO устарела. Скачайте свежий
-> `toraseo-claude-bridge-instructions-v*.zip` со страницы GitHub Releases, затем в
-> Claude Desktop откройте Settings → Skills, удалите старый
-> toraseo skill и установите новый ZIP."
+> "The ToraSEO Skill version is outdated. Download the latest
+> `toraseo-claude-bridge-instructions-v*.zip` from GitHub Releases, then
+> in Claude Desktop open Settings -> Skills, remove the old toraseo
+> skill, and install the new ZIP."
 
 #### 2.3.5 Any other error
 
@@ -366,9 +360,10 @@ in a different way:
   instruction telling you to call `verify_skill_loaded`.)
 - **MCP server** — if you have `verify_skill_loaded` and the
   analyzer tools in your tool inventory, the MCP server is
-  connected. If those tools are missing entirely, tell the user:
-  *"MCP-сервер ToraSEO не подключён. Проверьте подключение в
-  настройках Claude Desktop (Settings → Connectors → toraseo)."*
+  connected. If those tools are missing entirely, tell the user in the
+  active ToraSEO reply language. English reference:
+  *"The ToraSEO MCP server is not connected. Check the connection in
+  Claude Desktop settings (Settings -> Connectors -> toraseo)."*
   Then, if the user provided enough text or page details, load
   `references/chat-only-fallback.md` and give a bounded chat-only
   analysis instead of claiming the app was updated.
@@ -435,8 +430,8 @@ plus the Bridge Mode handshake tool described in §2:
 | `ai_hallucination_check` | Optional vague-source and invented-detail risk review |
 | `intent_seo_forecast` | Text intent, title/meta, hook, and CTR direction |
 | `safety_science_review` | Sensitive-topic, safety, science, legal, financial, and expert-review flags |
-| `article_compare_internal` | Aggregate two-text comparison package for Bridge Mode |
-| `site_compare_internal` | Aggregate up-to-three-site comparison package for Bridge Mode |
+| `article_compare_internal` | Legacy aggregate two-text comparison helper; normal bridge prompts return separate selected tools |
+| `site_compare_internal` | Legacy aggregate up-to-three-site comparison helper; normal bridge prompts return separate selected tools |
 | `compare_intent_gap` | Two-text intent comparison |
 | `compare_article_structure` | Two-text structure comparison |
 | `compare_content_gap` | Content Gap between Text A and Text B |
@@ -712,8 +707,9 @@ When the bridge handshake returns `analysisType: "article_text"`:
   evidence: platform, style/audience fit, SEO intent, media-marker
   policy, and safety/legal/medical/scientific/technical risk flags.
   Do not strengthen unverified claims or remove necessary caveats.
-- If a rewrite is useful, ask whether the user wants media placeholder
-  positions marked before inserting them.
+- If a rewrite is useful, offer media placeholder placement as a clear
+  next option, but do not end bridge-run summaries with optional follow-up
+  questions unless required input is missing.
 
 For standalone `/toraseo` text requests without the app/MCP bridge, or
 when ToraSEO Desktop App is unavailable, analyze the pasted chat text
@@ -726,6 +722,27 @@ draft, and safety/science/legal-sensitive risk flags. Make clear that no
 structured results are written into the ToraSEO app and that local/chat-only
 review is not live SERP, plagiarism, legal, medical, investment,
 engineering, scientific, or external source verification.
+
+For app/MCP bridge runs, selected MCP tools collect evidence first.
+After all selected tools complete, Claude must write the final
+structured report and call `submit_ai_report` so ToraSEO can render that
+AI-written report. The app is the renderer, not the final report author.
+The copied desktop prompt is only a short trigger; language rules,
+selected-tool contracts, report-shape rules, and final-summary rules live
+in this SKILL and in the ToraSEO MCP handshake, not in the pasted prompt.
+Follow the `submit_ai_report` tool schema for the JSON shape: keep
+`summary` and `nextStep` as strings, and place `articleText`,
+`articleCompare`, or `siteCompare` at the top level when that visual
+block is relevant. If Claude has internet/search tools and a selected check requires
+external verification, use them before `submit_ai_report` and cite that
+evidence in the report. If no external verification was used, mark the
+finding as local/tool-evidence only; do not claim internet plagiarism
+checks, live SERP demand, or external source verification.
+After `submit_ai_report` succeeds, give only a short user-facing chat
+summary and do not ask an optional follow-up question at the end unless
+the user requested next-step options.
+In `submit_ai_report`, `nextStep` must be a direct action instruction.
+Do not write it as a question or as an "If you want, I can..." offer.
 
 If the standalone user asks to rewrite or draft the article, write the
 article directly in chat as a separate copyable block. Keep the rewrite

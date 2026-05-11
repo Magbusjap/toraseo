@@ -61,7 +61,7 @@ export default function NativeLayout({
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wider text-outline-900/45">
                   {t("plannedAnalysis.version", {
-                    defaultValue: "0.0.9 setup",
+                    defaultValue: "0.1.0 setup",
                   })}
                 </p>
                 <h1 className="mt-1 font-display text-2xl font-semibold text-outline-900">
