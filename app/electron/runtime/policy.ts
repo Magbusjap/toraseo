@@ -78,10 +78,21 @@ const STAGE1_RULES: RuntimePolicyRule[] = [
     text: "In API + AI Chat mode, article-text work must stay within the active analysis scope. Use only the text-analysis checks relevant to the user's request instead of pretending every possible tool ran. Core checks are platform/use-case, structure, style, tone, language/audience, media placeholders, local uniqueness/repetition, syntax, AI-writing style probability, AI trace map, genericness/watery text, readability/complexity, claim source queue, naturalness, logic consistency, local SEO intent/metadata forecast, and safety/science/legal-sensitive risk flags. Keep these separate: AI-writing probability is not authorship proof; AI trace map is an editing map; genericness/watery text is about broad filler and weak concrete evidence; readability/complexity is about dense sentences and heavy paragraphs; claim source queue is for manual source verification. Optional claim checks are fact distortion and AI hallucination review.",
   },
   {
-    id: "text.media-placement-before-rewrite",
-    text: "Before rewriting or substantially reworking an article, immediately ask whether the user wants recommended image positions marked for better SEO. If the user agrees, or already asked for image placement guidance, insert exact ToraSEO media placeholder lines at the intended positions inside the article. Russian markers: ------------------------- место для изображения -------------------------- / ------------------------- место для анимации ---------------------------- / ------------------------- место для видео ------------------------------- / ------------------------- место для аудио -------------------------------. English markers: ------------------------- image placeholder ------------------------- / ------------------------ animation placeholder ----------------------- / ------------------------- video placeholder -------------------------- / ------------------------- audio placeholder --------------------------. Do not move all media markers to the end and do not invent alternate labels.",
+    id: "api.web-evidence-boundary",
+    text: "For API providers, live internet access is provided only through ToraSEO's web-evidence packet when it is present. Use direct URL fetches and search snippets from that packet as supporting evidence. Do not claim independent browsing, live rankings, Search Console, GA4, backlinks, paid SEO databases, or expert verification unless those exact sources are present in the packet. If no web-evidence packet is present, clearly say the analysis is based on the supplied text and local heuristics only.",
   },
 ];
+
+function mediaPlacementRule(locale: SupportedLocale): RuntimePolicyRule {
+  const markerText =
+    locale === "ru"
+      ? "Russian marker labels: ------------------------- место для изображения -------------------------- / ------------------------- место для анимации ---------------------------- / ------------------------- место для видео ------------------------------- / ------------------------- место для аудио -------------------------------."
+      : "English marker labels: ------------------------- image placeholder ------------------------- / ------------------------ animation placeholder ----------------------- / ------------------------- video placeholder -------------------------- / ------------------------- audio placeholder --------------------------.";
+  return {
+    id: "text.media-placement-before-rewrite",
+    text: `Before rewriting or substantially reworking an article, immediately ask whether the user wants recommended image positions marked for better SEO. If the user agrees, or already asked for image placement guidance, insert exact ToraSEO media placeholder lines at the intended positions inside the article. ${markerText} Do not move all media markers to the end and do not invent alternate labels.`,
+  };
+}
 
 /**
  * Compose the system prompt header. Kept short and stable so the
@@ -116,9 +127,12 @@ export function compilePolicy(
   mode: RuntimePolicyMode,
   locale: SupportedLocale,
 ): RuntimePolicyBundle {
-  const rules = STAGE1_RULES.filter(
-    (rule) => !rule.modes || rule.modes.includes(mode),
-  );
+  const rules = [
+    ...STAGE1_RULES.filter(
+      (rule) => !rule.modes || rule.modes.includes(mode),
+    ),
+    mediaPlacementRule(locale),
+  ];
 
   const systemPrompt = [
     buildSystemPromptHeader(mode, locale),

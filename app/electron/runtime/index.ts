@@ -33,12 +33,14 @@ import { isNativeRuntimeEnabled } from "./featureFlag.js";
 import {
   closeReportWindow,
   copyArticleSourceText,
+  copyReportForAi,
   endReportWindowSession,
   exportReportDocument,
   exportReportJson,
   exportReportPdf,
   exportReportPresentation,
   openReportWindow,
+  prepareReportForAi,
   showReportWindowProcessing,
 } from "./reporting.js";
 import { testProviderConnection } from "./providerDiagnostics.js";
@@ -76,6 +78,8 @@ export const RUNTIME_CHANNELS = {
   showReportWindowProcessing: "toraseo:runtime:show-report-window-processing",
   endReportWindowSession: "toraseo:runtime:end-report-window-session",
   copyArticleSourceText: "toraseo:runtime:copy-article-source-text",
+  prepareReportForAi: "toraseo:runtime:prepare-report-for-ai",
+  copyReportForAi: "toraseo:runtime:copy-report-for-ai",
   exportReportPdf: "toraseo:runtime:export-report-pdf",
   exportReportDocument: "toraseo:runtime:export-report-document",
   exportReportPresentation: "toraseo:runtime:export-report-presentation",
@@ -285,6 +289,26 @@ export async function setupRuntime(): Promise<void> {
       report: RuntimeAuditReport,
     ): Promise<{ ok: boolean; charCount?: number; error?: string }> => {
       return copyArticleSourceText(report);
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.prepareReportForAi,
+    async (
+      _event,
+      report: RuntimeAuditReport,
+    ): Promise<{ ok: boolean; text?: string; error?: string }> => {
+      return prepareReportForAi(report);
+    },
+  );
+
+  ipcMain.handle(
+    RUNTIME_CHANNELS.copyReportForAi,
+    async (
+      _event,
+      report: RuntimeAuditReport,
+    ): Promise<{ ok: boolean; charCount?: number; error?: string }> => {
+      return copyReportForAi(report);
     },
   );
 

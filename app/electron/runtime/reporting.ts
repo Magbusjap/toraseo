@@ -13,7 +13,7 @@ let reportWindowNavigationToken = 0;
 let reportWindowViewState: "closed" | "report" | "processing" | "ended" =
   "closed";
 let reportWindowExportReport: RuntimeAuditReport | null = null;
-const REPORT_ANALYSIS_VERSION = "0.0.1";
+const REPORT_ANALYSIS_VERSION = "0.0.2";
 
 function analysisVersionLine(isRu: boolean, version = REPORT_ANALYSIS_VERSION): string {
   return isRu
@@ -61,13 +61,19 @@ async function exportReportFromReportWindow(): Promise<void> {
   }
 }
 
-function escapeHtml(value: string): string {
-  return value
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function formatReportDuration(durationMs?: number): string | null {
+  if (typeof durationMs !== "number" || !Number.isFinite(durationMs)) return null;
+  const safeMs = Math.max(0, Math.round(durationMs));
+  return `${(safeMs / 1000).toFixed(3).replace(".", ",")} s`;
 }
 
 const CYRILLIC_SLUG_MAP: Record<string, string> = {
@@ -3256,6 +3262,11 @@ function renderArticleTextReportDashboardHtml(report: RuntimeAuditReport): strin
               <div class="coverage-value"><strong data-count="${article.coverage.percent}">0</strong><span>%</span></div>
               <div class="meter"><i style="--value:${article.coverage.percent}%"></i></div>
               <p>${article.coverage.completed} / ${article.coverage.total} ${escapeHtml(labels.tools)}</p>
+              ${
+                formatReportDuration(report.durationMs)
+                  ? `<p class="analysis-version" style="margin-top:10px">Report formed in: ${escapeHtml(formatReportDuration(report.durationMs) ?? "")}</p>`
+                  : ""
+              }
             </aside>
             <aside class="platform-card">
               <p class="eyebrow">${escapeHtml(labels.platform)}</p>
@@ -3796,6 +3807,240 @@ function renderAuditDirections(facts: SiteDisplayFact[], isRu: boolean): string 
     .join("");
 }
 
+function renderStructuredProviderReportHtml(report: RuntimeAuditReport): string {
+  const sourceToolIds = new Set(
+    report.confirmedFacts.flatMap((fact) => fact.sourceToolIds),
+  );
+  const critical = report.confirmedFacts.filter((fact) => fact.priority === "high").length;
+  const warning = report.confirmedFacts.filter((fact) => fact.priority === "medium").length;
+  const passed = report.confirmedFacts.filter((fact) => fact.priority === "low").length;
+  const info = 0;
+  const duration = formatReportDuration(report.durationMs);
+  const factCards = report.confirmedFacts
+    .map((fact) => {
+      const statusLabel =
+        fact.priority === "high"
+          ? "Critical"
+          : fact.priority === "medium"
+            ? "Warning"
+            : "Done";
+      return `
+        <article class="fact-card status-${fact.priority === "high" ? "critical" : fact.priority === "medium" ? "warning" : "passed"}">
+          <div class="fact-head">
+            <div>
+              <p class="eyebrow">${escapeHtml(fact.sourceToolIds.join(", ") || "AI check")}</p>
+              <h3>${escapeHtml(fact.title)}</h3>
+            </div>
+            <span>${escapeHtml(statusLabel)}</span>
+          </div>
+          <p>${escapeHtml(fact.detail)}</p>
+          <div class="action">
+            <strong>Action</strong>
+            <p>${escapeHtml(report.nextStep)}</p>
+          </div>
+        </article>`;
+    })
+    .join("");
+  const hypothesisCards = report.expertHypotheses
+    .map(
+      (item) => `
+        <article class="fact-card">
+          <div class="fact-head">
+            <div>
+              <p class="eyebrow">Expert hypothesis</p>
+              <h3>${escapeHtml(item.title)}</h3>
+            </div>
+            <span>Hypothesis</span>
+          </div>
+          <p>${escapeHtml(item.detail)}</p>
+          <p class="muted">${escapeHtml(item.expectedImpact)}</p>
+          <p class="muted">${escapeHtml(item.validationMethod)}</p>
+        </article>`,
+    )
+    .join("");
+
+  return `<!doctype html>
+  <html lang="${report.locale === "ru" ? "ru" : "en"}">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>ToraSEO AI Structured Report</title>
+      <style>
+        :root {
+          color-scheme: light;
+          --bg: #fff7ed;
+          --surface: #ffffff;
+          --border: #ffedd5;
+          --text: #2b1b12;
+          --muted: rgba(43, 27, 18, 0.58);
+          --accent: #ff6b35;
+          --accent-soft: #fff0e8;
+          --green: #059669;
+          --red: #ef4444;
+          --orange: #f97316;
+          --blue: #2563eb;
+        }
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          padding: 24px;
+          font-family: Inter, "Segoe UI", system-ui, sans-serif;
+          color: var(--text);
+          background: var(--bg);
+        }
+        .shell {
+          max-width: 1120px;
+          margin: 0 auto;
+          display: grid;
+          gap: 16px;
+        }
+        .panel, .hero, .metric, .fact-card {
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          background: var(--surface);
+          box-shadow: 0 1px 2px rgba(43, 27, 18, 0.06);
+        }
+        .hero { padding: 20px; }
+        .hero-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 16px;
+          align-items: flex-start;
+        }
+        h1, h2, h3, p { margin: 0; }
+        h1 { font-size: 24px; line-height: 1.18; }
+        h2 { font-size: 16px; }
+        h3 { font-size: 15px; line-height: 1.3; }
+        p { color: var(--muted); line-height: 1.6; }
+        .eyebrow {
+          color: var(--accent);
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        .summary { margin-top: 10px; max-width: 880px; }
+        .metrics {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+        }
+        .metric { padding: 16px; }
+        .metric strong {
+          display: block;
+          margin-top: 8px;
+          font-size: 24px;
+          line-height: 1;
+        }
+        .pill {
+          border: 1px solid rgba(255, 107, 53, 0.24);
+          border-radius: 999px;
+          background: var(--accent-soft);
+          padding: 7px 10px;
+          color: var(--text);
+          font-size: 12px;
+          font-weight: 700;
+          white-space: nowrap;
+        }
+        .fact-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+        .fact-card { padding: 16px; }
+        .fact-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: flex-start;
+        }
+        .fact-head span {
+          border-radius: 999px;
+          background: #d1fae5;
+          color: #047857;
+          padding: 5px 9px;
+          font-size: 12px;
+          font-weight: 800;
+        }
+        .status-critical .fact-head span { background: #fee2e2; color: #b91c1c; }
+        .status-warning .fact-head span { background: #ffedd5; color: #c2410c; }
+        .status-info .fact-head span { background: #dbeafe; color: #1d4ed8; }
+        .fact-card > p { margin-top: 12px; }
+        .action {
+          margin-top: 12px;
+          border: 1px solid rgba(255, 107, 53, 0.22);
+          border-radius: 7px;
+          background: #fff4e8;
+          padding: 10px;
+        }
+        .action strong {
+          display: block;
+          color: var(--accent);
+          font-size: 11px;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        .action p { margin-top: 4px; color: var(--text); }
+        .panel { padding: 16px; }
+        .muted { margin-top: 8px; font-size: 13px; }
+        .version { color: var(--muted); font-size: 12px; font-weight: 700; }
+        @media (max-width: 800px) {
+          body { padding: 14px; }
+          .hero-head { display: grid; }
+          .metrics, .fact-grid { grid-template-columns: 1fr; }
+        }
+        ${viewportSizeOverlayStyle()}
+      </style>
+    </head>
+    <body>
+      <main class="shell">
+        <section class="hero">
+          <div class="hero-head">
+            <div>
+              <p class="eyebrow">ToraSEO AI report</p>
+              <h1>Structured analysis report</h1>
+              <p class="summary">${escapeHtml(report.summary)}</p>
+            </div>
+            <div class="pill">${sourceToolIds.size} / ${sourceToolIds.size} tools</div>
+          </div>
+        </section>
+        <section class="metrics">
+          <article class="metric">
+            <p class="eyebrow">Critical</p>
+            <strong>${critical}</strong>
+          </article>
+          <article class="metric">
+            <p class="eyebrow">Warnings</p>
+            <strong>${warning}</strong>
+          </article>
+          <article class="metric">
+            <p class="eyebrow">Info</p>
+            <strong>${info}</strong>
+          </article>
+          <article class="metric">
+            <p class="eyebrow">Done</p>
+            <strong>${passed}</strong>
+          </article>
+        </section>
+        <section class="panel">
+          <h2>Tool evidence</h2>
+          <div class="fact-grid" style="margin-top:12px">${factCards || "<p>No structured facts were returned.</p>"}</div>
+        </section>
+        ${hypothesisCards ? `<section class="panel"><h2>Expert hypotheses</h2><div class="fact-grid" style="margin-top:12px">${hypothesisCards}</div></section>` : ""}
+        <section class="panel">
+          <h2>Next step</h2>
+          <p style="margin-top:8px">${escapeHtml(report.nextStep)}</p>
+        </section>
+        <section class="panel">
+          <p class="version">${analysisVersionLine(false, report.analysisVersion)}</p>
+          ${duration ? `<p class="version">Report formed in: ${escapeHtml(duration)}</p>` : ""}
+        </section>
+      </main>
+      ${viewportSizeOverlayScript(0)}
+    </body>
+  </html>`;
+}
+
 function renderReportHtml(report: RuntimeAuditReport): string {
   if (report.siteCompare) {
     return renderSiteCompareReportDashboardHtml(report);
@@ -3807,6 +4052,10 @@ function renderReportHtml(report: RuntimeAuditReport): string {
 
   if (report.articleText) {
     return renderArticleTextReportDashboardHtml(report);
+  }
+
+  if (report.analysisType === "article_text" || report.analysisType === "page_by_url") {
+    return renderStructuredProviderReportHtml(report);
   }
 
   const isRu =
@@ -5982,6 +6231,59 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
           ].join("\n"),
       )
       .join("\n\n");
+    const annotationRows = article.annotations
+      .map((annotation) =>
+        [
+          `### ${annotation.id}. ${localized(annotation.title?.trim() || annotation.label)}`,
+          "",
+          `Type: ${annotation.kind}`,
+          "",
+          annotation.severity ? `Severity: ${annotation.severity}` : "",
+          annotation.marker ? `Marker: ${annotation.marker}` : "",
+          annotation.paragraphId ? `Paragraph: ${annotation.paragraphId}` : "",
+          annotation.sourceToolIds.length
+            ? `Sources: ${annotation.sourceToolIds.join(", ")}`
+            : "",
+          annotation.quote?.trim()
+            ? `Quote: "${localized(annotation.quote.trim())}"`
+            : "",
+          "",
+          localized(annotation.shortMessage?.trim() || annotation.detail),
+        ]
+          .filter((line) => line !== "")
+          .join("\n"),
+      )
+      .join("\n\n");
+    const annotationByParagraph = new Map<string, typeof article.annotations>();
+    for (const annotation of article.annotations) {
+      const id = annotation.paragraphId;
+      if (!id) continue;
+      annotationByParagraph.set(id, [
+        ...(annotationByParagraph.get(id) ?? []),
+        annotation,
+      ]);
+    }
+    const annotatedParagraphs = articleParagraphEntries(article.document.text)
+      .map((paragraph) => {
+        const annotations = annotationByParagraph.get(paragraph.id) ?? [];
+        if (annotations.length === 0) return "";
+        return [
+          `### ${paragraph.id}`,
+          "",
+          paragraph.text,
+          "",
+          annotations
+            .map((annotation) => {
+              const quote = annotation.quote?.trim()
+                ? ` Quote: "${localized(annotation.quote.trim())}".`
+                : "";
+              return `- [${annotation.id}] ${annotation.kind}${annotation.severity ? `/${annotation.severity}` : ""}: ${localized(annotation.shortMessage?.trim() || annotation.detail)}${quote}`;
+            })
+            .join("\n"),
+        ].join("\n");
+      })
+      .filter(Boolean)
+      .join("\n\n");
     const intentForecast = article.intentForecast
       ? [
           "## Intent forecast and SEO package",
@@ -6028,6 +6330,10 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
       "",
       analysisVersionLine(false, report.analysisVersion),
       "",
+      formatReportDuration(report.durationMs)
+        ? `Report formed in: ${formatReportDuration(report.durationMs)}`
+        : "",
+      "",
       `Evidence coverage: ${article.coverage.percent}% (${article.coverage.completed}/${article.coverage.total} tools)`,
       "",
       `Warnings: ${article.warningCount}`,
@@ -6053,6 +6359,16 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
       "",
       article.weaknesses.map((item) => `- ${item.title}: ${item.detail}`).join("\n") ||
         "No weaknesses recorded yet.",
+      "",
+      "## How the article looks in the details window",
+      "",
+      "This is the text representation of the details-window article view. It includes only annotated paragraphs to avoid duplicating the full source text.",
+      "",
+      annotatedParagraphs || "No paragraph-level annotations were recorded.",
+      "",
+      "## Notes and recommendations shown in the details window",
+      "",
+      annotationRows || "No notes or recommendations were recorded.",
       "",
       intentForecast,
       "",
@@ -6107,6 +6423,9 @@ function renderReportMarkdown(report: RuntimeAuditReport): string {
     `Mode: ${report.mode}`,
     analysisVersionLine(false, report.analysisVersion),
     `Generated: ${report.generatedAt}`,
+    formatReportDuration(report.durationMs)
+      ? `Report formed in: ${formatReportDuration(report.durationMs)}`
+      : "",
     "",
     "## Confirmed facts",
     "",
@@ -6457,6 +6776,56 @@ export async function copyArticleSourceText(
   }
 }
 
+function buildReportForAiPrompt(report: RuntimeAuditReport): string {
+  return [
+    "ToraSEO visual report package for AI review.",
+    "Treat this package as the current visible ToraSEO report. When answering the user, distinguish between source text edits, visual report interpretation, and manual UI actions.",
+    "Do not claim you changed the app UI or source article unless the user explicitly asked for a rewrite and you produced new text.",
+    "",
+    renderReportMarkdown(report),
+  ].join("\n");
+}
+
+export async function prepareReportForAi(
+  report: RuntimeAuditReport,
+): Promise<{ ok: boolean; text?: string; error?: string }> {
+  try {
+    const hydratedReport = await hydrateArticleTextReport(report);
+    const text = buildReportForAiPrompt(hydratedReport).trim();
+    if (!text) {
+      return {
+        ok: false,
+        error: "No report content is available for AI review.",
+      };
+    }
+    return { ok: true, text };
+  } catch (error) {
+    log.error(
+      `[runtime:reporting] Prepare report for AI failed: ${
+        error instanceof Error ? error.stack ?? error.message : String(error)
+      }`,
+    );
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to prepare the report for AI.",
+    };
+  }
+}
+
+export async function copyReportForAi(
+  report: RuntimeAuditReport,
+): Promise<{ ok: boolean; charCount?: number; error?: string }> {
+  const result = await prepareReportForAi(report);
+  if (!result.ok || !result.text) {
+    return { ok: false, error: result.error };
+  }
+  clipboard.writeText(result.text);
+  return { ok: true, charCount: result.text.length };
+}
+
 export async function exportReportDocument(
   report: RuntimeAuditReport,
 ): Promise<{ ok: boolean; filePath?: string; error?: string }> {
@@ -6524,7 +6893,7 @@ export async function exportReportPresentation(
 export async function exportReportJson(
   report: RuntimeAuditReport,
 ): Promise<{ ok: boolean; filePath?: string; error?: string }> {
-  const hydratedReport = await hydrateArticleReport(report);
+  const hydratedReport = await hydrateArticleTextReport(report);
   const defaultPath = defaultExportPath("json");
   const result = await dialog.showSaveDialog({
     title: "Export ToraSEO report JSON",

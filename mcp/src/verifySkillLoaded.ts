@@ -36,27 +36,6 @@ import { probeAppAlive } from "./aliveFile.js";
 import { BRIDGE_PROTOCOL_TOKEN } from "./constants.js";
 import { readActiveInputMarkdown } from "./workspace.js";
 
-const SITE_BY_URL_INTERNAL_TOOL_IDS = new Set([
-  "scan_site_minimal",
-  "analyze_indexability",
-  "check_robots_txt",
-  "analyze_sitemap",
-  "check_redirects",
-  "analyze_meta",
-  "analyze_canonical",
-  "analyze_headings",
-  "analyze_content",
-  "analyze_links",
-  "detect_stack",
-]);
-
-function siteByUrlHandshakeTools(selectedTools: string[]): string[] {
-  const extraTools = selectedTools.filter(
-    (toolId) => !SITE_BY_URL_INTERNAL_TOOL_IDS.has(toolId),
-  );
-  return ["site_url_internal", ...extraTools];
-}
-
 /**
  * Input schema. The token is the only argument - Claude reads it
  * from SKILL.md and passes it verbatim.
@@ -275,26 +254,11 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
                 }
               : undefined,
             workspace: undefined,
-            selectedTools:
-              analysisType === "article_compare"
-                ? ["article_compare_internal"]
-                : analysisType === "site_by_url"
-                  ? siteByUrlHandshakeTools(state!.selectedTools)
-                : analysisType === "site_compare"
-                  ? ["site_compare_internal"]
-                : state!.selectedTools,
-            internalSelectedTools:
-              analysisType === "article_compare" ||
-              analysisType === "site_by_url" ||
-              analysisType === "site_compare"
-                ? state!.selectedTools
-                : undefined,
+            selectedTools: state!.selectedTools,
             message:
               "ToraSEO connection verified. Now call each tool from the tool list " +
-              "returned in this response, in the usual order. For two-text comparison runs, the listed " +
-              "tool starts the full comparison package and writes the individual check " +
-              "results to the ToraSEO app. Do not call separate comparison checks unless " +
-              "the user explicitly asks. For two-text comparison, use input.goalMode " +
+              "returned in this response, in the usual order. Each selected tool writes " +
+              "its own evidence to the ToraSEO app. For two-text comparison, use input.goalMode " +
               "to shape the final report: standard comparison, focus on Text A/B, " +
               "competitor, style, similarity, version, or A/B post. When answering the user, use " +
               "human-readable check names in the interface language for this run, and switch " +
@@ -304,7 +268,7 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               "Do not request filesystem access to read temporary workspace or " +
               "results JSON files for a normal final summary; MCP tool responses " +
               "and the app report are the source of facts. " +
-              "Do not mention connection handshakes, scan ids, MCP internals, or aggregate tool names in the final user-facing answer; " +
+              "Do not mention connection handshakes, scan ids, MCP internals, or raw tool ids in the final user-facing answer; " +
               "write a normal comparison report summary. " +
               "Each tool's results will be displayed in the ToraSEO app " +
               "automatically. For text-analysis runs, do not ask " +
@@ -315,11 +279,10 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               "Text A and Text B from the temporary ToraSEO workspace. Keep " +
               "the comparison text-evidence only: do not claim ranking causes " +
               "from text alone and do not rewrite the full article. " +
-              "For site-by-URL runs, call site_url_internal first; it runs " +
-              "the selected core site-audit checks one by one and writes each " +
-              "individual tool result to the ToraSEO app so progress advances " +
-              "per check. Then call any additional tools returned after " +
-              "site_url_internal. Do not ask the user to paste a report " +
+              "For site-by-URL runs, call each selected site-audit MCP tool " +
+              "returned in this response, in order. Each tool writes its own " +
+              "result to the ToraSEO app so progress advances per check. " +
+              "Do not ask the user to paste a report " +
               "summary, screenshot, or JSON after the selected tools complete; " +
               "use the MCP tool responses and the app report as the source of facts. " +
               "For page-by-URL runs, call each selected page URL MCP tool " +
@@ -340,8 +303,10 @@ export async function verifySkillLoadedHandler({ token }: { token: string }): Pr
               "and heavy paragraphs; claim_source_queue lists claims needing " +
               "source review; optional fact and hallucination checks are not " +
               "external fact-checking. Use human-readable names in the final answer. " +
-              "After all tools complete, provide " +
-              "recommendations to the user in chat based on the data. " +
+              "After all tools complete, write the final structured report " +
+              "yourself and call submit_ai_report when that tool is available. " +
+              "Only after submit_ai_report succeeds, provide a short " +
+              "recommendation summary to the user in chat based on the data. " +
               "If input.action is solution, run the tools first, then propose " +
               "a concrete solution or draft direction in chat from the tool evidence. " +
               "If the input is only a topic or too thin for a complete article, be explicit " +

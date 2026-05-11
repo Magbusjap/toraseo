@@ -525,9 +525,12 @@ export interface CurrentScanState {
   url: string;
   createdAt: string;
   finishedAt: string | null;
+  toolsCompletedAt?: string | null;
   selectedTools: string[];
   handshake: BridgeHandshake;
   buffer: Record<string, ToolBufferEntry>;
+  aiReport?: unknown;
+  aiReportSubmittedAt?: string | null;
   error: BridgeScanError | null;
 }
 

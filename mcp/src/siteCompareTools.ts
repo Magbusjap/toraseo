@@ -256,6 +256,98 @@ function buildSyntheticCompareData(
   };
 }
 
+function siteCompareResultMapFromState(state: Awaited<ReturnType<typeof readState>>): Record<string, PerSiteToolResult[]> {
+  const resultMap: Record<string, PerSiteToolResult[]> = {};
+  if (!state) return resultMap;
+  for (const toolId of SITE_TOOL_ORDER) {
+    const data = state.buffer[toolId]?.data as { sites?: PerSiteToolResult[] } | undefined;
+    if (Array.isArray(data?.sites)) {
+      resultMap[toolId] = data.sites;
+    }
+  }
+  return resultMap;
+}
+
+export async function siteCompareToolHandler(toolId: string): Promise<McpHandlerResult> {
+  const state = await readState();
+  if (!state || (state.analysisType ?? "site_by_url") !== "site_compare") {
+    return {
+      isError: true,
+      content: [
+        {
+          type: "text",
+          text: "[site_compare_error] No active ToraSEO site comparison is waiting.",
+        },
+      ],
+    };
+  }
+
+  const urls = Array.from(
+    new Set((state.input?.siteUrls ?? []).map(normalizeUrl).filter(Boolean)),
+  ).slice(0, 3);
+  if (urls.length < 2) {
+    return {
+      isError: true,
+      content: [
+        {
+          type: "text",
+          text: "[site_compare_error] Add at least two URLs before starting comparison.",
+        },
+      ],
+    };
+  }
+
+  if ((SITE_TOOL_ORDER as string[]).includes(toolId)) {
+    await runBufferedComparisonTool(toolId, async () => {
+      const sites: PerSiteToolResult[] = [];
+      for (const url of urls) {
+        try {
+          const result = await runSiteTool(toolId as SiteToolId, url);
+          sites.push({
+            url,
+            status: "complete",
+            result,
+            summary: summarizeResult(result),
+          });
+        } catch (error) {
+          sites.push({
+            url,
+            status: "error",
+            result: null,
+            summary: { critical: 1, warning: 0, info: 0 },
+            errorMessage: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+      return { toolId, title: toolLabel(toolId), sites };
+    });
+  } else if (SITE_COMPARE_TOOLS.has(toolId)) {
+    const resultMap = siteCompareResultMapFromState(state);
+    await runBufferedComparisonTool(toolId, async () =>
+      buildSyntheticCompareData(toolId, urls, resultMap),
+    );
+  } else {
+    return {
+      isError: true,
+      content: [
+        {
+          type: "text",
+          text: `[site_compare_error] ${toolId} is not a site comparison tool.`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `Tool ${toolId} completed for the active site comparison. Full result is available in ToraSEO.`,
+      },
+    ],
+  };
+}
+
 function renderSiteCompareChatReport(urls: string[], resultMap: Record<string, PerSiteToolResult[]>): string {
   const synthetic = buildSyntheticCompareData("compare_site_competitive_insights", urls, resultMap) as {
     sites: Array<{ url: string; score: number; critical: number; warning: number }>;

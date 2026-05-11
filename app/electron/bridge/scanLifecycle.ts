@@ -246,6 +246,7 @@ export async function startScan(
     url,
     createdAt: now,
     finishedAt: null,
+    toolsCompletedAt: null,
     selectedTools: toolIds,
     handshake: {
       expectedToken: expectedHandshakeToken(bridgeClient),
@@ -254,6 +255,8 @@ export async function startScan(
       verifiedAt: null,
     },
     buffer: {},
+    aiReport: undefined,
+    aiReportSubmittedAt: null,
     error: null,
   };
 
@@ -368,8 +371,11 @@ export async function retryHandshake(): Promise<{
       verifiedAt: null,
     },
     buffer: {},
+    aiReport: undefined,
+    aiReportSubmittedAt: null,
     error: null,
     finishedAt: null,
+    toolsCompletedAt: null,
   };
 
   await writeState(reset);

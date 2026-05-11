@@ -129,6 +129,8 @@ const RUNTIME = {
   showReportWindowProcessing: "toraseo:runtime:show-report-window-processing",
   endReportWindowSession: "toraseo:runtime:end-report-window-session",
   copyArticleSourceText: "toraseo:runtime:copy-article-source-text",
+  prepareReportForAi: "toraseo:runtime:prepare-report-for-ai",
+  copyReportForAi: "toraseo:runtime:copy-report-for-ai",
   exportReportPdf: "toraseo:runtime:export-report-pdf",
   exportReportDocument: "toraseo:runtime:export-report-document",
   exportReportPresentation: "toraseo:runtime:export-report-presentation",
@@ -143,7 +145,7 @@ const RUNTIME = {
 } as const;
 
 const api: ToraseoApi = {
-  version: "0.0.9",
+  version: "0.1.0",
 
   startScan: (args: StartScanArgs) => {
     return ipcRenderer.invoke(SCAN.startScan, args) as Promise<{
@@ -452,6 +454,20 @@ const api: ToraseoApi = {
     copyArticleSourceText: (report: RuntimeAuditReport) => {
       return ipcRenderer.invoke(
         RUNTIME.copyArticleSourceText,
+        report,
+      ) as Promise<{ ok: boolean; charCount?: number; error?: string }>;
+    },
+
+    prepareReportForAi: (report: RuntimeAuditReport) => {
+      return ipcRenderer.invoke(
+        RUNTIME.prepareReportForAi,
+        report,
+      ) as Promise<{ ok: boolean; text?: string; error?: string }>;
+    },
+
+    copyReportForAi: (report: RuntimeAuditReport) => {
+      return ipcRenderer.invoke(
+        RUNTIME.copyReportForAi,
         report,
       ) as Promise<{ ok: boolean; charCount?: number; error?: string }>;
     },

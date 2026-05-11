@@ -245,7 +245,7 @@
     "analysisStatus": {
       "ready": "Ready for analysis",
       "error": "Error",
-      "planned": "0.0.9"
+      "planned": "0.1.0"
     },
     "versionFootnote": "App version: ToraSEO {{appVersion}} - specific analysis versions are shown in reports and documentation.",
     "analysisTypes": {
@@ -405,16 +405,16 @@
     "settingsTabs": "Settings"
   },
   "plannedAnalysis": {
-    "version": "0.0.9 setup",
+    "version": "0.1.0 setup",
     "status": "Formula draft",
     "actionLocked": "Execution is being prepared",
     "policyTitle": "Formula policy",
     "policyBody": "The standard score remains 0-100%. The dynamic formula changes the evaluation criteria according to selected tools, but it does not pretend that a larger formula automatically means a cleaner or higher score.",
     "executionTitle": "Execution boundary",
-    "executionBody": "This screen is selectable in 0.0.9 so the workflow shape is visible. The analysis run button stays locked until the dedicated tools, prompts, and scoring contract are connected.",
+    "executionBody": "This screen is selectable in 0.1.0 so the workflow shape is visible. The analysis run button stays locked until the dedicated tools, prompts, and scoring contract are connected.",
     "sidebar": {
       "back": "Home",
-      "version": "0.0.9 setup",
+      "version": "0.1.0 setup",
       "body": "Input and analysis boundaries are prepared here. Full execution will connect after the formula and tool contract is wired.",
       "textContext": "Text context",
       "platform": "Resource",
@@ -484,6 +484,7 @@
     "results": {
       "title": "Analysis results",
       "body": "Current structured text-analysis results are shown here. The chat answer may be shorter, but the app keeps the checks below.",
+      "mcpSourceNote": "MCP tools collect evidence first; the final visual report is rendered from the AI-written report submitted through MCP. Internet checks run only when a selected tool explicitly returns external evidence.",
       "uniquenessTitle": "Article uniqueness",
       "uniquenessHint": "Local repetition and template-risk estimate. This is not an internet plagiarism check.",
       "syntaxTitle": "Language syntax",
@@ -503,13 +504,20 @@
       "copySourceText": "Copy source text",
       "copySourceReady": "Source text copied.",
       "copySourceFailed": "Could not copy the source text.",
+      "sendReportToAi": "Send report to AI",
+      "aiReportAttachmentName": "ToraSEO report",
+      "reportCopiedForAi": "Report copied. Paste it into Claude Desktop or Codex chat.",
+      "reportAttachedToAi": "Report attached to API + AI Chat. Add your question and click Send.",
+      "reportAiFailed": "Could not send the report to AI.",
       "waitingAiReportTitle": "Waiting for the AI report",
       "waitingAiReportBody": "In API mode, the selected model forms the structured report. ToraSEO will show it here after the AI Chat response.",
+      "waitingMcpAiReportBody": "All selected MCP checks are finished. Approve the final submit_ai_report request in the AI chat so ToraSEO can render the AI-written visual report.",
       "readiness": "Publish readiness",
       "coverage": "Tool coverage",
       "verdictEyebrow": "Publish readiness",
       "evidenceCoverage": "Evidence coverage",
       "coverageTools": "tools completed. Coverage is not a quality score.",
+      "reportDuration": "Report formed in: {{duration}}",
       "priorityTitle": "What to fix first",
       "toolEvidenceTitle": "Tool evidence",
       "untitled": "Untitled",
@@ -524,7 +532,7 @@
       "statusPending": "Waiting",
       "reportExpectedImpact": "Improve clarity, trust, and SEO content quality.",
       "reportValidationMethod": "Run ToraSEO text analysis again after edits.",
-      "reportSummary": "Structured report for the ToraSEO article text analysis.",
+      "reportSummary": "Structured AI-written report for the ToraSEO article text analysis.",
       "reportNextStep": "Review recommendations, choose priority edits, and scan the text again.",
       "warningCountChip": "Warnings: {{count}}",
       "strengths": "Strengths",
@@ -898,7 +906,8 @@
           "detail": "What to borrow and fix"
         }
       },
-      "scanNeedText": "Add article text to prepare the analysis prompt."
+      "scanNeedText": "Add at least {{count}} characters of article text to prepare the analysis prompt.",
+      "scanTextMinCharsHint": "{{current}}/{{count}} characters. Scan becomes available at the minimum article-text length."
     },
     "compare": {
       "bridgeSummary": "Structured comparison of two texts based on ToraSEO MCP tool data.",
@@ -1360,8 +1369,11 @@
   "analysisHero": {
     "nativeMode": "API + AI Chat",
     "bridgeMode": "MCP + Instructions",
+    "waitingForAnalysis": "Waiting for analysis",
     "ready": "Ready for analysis",
     "scanning": "Analysis in progress",
+    "waitingForAiReport": "All checks done, approve final AI report in {{client}}",
+    "waitingForToolStart": "Waiting for AI tools",
     "error": "Error",
     "reportReady": "Report formed",
     "solutionProvided": "Answer provided in chat",
@@ -1423,9 +1435,14 @@
     "copiedPrompt": "Copied prompt",
     "copyAnswer": "Copy answer",
     "copied": "Copied",
+    "defaultReportAttachmentName": "ToraSEO report",
+    "visibleReportAttachment": "[Attached: {{name}}, {{charCount}} chars]",
+    "reportAttachedNotice": "{{name}} is attached to the next message. Add your question and click Send.",
+    "reportAttachmentChip": "{{name}} attached to next message",
     "send": "Send",
     "noScanContext": "I can explain the ToraSEO workflow now. For site- or article-specific analysis, start the matching analysis from the main ToraSEO window first.",
     "providerError": "[error: {{code}}] {{message}}",
+    "noStructuredAiReport": "The AI provider did not return structured report data. ToraSEO did not create a visual report for this run.",
     "autoInterpretationStarted": "Scan finished. Preparing recommendations...",
     "autoInterpretationPrompt": "Interpret the completed site audit and give prioritized recommendations.",
     "policy": {

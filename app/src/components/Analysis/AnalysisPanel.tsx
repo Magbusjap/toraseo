@@ -196,14 +196,19 @@ function summarizeFacts(
 function buildFallbackReport(
   executionMode: AuditExecutionMode,
   report: RuntimeAuditReport | null,
-  scanContext: RuntimeScanContext | null,
   bridgeFacts: RuntimeScanFact[],
   locale: SupportedLocale,
 ): RuntimeAuditReport | null {
-  if (report) return report.locale === locale ? report : { ...report, locale };
+  if (report?.analysisType === "site_by_url") {
+    return report.locale === locale ? report : { ...report, locale };
+  }
+
+  if (executionMode === "native") {
+    return null;
+  }
 
   const factsSource =
-    executionMode === "native" ? scanContext?.facts ?? [] : bridgeFacts;
+    bridgeFacts;
   if (factsSource.length === 0) return null;
 
   const confirmedFacts: RuntimeConfirmedFact[] = factsSource.map((fact) => ({
@@ -246,8 +251,7 @@ export default function AnalysisPanel({
   const locale: SupportedLocale = i18n.resolvedLanguage === "ru" ? "ru" : "en";
   const [secondScreenOpen, setSecondScreenOpen] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
-  const activeAnalysisType = (runtimeReport?.analysisType ??
-    bridgeState?.analysisType ??
+  const activeAnalysisType = (bridgeState?.analysisType ??
     "site_by_url") as AnalysisTypeId;
   const hasStarted =
     executionMode === "native"
@@ -259,11 +263,10 @@ export default function AnalysisPanel({
       buildFallbackReport(
         executionMode,
         runtimeReport,
-        scanContext,
         bridgeFacts,
         locale,
       ),
-    [bridgeFacts, executionMode, locale, runtimeReport, scanContext],
+    [bridgeFacts, executionMode, locale, runtimeReport],
   );
   const displayFacts = useMemo(
     () =>

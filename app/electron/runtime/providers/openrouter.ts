@@ -1,5 +1,5 @@
 /**
- * OpenRouter provider adapter.
+ * OpenAI-compatible provider adapter.
  *
  * Production-ready implementation for the native runtime:
  *   - OpenAI-compatible `/chat/completions` request
@@ -7,6 +7,8 @@
  *   - stable provider error mapping
  *   - strict JSON output contract for analysis-panel rendering
  */
+
+import log from "electron-log";
 
 import {
   DEFAULT_CAPABILITIES,
@@ -21,20 +23,49 @@ import type {
   ProviderCapabilities,
   ProviderConfig,
   RuntimeArticleCompareGoalMode,
+  RuntimeArticleCompareSummary,
+  RuntimeArticleTextSummary,
   RuntimeAuditReport,
+  RuntimeSiteCompareSummary,
 } from "../../../src/types/runtime.js";
 
 const DEFAULT_MODEL = "openrouter/auto";
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
-const REQUEST_TIMEOUT_MS = 90_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 90_000;
+const AGGREGATE_ANALYSIS_TIMEOUT_MS = 180_000;
+const ANALYSIS_REQUEST_TIMEOUT_MS = 180_000;
 const MAX_ATTEMPTS = 2;
-const ANALYSIS_VERSION = "0.0.1";
+const ANALYSIS_VERSION = "0.0.2";
+const MAX_SCHEMA_FACTS = 48;
 
-function timeoutMessage(label: string, locale: "en" | "ru"): string {
-  const seconds = Math.round(REQUEST_TIMEOUT_MS / 1000);
-  return locale === "ru"
-    ? `${label} did not respond within ${seconds} seconds. Test the model again or choose a faster model for the probe.`
-    : `${label} did not respond within ${seconds} seconds. Test the model again or choose a faster model for the probe.`;
+function requestTimeoutMs(request: ProviderChatRequest): number {
+  if (isAggregateAnalysisRequest(request)) {
+    return AGGREGATE_ANALYSIS_TIMEOUT_MS;
+  }
+  return hasScanEvidence(request) ||
+    hasArticleTextContext(request) ||
+    hasArticleCompareContext(request) ||
+    hasSiteCompareContext(request)
+    ? ANALYSIS_REQUEST_TIMEOUT_MS
+    : DEFAULT_REQUEST_TIMEOUT_MS;
+}
+
+function maxAttemptsForRequest(request: ProviderChatRequest): number {
+  return hasArticleTextContext(request) ||
+    hasArticleCompareContext(request) ||
+    hasSiteCompareContext(request)
+    ? 1
+    : MAX_ATTEMPTS;
+}
+
+function timeoutMessage(
+  label: string,
+  locale: "en" | "ru",
+  timeoutMs: number,
+): string {
+  const seconds = Math.round(timeoutMs / 1000);
+  void locale;
+  return `${label} did not respond within ${seconds} seconds. ToraSEO did not create a visual report because the provider did not return report data in time.`;
 }
 
 interface OpenAiCompatibleAdapterOptions {
@@ -42,14 +73,22 @@ interface OpenAiCompatibleAdapterOptions {
   label: string;
   defaultModel: string;
   defaultBaseUrl: string;
+  supportsStrictJsonSchema?: boolean;
+  includeOpenRouterHeaders?: boolean;
 }
 
 interface OpenRouterSuccessPayload {
   choices?: Array<{
     message?: {
-      content?: string | Array<{ type?: string; text?: string }>;
+      content?: unknown;
+      reasoning?: unknown;
+      reasoning_content?: unknown;
     };
+    text?: unknown;
+    content?: unknown;
   }>;
+  output_text?: unknown;
+  response?: unknown;
   usage?: {
     prompt_tokens?: number;
     completion_tokens?: number;
@@ -71,7 +110,7 @@ function buildSchema(
 ): object {
   const hypothesisMin = mode === "strict_audit" ? 0 : 0;
   const hypothesisMax = mode === "strict_audit" ? 0 : 8;
-  const factCount = Math.max(1, Math.min(24, confirmedFactCount));
+  const factCount = Math.max(1, Math.min(MAX_SCHEMA_FACTS, confirmedFactCount));
 
   return {
     type: "object",
@@ -95,7 +134,7 @@ function buildSchema(
       confirmedFacts: {
         type: "array",
         minItems: factCount,
-        maxItems: Math.max(factCount, 24),
+        maxItems: Math.max(factCount, MAX_SCHEMA_FACTS),
         items: {
           type: "object",
           additionalProperties: false,
@@ -154,17 +193,38 @@ function buildSchema(
 function extractMessageContent(
   payload: OpenRouterSuccessPayload,
 ): string | null {
-  const content = payload.choices?.[0]?.message?.content;
+  const firstChoice = payload.choices?.[0];
+  const content =
+    firstChoice?.message?.content ??
+    firstChoice?.text ??
+    firstChoice?.content ??
+    payload.output_text ??
+    payload.response;
+  const normalized = textFromProviderContent(content);
+  if (normalized) return normalized;
+  const reasoning = textFromProviderContent(
+    firstChoice?.message?.reasoning_content ?? firstChoice?.message?.reasoning,
+  );
+  return reasoning || null;
+}
+
+function textFromProviderContent(content: unknown): string {
   if (typeof content === "string") {
-    return content;
+    return content.trim();
   }
   if (Array.isArray(content)) {
     return content
-      .map((part) => (typeof part?.text === "string" ? part.text : ""))
+      .map((part) => textFromProviderContent(part))
       .join("")
       .trim();
   }
-  return null;
+  if (isRecord(content)) {
+    for (const key of ["text", "content", "output_text", "value"]) {
+      const value = textFromProviderContent(content[key]);
+      if (value) return value;
+    }
+  }
+  return "";
 }
 
 function normaliseUsage(
@@ -433,6 +493,78 @@ function expectedConfirmedFactCount(request: ProviderChatRequest): number {
     return request.articleTextContext?.selectedTools.length || 1;
   }
   return 1;
+}
+
+function maxTokensForRequest(request: ProviderChatRequest): number {
+  if (
+    hasArticleTextContext(request) ||
+    hasArticleCompareContext(request) ||
+    hasSiteCompareContext(request)
+  ) {
+    const expectedFacts = expectedConfirmedFactCount(request);
+    return Math.min(9000, Math.max(4200, expectedFacts * 260));
+  }
+  return hasScanEvidence(request) ? 1800 : 700;
+}
+
+function isAggregateAnalysisRequest(request: ProviderChatRequest): boolean {
+  return (
+    isStructuredArticleTextScan(request) ||
+    isStructuredArticleCompareScan(request) ||
+    isStructuredSiteCompareScan(request) ||
+    ((request.scanContext?.selectedTools.length ?? 0) > 1)
+  );
+}
+
+function initialOutputContractMode(request: ProviderChatRequest): OutputContractMode {
+  if (isAggregateAnalysisRequest(request)) {
+    return "prompt_only";
+  }
+  return hasScanEvidence(request) ? "json_schema" : "prompt_only";
+}
+
+function webEvidencePromptSection(request: ProviderChatRequest): string[] {
+  const evidence = request.webEvidenceContext;
+  if (!evidence || evidence.items.length === 0) {
+    return [
+      "Public web evidence:",
+      "No public web-evidence packet was collected for this request. Do not claim internet verification, live browsing, live rankings, traffic, backlinks, Search Console, GA4, or paid SEO database checks.",
+    ];
+  }
+  return [
+    "Public web evidence collected by ToraSEO before this API request:",
+    JSON.stringify(evidence, null, 2),
+    "Use this web-evidence packet as supporting evidence only. Cite it as direct URL fetch/search-snippet evidence when relevant. If it is incomplete, blocked, or only a snippet, say that verification is partial.",
+  ];
+}
+
+function visualReportContractPrompt(request: ProviderChatRequest): string[] {
+  if (isStructuredArticleTextScan(request)) {
+    return [
+      "Required visual report block:",
+      "In addition to summary, nextStep, confirmedFacts, and expertHypotheses, include a complete top-level articleText object. ToraSEO will render articleText directly; the app must not invent metrics, dimensions, annotations, priorities, or scores after the provider response.",
+      "articleText must include: verdict, verdictLabel, verdictDetail, coverage, platform, document, annotationStatus, annotations, dimensions, priorities, metrics, warningCount, strengths, weaknesses, nextActions, and optional intentForecast.",
+      "Use the selected checks and the web-evidence packet to choose metric values, statuses, annotations, and priorities. If a value is uncertain, set it to null or describe the limitation inside the relevant detail instead of guessing.",
+      "coverage.completed must equal the number of selected checks you actually analyzed, and coverage.total must equal selectedToolIds.length.",
+    ];
+  }
+  if (isStructuredArticleCompareScan(request)) {
+    return [
+      "Required visual report block:",
+      "In addition to summary, nextStep, confirmedFacts, and expertHypotheses, include a complete top-level articleCompare object. ToraSEO will render articleCompare directly; the app must not build comparison metrics or winners after the provider response.",
+      "articleCompare must include: verdict, goal, goalMode, goalLabel, goalDescription, focusSide, platform, coverage, textA, textB, metrics, gaps, priorities, similarity, actionPlan, and limitations.",
+      "Use both texts, the comparison goal, selected checks, and the web-evidence packet to decide the winner, gaps, similarity risk, metrics, and action plan. Mark uncertainty in limitations when web evidence is partial.",
+    ];
+  }
+  if (isStructuredSiteCompareScan(request)) {
+    return [
+      "Required visual report block:",
+      "In addition to summary, nextStep, confirmedFacts, and expertHypotheses, include a complete top-level siteCompare object. ToraSEO will render siteCompare directly; the app must not compute the winner, score cards, directions, or insights after the provider response.",
+      "siteCompare must include: focus, winnerUrl, completed, total, sites, metrics, directions, and insights.",
+      "Use the public scan evidence, selected checks, and the web-evidence packet to decide scores, site cards, directions, and insights. If a URL lacks evidence, reflect that with lower confidence or pending/warn statuses instead of inventing clean data.",
+    ];
+  }
+  return [];
 }
 
 function platformLabelForPrompt(value: string, locale: "en" | "ru"): string {
@@ -893,14 +1025,99 @@ function coerceLocalizedArticleReport(
     generatedAt: new Date().toISOString(),
     summary:
       summary ||
-      "Структурированный API-отчет по тексту статьи сформирован моделью.",
+      (request.policy.locale === "ru"
+        ? "Структурированный API-отчет по тексту статьи сформирован моделью."
+        : "The structured API report for the article text was generated by the model."),
     nextStep:
       nextStep ||
       confirmedFacts[0]?.detail.slice(0, 500) ||
-      "Просмотрите приоритетные замечания и повторите анализ после правок.",
+      (request.policy.locale === "ru"
+        ? "Просмотрите приоритетные замечания и повторите анализ после правок."
+        : "Review the priority findings and run the analysis again after editing."),
     confirmedFacts,
     expertHypotheses,
   };
+}
+
+function hasString(value: Record<string, unknown>, key: string): boolean {
+  return typeof value[key] === "string" && value[key].trim().length > 0;
+}
+
+function hasArray(value: Record<string, unknown>, key: string): boolean {
+  return Array.isArray(value[key]);
+}
+
+function hasObject(value: Record<string, unknown>, key: string): boolean {
+  return isRecord(value[key]);
+}
+
+function coerceArticleTextSummary(
+  value: unknown,
+): RuntimeArticleTextSummary | null {
+  if (!isRecord(value)) return null;
+  if (
+    !hasString(value, "verdict") ||
+    !hasString(value, "verdictLabel") ||
+    !hasString(value, "verdictDetail") ||
+    !hasObject(value, "coverage") ||
+    !hasObject(value, "platform") ||
+    !hasObject(value, "document") ||
+    !hasString(value, "annotationStatus") ||
+    !hasArray(value, "annotations") ||
+    !hasArray(value, "dimensions") ||
+    !hasArray(value, "priorities") ||
+    !hasArray(value, "metrics") ||
+    typeof value.warningCount !== "number" ||
+    !hasArray(value, "strengths") ||
+    !hasArray(value, "weaknesses") ||
+    !hasArray(value, "nextActions")
+  ) {
+    return null;
+  }
+  return value as unknown as RuntimeArticleTextSummary;
+}
+
+function coerceArticleCompareSummary(
+  value: unknown,
+): RuntimeArticleCompareSummary | null {
+  if (!isRecord(value)) return null;
+  if (
+    !hasObject(value, "verdict") ||
+    !hasString(value, "goalMode") ||
+    !hasString(value, "goalLabel") ||
+    !hasString(value, "goalDescription") ||
+    !hasObject(value, "platform") ||
+    !hasObject(value, "coverage") ||
+    !hasObject(value, "textA") ||
+    !hasObject(value, "textB") ||
+    !hasArray(value, "metrics") ||
+    !hasArray(value, "gaps") ||
+    !hasArray(value, "priorities") ||
+    !hasObject(value, "similarity") ||
+    !hasArray(value, "actionPlan") ||
+    !hasArray(value, "limitations")
+  ) {
+    return null;
+  }
+  return value as unknown as RuntimeArticleCompareSummary;
+}
+
+function coerceSiteCompareSummary(
+  value: unknown,
+): RuntimeSiteCompareSummary | null {
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.focus !== "string" ||
+    typeof value.completed !== "number" ||
+    typeof value.total !== "number" ||
+    !hasArray(value, "sites") ||
+    !hasArray(value, "metrics") ||
+    !hasArray(value, "directions") ||
+    !hasArray(value, "insights")
+  ) {
+    return null;
+  }
+  return value as unknown as RuntimeSiteCompareSummary;
 }
 
 function coerceReport(
@@ -976,7 +1193,7 @@ function coerceReport(
   if (confirmedFacts.length === 0) {
     return null;
   }
-  return {
+  const report: RuntimeAuditReport = {
     analysisType: reportAnalysisTypeForRequest(request),
     analysisVersion: ANALYSIS_VERSION,
     locale: request.policy.locale,
@@ -989,25 +1206,54 @@ function coerceReport(
     confirmedFacts,
     expertHypotheses,
   };
+  const articleText = coerceArticleTextSummary(candidate.articleText);
+  if (articleText) {
+    report.articleText = articleText;
+  }
+  const articleCompare = coerceArticleCompareSummary(candidate.articleCompare);
+  if (articleCompare) {
+    report.articleCompare = articleCompare;
+  }
+  const siteCompare = coerceSiteCompareSummary(candidate.siteCompare);
+  if (siteCompare) {
+    report.siteCompare = siteCompare;
+  }
+  return report;
 }
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export class OpenRouterAdapter implements ProviderAdapter {
+async function readResponseTextWithTimeout(
+  response: Response,
+  timeoutMs: number,
+): Promise<string> {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      response.text(),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error("response_body_timeout"));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+export class OpenAiCompatibleAdapter implements ProviderAdapter {
   public readonly id: ProviderId;
   public readonly label: string;
-  public readonly capabilities: ProviderCapabilities = {
-    ...DEFAULT_CAPABILITIES,
-    streaming: false,
-    toolCalls: false,
-    structuredOutput: true,
-  };
+  public readonly capabilities: ProviderCapabilities;
 
   private config: ProviderConfig;
   private defaultModel: string;
   private defaultBaseUrl: string;
+  private supportsStrictJsonSchema: boolean;
+  private includeOpenRouterHeaders: boolean;
 
   constructor(
     config: ProviderConfig,
@@ -1027,6 +1273,15 @@ export class OpenRouterAdapter implements ProviderAdapter {
     this.config = config;
     this.defaultModel = options.defaultModel;
     this.defaultBaseUrl = options.defaultBaseUrl;
+    this.supportsStrictJsonSchema = options.supportsStrictJsonSchema ?? true;
+    this.includeOpenRouterHeaders =
+      options.includeOpenRouterHeaders ?? options.id === "openrouter";
+    this.capabilities = {
+      ...DEFAULT_CAPABILITIES,
+      streaming: false,
+      toolCalls: false,
+      structuredOutput: this.supportsStrictJsonSchema,
+    };
   }
 
   isConfigured(): boolean {
@@ -1048,10 +1303,11 @@ export class OpenRouterAdapter implements ProviderAdapter {
         "The user clicked Site comparison by URL in ToraSEO API + AI Chat.",
         "The app already ran public URL checks for each site and passes the scan evidence below. The AI must interpret that evidence and form the structured comparison report.",
         "Return JSON that satisfies the required audit schema only; do not wrap it in markdown fences. Do not translate JSON property names.",
-        "Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses.",
+        "Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses, siteCompare.",
         "Each confirmedFacts item must use exactly: title, detail, priority, sourceToolIds. Priority values must be exactly high, medium, or low.",
         "Return one confirmedFacts item for every selected site comparison check, in the same order as selectedToolIds. sourceToolIds must contain the exact backend id for the current check.",
         "Use title for the finding headline, not the tool name. Write detail in two or three short paragraphs: who is stronger, why, where the gap is, and what to do first.",
+        ...visualReportContractPrompt(request),
         "If this request contains only one selected check, treat it as one step of a larger site comparison and do not mention scan mechanics.",
         languageInstruction,
         "Compare up to three sites as one competitive comparison dashboard. Do not render three full audits side by side.",
@@ -1060,6 +1316,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
         request.policy.mode === "strict_audit"
           ? "Strict mode: expertHypotheses must be an empty array. Tie every recommendation to provided scan evidence or clearly marked local heuristics."
           : "Ideas mode: expert hypotheses are allowed, but label them as hypotheses and keep them bounded by the provided evidence.",
+        ...webEvidencePromptSection(request),
         "",
         "Comparison context:",
         JSON.stringify(
@@ -1101,10 +1358,11 @@ export class OpenRouterAdapter implements ProviderAdapter {
       return [
         "The user clicked Compare two texts in ToraSEO API + AI Chat.",
         "Return JSON that satisfies the required audit schema only; do not wrap it in markdown fences. Do not translate JSON property names.",
-        "Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses.",
+        "Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses, articleCompare.",
         "Each confirmedFacts item must use exactly: title, detail, priority, sourceToolIds. Priority values must be exactly high, medium, or low.",
         "Return one confirmedFacts item for every selected comparison check, in the same order as selectedToolIds. sourceToolIds must contain the exact backend id for the current check.",
         "Use title for the finding headline, not the tool name; the app renders the tool name separately. Write detail in two or three short paragraphs when possible: key evidence, what was found, what to do.",
+        ...visualReportContractPrompt(request),
         "If this request contains only one selected check, treat it as one step of a larger multi-check comparison: evaluate the two texts for that check, but do not write that only one check was selected and do not mention scan mechanics.",
         languageInstruction,
         `Goal report mode: ${compareGoalModeLabel(goalMode, request.policy.locale)}.`,
@@ -1118,6 +1376,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
         request.policy.mode === "strict_audit"
           ? "Strict mode: expertHypotheses must be an empty array. Tie every recommendation to visible text evidence or clearly marked local heuristics."
           : "Ideas mode: expert hypotheses are allowed, but label them as hypotheses and keep them bounded by the two texts.",
+        ...webEvidencePromptSection(request),
         "",
         "Comparison context:",
         JSON.stringify(
@@ -1157,7 +1416,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
           context.selectedTools.includes("extract_main_text"));
       const languageInstruction =
         request.policy.locale === "ru"
-          ? "Ответь по-русски."
+          ? "Reply in Russian."
           : "Reply in English.";
       const actionInstruction =
         !autoRunAction
@@ -1179,18 +1438,21 @@ export class OpenRouterAdapter implements ProviderAdapter {
       );
 
       const outputInstruction = structuredScan
-        ? `${isPageByUrl ? "The user clicked Analyze page by URL." : "The user clicked Scan text."} The API model must form the structured ToraSEO report. Return JSON that satisfies the required audit schema only; do not wrap it in markdown fences. Do not translate JSON property names. Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses. Each confirmedFacts item must use exactly: title, detail, priority, sourceToolIds. Priority values must be exactly high, medium, or low. User-facing string values should still be written in the user's language. Return one confirmedFacts item for every selected check, in the same order as selectedToolIds. sourceToolIds must contain the exact backend id for the current check from selectedToolIds, not the translated label. Use title for the finding headline, not the tool name; the app will render the tool name itself. Write detail in three short paragraphs when possible: key evidence, what was found, what to do. Use high only for blocking or publication-critical problems; use medium for normal editing issues; use low for healthy or informational findings. If this request contains only one selected check, treat it as the current step of a larger multi-tool scan: evaluate the article for that check, but do not write that only one check was selected, and do not turn scan mechanics into a content finding.`
+        ? `${isPageByUrl ? "The user clicked Analyze page by URL." : "The user clicked Scan text."} The API model must form the structured ToraSEO report. Return JSON that satisfies the required audit schema only; do not wrap it in markdown fences. Do not translate JSON property names. Use exactly these top-level keys: summary, nextStep, confirmedFacts, expertHypotheses, articleText. Each confirmedFacts item must use exactly: title, detail, priority, sourceToolIds. Priority values must be exactly high, medium, or low. User-facing string values should still be written in the user's language. Return one confirmedFacts item for every selected check, in the same order as selectedToolIds. sourceToolIds must contain the exact backend id for the current check from selectedToolIds, not the translated label. Use title for the finding headline, not the tool name; the app will render the tool name itself. Write detail in three short paragraphs when possible: key evidence, what was found, what to do. Use high only for blocking or publication-critical problems; use medium for normal editing issues; use low for healthy or informational findings. If this request contains only one selected check, treat it as the current step of a larger multi-tool scan: evaluate the article for that check, but do not write that only one check was selected, and do not turn scan mechanics into a content finding.`
         : "This is a ToraSEO API + AI Chat article-text workflow. Do not return JSON.";
 
       return [
         outputInstruction,
+        ...visualReportContractPrompt(request),
         languageInstruction,
         actionInstruction,
         modeInstruction,
         structuredScan
           ? "The report source is the AI provider response. The application only prepares the text/context and displays the structured report after this response is parsed."
           : "If the user asks whether the report exists in ToraSEO, explain that in API mode the application can display a report only after the AI provider has returned a structured report; you cannot see the screen, but you can describe this workflow.",
+        "If the user asks whether you changed/updated/made edits to the report or all 19 checks, do not answer with a flat 'no'. Answer the precise boundary: yes, this AI provider response supplied the analysis and structured interpretation for the selected checks that ToraSEO rendered into the report; no, you did not directly edit the source article text or manually operate the app UI unless the user requested a rewrite or targeted edit.",
         "Stay within the selected/relevant text-analysis tools. Do not pretend live MCP tools, internet SERP checks, external plagiarism checks, legal, medical, investment, engineering, or scientific expert verification ran.",
+        "Use the public web-evidence packet below when it is present. If no packet is present, say that internet verification was not available for this API run.",
         "Use human-readable wording, not backend IDs. Mention uncertainty where a check is only heuristic.",
         structuredScan
           ? "For structured scan output, every confirmed fact must describe the article itself or a clearly labeled local heuristic. Do not create findings about selectedChecks, runId, JSON schema, API mode, or other orchestration details."
@@ -1204,6 +1466,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
           ? "Relevant checks may include URL extraction, robots/meta/headings/content/page stack, platform/use-case, structure, style, tone, language/audience, media placement, local repetition/uniqueness, syntax, AI-writing style probability, AI trace map, genericness/watery text, readability/complexity, claim source queue, naturalness, logic, local SEO intent/metadata, and safety/science/legal-sensitive risk flags."
           : "Relevant checks may include platform/use-case, structure, style, tone, language/audience, media placeholders, local repetition/uniqueness, syntax, AI-writing style probability, AI trace map, genericness/watery text, readability/complexity, claim source queue, naturalness, logic, local SEO intent/metadata, and safety/science/legal-sensitive risk flags.",
         "If rewriting or substantially reworking, preserve necessary caveats and do not strengthen unverified claims. Ask about media placeholder positions before adding them unless the user already requested media placement.",
+        ...webEvidencePromptSection(request),
         "",
         "User message:",
         request.userText.replace(/TORASEO_ARTICLE_TEXT_AUTO_RUN=(scan|solution)\s*/g, "").trim(),
@@ -1235,7 +1498,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
     if (!hasScanEvidence(request)) {
       const languageInstruction =
         request.policy.locale === "ru"
-          ? "Ответь по-русски."
+          ? "Reply in Russian."
           : "Reply in English.";
 
       return [
@@ -1262,6 +1525,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
       "Do not wrap the JSON in markdown fences.",
       languageInstruction,
       "Make the answer substantial: include concrete evidence from the scan, prioritized recommendations, and one practical next step.",
+      ...webEvidencePromptSection(request),
       "",
       "User request:",
       request.userText,
@@ -1286,18 +1550,14 @@ export class OpenRouterAdapter implements ProviderAdapter {
     model: string,
     signal: AbortSignal,
     outputContractMode: OutputContractMode,
+    timeoutMs: number,
   ): Promise<ProviderChatResponse> {
     const endpoint = `${resolveBaseUrl(this.config.baseUrl, this.defaultBaseUrl).replace(/\/+$/, "")}/chat/completions`;
     const requestBody: Record<string, unknown> = {
       model,
       temperature: request.policy.mode === "strict_audit" ? 0.1 : 0.35,
-      max_tokens: hasArticleTextContext(request) ||
-        hasArticleCompareContext(request) ||
-        hasSiteCompareContext(request)
-        ? 3600
-        : hasScanEvidence(request)
-          ? 1800
-          : 700,
+      max_tokens: maxTokensForRequest(request),
+      stream: false,
       messages: [
         { role: "system", content: request.policy.systemPrompt },
         { role: "user", content: this.buildUserPrompt(request) },
@@ -1319,24 +1579,38 @@ export class OpenRouterAdapter implements ProviderAdapter {
     }
 
     let response: Response;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.config.apiKey}`,
+    };
+    if (this.includeOpenRouterHeaders) {
+      headers["HTTP-Referer"] = "https://github.com/Magbusjap/toraseo";
+      headers["X-Title"] = "ToraSEO";
+    }
+    const aggregate = isAggregateAnalysisRequest(request);
+    log.info(
+      `[runtime] provider request start provider=${this.id} model=${model} contract=${outputContractMode} aggregate=${aggregate} timeoutMs=${timeoutMs}`,
+    );
     try {
       response = await fetch(endpoint, {
         method: "POST",
         signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.config.apiKey}`,
-          "HTTP-Referer": "https://github.com/Magbusjap/toraseo",
-          "X-Title": "ToraSEO",
-        },
+        headers,
         body: JSON.stringify(requestBody),
       });
     } catch (error) {
       if ((error as Error).name === "AbortError") {
+        log.warn(
+          `[runtime] provider request timeout provider=${this.id} model=${model} timeoutMs=${timeoutMs}`,
+        );
         return {
           ok: false,
           errorCode: "provider_timeout",
-          errorMessage: timeoutMessage(this.label, request.policy.locale),
+          errorMessage: timeoutMessage(
+            this.label,
+            request.policy.locale,
+            timeoutMs,
+          ),
         };
       }
       return {
@@ -1345,14 +1619,31 @@ export class OpenRouterAdapter implements ProviderAdapter {
         errorMessage:
           error instanceof Error
             ? error.message
-            : `Network error while contacting ${this.label}.`,
+          : `Network error while contacting ${this.label}.`,
       };
     }
+    log.info(
+      `[runtime] provider response provider=${this.id} model=${model} status=${response.status}`,
+    );
 
     let rawBody: string;
     try {
-      rawBody = await response.text();
-    } catch {
+      rawBody = await readResponseTextWithTimeout(response, timeoutMs);
+    } catch (error) {
+      if ((error as Error).message === "response_body_timeout") {
+        log.warn(
+          `[runtime] provider response body timeout provider=${this.id} model=${model} timeoutMs=${timeoutMs}`,
+        );
+        return {
+          ok: false,
+          errorCode: "provider_timeout",
+          errorMessage: timeoutMessage(
+            this.label,
+            request.policy.locale,
+            timeoutMs,
+          ),
+        };
+      }
       return {
         ok: false,
         errorCode: "provider_bad_response",
@@ -1484,26 +1775,25 @@ export class OpenRouterAdapter implements ProviderAdapter {
 
     const model =
       request.modelOverride ?? this.config.defaultModel ?? this.defaultModel;
+    const timeoutMs = requestTimeoutMs(request);
 
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    const maxAttempts = maxAttemptsForRequest(request);
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const initialContractMode: OutputContractMode =
-          hasScanEvidence(request) ||
-          isStructuredArticleTextScan(request) ||
-          isStructuredArticleCompareScan(request) ||
-          isStructuredSiteCompareScan(request)
-            ? "json_schema"
-            : "prompt_only";
+        const initialContractMode = this.supportsStrictJsonSchema
+          ? initialOutputContractMode(request)
+          : "prompt_only";
         const result = await this.executeAttempt(
           request,
           model,
           controller.signal,
           initialContractMode,
+          timeoutMs,
         );
         const shouldRetry =
-          attempt < MAX_ATTEMPTS && isRetryableProviderResult(result);
+          attempt < maxAttempts && isRetryableProviderResult(result);
         if (shouldRetry) {
           await wait(attempt * 500);
           continue;
@@ -1512,7 +1802,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
           const fallbackController = new AbortController();
           const fallbackTimeout = setTimeout(
             () => fallbackController.abort(),
-            REQUEST_TIMEOUT_MS,
+            timeoutMs,
           );
           try {
             const fallback = await this.executeAttempt(
@@ -1520,6 +1810,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
               model,
               fallbackController.signal,
               "prompt_only",
+              timeoutMs,
             );
             if (fallback.ok) return fallback;
             if (fallback.errorCode === "provider_bad_response") {
@@ -1544,7 +1835,10 @@ export class OpenRouterAdapter implements ProviderAdapter {
     return {
       ok: false,
       errorCode: "provider_temporary_failure",
-      errorMessage: `${this.label} did not complete the request after retrying.`,
+      errorMessage:
+        maxAttempts > 1
+          ? `${this.label} did not complete the request after retrying.`
+          : `${this.label} did not complete the request.`,
     };
   }
 }

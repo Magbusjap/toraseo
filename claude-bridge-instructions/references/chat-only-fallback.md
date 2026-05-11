@@ -11,14 +11,15 @@ truth in that path.
 
 ## What To Say
 
-Be explicit and calm:
+Be explicit and calm. Use these English reference messages, translated
+to the active reply language when the ToraSEO run is not English:
 
-- "Сейчас я могу дать только чатовый разбор ToraSEO: приложение не будет
-  обновлено структурированными результатами."
-- "Это не live SERP, не внешняя проверка плагиата, не юридическая,
-  медицинская, финансовая, инженерная или научная экспертиза."
-- "Если нужно заполнить отчет в приложении, запустите ToraSEO Desktop App,
-  проверьте MCP-подключение и повторите запуск из приложения."
+- "I can only give a chat-only ToraSEO review right now; the app will
+  not be updated with structured results."
+- "This is not live SERP research, an external plagiarism check, or
+  legal, medical, financial, engineering, or scientific expert review."
+- "To fill the report in the app, open ToraSEO Desktop App, check the
+  MCP connection, and start the analysis again from the app."
 
 Use the interface locale from the pasted ToraSEO prompt as the default
 reply language. Only switch to another language if the user explicitly

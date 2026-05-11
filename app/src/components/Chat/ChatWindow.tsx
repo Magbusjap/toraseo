@@ -67,6 +67,19 @@ export default function ChatWindow() {
     [],
   );
 
+  const handleReportAttachmentConsumed = useCallback(() => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const next: RuntimeChatWindowSession = {
+        ...prev,
+        reportAttachmentText: undefined,
+        reportAttachmentName: undefined,
+      };
+      void window.toraseo.runtime.updateChatWindowSession(next);
+      return next;
+    });
+  }, []);
+
   if (loadError) {
     return (
       <main className="grid h-screen place-items-center bg-orange-50/30 p-8">
@@ -124,11 +137,18 @@ export default function ChatWindow() {
         articleTextContext={session.articleTextContext}
         articleCompareContext={session.articleCompareContext}
         siteCompareContext={session.siteCompareContext}
+        articleTextRunState={session.articleTextRunState}
         selectedProviderId={session.selectedProviderId}
         selectedModelProfile={session.selectedModelProfile}
+        initialReport={session.report}
+        chatNotice={session.chatNotice}
+        hostManagedRun={session.hostManagedRun}
+        reportAttachmentText={session.reportAttachmentText}
+        reportAttachmentName={session.reportAttachmentName}
         bridgeState={null}
         bridgePrompt={null}
         onReport={handleReport}
+        onReportAttachmentConsumed={handleReportAttachmentConsumed}
       />
     </main>
   );

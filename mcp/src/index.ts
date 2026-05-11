@@ -70,6 +70,7 @@ import {
 } from "@toraseo/core";
 
 import { bridgeWrap } from "./bridgeWrapper.js";
+import { readState } from "./stateFile.js";
 import {
   verifySkillLoadedHandler,
   verifySkillLoadedInputSchema,
@@ -78,6 +79,10 @@ import {
   verifyCodexWorkflowLoadedHandler,
   verifyCodexWorkflowLoadedInputSchema,
 } from "./verifyCodexWorkflowLoaded.js";
+import {
+  submitAiReportHandler,
+  submitAiReportInputSchema,
+} from "./aiReportTool.js";
 import {
   emptyInputSchema,
   detectTextPlatformHandler,
@@ -123,7 +128,10 @@ import {
   analyzeYandexPageSearchHandler,
 } from "./pageUrlTools.js";
 import { siteUrlInternalHandler } from "./siteUrlTools.js";
-import { siteCompareInternalHandler } from "./siteCompareTools.js";
+import {
+  siteCompareInternalHandler,
+  siteCompareToolHandler,
+} from "./siteCompareTools.js";
 
 // --- Server setup ---------------------------------------------------------
 
@@ -131,6 +139,19 @@ const server = new McpServer({
   name: "toraseo-mcp",
   version: VERSION,
 });
+
+function siteAuditOrCompareHandler(
+  toolId: string,
+  siteAuditHandler: ReturnType<typeof bridgeWrap>,
+): ReturnType<typeof bridgeWrap> {
+  return async (args) => {
+    const state = await readState();
+    if (state?.analysisType === "site_compare") {
+      return siteCompareToolHandler(toolId);
+    }
+    return siteAuditHandler(args);
+  };
+}
 
 // --- Bridge Mode handshake tool -------------------------------------------
 
@@ -173,6 +194,17 @@ server.registerTool(
     inputSchema: verifyCodexWorkflowLoadedInputSchema,
   },
   verifyCodexWorkflowLoadedHandler,
+);
+
+server.registerTool(
+  "submit_ai_report",
+  {
+    title: "Submit AI Report To ToraSEO",
+    description:
+      "Final bridge step for an active ToraSEO MCP analysis. Call only after every selected MCP analysis tool has completed. The AI writes the final structured report as JSON and submits it here. ToraSEO renders that AI-written report instead of inventing report content in the app.",
+    inputSchema: submitAiReportInputSchema,
+  },
+  submitAiReportHandler,
 );
 
 // --- Tools: Mode A (Site Audit) ------------------------------------------
@@ -223,7 +255,10 @@ server.registerTool(
       "Use this for a quick check of a single page.",
     inputSchema: scanSiteMinimalInputSchema,
   },
-  bridgeWrap("scan_site_minimal", scanSiteMinimal, ScanSiteError),
+  siteAuditOrCompareHandler(
+    "scan_site_minimal",
+    bridgeWrap("scan_site_minimal", scanSiteMinimal, ScanSiteError),
+  ),
 );
 
 server.registerTool(
@@ -238,7 +273,10 @@ server.registerTool(
       "allowed before launching one, or to inspect a site's crawler policy.",
     inputSchema: checkRobotsInputSchema,
   },
-  bridgeWrap("check_robots_txt", checkRobots, null),
+  siteAuditOrCompareHandler(
+    "check_robots_txt",
+    bridgeWrap("check_robots_txt", checkRobots, null),
+  ),
 );
 
 server.registerTool(
@@ -256,7 +294,10 @@ server.registerTool(
       "Use this when the user wants a meta-tag audit of a specific page.",
     inputSchema: analyzeMetaInputSchema,
   },
-  bridgeWrap("analyze_meta", analyzeMeta, AnalyzeMetaError),
+  siteAuditOrCompareHandler(
+    "analyze_meta",
+    bridgeWrap("analyze_meta", analyzeMeta, AnalyzeMetaError),
+  ),
 );
 
 server.registerTool(
@@ -267,7 +308,10 @@ server.registerTool(
       "Checks whether the URL is locally indexable by combining robots.txt access and meta robots directives. Returns indexability reasons and severity-tagged issues without claiming live search index status.",
     inputSchema: analyzeIndexabilityInputSchema,
   },
-  bridgeWrap("analyze_indexability", analyzeIndexability, AnalyzeMetaError),
+  siteAuditOrCompareHandler(
+    "analyze_indexability",
+    bridgeWrap("analyze_indexability", analyzeIndexability, AnalyzeMetaError),
+  ),
 );
 
 server.registerTool(
@@ -278,7 +322,10 @@ server.registerTool(
       "Checks the page canonical URL as a focused on-page SEO block: missing canonical, relative canonical, or canonical pointing elsewhere. Returns raw canonical data and severity-tagged issues.",
     inputSchema: analyzeCanonicalInputSchema,
   },
-  bridgeWrap("analyze_canonical", analyzeCanonical, AnalyzeMetaError),
+  siteAuditOrCompareHandler(
+    "analyze_canonical",
+    bridgeWrap("analyze_canonical", analyzeCanonical, AnalyzeMetaError),
+  ),
 );
 
 server.registerTool(
@@ -297,7 +344,10 @@ server.registerTool(
       "hierarchy.",
     inputSchema: analyzeHeadingsInputSchema,
   },
-  bridgeWrap("analyze_headings", analyzeHeadings, AnalyzeHeadingsError),
+  siteAuditOrCompareHandler(
+    "analyze_headings",
+    bridgeWrap("analyze_headings", analyzeHeadings, AnalyzeHeadingsError),
+  ),
 );
 
 server.registerTool(
@@ -319,7 +369,10 @@ server.registerTool(
       "can decide which to inspect next. Honors per-host rate limits.",
     inputSchema: analyzeSitemapInputSchema,
   },
-  bridgeWrap("analyze_sitemap", analyzeSitemap, AnalyzeSitemapError),
+  siteAuditOrCompareHandler(
+    "analyze_sitemap",
+    bridgeWrap("analyze_sitemap", analyzeSitemap, AnalyzeSitemapError),
+  ),
 );
 
 server.registerTool(
@@ -340,7 +393,10 @@ server.registerTool(
       "point and per-host rate limits at every step.",
     inputSchema: checkRedirectsInputSchema,
   },
-  bridgeWrap("check_redirects", checkRedirects, CheckRedirectsError),
+  siteAuditOrCompareHandler(
+    "check_redirects",
+    bridgeWrap("check_redirects", checkRedirects, CheckRedirectsError),
+  ),
 );
 
 server.registerTool(
@@ -362,7 +418,10 @@ server.registerTool(
       "all images. Honors robots.txt and per-host rate limits.",
     inputSchema: analyzeContentInputSchema,
   },
-  bridgeWrap("analyze_content", analyzeContent, AnalyzeContentError),
+  siteAuditOrCompareHandler(
+    "analyze_content",
+    bridgeWrap("analyze_content", analyzeContent, AnalyzeContentError),
+  ),
 );
 
 server.registerTool(
@@ -373,7 +432,10 @@ server.registerTool(
       "Extracts internal, external, and invalid links from the main content and reports link-specific SEO issues such as missing internal links or unusually high outbound link counts.",
     inputSchema: analyzeLinksInputSchema,
   },
-  bridgeWrap("analyze_links", analyzeLinks, AnalyzeContentError),
+  siteAuditOrCompareHandler(
+    "analyze_links",
+    bridgeWrap("analyze_links", analyzeLinks, AnalyzeContentError),
+  ),
 );
 
 server.registerTool(
@@ -391,7 +453,10 @@ server.registerTool(
       "platform-aware after the classic site audit tools run.",
     inputSchema: detectStackInputSchema,
   },
-  bridgeWrap("detect_stack", detectStack, DetectStackError),
+  siteAuditOrCompareHandler(
+    "detect_stack",
+    bridgeWrap("detect_stack", detectStack, DetectStackError),
+  ),
 );
 
 server.registerTool(
@@ -788,10 +853,16 @@ server.registerTool(
   {
     title: "Strengths and Weaknesses",
     description:
-      "Summarizes side-by-side strengths and weaknesses for Text A and Text B in the active ToraSEO article_compare context.",
+      "Summarizes strengths and weaknesses for the active ToraSEO comparison context.",
     inputSchema: emptyInputSchema,
   },
-  compareStrengthsWeaknessesHandler,
+  async () => {
+    const state = await readState();
+    if (state?.analysisType === "site_compare") {
+      return siteCompareToolHandler("compare_strengths_weaknesses");
+    }
+    return compareStrengthsWeaknessesHandler();
+  },
 );
 
 server.registerTool(
@@ -803,6 +874,96 @@ server.registerTool(
     inputSchema: emptyInputSchema,
   },
   compareImprovementPlanHandler,
+);
+
+// --- Tools: Site comparison ----------------------------------------------
+
+server.registerTool(
+  "compare_site_positioning",
+  {
+    title: "Site Positioning Comparison",
+    description:
+      "Compares the selected site URLs by overall public SEO positioning using the completed site-comparison evidence.",
+    inputSchema: emptyInputSchema,
+  },
+  () => siteCompareToolHandler("compare_site_positioning"),
+);
+
+server.registerTool(
+  "compare_site_metadata",
+  {
+    title: "Site Metadata Comparison",
+    description:
+      "Compares metadata and snippet readiness across the active site comparison URLs.",
+    inputSchema: emptyInputSchema,
+  },
+  () => siteCompareToolHandler("compare_site_metadata"),
+);
+
+server.registerTool(
+  "compare_site_structure",
+  {
+    title: "Site Structure Comparison",
+    description:
+      "Compares headings, links, and structure signals across the active site comparison URLs.",
+    inputSchema: emptyInputSchema,
+  },
+  () => siteCompareToolHandler("compare_site_structure"),
+);
+
+server.registerTool(
+  "compare_site_content_depth",
+  {
+    title: "Site Content Depth Comparison",
+    description:
+      "Compares content depth and visible text signals across the active site comparison URLs.",
+    inputSchema: emptyInputSchema,
+  },
+  () => siteCompareToolHandler("compare_site_content_depth"),
+);
+
+server.registerTool(
+  "compare_site_technical_basics",
+  {
+    title: "Site Technical Basics Comparison",
+    description:
+      "Compares technical basics such as status, robots, sitemap, redirects, and stack signals across the active site comparison URLs.",
+    inputSchema: emptyInputSchema,
+  },
+  () => siteCompareToolHandler("compare_site_technical_basics"),
+);
+
+server.registerTool(
+  "compare_site_delta",
+  {
+    title: "Site Delta to Leader",
+    description:
+      "Summarizes gaps between each compared URL and the current leader by selected public checks.",
+    inputSchema: emptyInputSchema,
+  },
+  () => siteCompareToolHandler("compare_site_delta"),
+);
+
+server.registerTool(
+  "compare_site_direction_matrix",
+  {
+    title: "Site Direction Matrix",
+    description:
+      "Builds the direction matrix for the active site comparison from completed public check evidence.",
+    inputSchema: emptyInputSchema,
+  },
+  () => siteCompareToolHandler("compare_site_direction_matrix"),
+);
+
+server.registerTool(
+  "compare_site_competitive_insights",
+  {
+    title: "Site Competitive Insights",
+    description:
+      "Produces competitive insights for the active site comparison from completed public check evidence.",
+    inputSchema: emptyInputSchema,
+  },
+  () => siteCompareToolHandler("compare_site_competitive_insights"),
 );
 
 // --- Transport & startup --------------------------------------------------
